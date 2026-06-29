@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import { config } from './config.js';
 import { load } from './cache.js';
 import { refreshAll } from './refresh.js';
+import { getRoundsForNav, getBulletinByRoundId, getRoundResult } from './sources/sportoto.js';
 
 const app = express();
 app.use(cors());
@@ -52,6 +53,31 @@ app.get('/api/match/:no', (req, res) => {
   const match = cached.data.matches.find((m) => String(m.no) === req.params.no);
   if (!match) return res.status(404).json({ error: 'Maç bulunamadı.' });
   res.json(match);
+});
+
+// Hafta listesi (geçmiş/güncel navigasyon) — sportoto resmi kaynağından canlı
+app.get('/api/rounds', async (req, res) => {
+  try {
+    const data = await getRoundsForNav();
+    res.json(data);
+  } catch (e) {
+    res.status(502).json({ error: 'Hafta listesi alınamadı.' });
+  }
+});
+
+// Geçmiş hafta bülteni: maç listesi + skor + resmi 1/X/2 + ikramiye (sonuç odaklı, analiz yok)
+app.get('/api/history/:roundId', async (req, res) => {
+  try {
+    const roundId = Number(req.params.roundId);
+    if (!roundId) return res.status(400).json({ error: 'Geçersiz hafta.' });
+    const [bulletin, prize] = await Promise.all([
+      getBulletinByRoundId(roundId),
+      getRoundResult(roundId),
+    ]);
+    res.json({ ...bulletin, prize });
+  } catch (e) {
+    res.status(502).json({ error: 'Geçmiş bülten bilgisi alınamadı.' });
+  }
 });
 
 // Elle yenileme (geliştirme için)

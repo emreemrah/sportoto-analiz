@@ -102,16 +102,22 @@ export function StatBar({ label, home, away, suffix }) {
 // G/B/M sayı rozetleri: 9G (yeşil) · 1B (sarı) · 0M (kırmızı)
 export function RecordBadges({ wins = 0, draws = 0, losses = 0, played, align }) {
   const cell = (n, letter, c) => (
-    <View style={[styles.recBadge, { backgroundColor: c + '22', borderColor: c }]}>
-      <Text style={[styles.recText, { color: c }]}>{n}{letter}</Text>
+    <View style={[styles.recBadge, { backgroundColor: c }]}>
+      <Text style={styles.recText}>{n}{letter}</Text>
     </View>
   );
+  const right = align === 'right';
+  // Sağda ⚽ rozetlerden önce (⚽ 10 ...), solda rozetlerden sonra (... 10 ⚽).
+  const playedTag = played != null
+    ? <Text style={styles.recPlayed}>{right ? `⚽ ${played}` : `${played} ⚽`}</Text>
+    : null;
   return (
-    <View style={[styles.recRow, align === 'right' && { justifyContent: 'flex-end' }]}>
-      {played != null && <Text style={styles.recPlayed}>⚽ {played}</Text>}
+    <View style={[styles.recRow, right && { justifyContent: 'flex-end' }]}>
+      {right && playedTag}
       {cell(wins, 'G', colors.green)}
       {cell(draws, 'B', colors.yellow)}
       {cell(losses, 'M', colors.red)}
+      {!right && playedTag}
     </View>
   );
 }
@@ -179,8 +185,8 @@ const styles = StyleSheet.create({
   formEmpty: { color: colors.textMuted, fontSize: 12 },
   recRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
   recPlayed: { color: colors.textMuted, fontSize: 12, fontWeight: '700', marginRight: 2 },
-  recBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, borderWidth: 1 },
-  recText: { fontSize: 12, fontWeight: '800' },
+  recBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3 },
+  recText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   sbRow: { marginVertical: 7 },
   sbLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '700', textAlign: 'center', marginBottom: 4 },
   sbBars: { flexDirection: 'row', alignItems: 'center', gap: 6 },

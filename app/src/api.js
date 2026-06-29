@@ -16,4 +16,6 @@ export const api = {
   radar: () => get('/api/surprise-radar'),
   match: (no) => get(`/api/match/${no}`),
   health: () => get('/api/health'),
+  rounds: () => get('/api/rounds'),
+  history: (roundId) => get(`/api/history/${roundId}`),
 };
