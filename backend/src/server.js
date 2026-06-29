@@ -55,26 +55,50 @@ app.get('/api/match/:no', (req, res) => {
   res.json(match);
 });
 
-// Hafta listesi (geçmiş/güncel navigasyon) — sportoto resmi kaynağından canlı
+// Basit bellek-içi TTL cache — geçmiş/sonuç uçları sık gezilir ve resmi API'yi
+// yormamak gerekir. Yayınlanmış geçmiş sonuçlar değişmez (uzun TTL).
+const memCache = new Map(); // key -> { exp, val }
+function cacheGet(key) {
+  const e = memCache.get(key);
+  if (e && e.exp > Date.now()) return e.val;
+  if (e) memCache.delete(key);
+  return null;
+}
+function cacheSet(key, val, ttlMs) {
+  memCache.set(key, { exp: Date.now() + ttlMs, val });
+}
+
+// Hafta listesi (geçmiş/güncel navigasyon). Liste seyrek değişir → 10 dk cache.
 app.get('/api/rounds', async (req, res) => {
   try {
-    const data = await getRoundsForNav();
+    let data = cacheGet('rounds');
+    if (!data) {
+      data = await getRoundsForNav();
+      cacheSet('rounds', data, 10 * 60 * 1000);
+    }
     res.json(data);
   } catch (e) {
     res.status(502).json({ error: 'Hafta listesi alınamadı.' });
   }
 });
 
-// Geçmiş hafta bülteni: maç listesi + skor + resmi 1/X/2 + ikramiye (sonuç odaklı, analiz yok)
+// Geçmiş hafta bülteni: maç listesi + skor + resmi 1/X/2 + ikramiye (analiz yok).
+// İkramiye gelmişse (yayınlanmış) sonuç değişmez → 24 saat; değilse kısa TTL.
 app.get('/api/history/:roundId', async (req, res) => {
   try {
     const roundId = Number(req.params.roundId);
     if (!roundId) return res.status(400).json({ error: 'Geçersiz hafta.' });
-    const [bulletin, prize] = await Promise.all([
-      getBulletinByRoundId(roundId),
-      getRoundResult(roundId),
-    ]);
-    res.json({ ...bulletin, prize });
+    const key = `hist:${roundId}`;
+    let payload = cacheGet(key);
+    if (!payload) {
+      const [bulletin, prize] = await Promise.all([
+        getBulletinByRoundId(roundId),
+        getRoundResult(roundId),
+      ]);
+      payload = { ...bulletin, prize };
+      cacheSet(key, payload, prize ? 24 * 60 * 60 * 1000 : 3 * 60 * 1000);
+    }
+    res.json(payload);
   } catch (e) {
     res.status(502).json({ error: 'Geçmiş bülten bilgisi alınamadı.' });
   }
