@@ -1,0 +1,6 @@
+# GERÇEK API anahtarı burada — asla paylaşıma/git'e gitmez
+.env
+
+node_modules/
+cache/
+*.log

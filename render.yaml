@@ -1,0 +1,25 @@
+# Render Blueprint — Spor Toto Analiz (tek servis: backend + web bir arada)
+# Render panelinde "New > Blueprint" ile bu dosya otomatik okunur.
+services:
+  - type: web
+    name: sportoto-analiz
+    runtime: node
+    plan: free
+    region: frankfurt
+    # 1) backend bağımlılıkları  2) app bağımlılıkları  3) web'i derleyip backend/public'e koy
+    #    EXPO_PUBLIC_API_BASE boş => web, API'yi aynı adresten (göreli) çağırır.
+    buildCommand: |
+      cd backend && npm install
+      cd ../app && npm install
+      EXPO_PUBLIC_API_BASE= npx expo export --platform web --output-dir ../backend/public
+    startCommand: cd backend && npm start
+    envVars:
+      # Gerçek FootyStats anahtarı panelden girilir (git'e gitmez).
+      - key: FOOTYSTATS_API_KEY
+        sync: false
+      - key: FOOTYSTATS_SEASON_IDS
+        value: "14972,15050,14968,14931,14956,15068,14932,14936,14987,15115,15717,14937,15047,15000,17091,16576,16263,16558,16260,16789,16242,16537,15067,16544,14231,16627,16241"
+      - key: REFRESH_HOURS
+        value: "6"
+      - key: NODE_VERSION
+        value: "24"

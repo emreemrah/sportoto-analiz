@@ -1,0 +1,20 @@
+# Bağımlılıklar
+node_modules/
+
+# Gizli anahtarlar — ASLA git'e gitmez
+.env
+backend/.env
+
+# Önbellek ve loglar
+backend/cache/
+*.log
+
+# Derleme çıktıları
+backend/public/
+app/dist/
+app/.expo/
+dist/
+
+# Sistem
+.DS_Store
+Thumbs.db
