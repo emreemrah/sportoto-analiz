@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, Act
 import { api } from '../api';
 import { colors, spacing, radius } from '../theme';
 import { matchDate } from '../utils';
+import { MatchCard } from '../ui';
 
 // Maç başlamış mı? Sonucu/skoru var VEYA maç saati geçmiş (görüntüleme anında hesaplanır).
 const isStarted = (m) => m.status === 'finished' || (m.date ? new Date(m.date).getTime() <= Date.now() : false);
@@ -129,34 +130,10 @@ export default function BulletinScreen({ navigation }) {
     </View>
   );
 
-  // ——— Güncel bülten satırı (analiz odaklı) ———
-  const renderItem = ({ item }) => {
-    const d = matchDate(item.date);
-    const started = isStarted(item);
-    return (
-      <TouchableOpacity
-        style={[styles.card, started && styles.cardStarted]}
-        activeOpacity={started ? 1 : 0.7}
-        onPress={started ? undefined : () => navigation.navigate('MatchDetail', { no: item.no })}
-      >
-        <Text style={styles.no}>{item.no}</Text>
-        <View style={styles.dateBox}>
-          <Text style={styles.dateDay}>{d.day}</Text>
-          <Text style={styles.dateTime}>{d.time}</Text>
-          {started ? <Text style={styles.startedMini}>başladı</Text> : null}
-        </View>
-        <View style={styles.homeSide}>
-          <TeamLogo logo={item.stats?.home?.logo} name={item.home.name} />
-          <Text style={styles.teamName} numberOfLines={1}>{item.home.name}</Text>
-        </View>
-        <Text style={styles.vs}>VS</Text>
-        <View style={styles.awaySide}>
-          <Text style={[styles.teamName, styles.teamNameR]} numberOfLines={1}>{item.away.name}</Text>
-          <TeamLogo logo={item.stats?.away?.logo} name={item.away.name} />
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  // ——— Güncel bülten satırı (yeni premium MatchCard) ———
+  const renderItem = ({ item }) => (
+    <MatchCard match={item} onPress={() => navigation.navigate('MatchDetail', { no: item.no })} />
+  );
 
   // ——— Geçmiş bülten satırı (sonuç odaklı: skor + resmi 1/X/2) ———
   const renderHistoryItem = ({ item }) => {

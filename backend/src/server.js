@@ -10,9 +10,18 @@ import { config } from './config.js';
 import { load } from './cache.js';
 import { refreshAll } from './refresh.js';
 import { getRoundsForNav, getBulletinByRoundId, getRoundResult } from './sources/sportoto.js';
+import authRoutes from './routes/auth.js';
+import userRoutes from './routes/users.js';
+import commentRoutes from './routes/comments.js';
 
 const app = express();
 app.use(cors());
+app.use(express.json({ limit: '4mb' })); // avatar yüklemesi (dataURL) için yeterli
+
+// Üyelik / profil / yorum sistemi (Supabase)
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/comments', commentRoutes);
 
 // Sağlık kontrolü
 app.get('/api/health', (req, res) => {

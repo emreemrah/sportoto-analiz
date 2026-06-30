@@ -1,10 +1,10 @@
 export const colors = {
-  bg: '#0f1419',
-  card: '#1a2129',
-  cardAlt: '#222c36',
+  bg: '#0a1715',        // koyu petrol yeşili (siyaha yakın)
+  card: '#142e29',      // koyu petrol kart
+  cardAlt: '#1c3b35',
   text: '#f1f5f9',
-  textMuted: '#94a3b8',
-  border: '#2a3540',
+  textMuted: '#9bb3ac',
+  border: '#26483f',
   primary: '#2dd4bf',
   // sürpriz etiket renkleri
   green: '#22c55e',
@@ -12,7 +12,26 @@ export const colors = {
   red: '#ef4444',
   gray: '#64748b',
   orange: '#f97316', // kıyas çubuğunda deplasman
-  track: '#2a3540',  // çubuk arka planı
+  track: '#26483f',  // çubuk arka planı
+
+  // --- Premium yeniden tasarım token'ları ---
+  accent: '#f97316',                 // ANA VURGU — turuncu (aktif sekme, butonlar)
+  accentSoft: 'rgba(249,115,22,0.14)',
+  field: '#22c55e',                  // ikincil vurgu — saha yeşili
+  gold: '#fbbf24',                   // yardımcı vurgu (çok az)
+  bgAlt: '#0f2420',                  // yumuşak koyu petrol zemin (header/şerit)
+};
+
+// Premium kart gölgeleri (temiz, hafif)
+export const shadows = {
+  card: {
+    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 }, elevation: 3,
+  },
+  soft: {
+    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 }, elevation: 2,
+  },
 };
 
 // Backend'ten gelen labelColor -> gerçek renk

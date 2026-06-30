@@ -1,6 +1,33 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { colors, labelColors, radius } from './theme';
+import { getPreset, DEFAULT_AVATAR } from './avatars';
+import { useAuth } from './auth';
+
+// Tek avatar görüntüleyici (yuvarlak). Yüklenen resim ise <Image>, değilse emoji+renk.
+function AvatarView({ size, type, avatarKey, avatarUrl }) {
+  if (type === 'uploaded' && avatarUrl) {
+    return <Image source={{ uri: avatarUrl }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.cardAlt }} />;
+  }
+  const pre = type === 'preset' ? getPreset(avatarKey) : DEFAULT_AVATAR;
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: pre.bg, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ fontSize: size * 0.55, lineHeight: size * 0.7 }}>{pre.emoji}</Text>
+    </View>
+  );
+}
+
+// Profil ekranı — büyük avatar (mevcut giriş yapan kullanıcı). Giriş yoksa varsayılan top.
+export function ProfileAvatar({ size = 96 }) {
+  const { user } = useAuth();
+  return <AvatarView size={size} type={user?.avatar_type} avatarKey={user?.avatar_key} avatarUrl={user?.avatar_url} />;
+}
+
+// Yorum kartı — küçük yuvarlak avatar. Yorumun yazarından okunur (profilden, sabit URL değil).
+// author: { avatarType, avatarKey, avatarUrl }
+export function CommentAvatar({ size = 28, author }) {
+  return <AvatarView size={size} type={author?.avatarType} avatarKey={author?.avatarKey} avatarUrl={author?.avatarUrl} />;
+}
 
 // Sürpriz etiketi (BANKO / DİKKAT / SÜRPRİZE AÇIK / VERİ YOK)
 export function SurpriseBadge({ label, labelColor, small }) {
