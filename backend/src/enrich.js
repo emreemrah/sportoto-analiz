@@ -72,10 +72,11 @@ function buildSquad(players) {
   return players
     .slice()
     .sort((a, b) => (POS_ORDER[a.position] ?? 9) - (POS_ORDER[b.position] ?? 9) || b.minutes - a.minutes)
-    .map((p) => ({
+    .map((p, i) => ({
       name: p.name,
       nat: p.nationality,
       pos: POS_SHORT[p.position] || '?',
+      no: i + 1,            // sıralı forma numarası (kaynak gerçek numara vermiyor)
       age: p.age,
       apps: p.apps,
       goals: p.goals,

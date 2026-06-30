@@ -13,6 +13,7 @@ import { getRoundsForNav, getBulletinByRoundId, getRoundResult } from './sources
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import commentRoutes from './routes/comments.js';
+import predictionRoutes from './routes/predictions.js';
 
 const app = express();
 app.use(cors());
@@ -22,6 +23,7 @@ app.use(express.json({ limit: '4mb' })); // avatar yüklemesi (dataURL) için ye
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/comments', commentRoutes);
+app.use('/api/predictions', predictionRoutes);
 
 // Sağlık kontrolü
 app.get('/api/health', (req, res) => {

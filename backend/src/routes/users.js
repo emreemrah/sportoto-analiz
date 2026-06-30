@@ -19,7 +19,22 @@ router.get('/me', requireAuth, async (req, res) => {
       .in('comment_id', likeRows.map((r) => r.id));
     totalLikes = count || 0;
   }
-  res.json({ ...profile, email: req.user.email, total_comments: totalComments || 0, total_likes_received: totalLikes });
+  const uid = req.user.id;
+  const [c1, c2, c3, c4] = await Promise.all([
+    sbAdmin.from('score_predictions').select('id', { count: 'exact', head: true }).eq('user_id', uid),
+    sbAdmin.from('player_votes').select('id', { count: 'exact', head: true }).eq('user_id', uid),
+    sbAdmin.from('lineup_predictions').select('id', { count: 'exact', head: true }).eq('user_id', uid),
+    sbAdmin.from('community_poll_votes').select('id', { count: 'exact', head: true }).eq('user_id', uid),
+  ]);
+  const totalPredictions = (c1.count || 0) + (c2.count || 0) + (c3.count || 0) + (c4.count || 0);
+  const badges = [];
+  if ((totalComments || 0) >= 1) badges.push({ key: 'first_comment', label: 'İlk Yorum', icon: '💬' });
+  if ((totalComments || 0) >= 10) badges.push({ key: 'commenter', label: 'Yorumcu', icon: '🗣️' });
+  if (totalPredictions >= 1) badges.push({ key: 'predictor', label: 'Tahminci', icon: '🎯' });
+  if (totalPredictions >= 10) badges.push({ key: 'analyst', label: 'Analist', icon: '📊' });
+  if ((c3.count || 0) >= 1) badges.push({ key: 'tactician', label: 'Taktikçi', icon: '📋' });
+  if (totalLikes >= 10) badges.push({ key: 'loved', label: 'Beğenilen', icon: '❤️' });
+  res.json({ ...profile, email: req.user.email, total_comments: totalComments || 0, total_likes_received: totalLikes, total_predictions: totalPredictions, badges });
 });
 
 // Profil güncelle: username / hazır avatar / varsayılan
@@ -35,6 +50,7 @@ router.patch('/me', requireAuth, async (req, res) => {
   }
   if (avatarType === 'preset' && avatarKey) { patch.avatar_type = 'preset'; patch.avatar_key = String(avatarKey); patch.avatar_url = null; }
   else if (avatarType === 'default') { patch.avatar_type = 'default'; patch.avatar_key = null; patch.avatar_url = null; }
+  if (req.body.favoriteTeam !== undefined) patch.favorite_team = req.body.favoriteTeam ? String(req.body.favoriteTeam).slice(0, 60) : null;
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Güncellenecek alan yok.' });
   const { error } = await sbAdmin.from('profiles').update(patch).eq('id', req.user.id);
   if (error) return res.status(500).json({ error: error.message });

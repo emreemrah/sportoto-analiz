@@ -12,6 +12,7 @@ import RadarScreen from './src/screens/RadarScreen';
 import ForumScreen from './src/screens/ForumScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import AvatarPickerScreen from './src/screens/AvatarPickerScreen';
+import LeaderboardScreen from './src/screens/LeaderboardScreen';
 import { LoginScreen, RegisterScreen, ForgotPasswordScreen } from './src/screens/AuthScreens';
 import { initAuth } from './src/auth';
 import { colors } from './src/theme';
@@ -70,6 +71,7 @@ function ProfileStack() {
     <Stack.Navigator screenOptions={header}>
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
       <Stack.Screen name="AvatarPicker" component={AvatarPickerScreen} options={{ title: 'Hazır Avatar Seç' }} />
+      <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Giriş Yap' }} />
       <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Kayıt Ol' }} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: 'Şifremi Unuttum' }} />

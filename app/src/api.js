@@ -53,4 +53,16 @@ export const api = {
   likeComment: (id) => req(`/api/comments/${id}/like`, { method: 'POST' }),
   unlikeComment: (id) => req(`/api/comments/${id}/like`, { method: 'DELETE' }),
   viewComment: (id) => req(`/api/comments/${id}/view`, { method: 'POST' }),
+
+  // anketler / topluluk tahminleri
+  getScore: (matchId) => req(`/api/predictions/score?matchId=${encodeURIComponent(matchId)}`),
+  saveScore: (b) => req('/api/predictions/score', { method: 'POST', body: b }),
+  getPlayerVote: (matchId) => req(`/api/predictions/player?matchId=${encodeURIComponent(matchId)}`),
+  savePlayerVote: (b) => req('/api/predictions/player', { method: 'POST', body: b }),
+  getLineup: (matchId) => req(`/api/predictions/lineup?matchId=${encodeURIComponent(matchId)}`),
+  saveLineup: (b) => req('/api/predictions/lineup', { method: 'POST', body: b }),
+  getPoll: (matchId) => req(`/api/predictions/poll?matchId=${encodeURIComponent(matchId)}`),
+  savePoll: (b) => req('/api/predictions/poll', { method: 'POST', body: b }),
+  community: (matchId) => req(`/api/predictions/community?matchId=${encodeURIComponent(matchId)}`),
+  leaderboard: (roundId) => req(`/api/predictions/leaderboard${roundId ? `?roundId=${roundId}` : ''}`),
 };

@@ -5,6 +5,7 @@ import { colors, spacing, radius } from '../theme';
 import { ProbBar, SurpriseBadge, PredictionBadge, FormStrip, RecordBadges, StatBar } from '../components';
 import { countryCode, matchDate } from '../utils';
 import CommentsSection from '../CommentsSection';
+import PollsSection from '../Polls';
 import { MatchHeader, Tabs, Accordion, SectionCard, PollCard, EmptyState, RatingDots, SplitDonut, StatTile, InfoTile, PollTile, Logo } from '../ui';
 
 const TABS = ['Özet', 'Analiz', 'İstatistik', 'Yorumlar', 'Anketler'];
@@ -359,13 +360,7 @@ export default function MatchDetailScreen({ route, navigation }) {
       )}
 
       {tab === 'Anketler' && (
-        <>
-          <PollCard icon="🔢" title="Skor Tahmini" desc="İlk yarı ve maç sonu tahminini toplulukla paylaş." button="Tahminini Paylaş" color={colors.accent} onPress={() => setTab('Yorumlar')} />
-          <PollCard icon="⭐" title="Maçın Oyuncusu" desc="Maçın öne çıkabilecek oyuncusunu seç." button="Oyuncunu Seç" color={colors.field} onPress={() => setTab('Yorumlar')} />
-          <PollCard icon="📋" title="Kadro Tahmini" desc="Takımların muhtemel kadrolarını tahmin et." button="Tahminini Paylaş" color={colors.gold} onPress={() => setTab('Yorumlar')} />
-          <PollCard icon="💬" title="Topluluk Anketi" desc="Maç hakkındaki görüşünü toplulukla paylaş." button="Yorum Yaz" color={colors.accent} onPress={() => setTab('Yorumlar')} />
-          <Text style={styles.estNote}>Oylama özelliği yakında — şimdilik görüşünü Yorumlar'da paylaş.</Text>
-        </>
+        <PollsSection matchId={m.sportotoMatchId || String(m.no)} match={m} homeName={homeName} awayName={awayName} navigation={navigation} />
       )}
 
       </ScrollView>
