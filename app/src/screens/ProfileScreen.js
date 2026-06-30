@@ -69,6 +69,8 @@ export default function ProfileScreen({ navigation }) {
   const { user, token, ready } = useAuth();
   const [name, setName] = useState('');
   const [savingName, setSavingName] = useState(false);
+  const [fav, setFav] = useState(null);
+  const [savingFav, setSavingFav] = useState(false);
 
   if (!ready) return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
   if (!token || !user) return <LoggedOut navigation={navigation} />;
@@ -83,6 +85,13 @@ export default function ProfileScreen({ navigation }) {
   };
   const removeAvatar = async () => {
     try { await api.updateProfile({ avatarType: 'default' }); await refreshUser(); } catch (e) { alert(e.message); }
+  };
+  const displayFav = fav != null ? fav : (user.favorite_team || '');
+  const favChanged = fav != null && fav.trim() !== (user.favorite_team || '');
+  const saveFav = async () => {
+    setSavingFav(true);
+    try { await api.updateProfile({ favoriteTeam: displayFav.trim() }); await refreshUser(); setFav(null); }
+    catch (e) { alert(e.message); } finally { setSavingFav(false); }
   };
 
   return (
@@ -103,7 +112,26 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.stats}>
           <Text style={styles.stat}>💬 {user.total_comments ?? 0} yorum</Text>
           <Text style={styles.stat}>♥ {user.total_likes_received ?? 0} beğeni</Text>
+          <Text style={styles.stat}>🎯 {user.total_predictions ?? 0} tahmin</Text>
         </View>
+
+        <View style={styles.favRow}>
+          <Text style={styles.favLabel}>⚽ Takımım:</Text>
+          <TextInput style={styles.favInput} value={displayFav} onChangeText={setFav} placeholder="Desteklediğin takım" placeholderTextColor={colors.textMuted} maxLength={40} />
+          {favChanged && (
+            <TouchableOpacity style={styles.nameSave} onPress={saveFav} disabled={savingFav}>
+              <Text style={styles.nameSaveTxt}>{savingFav ? '…' : 'Kaydet'}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {user.badges?.length > 0 && (
+          <View style={styles.badgeRow}>
+            {user.badges.map((b) => (
+              <View key={b.key} style={styles.badge}><Text style={styles.badgeTxt}>{b.icon} {b.label}</Text></View>
+            ))}
+          </View>
+        )}
       </View>
 
       <ImageUploadButton />
@@ -115,6 +143,10 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.btnGhostTxt}>Resmi Kaldır (varsayılana dön)</Text>
         </TouchableOpacity>
       )}
+
+      <TouchableOpacity style={[styles.btn, styles.btnLeader]} onPress={() => navigation.navigate('Leaderboard')}>
+        <Text style={styles.btnLeaderTxt}>🏆  Tahmin Sıralaması</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity style={[styles.btn, styles.btnLogout]} onPress={logout}>
         <Text style={styles.btnLogoutTxt}>Çıkış Yap</Text>
@@ -136,8 +168,16 @@ const styles = StyleSheet.create({
   nameSave: { backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.sm },
   nameSaveTxt: { color: colors.bg, fontWeight: '800', fontSize: 12 },
   email: { color: colors.textMuted, fontSize: 12.5, marginTop: 6 },
-  stats: { flexDirection: 'row', gap: 16, marginTop: 10 },
+  stats: { flexDirection: 'row', gap: 14, marginTop: 10, flexWrap: 'wrap', justifyContent: 'center' },
   stat: { color: colors.textMuted, fontSize: 13, fontWeight: '700' },
+  favRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
+  favLabel: { color: colors.textMuted, fontSize: 13, fontWeight: '700' },
+  favInput: { color: colors.text, fontSize: 14, fontWeight: '700', borderBottomWidth: 1, borderBottomColor: colors.border, minWidth: 120, paddingVertical: 3, textAlign: 'center' },
+  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 7, marginTop: 14 },
+  badge: { backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accent, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
+  badgeTxt: { color: colors.accent, fontSize: 11.5, fontWeight: '800' },
+  btnLeader: { backgroundColor: colors.gold + '22', borderWidth: 1, borderColor: colors.gold },
+  btnLeaderTxt: { color: colors.gold, fontSize: 15, fontWeight: '800' },
   btn: { paddingVertical: 13, borderRadius: radius.md, alignItems: 'center', marginTop: spacing.sm },
   btnPrimary: { backgroundColor: colors.primary },
   btnPrimaryTxt: { color: colors.bg, fontSize: 15, fontWeight: '800' },
