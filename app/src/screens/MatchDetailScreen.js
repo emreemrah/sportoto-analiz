@@ -3,14 +3,46 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity
 import { api } from '../api';
 import { colors, spacing, radius } from '../theme';
 import { ProbBar, SurpriseBadge, PredictionBadge, FormStrip, RecordBadges, StatBar } from '../components';
-import { countryCode } from '../utils';
+import { countryCode, matchDate } from '../utils';
+import CommentsSection from '../CommentsSection';
+import { MatchHeader, Tabs, Accordion, SectionCard, PollCard, EmptyState, RatingDots, SplitDonut, StatTile, InfoTile, PollTile, Logo } from '../ui';
 
-export default function MatchDetailScreen({ route }) {
+const TABS = ['Özet', 'Analiz', 'İstatistik', 'Yorumlar', 'Anketler'];
+const sonRow = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' };
+const sonName = { color: colors.text, fontSize: 13.5, fontWeight: '700', flex: 1, marginRight: 8 };
+const topluLabel = { color: colors.textMuted, fontSize: 12, fontWeight: '800', letterSpacing: 0.5, marginTop: spacing.sm, marginBottom: spacing.sm };
+const pollGrid = { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' };
+const pollCell = { width: '48.5%' };
+const ozetRow = { flexDirection: 'row', gap: 8, marginBottom: spacing.md };
+const ozetMain = { flex: 1.4, backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.md };
+const infoLabel = { color: colors.textMuted, fontSize: 10, fontWeight: '800', letterSpacing: 0.4 };
+const ozetText = { color: colors.text, fontSize: 12, marginTop: 4, lineHeight: 16 };
+const pitchBox = { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: '#16432a', borderRadius: 6, paddingVertical: 10 };
+const pitchQ = { color: '#bbf7d0', fontWeight: '900', fontSize: 13 };
+const avatarCircle = { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.cardAlt, alignItems: 'center', justifyContent: 'center' };
+const scoreChip = { backgroundColor: colors.bgAlt, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, alignItems: 'center' };
+const scoreChipL = { color: colors.textMuted, fontSize: 9, fontWeight: '700' };
+const scoreChipV = { color: colors.text, fontSize: 13, fontWeight: '900' };
+const bubble = { height: 10, borderRadius: 5, backgroundColor: colors.cardAlt, width: '85%' };
+const smColTitle = { color: colors.text, fontSize: 12, fontWeight: '800', marginBottom: 6 };
+const smRow = { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, borderTopWidth: 1, borderTopColor: colors.border };
+const smOpp = { flex: 1, color: colors.textMuted, fontSize: 11.5, fontWeight: '600' };
+const smScore = { fontSize: 12, fontWeight: '800' };
+
+// Son 5 form puanı (0-5): G=1, B=0.5, M=0 → ortalama × 5
+function formRating(form) {
+  if (!form || !form.length) return null;
+  const pts = form.reduce((acc, r) => acc + (r === 'G' ? 1 : r === 'B' ? 0.5 : 0), 0);
+  return Math.round((pts / form.length) * 5 * 10) / 10;
+}
+
+export default function MatchDetailScreen({ route, navigation }) {
   const { no } = route.params;
   const [m, setM] = useState(null);
   const [error, setError] = useState(null);
   const [openSquad, setOpenSquad] = useState(null); // 'home' | 'away' | null
   const [infoOpen, setInfoOpen] = useState(false);
+  const [tab, setTab] = useState(route.params?.tab || 'Özet');
 
   useEffect(() => {
     api.match(no).then(setM).catch((e) => setError(e.message));
@@ -30,112 +62,175 @@ export default function MatchDetailScreen({ route }) {
   const riskNotu = buildRiskNotu(a.surpriseScore);
   const pmeta = PRED_META[m.prediction?.label] || { guven: '—', risk: '—', color: colors.gray };
   const pickDesc = buildPickDesc(m.prediction);
+  const hRating = formRating(s.home?.last5venue || s.home?.last5);
+  const aRating = formRating(s.away?.last5venue || s.away?.last5);
+  const hPts = s.home?.standing?.points, aPts = s.away?.standing?.points;
+  const gucHome = (hPts != null && aPts != null && (hPts + aPts) > 0) ? Math.round((hPts / (hPts + aPts)) * 100) : 50;
+  const gucAway = 100 - gucHome;
+
+  const md = matchDate(m.date);
+  const headerCenter = (m.status === 'finished' && m.score) ? `${m.score.home} - ${m.score.away}` : md.time;
+  const dayLabel = (() => {
+    const dt = new Date(m.date), now = new Date();
+    const sd = (x, y) => x.toDateString() === y.toDateString();
+    const tom = new Date(now); tom.setDate(now.getDate() + 1);
+    if (sd(dt, now)) return 'Bugün';
+    if (sd(dt, tom)) return 'Yarın';
+    return md.day;
+  })();
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xl }}>
-      {/* Maç başlığı */}
-      <Text style={styles.league}>{m.league}</Text>
-      <Text style={styles.teams}>{homeName}  -  {awayName}</Text>
-      {m.status === 'finished' && m.score && (
-        <Text style={styles.score}>Sonuç: {m.score.home} - {m.score.away}  ({m.result})</Text>
+    <View style={styles.container}>
+      <MatchHeader
+        home={homeName} away={awayName}
+        homeLogo={s.home?.logo} awayLogo={s.away?.logo}
+        league={m.league}
+        dateLabel={dayLabel}
+        time={headerCenter}
+        stadium={m.stadium || m.stadiumName || ''}
+        onBack={() => navigation.goBack()}
+        onShare={() => {}}
+      />
+      <Tabs tabs={TABS} active={tab} onChange={setTab} icons={{ 'Özet': '🕐', 'Analiz': '📈', 'İstatistik': '📊', 'Yorumlar': '💬', 'Anketler': '🗳️' }} />
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xl }}>
+
+      {tab === 'Özet' && (
+        <>
+          <View style={ozetRow}>
+            <View style={ozetMain}>
+              <Text style={infoLabel}>MAÇ ÖZETİ</Text>
+              <Text style={ozetText} numberOfLines={4}>{humanize(comment)}</Text>
+            </View>
+            <InfoTile label="HAVA DURUMU" value="—" sub="Veri yok" icon="🌤️" />
+            <InfoTile label="HAKEM" value={m.referee || '—'} sub={m.referee ? '' : 'Açıklanmadı'} icon="🟨" />
+          </View>
+
+          <View style={{ marginBottom: spacing.sm }}>
+            <SurpriseBadge label={a.label} labelColor={a.labelColor} />
+          </View>
+
+          <Text style={topluLabel}>TOPLULUK ETKİLEŞİMİ</Text>
+          <View style={pollGrid}>
+            <View style={pollCell}>
+              <PollTile icon="📋" title="Kadro Tahmini" desc="Muhtemel kadroyu tahmin et." button="Tahminini Paylaş" color={colors.field} onPress={() => setTab('Yorumlar')}
+                preview={<View style={pitchBox}>{['?', '?', '?', '?', '?'].map((q, i) => <Text key={i} style={pitchQ}>{q}</Text>)}</View>} />
+            </View>
+            <View style={pollCell}>
+              <PollTile icon="⭐" title="Maçın Oyuncusu" desc="Öne çıkacak oyuncuyu seç." button="Oyuncunu Seç" color="#a855f7" onPress={() => setTab('Yorumlar')}
+                preview={<View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}><View style={avatarCircle}><Text style={{ fontSize: 18 }}>👤</Text></View><Text style={{ fontSize: 18 }}>⭐</Text></View>} />
+            </View>
+            <View style={pollCell}>
+              <PollTile icon="🔢" title="Skor Tahmini" desc="İY ve MS skorunu paylaş." button="Ankete Katıl" color={colors.accent} onPress={() => setTab('Yorumlar')}
+                preview={<View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8 }}><View style={scoreChip}><Text style={scoreChipL}>İY</Text><Text style={scoreChipV}>1 - 0</Text></View><View style={scoreChip}><Text style={scoreChipL}>MS</Text><Text style={scoreChipV}>2 - 1</Text></View></View>} />
+            </View>
+            <View style={pollCell}>
+              <PollTile icon="💬" title="Maç Yorumu" desc="Görüşünü toplulukla paylaş." button="Yorum Yaz" color="#3b82f6" onPress={() => setTab('Yorumlar')}
+                preview={<View style={{ gap: 5 }}><View style={bubble} /><View style={[bubble, { width: '70%', alignSelf: 'flex-end' }]} /></View>} />
+            </View>
+          </View>
+
+          {sinyaller.length > 0 && (
+            <Accordion title="Öne Çıkan Notlar" icon="⭐">
+              {sinyaller.map((sg, i) => <Text key={i} style={styles.aBullet}>•  {sg}</Text>)}
+            </Accordion>
+          )}
+          {(s.home?.last5?.length || s.away?.last5?.length) ? (
+            <Accordion title="Son Maçlar" icon="🗓️" defaultOpen>
+              <View style={{ flexDirection: 'row', gap: 14 }}>
+                {[{ n: homeName, f: s.home?.last5, d: s.home?.last5detail }, { n: awayName, f: s.away?.last5, d: s.away?.last5detail }].map((col, ci) => (
+                  <View key={ci} style={{ flex: 1 }}>
+                    <Text style={smColTitle} numberOfLines={1}>{col.n}</Text>
+                    <View style={{ marginBottom: 6 }}><FormStrip form={col.f} size={16} /></View>
+                    {(col.d && col.d.length) ? col.d.map((d, i) => (
+                      <View key={i} style={smRow}>
+                        <Logo uri={d.oppLogo} name={d.oppName} size={16} />
+                        <Text style={smOpp} numberOfLines={1}>{d.oppName || '—'}</Text>
+                        <Text style={[smScore, { color: d.result === 'G' ? colors.green : d.result === 'M' ? colors.red : colors.textMuted }]}>{d.score}</Text>
+                      </View>
+                    )) : <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>Detay yok</Text>}
+                  </View>
+                ))}
+              </View>
+            </Accordion>
+          ) : null}
+        </>
       )}
 
-      {/* Sürpriz etiketi + puan + risk seviyesi + açıklama */}
-      <View style={styles.row}>
-        <SurpriseBadge label={a.label} labelColor={a.labelColor} />
+      {tab === 'Analiz' && (<>
+      <Accordion title="Maç Analizi" icon="📈" defaultOpen>
+        <Text style={styles.comment}>{humanize(comment)}{fromAI ? '  ·  Claude' : ''}</Text>
+        {(hRating != null || aRating != null) && (
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+            <StatTile title="İç Saha Formu" sub={homeName}><RatingDots rating={hRating ?? 0} color={colors.field} /></StatTile>
+            <StatTile title="Deplasman Formu" sub={awayName}><RatingDots rating={aRating ?? 0} color={colors.gold} /></StatTile>
+            <StatTile title="Genel Güç" sub="Karşılaştırma"><SplitDonut home={gucHome} away={gucAway} /></StatTile>
+          </View>
+        )}
+        {m.prediction && m.prediction.symbol !== '-' && (
+          <View style={[styles.predCard, { borderLeftColor: pmeta.color, marginTop: 12, marginBottom: 0 }]}>
+            <View style={styles.pcTop}>
+              <View style={styles.pcLeft}>
+                <View style={[styles.pcSymbol, { borderColor: pmeta.color }]}>
+                  <Text style={[styles.pcSymbolTxt, { color: pmeta.color }]}>{m.prediction.symbol}</Text>
+                </View>
+                <Text style={styles.pcWho}>{SYM_WHO[m.prediction.symbol] || ''}</Text>
+              </View>
+              <View style={styles.pcMid}>
+                <Text style={styles.pcKicker}>TAHMİN ANALİZİ</Text>
+                <Text style={styles.pcMain}>{m.prediction.meaning}</Text>
+                {pickDesc ? <Text style={styles.pcDesc}>{pickDesc}</Text> : null}
+              </View>
+            </View>
+            <View style={styles.pcRight}>
+              <View style={[styles.pcBadge, { backgroundColor: pmeta.color + '22', borderColor: pmeta.color }]}>
+                <Text style={[styles.pcBadgeTxt, { color: pmeta.color }]}>{m.prediction.label}</Text>
+              </View>
+              <View style={styles.pcMetaRow}><Text style={styles.pcMetaK}>Güven</Text><Text style={styles.pcMetaV}>{pmeta.guven}</Text></View>
+              <View style={styles.pcMetaRow}><Text style={styles.pcMetaK}>Risk</Text><Text style={styles.pcMetaV}>{pmeta.risk}</Text></View>
+            </View>
+          </View>
+        )}
+      </Accordion>
+
+      {sinyaller.length > 0 && (
+        <Accordion title="Güçlü Sinyaller" icon="⭐">
+          {sinyaller.map((sg, i) => <Text key={i} style={styles.aBullet}>•  {sg}</Text>)}
+        </Accordion>
+      )}
+
+      <Accordion title="Kazanma İhtimalleri" icon="📊" defaultOpen>
+        <ProbBars probabilities={a.probabilities} />
+        {a.estimated && <Text style={styles.estNote}>≈ tahmini (form + gol beklentisinden)</Text>}
+      </Accordion>
+
+      {kuponYorumu ? (
+        <Accordion title="Tahmin Notu" icon="📝">
+          <Text style={styles.comment}>{kuponYorumu}</Text>
+        </Accordion>
+      ) : null}
+
+      <Accordion title="Risk Analizi" icon="⚠️">
         {a.surpriseScore != null && (() => {
           const risk = riskOf(a.surpriseScore);
           return (
-            <Text style={styles.scoreNum}>
-              Sürpriz Puanı: <Text style={styles.scoreBig}>{a.surpriseScore}</Text>/100
-              {risk ? <Text> · <Text style={{ color: risk.color, fontWeight: '800' }}>{risk.word}</Text></Text> : null}
-            </Text>
+            <Text style={styles.comment}>Sürpriz Puanı: <Text style={styles.scoreBig}>{a.surpriseScore}</Text>/100{risk ? <Text> · <Text style={{ color: risk.color, fontWeight: '800' }}>{risk.word}</Text></Text> : null}</Text>
           );
         })()}
-        <TouchableOpacity onPress={() => setInfoOpen((v) => !v)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={styles.infoIcon}>ℹ️</Text>
-        </TouchableOpacity>
-      </View>
-      {infoOpen && (
-        <View style={styles.infoBox}>
-          {LABEL_EXPLAIN[a.label] ? (
-            <Text style={styles.infoLine}>
-              <Text style={styles.infoKey}>{a.label}: </Text>{LABEL_EXPLAIN[a.label]}
-            </Text>
-          ) : null}
-          <Text style={[styles.infoLine, { marginTop: 6 }]}>
-            <Text style={styles.infoKey}>Sürpriz Puanı: </Text>{SURPRISE_EXPLAIN}
-          </Text>
-        </View>
-      )}
-
-      {/* Kupon Tahmini — premium karar kartı */}
-      {m.prediction && m.prediction.symbol !== '-' && (
-        <View style={[styles.predCard, { borderLeftColor: pmeta.color }]}>
-          <View style={styles.pcTop}>
-            <View style={styles.pcLeft}>
-              <View style={[styles.pcSymbol, { borderColor: pmeta.color }]}>
-                <Text style={[styles.pcSymbolTxt, { color: pmeta.color }]}>{m.prediction.symbol}</Text>
+        {riskNotu ? <Text style={[styles.comment, { marginTop: 8 }]}>{riskNotu}</Text> : null}
+        {a.factors && a.factors.length > 0 && (
+          <View style={{ marginTop: 10 }}>
+            {a.factors.map((f, i) => (
+              <View key={i} style={[styles.factorRow, i === a.factors.length - 1 && { borderBottomWidth: 0 }]}>
+                <Text style={styles.factorLabel}>{humanize(f.label)}</Text>
+                <Text style={styles.factorPts}>+{f.points}</Text>
               </View>
-              <Text style={styles.pcWho}>{SYM_WHO[m.prediction.symbol] || ''}</Text>
-            </View>
-            <View style={styles.pcMid}>
-              <Text style={styles.pcKicker}>KUPON TAHMİNİ</Text>
-              <Text style={styles.pcMain}>{m.prediction.meaning}</Text>
-              {pickDesc ? <Text style={styles.pcDesc}>{pickDesc}</Text> : null}
-              {sinyaller.slice(0, 3).map((sg, i) => (
-                <Text key={i} style={styles.pcBullet}>•  {sg}</Text>
-              ))}
-            </View>
-          </View>
-          <View style={styles.pcRight}>
-            <View style={[styles.pcBadge, { backgroundColor: pmeta.color + '22', borderColor: pmeta.color }]}>
-              <Text style={[styles.pcBadgeTxt, { color: pmeta.color }]}>{m.prediction.label}</Text>
-            </View>
-            <View style={styles.pcMetaRow}><Text style={styles.pcMetaK}>Güven</Text><Text style={styles.pcMetaV}>{pmeta.guven}</Text></View>
-            <View style={styles.pcMetaRow}><Text style={styles.pcMetaK}>Risk</Text><Text style={styles.pcMetaV}>{pmeta.risk}</Text></View>
-          </View>
-        </View>
-      )}
-
-      {/* Analiz — profesyonel, çok bölümlü */}
-      <View style={styles.commentCard}>
-        <Text style={styles.commentLabel}>🧠 Analiz{fromAI && <Text style={styles.aiTag}>  Claude</Text>}</Text>
-
-        <Text style={styles.aSub}>Genel Değerlendirme</Text>
-        <Text style={styles.comment}>{humanize(comment)}</Text>
-
-        {sinyaller.length > 0 && (
-          <>
-            <Text style={styles.aSub}>Güçlü Sinyaller</Text>
-            {sinyaller.map((sg, i) => (
-              <Text key={i} style={styles.aBullet}>•  {sg}</Text>
             ))}
-          </>
+          </View>
         )}
+      </Accordion>
+      </>)}
 
-        {kuponYorumu ? (
-          <>
-            <Text style={styles.aSub}>Kupon Yorumu</Text>
-            <Text style={styles.comment}>{kuponYorumu}</Text>
-          </>
-        ) : null}
-
-        {riskNotu ? (
-          <>
-            <Text style={styles.aSub}>Risk Notu</Text>
-            <Text style={styles.comment}>{riskNotu}</Text>
-          </>
-        ) : null}
-      </View>
-
-      {/* İhtimaller */}
-      <Text style={styles.sectionTitle}>Kazanma İhtimalleri</Text>
-      <View style={styles.probCard}>
-        <ProbBars probabilities={a.probabilities} />
-        {a.estimated && <Text style={styles.estNote}>≈ tahmini (oran yok, form + gol beklentisinden)</Text>}
-      </View>
-
+      {tab === 'İstatistik' && (<>
       {/* Puan Durumu — Takım Kıyası ile aynı karşılaştırma grafiği yapısı */}
       {(s.home?.standing || s.away?.standing) && (() => {
         const hs = s.home?.standing || {};
@@ -143,8 +238,7 @@ export default function MatchDetailScreen({ route }) {
         const minGd = Math.min(hs.goalDiff ?? 0, as.goalDiff ?? 0, 0);
         const sign = (n) => (n >= 0 ? '+' : '') + n;
         return (
-          <>
-            <Text style={styles.sectionTitle}>Puan Durumu</Text>
+          <Accordion title="Puan Durumu" icon="🏆" defaultOpen>
             <View style={styles.card}>
               {/* Takım adları — bar yarımlarının üstüne hizalı */}
               <View style={styles.puanHead}>
@@ -195,14 +289,36 @@ export default function MatchDetailScreen({ route }) {
                 </>
               )}
             </View>
-          </>
+          </Accordion>
         );
+      })()}
+
+      {/* Takım Karşılaştırması — kategorilere ayrılmış */}
+      {s.compare && s.compare.length > 0 && (() => {
+        const head = (
+          <View style={styles.cmpStatHead}>
+            <Text style={[styles.cmpStatTeam, { color: colors.green }]} numberOfLines={1}>● {homeName}</Text>
+            <Text style={[styles.cmpStatTeam, { color: colors.orange, textAlign: 'right' }]} numberOfLines={1}>{awayName} ●</Text>
+          </View>
+        );
+        const pick = (labels) => s.compare.filter((c) => labels.includes(c.label));
+        const cats = [
+          { title: 'Topla Oynama', icon: '🎯', open: true, rows: pick(['Topla Oynama']) },
+          { title: 'Şut İstatistikleri', icon: '🥅', rows: pick(['Toplam Şut', 'İsabetli Şut', 'Maç Başı Gol']) },
+          { title: 'Hücum Verileri', icon: '🔥', rows: pick(['Korner', 'Ofsayt']) },
+          { title: 'Savunma Verileri', icon: '🛡️', rows: pick(['Faul', 'Kart']) },
+        ].filter((c) => c.rows.length > 0);
+        return cats.map((cat) => (
+          <Accordion key={cat.title} title={cat.title} icon={cat.icon} defaultOpen={cat.open}>
+            {head}
+            {cat.rows.map((c, i) => <StatBar key={i} label={c.label} home={c.home} away={c.away} suffix={c.suffix} />)}
+          </Accordion>
+        ));
       })()}
 
       {/* Lig Tablosu (tam, Son 5 ile) */}
       {s.leagueTable && ((s.leagueTable.overall?.length || s.leagueTable.length) > 0) && (
-        <>
-          <Text style={styles.sectionTitle}>Lig Tablosu</Text>
+        <Accordion title="Lig Tablosu" icon="📋">
           <LeagueTableFull table={s.leagueTable} homeId={s.home?.standing?.teamId} awayId={s.away?.standing?.teamId} homeLogo={s.home?.logo} awayLogo={s.away?.logo} />
           <Text style={styles.legend}>
             <Text style={{ color: colors.green }}>G</Text> Galibiyet · <Text style={{ color: colors.yellow }}>B</Text> Beraberlik · <Text style={{ color: colors.red }}>M</Text> Mağlubiyet
@@ -210,67 +326,50 @@ export default function MatchDetailScreen({ route }) {
           <Text style={styles.legend}>
             <Text style={{ color: colors.green }}>▍</Text> Üst sıra / şampiyonluk bölgesi   ·   <Text style={{ color: colors.red }}>▍</Text> Alt sıra / düşme bölgesi
           </Text>
-        </>
+        </Accordion>
       )}
 
       {/* Kadrolar (tam) */}
       {(s.home?.squad?.length || s.away?.squad?.length) ? (
-        <>
-          <Text style={styles.sectionTitle}>Kadrolar</Text>
+        <Accordion title="Kadrolar" icon="👥">
           <SquadSection title={homeName} squad={s.home?.squad} open={openSquad === 'home'} onToggle={() => setOpenSquad(openSquad === 'home' ? null : 'home')} />
           <SquadSection title={awayName} squad={s.away?.squad} open={openSquad === 'away'} onToggle={() => setOpenSquad(openSquad === 'away' ? null : 'away')} />
-        </>
+        </Accordion>
       ) : null}
 
       {/* Eksikler (sakatlar/cezalılar) — veri varsa */}
       {(s.injuries?.home?.length || s.injuries?.away?.length) ? (
-        <>
-          <Text style={styles.sectionTitle}>Eksikler</Text>
+        <Accordion title="Eksikler" icon="🚑">
           <View style={styles.playersWrap}>
             <InjuryCol title={homeName} list={s.injuries?.home} />
             <InjuryCol title={awayName} list={s.injuries?.away} />
           </View>
-        </>
+        </Accordion>
       ) : null}
-
-      {/* Sezon ortalaması kıyası (karşılıklı çubuklar) */}
-      {s.compare && s.compare.length > 0 && (
-        <>
-          <Text style={styles.sectionTitle}>Takım Kıyası</Text>
-          <View style={styles.card}>
-            <View style={styles.cmpStatHead}>
-              <Text style={[styles.cmpStatTeam, { color: colors.green }]} numberOfLines={1}>● {homeName}</Text>
-              <Text style={[styles.cmpStatTeam, { color: colors.orange, textAlign: 'right' }]} numberOfLines={1}>{awayName} ●</Text>
-            </View>
-            {s.compare.map((c, i) => (
-              <StatBar key={i} label={c.label} home={c.home} away={c.away} suffix={c.suffix} />
-            ))}
-            <Text style={styles.estNote}>Galibiyet/beraberlik/mağlubiyet sezon toplamı · gol, şut vb. maç başı ortalama</Text>
-          </View>
-        </>
-      )}
-
-      {/* Sürprize iten unsurlar */}
-      {a.factors && a.factors.length > 0 && (
-        <>
-          <Text style={styles.sectionTitle}>Sürprize İten Unsurlar</Text>
-          <View style={styles.card}>
-            {a.factors.map((f, i) => (
-              <View key={i} style={[styles.factorRow, i === a.factors.length - 1 && { borderBottomWidth: 0 }]}>
-                <Text style={styles.factorLabel}>{humanize(f.label)}</Text>
-                <Text style={styles.factorPts}>+{f.points}</Text>
-              </View>
-            ))}
-          </View>
-        </>
-      )}
 
       {!a.hasOdds && !a.estimated && (
         <Text style={styles.muted}>
           Bu maçın ligi seçili ligler arasında değil ya da oran/veri henüz açıklanmamış.
         </Text>
       )}
-    </ScrollView>
+      </>)}
+
+      {tab === 'Yorumlar' && (
+        <CommentsSection matchId={m.sportotoMatchId || String(m.no)} />
+      )}
+
+      {tab === 'Anketler' && (
+        <>
+          <PollCard icon="🔢" title="Skor Tahmini" desc="İlk yarı ve maç sonu tahminini toplulukla paylaş." button="Tahminini Paylaş" color={colors.accent} onPress={() => setTab('Yorumlar')} />
+          <PollCard icon="⭐" title="Maçın Oyuncusu" desc="Maçın öne çıkabilecek oyuncusunu seç." button="Oyuncunu Seç" color={colors.field} onPress={() => setTab('Yorumlar')} />
+          <PollCard icon="📋" title="Kadro Tahmini" desc="Takımların muhtemel kadrolarını tahmin et." button="Tahminini Paylaş" color={colors.gold} onPress={() => setTab('Yorumlar')} />
+          <PollCard icon="💬" title="Topluluk Anketi" desc="Maç hakkındaki görüşünü toplulukla paylaş." button="Yorum Yaz" color={colors.accent} onPress={() => setTab('Yorumlar')} />
+          <Text style={styles.estNote}>Oylama özelliği yakında — şimdilik görüşünü Yorumlar'da paylaş.</Text>
+        </>
+      )}
+
+      </ScrollView>
+    </View>
   );
 }
 

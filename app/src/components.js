@@ -1,6 +1,33 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { colors, labelColors, radius } from './theme';
+import { getPreset, DEFAULT_AVATAR } from './avatars';
+import { useAuth } from './auth';
+
+// Tek avatar görüntüleyici (yuvarlak). Yüklenen resim ise <Image>, değilse emoji+renk.
+function AvatarView({ size, type, avatarKey, avatarUrl }) {
+  if (type === 'uploaded' && avatarUrl) {
+    return <Image source={{ uri: avatarUrl }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.cardAlt }} />;
+  }
+  const pre = type === 'preset' ? getPreset(avatarKey) : DEFAULT_AVATAR;
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: pre.bg, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ fontSize: size * 0.55, lineHeight: size * 0.7 }}>{pre.emoji}</Text>
+    </View>
+  );
+}
+
+// Profil ekranı — büyük avatar (mevcut giriş yapan kullanıcı). Giriş yoksa varsayılan top.
+export function ProfileAvatar({ size = 96 }) {
+  const { user } = useAuth();
+  return <AvatarView size={size} type={user?.avatar_type} avatarKey={user?.avatar_key} avatarUrl={user?.avatar_url} />;
+}
+
+// Yorum kartı — küçük yuvarlak avatar. Yorumun yazarından okunur (profilden, sabit URL değil).
+// author: { avatarType, avatarKey, avatarUrl }
+export function CommentAvatar({ size = 28, author }) {
+  return <AvatarView size={size} type={author?.avatarType} avatarKey={author?.avatarKey} avatarUrl={author?.avatarUrl} />;
+}
 
 // Sürpriz etiketi (BANKO / DİKKAT / SÜRPRİZE AÇIK / VERİ YOK)
 export function SurpriseBadge({ label, labelColor, small }) {
@@ -102,16 +129,22 @@ export function StatBar({ label, home, away, suffix }) {
 // G/B/M sayı rozetleri: 9G (yeşil) · 1B (sarı) · 0M (kırmızı)
 export function RecordBadges({ wins = 0, draws = 0, losses = 0, played, align }) {
   const cell = (n, letter, c) => (
-    <View style={[styles.recBadge, { backgroundColor: c + '22', borderColor: c }]}>
-      <Text style={[styles.recText, { color: c }]}>{n}{letter}</Text>
+    <View style={[styles.recBadge, { backgroundColor: c }]}>
+      <Text style={styles.recText}>{n}{letter}</Text>
     </View>
   );
+  const right = align === 'right';
+  // Sağda ⚽ rozetlerden önce (⚽ 10 ...), solda rozetlerden sonra (... 10 ⚽).
+  const playedTag = played != null
+    ? <Text style={styles.recPlayed}>{right ? `⚽ ${played}` : `${played} ⚽`}</Text>
+    : null;
   return (
-    <View style={[styles.recRow, align === 'right' && { justifyContent: 'flex-end' }]}>
-      {played != null && <Text style={styles.recPlayed}>⚽ {played}</Text>}
+    <View style={[styles.recRow, right && { justifyContent: 'flex-end' }]}>
+      {right && playedTag}
       {cell(wins, 'G', colors.green)}
       {cell(draws, 'B', colors.yellow)}
       {cell(losses, 'M', colors.red)}
+      {!right && playedTag}
     </View>
   );
 }
@@ -179,8 +212,8 @@ const styles = StyleSheet.create({
   formEmpty: { color: colors.textMuted, fontSize: 12 },
   recRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
   recPlayed: { color: colors.textMuted, fontSize: 12, fontWeight: '700', marginRight: 2 },
-  recBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, borderWidth: 1 },
-  recText: { fontSize: 12, fontWeight: '800' },
+  recBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3 },
+  recText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   sbRow: { marginVertical: 7 },
   sbLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '700', textAlign: 'center', marginBottom: 4 },
   sbBars: { flexDirection: 'row', alignItems: 'center', gap: 6 },

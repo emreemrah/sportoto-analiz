@@ -48,6 +48,22 @@ function teamLast5(matches, teamId, venue) {
   });
 }
 
+// Son 5 maçın detayı (yeniden eskiye): rakip adı + skor + logo + sonuç (G/B/M)
+function teamLast5Detail(matches, teamId, teamStats) {
+  return matches
+    .filter((m) => m.status === 'finished' && m.score && (m.homeId === teamId || m.awayId === teamId))
+    .sort((a, b) => b.dateUnix - a.dateUnix)
+    .slice(0, 5)
+    .map((m) => {
+      const home = m.homeId === teamId;
+      const gf = home ? m.score.home : m.score.away;
+      const ga = home ? m.score.away : m.score.home;
+      const oppId = home ? m.awayId : m.homeId;
+      const opp = teamStats.get(oppId);
+      return { result: resultLetter(gf, ga), score: `${gf}-${ga}`, oppName: opp?.name || '', oppLogo: opp?.image || '', isHome: home };
+    });
+}
+
 // Bir takımın tam kadrosunu pozisyona göre (Kaleci→Defans→Orta→Forvet) sıralar.
 const POS_ORDER = { Goalkeeper: 0, Defender: 1, Midfielder: 2, Forward: 3 };
 const POS_SHORT = { Goalkeeper: 'K', Defender: 'D', Midfielder: 'O', Forward: 'F' };
@@ -115,20 +131,21 @@ export function createExtrasCache(matchesBySeason, teamsBySeason) {
       playersMap.get(p.teamId).push(p);
     }
 
-    // Her takım için son 5 (genel / içerde / dışarıda)
+    // Takım istatistiği + kulüp arması havuzu
+    const teams = teamsBySeason?.get(seasonId) || [];
+    const teamStats = new Map(teams.map((t) => [t.id, t]));
+    const logoOf = (id) => teamStats.get(id)?.image || '';
+
+    // Her takım için son 5 (genel / içerde / dışarıda / detaylı: rakip+skor+logo)
     const formByTeam = new Map();
     for (const r of table) {
       formByTeam.set(r.teamId, {
         all: teamLast5(matches, r.teamId, 'all'),
         home: teamLast5(matches, r.teamId, 'home'),
         away: teamLast5(matches, r.teamId, 'away'),
+        detail: teamLast5Detail(matches, r.teamId, teamStats),
       });
     }
-
-    // Takım istatistiği + kulüp arması havuzu
-    const teams = teamsBySeason?.get(seasonId) || [];
-    const teamStats = new Map(teams.map((t) => [t.id, t]));
-    const logoOf = (id) => teamStats.get(id)?.image || '';
 
     // Tam lig tablosu — üç varyant: genel / iç saha / dış saha (her satırda kulüp arması)
     const overall = table.slice()
@@ -202,8 +219,8 @@ export async function buildMatchStats(found, getExtras) {
   return {
     potentials: det.potentials,
     h2h,
-    home: { standing: homeStanding, players: homePlayers, squad: buildSquad(extras.players.get(homeTeamId)), last5: homeForm.all || [], last5venue: homeForm.home || [], logo: homeLogo },
-    away: { standing: awayStanding, players: awayPlayers, squad: buildSquad(extras.players.get(awayTeamId)), last5: awayForm.all || [], last5venue: awayForm.away || [], logo: awayLogo },
+    home: { standing: homeStanding, players: homePlayers, squad: buildSquad(extras.players.get(homeTeamId)), last5: homeForm.all || [], last5venue: homeForm.home || [], last5detail: homeForm.detail || [], logo: homeLogo },
+    away: { standing: awayStanding, players: awayPlayers, squad: buildSquad(extras.players.get(awayTeamId)), last5: awayForm.all || [], last5venue: awayForm.away || [], last5detail: awayForm.detail || [], logo: awayLogo },
     compare,
     leagueTable: extras.fullTable,
   };

@@ -90,6 +90,48 @@ export async function getCurrentRound() {
   return future[0] || withClose[withClose.length - 1];
 }
 
+// Navigasyon için haftalar: tüm haftalar (kapanış tarihine göre, eski→yeni) + güncel hafta id'si.
+export async function getRoundsForNav() {
+  const all = await get('api/GameRound');
+  const now = Date.now();
+  const rounds = all
+    .map((r) => ({ id: r.id, name: r.name, year: r.year, closeDate: r.roundCloseDate, isPublished: r.isPublished, close: new Date(r.roundCloseDate).getTime() }))
+    .filter((r) => r.id != null && !Number.isNaN(r.close))
+    .sort((a, b) => a.close - b.close);
+  const future = rounds.filter((r) => r.close >= now);
+  const current = future[0] || rounds[rounds.length - 1];
+  return {
+    currentRoundId: current ? current.id : null,
+    rounds: rounds.map(({ close, ...r }) => r),
+  };
+}
+
+// Belirli bir haftanın (geçmiş/herhangi) maç listesini skor + resmi 1/X/2 ile getirir.
+export async function getBulletinByRoundId(roundId) {
+  const rawMatches = await getRoundMatches(roundId);
+  const matches = rawMatches.map(normalizeMatch);
+  return { roundId, matchCount: matches.length, matches };
+}
+
+// Bir haftanın resmi sonuç + ikramiye dağılımını getirir. Açıklanmamışsa null.
+export async function getRoundResult(roundId) {
+  try {
+    const o = await get(`api/GameResult/GetGameResultByGameRoundId?Id=${roundId}`);
+    if (!o) return null;
+    const tiers = [
+      { hit: 15, count: o.fifteenWinCount, prize: o.fifteenWinPrize },
+      { hit: 14, count: o.fourteenWinCount, prize: o.fourteenWinPrize },
+      { hit: 13, count: o.thirteenWinCount, prize: o.thirteenWinPrize },
+      { hit: 12, count: o.twelveWinCount, prize: o.twelveWinPrize },
+    ];
+    const any = tiers.some((t) => t.count != null || t.prize != null);
+    if (!any) return null;
+    return { tiers, description: o.resultDescription || null, closeDate: o.gameRoundCloseDate || null };
+  } catch {
+    return null;
+  }
+}
+
 // Güncel haftanın bültenini getirir
 export async function getLatestBulletin() {
   const round = await getCurrentRound();
