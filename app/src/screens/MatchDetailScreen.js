@@ -29,12 +29,33 @@ const smColTitle = { color: colors.text, fontSize: 12, fontWeight: '800', margin
 const smRow = { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, borderTopWidth: 1, borderTopColor: colors.border };
 const smOpp = { flex: 1, color: colors.textMuted, fontSize: 11.5, fontWeight: '600' };
 const smScore = { fontSize: 12, fontWeight: '800' };
+const smLegend = { color: colors.textMuted, fontSize: 10, marginBottom: 8, lineHeight: 14 };
 
 // Son 5 form puanı (0-5): G=1, B=0.5, M=0 → ortalama × 5
 function formRating(form) {
   if (!form || !form.length) return null;
   const pts = form.reduce((acc, r) => acc + (r === 'G' ? 1 : r === 'B' ? 0.5 : 0), 0);
   return Math.round((pts / form.length) * 5 * 10) / 10;
+}
+
+// Tek simge: iç saha 🏠 / deplasman ✈️, sonuç rengi (yeşil/sarı/kırmızı)
+function VenueIcon({ result, isHome, size = 22 }) {
+  const c = result === 'G' ? colors.green : result === 'M' ? colors.red : colors.yellow;
+  return (
+    <View style={{ width: size, height: size, borderRadius: Math.round(size * 0.24), backgroundColor: c, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ fontSize: Math.round(size * 0.5), lineHeight: Math.round(size * 0.72) }}>{isHome ? '🏠' : '✈️'}</Text>
+    </View>
+  );
+}
+// Son 5 şeridi (eski → yeni)
+function VenueForm({ detail }) {
+  const arr = [...(detail || [])].reverse();
+  if (!arr.length) return <Text style={{ color: colors.textMuted }}>–</Text>;
+  return (
+    <View style={{ flexDirection: 'row', gap: 4, flexWrap: 'wrap' }}>
+      {arr.map((d, i) => <VenueIcon key={i} result={d.result} isHome={d.isHome} size={22} />)}
+    </View>
+  );
 }
 
 export default function MatchDetailScreen({ route, navigation }) {
@@ -137,16 +158,18 @@ export default function MatchDetailScreen({ route, navigation }) {
           )}
           {(s.home?.last5?.length || s.away?.last5?.length) ? (
             <Accordion title="Son Maçlar" icon="🗓️" defaultOpen>
+              <Text style={smLegend}>🏠 iç saha · ✈️ deplasman   ·   🟢 galibiyet · 🟡 beraberlik · 🔴 mağlubiyet</Text>
               <View style={{ flexDirection: 'row', gap: 14 }}>
                 {[{ n: homeName, f: s.home?.last5, d: s.home?.last5detail }, { n: awayName, f: s.away?.last5, d: s.away?.last5detail }].map((col, ci) => (
                   <View key={ci} style={{ flex: 1 }}>
                     <Text style={smColTitle} numberOfLines={1}>{col.n}</Text>
-                    <View style={{ marginBottom: 6 }}><FormStrip form={col.f} size={16} /></View>
+                    <View style={{ marginBottom: 8 }}>{(col.d && col.d.length) ? <VenueForm detail={col.d} /> : <FormStrip form={col.f} size={16} />}</View>
                     {(col.d && col.d.length) ? col.d.map((d, i) => (
                       <View key={i} style={smRow}>
                         <Logo uri={d.oppLogo} name={d.oppName} size={16} />
                         <Text style={smOpp} numberOfLines={1}>{d.oppName || '—'}</Text>
                         <Text style={[smScore, { color: d.result === 'G' ? colors.green : d.result === 'M' ? colors.red : colors.textMuted }]}>{d.score}</Text>
+                        <VenueIcon result={d.result} isHome={d.isHome} size={20} />
                       </View>
                     )) : <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>Detay yok</Text>}
                   </View>
