@@ -1,10 +1,256 @@
-// Premium tasarım sistemi — Spor Toto analiz & topluluk platformu.
-// Sade, modern, koyu tema, turuncu vurgu. Mevcut işlevsel koddan bağımsız UI parçaları.
+// app/src/ui.js
+// Birleştirilmiş: yeni tasarım sistemi (Screen/Card/Row/SectionTitle/Pill/StatCard/ListItem/ProgressBar)
+// + mevcut bileşenler korunuyor (MatchHeader, Tabs, Accordion, MatchCard, PollTile, ...).
+
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
-import { colors, spacing, radius, shadows } from './theme';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  SafeAreaView,
+  StatusBar,
+  TouchableOpacity,
+  Platform,
+  Image,
+} from 'react-native';
+
+import theme from './theme';
 import { RecordBadges } from './components';
 import { matchDate } from './utils';
+
+const { colors, spacing, radius, font } = theme;
+// shadow/shadows uyumsuzluğuna karşı güvenli fallback
+const safeShadow = theme.shadow || theme.shadows || { card: {}, soft: {} };
+const shadow = safeShadow;
+const shadows = safeShadow;
+
+/* ==================== YENİ TASARIM SİSTEMİ ==================== */
+
+export function Screen({ children, scroll = true, style, contentStyle }) {
+  const Wrapper = scroll ? ScrollView : View;
+
+  return (
+    <SafeAreaView style={[styles.safe, style]}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <Wrapper
+        style={styles.wrapper}
+        contentContainerStyle={scroll ? [styles.content, contentStyle] : contentStyle}
+        showsVerticalScrollIndicator={false}
+      >
+        {children}
+      </Wrapper>
+    </SafeAreaView>
+  );
+}
+
+export function Card({ children, style, dark = false }) {
+  return (
+    <View style={[styles.card, dark && styles.darkCard, style]}>
+      {children}
+    </View>
+  );
+}
+
+export function Row({ children, style, between = false, center = false }) {
+  return (
+    <View
+      style={[
+        styles.row,
+        between && styles.rowBetween,
+        center && styles.rowCenter,
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+export function SectionTitle({ title, subtitle, actionLabel, onPress }) {
+  return (
+    <Row between center style={styles.sectionHeader}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.sectionTitleTxt}>{title}</Text>
+        {!!subtitle && <Text style={styles.sectionSubtitle}>{subtitle}</Text>}
+      </View>
+
+      {!!actionLabel && (
+        <TouchableOpacity activeOpacity={0.8} onPress={onPress} style={styles.sectionAction}>
+          <Text style={styles.sectionActionText}>{actionLabel}</Text>
+        </TouchableOpacity>
+      )}
+    </Row>
+  );
+}
+
+export function Pill({ label, tone = 'default', style, textStyle }) {
+  const toneStyle = pillTone[tone] || pillTone.default;
+
+  return (
+    <View style={[styles.pill, toneStyle.box, style]}>
+      <Text style={[styles.pillText, toneStyle.text, textStyle]}>{label}</Text>
+    </View>
+  );
+}
+
+export function StatCard({ label, value, hint, tone = 'primary', icon }) {
+  const toneStyle = statTone[tone] || statTone.primary;
+
+  return (
+    <View style={[styles.statCard, toneStyle.box]}>
+      <Row between center>
+        {icon && typeof icon !== 'string' ? icon : <Text style={styles.statIcon}>{icon || '●'}</Text>}
+        <View style={[styles.statDot, toneStyle.dot]} />
+      </Row>
+
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+      {!!hint && <Text style={styles.statHint}>{hint}</Text>}
+    </View>
+  );
+}
+
+// Boş durum — hem message hem subtitle destekli (geriye dönük uyum)
+export function EmptyState({ icon = '📭', title, message, subtitle }) {
+  return (
+    <Card style={styles.empty}>
+      <Text style={styles.emptyIcon}>{icon}</Text>
+      <Text style={styles.emptyTitle}>{title}</Text>
+      {(message || subtitle) ? <Text style={styles.emptyMessage}>{message || subtitle}</Text> : null}
+    </Card>
+  );
+}
+
+export function ListItem({
+  title,
+  subtitle,
+  meta,
+  badge,
+  badgeTone = 'default',
+  left,
+  onPress,
+}) {
+  const Component = onPress ? TouchableOpacity : View;
+
+  return (
+    <Component activeOpacity={0.82} onPress={onPress} style={styles.listItem}>
+      <Row center style={{ flex: 1 }}>
+        {!!left && <View style={styles.listLeft}>{left}</View>}
+
+        <View style={{ flex: 1 }}>
+          <Text style={styles.listTitle}>{title}</Text>
+          {!!subtitle && <Text style={styles.listSubtitle}>{subtitle}</Text>}
+          {!!meta && <Text style={styles.listMeta}>{meta}</Text>}
+        </View>
+
+        {!!badge && <Pill label={badge} tone={badgeTone} />}
+      </Row>
+    </Component>
+  );
+}
+
+export function ProgressBar({ value = 0, tone = 'primary' }) {
+  const safeValue = Math.max(0, Math.min(100, Number(value) || 0));
+  const barColor = progressTone[tone] || colors.primary;
+
+  return (
+    <View style={styles.progressTrack}>
+      <View style={[styles.progressFill, { width: `${safeValue}%`, backgroundColor: barColor }]} />
+    </View>
+  );
+}
+
+// Marka logosu — kırmızı "ST" yuvarlağı + isim + slogan (text-logo)
+export function BrandLogo({ subtitle = true, size = 42 }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', ...shadow.soft }}>
+        <Text style={{ color: colors.white, fontSize: size * 0.4, fontWeight: '900', letterSpacing: 0.5 }}>ST</Text>
+      </View>
+      <View style={{ marginLeft: 10 }}>
+        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Spor Toto Analiz</Text>
+        {subtitle ? (
+          <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '700', marginTop: 1 }}>
+            Bülten • Analiz • Tahmin
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+const pillTone = {
+  default: { box: { backgroundColor: colors.primarySoft }, text: { color: colors.primary } },
+  primary: { box: { backgroundColor: colors.primarySoft }, text: { color: colors.primary } },
+  accent: { box: { backgroundColor: colors.accentSoft }, text: { color: colors.accent } },
+  success: { box: { backgroundColor: colors.successSoft }, text: { color: colors.success } },
+  warning: { box: { backgroundColor: colors.warningSoft }, text: { color: colors.warning } },
+  danger: { box: { backgroundColor: colors.dangerSoft }, text: { color: colors.danger } },
+  info: { box: { backgroundColor: colors.infoSoft }, text: { color: colors.info } },
+  dark: { box: { backgroundColor: colors.darkCardSoft }, text: { color: colors.white } },
+};
+
+const statTone = {
+  primary: { box: { backgroundColor: colors.surface }, dot: { backgroundColor: colors.primary } },
+  accent: { box: { backgroundColor: colors.surface }, dot: { backgroundColor: colors.accent } },
+  success: { box: { backgroundColor: colors.surface }, dot: { backgroundColor: colors.success } },
+  warning: { box: { backgroundColor: colors.surface }, dot: { backgroundColor: colors.warning } },
+  danger: { box: { backgroundColor: colors.surface }, dot: { backgroundColor: colors.danger } },
+};
+
+const progressTone = {
+  primary: colors.primary,
+  accent: colors.accent,
+  success: colors.success,
+  warning: colors.warning,
+  danger: colors.danger,
+  info: colors.info,
+};
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.background },
+  wrapper: { flex: 1 },
+  content: { padding: spacing.lg, paddingBottom: Platform.OS === 'ios' ? 36 : 28 },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.card,
+  },
+  darkCard: { backgroundColor: colors.darkCard, borderColor: colors.darkCardSoft },
+  row: { flexDirection: 'row' },
+  rowBetween: { justifyContent: 'space-between' },
+  rowCenter: { alignItems: 'center' },
+  sectionHeader: { marginTop: spacing.xl, marginBottom: spacing.md },
+  sectionTitleTxt: { color: colors.text, fontSize: font.lg, fontWeight: font.heavy },
+  sectionSubtitle: { color: colors.textSoft, fontSize: font.sm, marginTop: 2 },
+  sectionAction: { backgroundColor: colors.primarySoft, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill },
+  sectionActionText: { color: colors.primary, fontSize: font.sm, fontWeight: font.bold },
+  pill: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.pill },
+  pillText: { fontSize: font.xs, fontWeight: font.bold },
+  statCard: { flex: 1, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border, ...shadow.soft },
+  statIcon: { fontSize: 18 },
+  statDot: { width: 9, height: 9, borderRadius: 9 },
+  statValue: { color: colors.text, fontSize: font.xxl, fontWeight: font.heavy, marginTop: spacing.md },
+  statLabel: { color: colors.text, fontSize: font.sm, fontWeight: font.bold, marginTop: 2 },
+  statHint: { color: colors.textSoft, fontSize: font.xs, marginTop: spacing.xs },
+  empty: { alignItems: 'center', paddingVertical: spacing.xxxl },
+  emptyIcon: { fontSize: 34 },
+  emptyTitle: { color: colors.text, fontSize: font.lg, fontWeight: font.heavy, marginTop: spacing.md },
+  emptyMessage: { color: colors.textSoft, fontSize: font.sm, textAlign: 'center', marginTop: spacing.xs },
+  listItem: { paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
+  listLeft: { marginRight: spacing.md },
+  listTitle: { color: colors.text, fontSize: font.md, fontWeight: font.bold },
+  listSubtitle: { color: colors.textSoft, fontSize: font.sm, marginTop: 3 },
+  listMeta: { color: colors.muted, fontSize: font.xs, marginTop: 4 },
+  progressTrack: { height: 8, backgroundColor: colors.primarySoft, borderRadius: radius.pill, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: radius.pill },
+});
+
+/* ==================== MEVCUT BİLEŞENLER (korunuyor) ==================== */
 
 // Kulüp arması / nötr top
 export function Logo({ uri, name, size = 40 }) {
@@ -15,7 +261,7 @@ export function Logo({ uri, name, size = 40 }) {
   return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.cardAlt, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: size * 0.5 }}>⚽</Text></View>;
 }
 
-// Premium kart
+// Premium kart (bölüm)
 export function SectionCard({ title, right, children, style }) {
   return (
     <View style={[s.section, style]}>
@@ -30,7 +276,7 @@ export function SectionCard({ title, right, children, style }) {
   );
 }
 
-// Yatay ana sekmeler — aktif turuncu alt çizgi
+// Yatay ana sekmeler
 export function Tabs({ tabs, active, onChange, icons }) {
   return (
     <View style={s.tabsWrap}>
@@ -50,7 +296,7 @@ export function Tabs({ tabs, active, onChange, icons }) {
   );
 }
 
-// Açılır-kapanır bölüm — sağda ▾ ok
+// Açılır-kapanır bölüm
 export function Accordion({ title, icon, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -75,17 +321,6 @@ export function SkeletonCard() {
       <Skeleton height={12} width="80%" />
       <Skeleton height={12} width="70%" />
       <Skeleton height={36} width="100%" style={{ marginTop: 6 }} />
-    </View>
-  );
-}
-
-// Boş durum
-export function EmptyState({ icon = '📭', title, subtitle }) {
-  return (
-    <View style={s.empty}>
-      <Text style={s.emptyIcon}>{icon}</Text>
-      <Text style={s.emptyTitle}>{title}</Text>
-      {subtitle ? <Text style={s.emptySub}>{subtitle}</Text> : null}
     </View>
   );
 }
@@ -119,24 +354,30 @@ export function PercentBar({ label, value, color }) {
   );
 }
 
-// Bülten maç kartı — sade: tarih · ev · VS · dep · lig · no; iki tarafta form
+// Bülten maç kartı
 export function MatchCard({ match, onPress }) {
   const d = matchDate(match.date);
   const hs = match.stats?.home?.standing;
   const as = match.stats?.away?.standing;
+  const sc = match.score;
+  const live = !!match.live;
   return (
     <TouchableOpacity style={s.mc} onPress={onPress} activeOpacity={onPress ? 0.85 : 1}>
       <View style={s.mcTop}>
         <Text style={s.mcNo}>#{match.no}</Text>
         {match.league ? <Text style={s.mcLeague} numberOfLines={1}>{match.league}</Text> : <View style={{ flex: 1 }} />}
-        <Text style={s.mcDate}>{d.day} · {d.time}</Text>
+        {live
+          ? <View style={s.mcLive}><View style={s.mcLiveDot} /><Text style={s.mcLiveTxt}>CANLI{match.minute ? ` ${match.minute}'` : ''}</Text></View>
+          : <Text style={s.mcDate}>{d.day} · {d.time}</Text>}
       </View>
       <View style={s.mcMain}>
         <View style={s.mcHome}>
           <Logo uri={match.stats?.home?.logo} name={match.home.name} size={30} />
           <Text style={s.mcTeam} numberOfLines={1}>{match.home.name}</Text>
         </View>
-        <Text style={s.mcVs}>VS</Text>
+        {sc
+          ? <Text style={[s.mcScore, live && s.mcScoreLive]}>{sc.home} - {sc.away}</Text>
+          : <Text style={s.mcVs}>VS</Text>}
         <View style={s.mcAway}>
           <Text style={[s.mcTeam, { textAlign: 'right' }]} numberOfLines={1}>{match.away.name}</Text>
           <Logo uri={match.stats?.away?.logo} name={match.away.name} size={30} />
@@ -152,11 +393,10 @@ export function MatchCard({ match, onPress }) {
   );
 }
 
-// Maç detay üst başlığı — marka çubuğu + lig/tarih/saat/stadyum bandı (mockup)
+// Maç detay üst başlığı
 export function MatchHeader({ home, away, homeLogo, awayLogo, league, dateLabel, time, stadium, onBack, onShare }) {
   return (
     <View style={s.mh}>
-      {/* Marka çubuğu */}
       <View style={s.mhBar}>
         <TouchableOpacity onPress={onBack} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Text style={s.mhIcon}>‹</Text></TouchableOpacity>
         <View style={{ alignItems: 'center' }}>
@@ -165,7 +405,6 @@ export function MatchHeader({ home, away, homeLogo, awayLogo, league, dateLabel,
         </View>
         <TouchableOpacity onPress={onShare} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Text style={s.mhIconSm}>☆</Text></TouchableOpacity>
       </View>
-      {/* Maç bandı */}
       <View style={s.mhMain}>
         <View style={s.mhTeam}>
           <Logo uri={homeLogo} name={home} size={50} />
@@ -204,7 +443,7 @@ export function QuickAccessCard({ icon, label, sub, color, onPress }) {
   );
 }
 
-// Topluluk / anket kartı (etkileşim — bahis değil)
+// Topluluk / anket kartı
 export function PollCard({ icon, title, desc, button, color, onPress }) {
   const c = color || colors.accent;
   return (
@@ -219,7 +458,7 @@ export function PollCard({ icon, title, desc, button, color, onPress }) {
   );
 }
 
-// Form puanı — 5 nokta + sayı (●●●●○ 4.2)
+// Form puanı — 5 nokta + sayı
 export function RatingDots({ rating, color }) {
   const c = color || colors.field;
   const filled = Math.round(Math.max(0, Math.min(5, rating || 0)));
@@ -233,7 +472,7 @@ export function RatingDots({ rating, color }) {
   );
 }
 
-// İki tonlu güç halkası (yaklaşık) + yüzdeler
+// İki tonlu güç halkası
 export function SplitDonut({ home, away, size = 54 }) {
   return (
     <View style={{ alignItems: 'center' }}>
@@ -246,7 +485,7 @@ export function SplitDonut({ home, away, size = 54 }) {
   );
 }
 
-// Küçük başlıklı istatistik kutusu (İç Saha Formu vb.)
+// Küçük başlıklı istatistik kutusu
 export function StatTile({ title, sub, children }) {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgAlt, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' }}>
@@ -257,7 +496,7 @@ export function StatTile({ title, sub, children }) {
   );
 }
 
-// Küçük bilgi kartı (Hava / Hakem)
+// Küçük bilgi kartı
 export function InfoTile({ label, value, sub, icon }) {
   return (
     <View style={{ flex: 1, backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.md, ...shadows.soft }}>
@@ -268,7 +507,7 @@ export function InfoTile({ label, value, sub, icon }) {
   );
 }
 
-// Zengin topluluk kartı — üstte önizleme görseli + buton
+// Zengin topluluk kartı — önizleme + buton
 export function PollTile({ icon, title, desc, button, color, preview, onPress }) {
   const c = color || colors.accent;
   return (
@@ -303,11 +542,6 @@ const s = StyleSheet.create({
   accChevron: { color: colors.textMuted, fontSize: 16, fontWeight: '900', paddingLeft: 8 },
   accBody: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md },
 
-  empty: { alignItems: 'center', paddingVertical: spacing.xl },
-  emptyIcon: { fontSize: 40, marginBottom: 8 },
-  emptyTitle: { color: colors.text, fontSize: 15, fontWeight: '800', textAlign: 'center' },
-  emptySub: { color: colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: 6, lineHeight: 18 },
-
   ringLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '700', marginTop: 6, textAlign: 'center' },
   pbHead: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   pbLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
@@ -324,6 +558,11 @@ const s = StyleSheet.create({
   mcAway: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
   mcTeam: { flex: 1, color: colors.text, fontSize: 14.5, fontWeight: '700' },
   mcVs: { color: colors.textMuted, fontSize: 12, fontWeight: '900', letterSpacing: 1, paddingHorizontal: 6, paddingVertical: 3, backgroundColor: colors.bgAlt, borderRadius: 6 },
+  mcScore: { color: colors.text, fontSize: 16, fontWeight: '900', letterSpacing: 1, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: colors.bgAlt, borderRadius: 6, minWidth: 46, textAlign: 'center' },
+  mcScoreLive: { color: '#ffffff', backgroundColor: colors.accent },
+  mcLive: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.accent, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  mcLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#ffffff' },
+  mcLiveTxt: { color: '#ffffff', fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
   mcForm: { flexDirection: 'row', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
   mcFormSide: { flex: 1 },
 

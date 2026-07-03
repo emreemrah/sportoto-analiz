@@ -1,71 +1,389 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
-import { api } from '../api';
-import { colors, spacing, radius } from '../theme';
-import { MatchCard, SkeletonCard, EmptyState } from '../ui';
+// app/src/screens/ForumScreen.js
 
-const FILTERS = ['Popüler', 'En Yeni', 'En Çok Beğenilen'];
+import React, { useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+} from 'react-native';
 
-export default function ForumScreen({ navigation }) {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
-  const [filter, setFilter] = useState('En Yeni');
+import { Ionicons } from '@expo/vector-icons';
 
-  const load = useCallback(async () => {
-    try { setError(null); setData(await api.bulletin()); } catch (e) { setError(e.message); }
-  }, []);
-  useEffect(() => { load(); }, [load]);
+import theme from '../theme';
+import {
+  Screen,
+  Card,
+  Row,
+  SectionTitle,
+  Pill,
+  ListItem,
+  ProgressBar,
+  EmptyState,
+} from '../ui';
 
-  const matches = data ? data.matches : [];
+const { colors, spacing, radius, font } = theme;
+
+const roomColors = {
+  primary: colors.primary,
+  info: colors.info,
+  warning: colors.warning,
+  success: colors.success,
+};
+
+const tabs = [
+  { key: 'all', label: 'Tümü' },
+  { key: 'bulletin', label: 'Bülten' },
+  { key: 'analysis', label: 'Analiz' },
+  { key: 'surprise', label: 'Sürpriz' },
+];
+
+// Gerçek topluluk verisi backend'e bağlanınca doldurulacak.
+const posts = [];
+
+const quickRooms = [
+  {
+    title: 'Bülten Sohbeti',
+    subtitle: 'Güncel maç listesi, eksik veri, saat kontrolü',
+    icon: 'list',
+    badge: 'Bülten',
+    tone: 'primary',
+  },
+  {
+    title: 'Analiz Odası',
+    subtitle: 'Form, olasılık, risk puanı, maç yorumu',
+    icon: 'stats-chart',
+    badge: 'Analiz',
+    tone: 'info',
+  },
+  {
+    title: 'Sürpriz Radarı',
+    subtitle: 'Beklenmeyen sonuç adayları ve tahmin listesi dengesi',
+    icon: 'flash',
+    badge: 'Risk',
+    tone: 'warning',
+  },
+  {
+    title: 'Tahmin Listesi Fikirleri',
+    subtitle: 'Güçlü tercih ve alternatif işaret önerileri',
+    icon: 'clipboard',
+    badge: 'Topluluk',
+    tone: 'success',
+  },
+];
+
+export default function ForumScreen() {
+  const [activeTab, setActiveTab] = useState('all');
+
+  const filteredPosts = useMemo(() => {
+    if (activeTab === 'all') return posts;
+    return posts.filter((post) => post.type === activeTab);
+  }, [activeTab]);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: spacing.xl }}
-      refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.accent} />}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Forum</Text>
-        <Text style={styles.sub}>Topluluk · maç tartışmaları</Text>
+    <Screen>
+      <Card dark style={styles.hero}>
+        <Row between center>
+          <View style={{ flex: 1 }}>
+            <Pill label="STADYUM" tone="dark" />
+            <Text style={styles.heroTitle}>Tribün burada konuşuyor</Text>
+            <Text style={styles.heroText}>
+              Bülten, analiz, sürpriz maçlar ve tahmin listesi fikirleri tek sahada.
+            </Text>
+          </View>
+
+          <View style={styles.heroIconBox}>
+            <Ionicons name="people" size={30} color={colors.white} />
+          </View>
+        </Row>
+
+        <Row style={styles.heroStats}>
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatValue}>4</Text>
+            <Text style={styles.heroStatLabel}>Oda</Text>
+          </View>
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatValue}>—</Text>
+            <Text style={styles.heroStatLabel}>Yorum</Text>
+          </View>
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatValue}>—</Text>
+            <Text style={styles.heroStatLabel}>Beğeni</Text>
+          </View>
+        </Row>
+      </Card>
+
+      <SectionTitle
+        title="Hızlı Odalar"
+        subtitle="Kullanıcı uygulamayı açınca aradığı konuya tek dokunuşla girsin."
+      />
+
+      <View style={styles.roomGrid}>
+        {quickRooms.map((room) => (
+          <TouchableOpacity key={room.title} activeOpacity={0.84} style={styles.roomCard}>
+            <Row between center>
+              <Ionicons
+                name={room.icon}
+                size={22}
+                color={roomColors[room.tone] || colors.primary}
+              />
+              <Pill label={room.badge} tone={room.tone} />
+            </Row>
+            <Text style={styles.roomTitle}>{room.title}</Text>
+            <Text style={styles.roomSubtitle}>{room.subtitle}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {/* Filtre çipleri */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-        {FILTERS.map((f) => {
-          const on = filter === f;
+      <SectionTitle
+        title="Stadyum Akışı"
+        subtitle="Topluluk gündemi, analiz yorumları ve risk sinyalleri."
+      />
+
+      <View style={styles.tabs}>
+        {tabs.map((tab) => {
+          const selected = activeTab === tab.key;
+
           return (
-            <TouchableOpacity key={f} onPress={() => setFilter(f)} style={[styles.chip, on && styles.chipOn]} activeOpacity={0.8}>
-              <Text style={[styles.chipTxt, on && styles.chipTxtOn]}>{f}</Text>
+            <TouchableOpacity
+              key={tab.key}
+              activeOpacity={0.82}
+              onPress={() => setActiveTab(tab.key)}
+              style={[styles.tab, selected && styles.tabActive]}
+            >
+              <Text style={[styles.tabText, selected && styles.tabTextActive]}>
+                {tab.label}
+              </Text>
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
-
-      <Text style={styles.hint}>Bir maça dokun, Yorumlar sekmesinde toplulukla tartış.</Text>
-
-      <View style={{ paddingHorizontal: spacing.md }}>
-        {error ? (
-          <EmptyState icon="⚠️" title="Akış alınamadı" subtitle={error} />
-        ) : !data ? (
-          <><SkeletonCard /><SkeletonCard /><SkeletonCard /></>
-        ) : matches.length === 0 ? (
-          <EmptyState icon="💬" title="Henüz tartışılacak maç yok" subtitle="Güncel bülten yayınlanınca maç tartışmaları burada listelenecek." />
-        ) : (
-          matches.map((m) => (
-            <MatchCard key={m.no} match={m} onPress={() => navigation.navigate('MatchDetail', { no: m.no, tab: 'Yorumlar' })} />
-          ))
-        )}
       </View>
-    </ScrollView>
+
+      {filteredPosts.length === 0 ? (
+        <EmptyState
+          icon="💬"
+          title="Henüz topluluk yorumu bulunmuyor"
+          message="Gerçek kullanıcı yorumları backend'e bağlanınca burada görünecek."
+        />
+      ) : (
+      <Card style={styles.feedCard}>
+        {filteredPosts.map((post, index) => (
+          <View
+            key={post.id}
+            style={[
+              styles.postItem,
+              index === filteredPosts.length - 1 && styles.postItemLast,
+            ]}
+          >
+            <Row between center>
+              <Text style={styles.postAuthor}>{post.author}</Text>
+              <Pill label={post.badge} tone={post.tone} />
+            </Row>
+
+            <Text style={styles.postTitle}>{post.title}</Text>
+            <Text style={styles.postBody}>{post.body}</Text>
+
+            <View style={styles.postPower}>
+              <Row between center style={{ marginBottom: spacing.sm }}>
+                <Text style={styles.postPowerLabel}>Etkileşim gücü</Text>
+                <Text style={styles.postPowerValue}>%{post.power}</Text>
+              </Row>
+              <ProgressBar value={post.power} tone={post.tone} />
+            </View>
+
+            <Row style={styles.postFooter}>
+              <Text style={styles.postFooterText}>💬 {post.comments} yorum</Text>
+              <Text style={styles.postFooterText}>🔥 {post.likes} beğeni</Text>
+            </Row>
+          </View>
+        ))}
+      </Card>
+      )}
+
+      <SectionTitle
+        title="Günün Sabit Başlıkları"
+        subtitle="Forum boş kalmasın, kullanıcıya hazır gündem sunsun."
+      />
+
+      <Card>
+        <ListItem
+          left={<Ionicons name="bulb" size={22} color={colors.info} />}
+          title="Bugünün en mantıklı güçlü tercihi hangisi?"
+          subtitle="Güçlü tercih maçları için topluluk kontrolü."
+          badge="Tartış"
+          badgeTone="info"
+        />
+        <ListItem
+          left={<Ionicons name="flash" size={22} color={colors.warning} />}
+          title="Sürpriz yapabilecek takım var mı?"
+          subtitle="Favori karşıtı maçlar, beraberlik ihtimali ve beklenmeyen sonuç riski."
+          badge="Aktif"
+          badgeTone="warning"
+        />
+        <ListItem
+          left={<Ionicons name="time" size={22} color={colors.success} />}
+          title="Geçmiş bültenden dersler"
+          subtitle="15, 14, 13, 12 bilen dağılımı ve sonuç alışkanlıkları."
+          badge="Geçmiş"
+          badgeTone="success"
+        />
+      </Card>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.sm },
-  title: { color: colors.text, fontSize: 24, fontWeight: '900' },
-  sub: { color: colors.textMuted, fontSize: 12.5, marginTop: 3, fontWeight: '600' },
-  chips: { paddingHorizontal: spacing.md, gap: 8, paddingVertical: spacing.sm },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-  chipOn: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
-  chipTxt: { color: colors.textMuted, fontSize: 13, fontWeight: '700' },
-  chipTxtOn: { color: colors.accent, fontWeight: '800' },
-  hint: { color: colors.textMuted, fontSize: 12, paddingHorizontal: spacing.lg, marginBottom: spacing.sm, fontStyle: 'italic' },
+  hero: {
+    overflow: 'hidden',
+  },
+  heroTitle: {
+    color: colors.white,
+    fontSize: font.xxl,
+    fontWeight: font.heavy,
+    marginTop: spacing.md,
+  },
+  heroText: {
+    color: '#D7DEEA',
+    fontSize: font.md,
+    lineHeight: 21,
+    marginTop: spacing.sm,
+  },
+  heroIconBox: {
+    width: 76,
+    height: 76,
+    borderRadius: radius.xl,
+    backgroundColor: colors.darkCardSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: spacing.md,
+  },
+  heroIcon: {
+    fontSize: 38,
+  },
+  heroStats: {
+    marginTop: spacing.xl,
+    gap: spacing.md,
+  },
+  heroStat: {
+    flex: 1,
+    backgroundColor: colors.darkCardSoft,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+  },
+  heroStatValue: {
+    color: colors.white,
+    fontSize: font.xl,
+    fontWeight: font.heavy,
+  },
+  heroStatLabel: {
+    color: '#B8C1D1',
+    fontSize: font.sm,
+    marginTop: 2,
+  },
+  roomGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  roomCard: {
+    width: '48%',
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  roomIcon: {
+    fontSize: 24,
+  },
+  roomTitle: {
+    color: colors.text,
+    fontSize: font.md,
+    fontWeight: font.heavy,
+    marginTop: spacing.lg,
+  },
+  roomSubtitle: {
+    color: colors.textSoft,
+    fontSize: font.sm,
+    lineHeight: 18,
+    marginTop: spacing.xs,
+  },
+  tabs: {
+    flexDirection: 'row',
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.pill,
+    padding: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+  },
+  tabActive: {
+    backgroundColor: colors.primary,
+  },
+  tabText: {
+    color: colors.primary,
+    fontSize: font.sm,
+    fontWeight: font.bold,
+  },
+  tabTextActive: {
+    color: colors.white,
+  },
+  feedCard: {
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  postItem: {
+    paddingVertical: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  postItemLast: {
+    borderBottomWidth: 0,
+  },
+  postAuthor: {
+    color: colors.textSoft,
+    fontSize: font.sm,
+    fontWeight: font.bold,
+  },
+  postTitle: {
+    color: colors.text,
+    fontSize: font.lg,
+    fontWeight: font.heavy,
+    marginTop: spacing.md,
+  },
+  postBody: {
+    color: colors.textSoft,
+    fontSize: font.md,
+    lineHeight: 21,
+    marginTop: spacing.xs,
+  },
+  postPower: {
+    marginTop: spacing.md,
+  },
+  postPowerLabel: {
+    color: colors.textSoft,
+    fontSize: font.sm,
+    fontWeight: font.bold,
+  },
+  postPowerValue: {
+    color: colors.text,
+    fontSize: font.sm,
+    fontWeight: font.heavy,
+  },
+  postFooter: {
+    gap: spacing.lg,
+    marginTop: spacing.md,
+  },
+  postFooterText: {
+    color: colors.muted,
+    fontSize: font.sm,
+    fontWeight: font.bold,
+  },
+  listEmoji: {
+    fontSize: 24,
+  },
 });

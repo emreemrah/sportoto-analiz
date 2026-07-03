@@ -1,9 +1,11 @@
-import React, { useEffect } from 'react';
-import { Text } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Text, View, Image, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 import HomeScreen from './src/screens/HomeScreen';
 import BulletinScreen from './src/screens/BulletinScreen';
@@ -16,13 +18,22 @@ import LeaderboardScreen from './src/screens/LeaderboardScreen';
 import { LoginScreen, RegisterScreen, ForgotPasswordScreen } from './src/screens/AuthScreens';
 import { initAuth } from './src/auth';
 import { colors } from './src/theme';
+import AnimatedLogo from './src/components/AnimatedLogo';
+import { FanWoman, KickingMan, AnalystMan, AnalystWoman, AnalysisCard } from './src/components/SplashCharacters';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 const navTheme = {
   ...DefaultTheme,
-  colors: { ...DefaultTheme.colors, background: colors.bg, card: colors.card, text: colors.text, border: colors.border, primary: colors.accent },
+  colors: {
+    ...DefaultTheme.colors,
+    background: colors.bg,
+    card: colors.card,
+    text: colors.text,
+    border: colors.border,
+    primary: colors.accent,
+  },
 };
 
 const header = {
@@ -31,8 +42,14 @@ const header = {
   headerTitleStyle: { fontWeight: '800' },
 };
 
-// Maç detayı kendi premium başlığını kullanır → native header gizli
-const detailScreen = <Stack.Screen name="MatchDetail" component={MatchDetailScreen} options={{ headerShown: false }} />;
+// Maç detayı kendi premium başlığını kullanır, native header gizli
+const detailScreen = (
+  <Stack.Screen
+    name="MatchDetail"
+    component={MatchDetailScreen}
+    options={{ headerShown: false }}
+  />
+);
 
 function HomeStack() {
   return (
@@ -42,6 +59,7 @@ function HomeStack() {
     </Stack.Navigator>
   );
 }
+
 function BulletinStack() {
   return (
     <Stack.Navigator screenOptions={header}>
@@ -50,6 +68,7 @@ function BulletinStack() {
     </Stack.Navigator>
   );
 }
+
 function AnalizStack() {
   return (
     <Stack.Navigator screenOptions={header}>
@@ -58,14 +77,17 @@ function AnalizStack() {
     </Stack.Navigator>
   );
 }
+
 function ForumStack() {
   return (
     <Stack.Navigator screenOptions={header}>
       <Stack.Screen name="Forum" component={ForumScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ headerShown: false }} />
       {detailScreen}
     </Stack.Navigator>
   );
 }
+
 function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={header}>
@@ -79,33 +101,180 @@ function ProfileStack() {
   );
 }
 
-const TabIcon = ({ emoji, focused }) => <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.55 }}>{emoji}</Text>;
+const TAB_ICONS = {
+  home: require('./assets/tab-home.png'),
+  bulletin: require('./assets/tab-bulletin.png'),
+  analysis: require('./assets/tab-analysis.png'),
+  stadium: require('./assets/tab-stadium.png'),
+  profile: require('./assets/tab-profile.png'),
+};
+
+const TabIcon = ({ name, focused }) => (
+  <Image
+    source={TAB_ICONS[name]}
+    style={{ width: 28, height: 28, opacity: focused ? 1 : 0.5 }}
+    resizeMode="contain"
+  />
+);
+
+// Açılış ekranı: marka animasyonu en az ~1.2sn görünür kalır ve initAuth
+// tamamlanana kadar bekler (hangisi uzun sürerse), sonra ana uygulamaya geçer.
+// Sahne: sol üstte tezahürat eden taraftar, sağ üstte topu sektirip vuran
+// oyuncu, ortada marka logosu, altta grafiğe bakan analist ikilisi.
+function SplashScreen() {
+  return (
+    <View style={splashStyles.container}>
+      <StatusBar style="light" />
+
+      <View style={splashStyles.topRow}>
+        <FanWoman width={78} height={196} />
+        <View style={splashStyles.centerBlock}>
+          <AnimatedLogo size={80} />
+          <Text style={splashStyles.brand}>
+            Spor Toto{'\n'}
+            <Text style={{ color: colors.accent }}>Analiz</Text>
+          </Text>
+        </View>
+        <KickingMan width={82} height={178} />
+      </View>
+
+      <View style={splashStyles.bottomRow}>
+        <AnalystMan width={54} height={135} />
+        <AnalysisCard width={92} height={66} />
+        <AnalystWoman width={54} height={135} />
+      </View>
+    </View>
+  );
+}
+
+const splashStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  centerBlock: {
+    alignItems: 'center',
+    gap: 14,
+    marginHorizontal: 6,
+    marginBottom: 40,
+  },
+  brand: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  bottomRow: {
+    position: 'absolute',
+    bottom: 54,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: 6,
+  },
+});
 
 export default function App() {
-  useEffect(() => { initAuth(); }, []);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const minDelay = new Promise((resolve) => setTimeout(resolve, 1200));
+    Promise.all([initAuth(), minDelay]).then(() => {
+      if (!cancelled) setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!ready) {
+    return (
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <SplashScreen />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
     <NavigationContainer theme={navTheme}>
       <StatusBar style="light" />
+
       <Tab.Navigator
         screenOptions={{
           headerShown: false,
-          tabBarStyle: { backgroundColor: colors.bgAlt, borderTopColor: colors.border, height: 62, paddingBottom: 8, paddingTop: 6 },
+          tabBarStyle: {
+            backgroundColor: colors.bgAlt,
+            borderTopColor: colors.border,
+            height: 64,
+            paddingBottom: 8,
+            paddingTop: 7,
+          },
           tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.textMuted,
-          tabBarLabelStyle: { fontSize: 10.5, fontWeight: '700' },
+          tabBarLabelStyle: {
+            fontSize: 10.5,
+            fontWeight: '800',
+          },
         }}
       >
-        <Tab.Screen name="HomeTab" component={HomeStack}
-          options={{ title: 'Ana Sayfa', tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} /> }} />
-        <Tab.Screen name="BulletinTab" component={BulletinStack}
-          options={{ title: 'Bülten', tabBarIcon: ({ focused }) => <TabIcon emoji="📋" focused={focused} /> }} />
-        <Tab.Screen name="AnalizTab" component={AnalizStack}
-          options={{ title: 'Analiz', tabBarIcon: ({ focused }) => <TabIcon emoji="📊" focused={focused} /> }} />
-        <Tab.Screen name="ForumTab" component={ForumStack}
-          options={{ title: 'Forum', tabBarIcon: ({ focused }) => <TabIcon emoji="💬" focused={focused} /> }} />
-        <Tab.Screen name="ProfileTab" component={ProfileStack}
-          options={{ title: 'Profil', tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} /> }} />
+        <Tab.Screen
+          name="HomeTab"
+          component={HomeStack}
+          options={{
+            title: 'Ana Sayfa',
+            tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} />,
+          }}
+        />
+
+        <Tab.Screen
+          name="BulletinTab"
+          component={BulletinStack}
+          options={{
+            title: 'Bülten',
+            tabBarIcon: ({ focused }) => <TabIcon name="bulletin" focused={focused} />,
+          }}
+        />
+
+        <Tab.Screen
+          name="AnalizTab"
+          component={AnalizStack}
+          options={{
+            title: 'Analiz',
+            tabBarIcon: ({ focused }) => <TabIcon name="analysis" focused={focused} />,
+          }}
+        />
+
+        <Tab.Screen
+          name="ForumTab"
+          component={ForumStack}
+          options={{
+            title: 'Stadyum',
+            tabBarIcon: ({ focused }) => <TabIcon name="stadium" focused={focused} />,
+          }}
+        />
+
+        <Tab.Screen
+          name="ProfileTab"
+          component={ProfileStack}
+          options={{
+            title: 'Profil',
+            tabBarIcon: ({ focused }) => <TabIcon name="profile" focused={focused} />,
+          }}
+        />
       </Tab.Navigator>
     </NavigationContainer>
+    </SafeAreaProvider>
   );
 }
