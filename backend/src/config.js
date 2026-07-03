@@ -6,6 +6,10 @@ export const config = {
   // FootyStats API anahtarı — .env'den. Yoksa "example" (örnek lig).
   footyStatsKey: process.env.FOOTYSTATS_API_KEY || 'example',
 
+  // API-Football (api-sports.io) — gerçek canlı skor + dakika için.
+  apiFootballKey: process.env.APIFOOTBALL_API_KEY || '',
+  apiFootballApi: 'https://v3.football.api-sports.io',
+
   // Anthropic (Claude) anahtarı — maç yorumlarını üretmek için. Yoksa kural-tabanlı yoruma düşülür.
   anthropicKey: process.env.ANTHROPIC_API_KEY || '',
   aiModel: process.env.AI_MODEL || 'claude-opus-4-8',

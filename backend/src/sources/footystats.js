@@ -27,29 +27,42 @@ export async function fetchMatches(seasonId) {
   } catch {
     raw = await apiGet('league-matches', { league_id: seasonId });
   }
-  return raw.map((m) => ({
-    seasonId,
-    footyMatchId: m.id,
-    homeId: m.homeID,
-    awayId: m.awayID,
-    homeName: m.home_name || '',
-    awayName: m.away_name || '',
-    status: m.status === 'complete' ? 'finished' : 'upcoming',
-    dateUnix: num(m.date_unix),
-    gameWeek: num(m.game_week),
-    // 1 / X / 2 bahis oranları (0 ise oran henüz yok)
-    odds: {
-      home: num(m.odds_ft_1),
-      draw: num(m.odds_ft_x),
-      away: num(m.odds_ft_2),
-    },
-    // Maç öncesi beklenen gol (xG) ve puan ortalaması (form)
-    preXg: { home: num(m.team_a_xg_prematch), away: num(m.team_b_xg_prematch) },
-    prePpg: { home: num(m.pre_match_home_ppg), away: num(m.pre_match_away_ppg) },
-    score: m.status === 'complete'
-      ? { home: num(m.homeGoalCount), away: num(m.awayGoalCount) }
-      : null,
-  }));
+  const LIVE_WINDOW_MS = 3.5 * 3600 * 1000; // maç ~3.5 saat canlı sayılır
+  return raw.map((m) => {
+    const complete = m.status === 'complete';
+    const dateUnix = num(m.date_unix);
+    const started = dateUnix > 0 && dateUnix * 1000 <= Date.now();
+    // FootyStats 'incomplete'/'suspended' + saati geçmiş + pencere içinde = CANLI
+    const live = !complete
+      && started
+      && (m.status === 'incomplete' || m.status === 'suspended')
+      && (Date.now() - dateUnix * 1000 <= LIVE_WINDOW_MS);
+    return {
+      seasonId,
+      footyMatchId: m.id,
+      homeId: m.homeID,
+      awayId: m.awayID,
+      homeName: m.home_name || '',
+      awayName: m.away_name || '',
+      status: complete ? 'finished' : (live ? 'live' : 'upcoming'),
+      live,
+      dateUnix,
+      gameWeek: num(m.game_week),
+      // 1 / X / 2 bahis oranları (0 ise oran henüz yok)
+      odds: {
+        home: num(m.odds_ft_1),
+        draw: num(m.odds_ft_x),
+        away: num(m.odds_ft_2),
+      },
+      // Maç öncesi beklenen gol (xG) ve puan ortalaması (form)
+      preXg: { home: num(m.team_a_xg_prematch), away: num(m.team_b_xg_prematch) },
+      prePpg: { home: num(m.pre_match_home_ppg), away: num(m.pre_match_away_ppg) },
+      // Canlı veya bitmiş maçta anlık/final skor
+      score: (complete || live)
+        ? { home: num(m.homeGoalCount), away: num(m.awayGoalCount) }
+        : null,
+    };
+  });
 }
 
 // Bir sezonun takımlarını istatistikleriyle çeker (form, iç/dış saha, gol vb.)

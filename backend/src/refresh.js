@@ -5,13 +5,14 @@
 // 4) Sonucu cache'e yazar (mobil uygulama buradan okur)
 import { config, usingExampleKey } from './config.js';
 import { getLatestBulletin } from './sources/sportoto.js';
-import { fetchSeason } from './sources/footystats.js';
+import { fetchSeason, fetchMatches } from './sources/footystats.js';
+import { fetchLiveFixtures, findLiveFixture } from './sources/apifootball.js';
 import { findFootyMatch } from './matcher.js';
 import { analyzeMatch } from './analysis/surprise.js';
 import { createExtrasCache, buildMatchStats } from './enrich.js';
 import { predict } from './analysis/prediction.js';
 import { attachAiComments, aiEnabled } from './analysis/aiComment.js';
-import { save } from './cache.js';
+import { save, load } from './cache.js';
 
 export async function refreshAll() {
   const startedAt = new Date().toISOString();
@@ -46,9 +47,22 @@ export async function refreshAll() {
     const started = bm.status === 'finished'
       || (bm.date && new Date(bm.date).getTime() <= Date.now());
     if (started) {
+      // Başlamış maça analiz üretilmez; ama FootyStats'ten CANLI/final skoru ekle.
+      const found = findFootyMatch(bm, footyMatches);
+      const fm = found?.match;
+      let score = bm.score || null;
+      let isLive = false;
+      if (fm && fm.score && (fm.status === 'live' || fm.status === 'finished')) {
+        score = found.swapped ? { home: fm.score.away, away: fm.score.home } : fm.score;
+        isLive = fm.status === 'live';
+      }
       analyzedMatches.push({
         ...bm,
         started: true,
+        live: isLive,
+        score,
+        footyMatchId: fm?.footyMatchId ?? null,
+        footySwapped: found?.swapped ?? false,
         analysis: { started: true, label: '—', surpriseScore: null, probabilities: null },
         stats: null,
         prediction: null,
@@ -128,6 +142,81 @@ export async function refreshAll() {
   save('bulletin', result);
   console.log(`[refresh] bitti, cache'e yazıldı.`);
   return result;
+}
+
+// HAFİF CANLI-SKOR GÜNCELLEMESİ
+// Sadece "canlı penceredeki" (saati geçmiş, ~3.5 saat içinde, henüz final olmamış)
+// maçların skorunu FootyStats'ten tazeler. Analiz/AI/zenginleştirme YOK.
+// Canlı maç yoksa hiç API çağrısı yapmadan mevcut veriyi döndürür (bedava).
+const LIVE_WINDOW_MS = 3.5 * 3600 * 1000;
+function inLiveWindow(m, now) {
+  if (!m?.date) return false;
+  const t = new Date(m.date).getTime();
+  return Number.isFinite(t) && t <= now && now - t <= LIVE_WINDOW_MS;
+}
+
+export async function refreshLiveScores() {
+  const cached = load('bulletin');
+  if (!cached?.data) return null;
+  const data = cached.data;
+  const now = Date.now();
+
+  // Tarih-temelli: saati geçmiş (canlı pencere) + henüz final olmamış her maç.
+  // (Cache'teki 'started' bayrağına bakmayız; son refresh'ten sonra başlayanı da yakalar.)
+  const targets = data.matches.filter((m) => !m.finalized && inLiveWindow(m, now));
+  if (targets.length === 0) return data; // canlı maç yok → API'ye gitme
+
+  // API-Football: şu an oynanan TÜM maçlar (gerçek canlı skor + dakika)
+  let fixtures = [];
+  try {
+    fixtures = await fetchLiveFixtures();
+  } catch (e) {
+    console.warn(`[live] API-Football: ${e.message}`);
+    return data;
+  }
+
+  let changed = false;
+  const matches = data.matches.map((m) => {
+    if (m.finalized || !inLiveWindow(m, now)) return m;
+    const found = findLiveFixture(m, fixtures);
+    const f = found?.fixture;
+    if (!f) {
+      // Canlı listede yoksa: canlıydıysa artık bitmiş say (son skoru koru)
+      if (m.live) {
+        changed = true;
+        return { ...m, live: false, finalized: true, minute: null };
+      }
+      return m;
+    }
+    const score = found.swapped
+      ? { home: f.awayGoals, away: f.homeGoals }
+      : { home: f.homeGoals, away: f.awayGoals };
+    const live = f.live;
+    const finalized = f.finished;
+    const minute = live ? f.minute : null;
+    const same = m.started && m.score
+      && m.score.home === score.home && m.score.away === score.away
+      && m.live === live && m.minute === minute;
+    if (same && !finalized) return m;
+    changed = true;
+    // Başlamış maça analiz/tahmin gösterilmez (kural) — canlı skoru öne çıkar.
+    return {
+      ...m,
+      started: true,
+      live,
+      finalized,
+      score,
+      minute,
+      analysis: { started: true, label: '—', surpriseScore: null, probabilities: null },
+      prediction: null,
+    };
+  });
+
+  if (!changed) return data;
+  const updated = { ...data, matches, liveUpdatedAt: new Date().toISOString() };
+  save('bulletin', updated);
+  console.log(`[live] ${targets.length} canlı-pencere maçı güncellendi`);
+  return updated;
 }
 
 // Doğrudan "node src/refresh.js" ile çalıştırılırsa bir kez yenile

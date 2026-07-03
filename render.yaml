@@ -17,6 +17,9 @@ services:
       # Gerçek FootyStats anahtarı panelden girilir (git'e gitmez).
       - key: FOOTYSTATS_API_KEY
         sync: false
+      # API-Football (canlı skor) anahtarı — panelden girilir (git'e gitmez).
+      - key: APIFOOTBALL_API_KEY
+        sync: false
       # Supabase (üyelik + profil + yorum) — değerler panelden girilir, git'e gitmez.
       - key: SUPABASE_URL
         sync: false

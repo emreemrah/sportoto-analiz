@@ -1,46 +1,121 @@
-export const colors = {
-  bg: '#0a1715',        // koyu petrol yeşili (siyaha yakın)
-  card: '#142e29',      // koyu petrol kart
-  cardAlt: '#1c3b35',
-  text: '#f1f5f9',
-  textMuted: '#9bb3ac',
-  border: '#26483f',
-  primary: '#2dd4bf',
-  // sürpriz etiket renkleri
-  green: '#22c55e',
-  yellow: '#fbbf24',
-  red: '#ef4444',
-  gray: '#64748b',
-  orange: '#f97316', // kıyas çubuğunda deplasman
-  track: '#26483f',  // çubuk arka planı
+// app/src/theme.js
 
-  // --- Premium yeniden tasarım token'ları ---
-  accent: '#f97316',                 // ANA VURGU — turuncu (aktif sekme, butonlar)
-  accentSoft: 'rgba(249,115,22,0.14)',
-  field: '#22c55e',                  // ikincil vurgu — saha yeşili
-  gold: '#fbbf24',                   // yardımcı vurgu (çok az)
-  bgAlt: '#0f2420',                  // yumuşak koyu petrol zemin (header/şerit)
+export const colors = {
+  background: '#F3F5F9',
+  surface: '#FFFFFF',
+  surfaceSoft: '#F8FAFC',
+
+  primary: '#0B1B3A',
+  primaryDark: '#071329',
+  primarySoft: '#E8EEF8',
+
+  accent: '#E21B2D',
+  accentSoft: '#FFE8EB',
+
+  success: '#16A34A',
+  successSoft: '#E8F7EE',
+
+  warning: '#F59E0B',
+  warningSoft: '#FFF4DD',
+
+  danger: '#DC2626',
+  dangerSoft: '#FEE2E2',
+
+  info: '#2563EB',
+  infoSoft: '#EAF1FF',
+
+  text: '#101828',
+  textSoft: '#475467',
+  muted: '#98A2B3',
+  border: '#E4E7EC',
+
+  darkCard: '#111C34',
+  darkCardSoft: '#18243F',
+  white: '#FFFFFF',
+  black: '#000000',
+
+  // --- Geriye dönük uyumluluk (eski token adları → yeni palet) ---
+  bg: '#F3F5F9',
+  bgAlt: '#F8FAFC',
+  card: '#FFFFFF',
+  cardAlt: '#E8EEF8',
+  textMuted: '#98A2B3',
+  field: '#16A34A',
+  gold: '#F59E0B',
+  green: '#16A34A',
+  yellow: '#F59E0B',
+  red: '#DC2626',
+  gray: '#98A2B3',
+  orange: '#F59E0B',
+  track: '#E8EEF8',
 };
 
-// Premium kart gölgeleri (temiz, hafif)
-export const shadows = {
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
+};
+
+export const radius = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 22,
+  pill: 999,
+};
+
+export const font = {
+  xs: 11,
+  sm: 12,
+  md: 14,
+  lg: 16,
+  xl: 20,
+  xxl: 26,
+
+  regular: '400',
+  medium: '500',
+  semibold: '600',
+  bold: '700',
+  heavy: '800',
+};
+
+export const shadow = {
   card: {
-    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 }, elevation: 3,
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 4,
   },
   soft: {
-    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 }, elevation: 2,
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
 };
 
-// Backend'ten gelen labelColor -> gerçek renk
+// --- Geriye dönük uyumluluk export'ları (eski isimler) ---
+export const shadows = shadow;
 export const labelColors = {
-  green: colors.green,
-  yellow: colors.yellow,
-  red: colors.red,
-  gray: colors.gray,
+  green: colors.success,
+  yellow: colors.warning,
+  red: colors.danger,
+  gray: colors.muted,
 };
 
-export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 };
-export const radius = { sm: 8, md: 12, lg: 16 };
+export const theme = {
+  colors,
+  spacing,
+  radius,
+  font,
+  shadow,
+  shadows,
+};
+
+export default theme;
