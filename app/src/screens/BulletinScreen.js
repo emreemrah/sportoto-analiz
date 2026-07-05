@@ -12,6 +12,7 @@ import { RecordBadges } from '../components';
 import ScoreLegend from '../components/ScoreLegend';
 import LiveBulletinView from '../components/LiveBulletinView';
 import BultenBackdrop from '../components/BultenBackdrop';
+import BultenEmptyState from '../components/BultenEmptyState';
 
 const MARK = { correct: '✅', wrong: '❌', pending: '⏳', none: '' };
 
@@ -476,17 +477,13 @@ export default function BulletinScreen({ navigation }) {
       );
     } else if (!data.matches || data.matches.length === 0) {
       body = (
-        <Center>
-          <Text style={styles.errEmoji}>🕐</Text>
-          <Text style={styles.errText}>
-            {data?.title || (data?.pending ? 'Henüz açıklanmadı' : 'Bülten henüz açıklanmadı')}
-          </Text>
-          <Text style={[styles.muted, { textAlign: 'center', marginTop: 6 }]}>
-            {data?.pending
-              ? `${data?.reason || 'Güncel resmi bülten bekleniyor.'}\nYalnızca resmi Spor Toto listesinde teyit edilen (tam 15 maçlık) bülten gösterilir.\nGeçmiş haftaların sonuçları için ‹ oka bas.`
-              : 'Yeni hafta resmi Spor Toto listesinde genellikle Pazar günü yayınlanır.\nGeçmiş haftaların sonuçları için ‹ oka bas.'}
-          </Text>
-        </Center>
+        <BultenEmptyState
+          title={data?.title || 'Bu haftanın bülteni henüz yayınlanmadı'}
+          message={data?.pending
+            ? `${data?.reason || 'Güncel resmi bülten bekleniyor.'}\nGeçmiş haftaların sonuçları için ‹ oka bas.`
+            : 'Yeni hafta genellikle Pazar günü resmi listede yayınlanır.\nGeçmiş haftaların sonuçları için ‹ oka bas.'}
+          onRefresh={load}
+        />
       );
     } else {
       // Güncel bülten artık CANLI yapısıyla (üst özet + filtre + sıralama + sade kartlar).
