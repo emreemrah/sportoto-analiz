@@ -132,12 +132,16 @@ eşleşmedi (alias gerekir)**. Yeni maç veri gelmiyorsa buradan sebebi görül�
   sıfırlanır) — kalıcı prod için Supabase tablosuna taşınmalı (henüz yapılmadı).
 
 ## 9. MEVCUT DURUM (devir anı)
-- `main`'de yayında; feature branch'te görsel + analiz iyileştirmeleri var.
-- **Henüz commit edilmemiş** bir dizi UI/motor değişikliği olabilir — `git status`
-  ile bak; kullanıcı onayıyla commit/deploy edilir.
+- **Tüm güncel iş `feature/gecmis-bulten-ve-rozet-tasarimi` branch'inde commit'li
+  ve push'lı.** Devir alan **bu branch'ten** çalışmalı (`git checkout` ile). `main`
+  daha eskidir; en güncel analiz motoru + UI feature branch'tedir.
+- **`backend/.env` git'te YOK** (anahtarlar) — ayrıca güvenli şekilde paylaşılmalı:
+  `FOOTYSTATS_API_KEY`, `FOOTYSTATS_SEASON_IDS`, `APIFOOTBALL_API_KEY`,
+  `SUPABASE_URL/PUBLISHABLE_KEY/SECRET_KEY` (adlar için `render.yaml`).
 - Bilinen eksikler: eksik oyuncu & teknik direktör verisi (kaynak yok) → kriter
-  4-5 hep "Bilinmiyor"; H2H tek-tek skorları yok (özet var); `backend/data` prod'da
-  kalıcı değil.
+  4-5 hep "Bilinmiyor"; H2H tek-tek skorları yok (özet var); `backend/data` (kupon)
+  Render free'de kalıcı değil (Supabase tablosuna taşınmalı).
+- Deploy istenirse: feature → `main` merge + push → Render otomatik deploy.
 
 ## 10. YENİ CLAUDE İÇİN BAŞLANGIÇ PROMPT'U
 Yeni oturumun ilk mesajına şunu yapıştır:
