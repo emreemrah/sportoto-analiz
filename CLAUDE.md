@@ -1,10 +1,13 @@
 # Spor Toto Analiz — Proje Rehberi
 
+> **Derin bağlam / devir için `HANDOFF.md`'yi oku** (mimari, veri akışı, analiz
+> motoru mantığı, deploy, mevcut durum). Bu dosya kısa; HANDOFF ayrıntılı.
+
 ## Amaç
-Resmi Spor Toto bültenini (sportoto.gov.tr) ve FootyStats verisini birleştirip
-**analiz** sunan bir uygulama (bahis tüyosu değil, analiz). Güncel haftanın
-bültenini gösterir, "sürpriz" analizi + kupon tahmini (1/0/2/10/02/12/102)
-üretir, geçmiş haftaların sonuç ve ikramiye dağılımını gösterir.
+Resmi Spor Toto bültenini (sportoto.gov.tr) + FootyStats/API-Football verisini
+birleştirip her maça **kupon karar desteği** (analiz) sunan uygulama —
+**bahis/ödeme değil, analiz.** Güncel + geçmiş bülten, canlı skor, kapsam kontrolü,
+kupon oluşturma ve **kullanıcı mantığı analiz motoru** (`app/src/userMatchEngine.js`).
 
 ## Yapı
 - **backend/** — Node.js (ESM) + Express API, port **4000**.
@@ -54,11 +57,19 @@ bültenini gösterir, "sürpriz" analizi + kupon tahmini (1/0/2/10/02/12/102)
   karıştırılmaz. Başlamış/oynanmış maça analiz/tahmin üretilmez.
 - Güncel bülten = analiz odaklı. Geçmiş bülten = sonuç + ikramiye odaklı.
 
-## Çalışma kuralları
+## Çalışma kuralları (KESİN)
+- **Bahis/ödeme/para sistemi kurma** — uygulama "analiz + kupon karar desteği".
+- **Sahte/kesin sonuç üretme.** Veri yoksa "Bilinmiyor" / "Bu veri bulunamadı" yaz
+  ve **risk/güven seviyesini düşür.** Olmayan veriyi varmış gibi gösterme.
+- **Yalnız resmi Spor Toto sonucu kesindir.** Canlı/geçici skor kesin sayılmaz,
+  başarıya yazılmaz (renk: 🟢 resmi · 🟡 henüz resmi değil · 🔴 canlı).
+- **İddialı dil yok:** "kesin/garanti/banko/yanılmaz/net favori" (koşul sağlanmadan).
 - Anahtarlar `backend/.env` içinde (gitignore'lu) — asla koda yazma/commit'leme.
-- Backend API mantığını gereksiz büyütme; mevcut güncel-bülten akışını bozma.
-- Takım isimlerini bozma, logoları koru. Gereksiz refactor yapma.
-- Minimum dosya değişikliği; iş sonunda değişen dosyaları kısa özetle.
-- Yeni paket kurma ve kullanıcıya sormadan push/PR yapma.
+- **Kullanıcı arayüzünde marka adı yok** (ör. "FootyStats" gösterme).
+- Backend API mantığını gereksiz büyütme; mevcut akışı bozma. Takım adlarını/logoları
+  koru. Minimum dosya değişikliği; iş sonunda değişenleri özetle; web bundle 200 doğrula.
+- **Yeni paket kurma ve sormadan push/PR/deploy yapma.**
+- Analiz motoru: `app/src/userMatchEngine.js` (6 kriter; risk = önerilen seçim
+  genişliği: tek=Düşük, çifte=Orta, üçlü 1X2=Yüksek). Detay: `HANDOFF.md` §6.
 - `node_modules/`, `.git/`, `dist/`, `build/`, `app/.expo/`, `backend/cache/`,
-  `backend/public/` üretilen/çıktı klasörleridir — okuma/düzenleme gerekmez.
+  `backend/data/`, `backend/public/` üretilen/çıktı — okuma/düzenleme gerekmez.
