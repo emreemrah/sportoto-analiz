@@ -11,6 +11,7 @@ import { toOfficial } from '../couponConfig';
 import { RecordBadges } from '../components';
 import ScoreLegend from '../components/ScoreLegend';
 import LiveBulletinView from '../components/LiveBulletinView';
+import BultenBackdrop from '../components/BultenBackdrop';
 
 const MARK = { correct: '✅', wrong: '❌', pending: '⏳', none: '' };
 
@@ -616,7 +617,8 @@ export default function BulletinScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    <BultenBackdrop>
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       {Header}
       {body}
 
@@ -655,6 +657,7 @@ export default function BulletinScreen({ navigation }) {
 
       {toast && <View style={styles.toast}><Text style={styles.toastTxt}>{toast}</Text></View>}
     </View>
+    </BultenBackdrop>
   );
 }
 

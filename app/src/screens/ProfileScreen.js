@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { colors, spacing, radius } from '../theme';
 import { ProfileAvatar } from '../components';
+import ScreenBackdrop from '../components/ScreenBackdrop';
 import { api } from '../api';
 import { useAuth, logout, refreshUser } from '../auth';
 
@@ -95,7 +96,8 @@ export default function ProfileScreen({ navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: spacing.lg }}>
+    <ScreenBackdrop>
+    <ScrollView style={[styles.container, { backgroundColor: 'transparent' }]} contentContainerStyle={{ padding: spacing.lg }}>
       <Text style={styles.title}>Profil</Text>
 
       <View style={styles.avatarWrap}>
@@ -156,6 +158,7 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.btnLogoutTxt}>Çıkış Yap</Text>
       </TouchableOpacity>
     </ScrollView>
+    </ScreenBackdrop>
   );
 }
 

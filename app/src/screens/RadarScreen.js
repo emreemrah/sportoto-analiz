@@ -4,6 +4,7 @@ import { api } from '../api';
 import { colors, spacing, radius, labelColors } from '../theme';
 import { SurpriseBadge, PredictionBadge } from '../components';
 import NoInternetScreen, { isNetworkError } from '../components/NoInternetScreen';
+import ScreenBackdrop from '../components/ScreenBackdrop';
 
 export default function RadarScreen({ navigation }) {
   const [radar, setRadar] = useState(null);
@@ -48,7 +49,8 @@ export default function RadarScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <ScreenBackdrop>
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       <View style={styles.header}>
         <Text style={styles.title}>🎯 Sürpriz Radarı</Text>
         <Text style={styles.muted}>En sürprize açıktan en bankoya doğru sıralı</Text>
@@ -65,6 +67,7 @@ export default function RadarScreen({ navigation }) {
         ListEmptyComponent={<Text style={[styles.muted, { textAlign: 'center', marginTop: 40 }]}>Henüz oranlı maç yok.{'\n'}Kendi anahtarınla lig ekleyince dolacak.</Text>}
       />
     </View>
+    </ScreenBackdrop>
   );
 }
 
