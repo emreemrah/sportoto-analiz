@@ -33,6 +33,7 @@ const smRow = { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVerti
 const smOpp = { flex: 1, color: colors.textMuted, fontSize: 11.5, fontWeight: '600' };
 const smScore = { fontSize: 12, fontWeight: '800' };
 const smLegend = { color: colors.textMuted, fontSize: 10, marginBottom: 8, lineHeight: 14 };
+const smLegendTxt = { color: colors.textMuted, fontSize: 10, lineHeight: 14 };
 
 // Son 5 form puanı (0-5): G=1, B=0.5, M=0 → ortalama × 5
 function formRating(form) {
@@ -410,7 +411,12 @@ export default function MatchDetailScreen({ route, navigation }) {
           )}
           {(s.home?.last5?.length || s.away?.last5?.length) ? (
             <Accordion title="Son Maçlar" icon="🗓️" defaultOpen>
-              <Text style={smLegend}>🏠 iç saha · ✈️ deplasman   ·   🟢 galibiyet · 🟡 beraberlik · 🔴 mağlubiyet</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+                <Image source={require('../../assets/venue/home-win.png')} style={{ width: 15, height: 15 }} resizeMode="contain" />
+                <Text style={smLegendTxt}> iç saha   ·  </Text>
+                <Image source={require('../../assets/venue/away-win.png')} style={{ width: 15, height: 15 }} resizeMode="contain" />
+                <Text style={smLegendTxt}> deplasman   ·   🟢 galibiyet · 🟡 beraberlik · 🔴 mağlubiyet</Text>
+              </View>
               <View style={{ flexDirection: 'row', gap: 14 }}>
                 {[{ n: homeName, f: s.home?.last5, d: s.home?.last5detail }, { n: awayName, f: s.away?.last5, d: s.away?.last5detail }].map((col, ci) => (
                   <View key={ci} style={{ flex: 1 }}>
