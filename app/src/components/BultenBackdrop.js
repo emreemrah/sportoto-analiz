@@ -25,12 +25,12 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedG = Animated.createAnimatedComponent(G);
 
 const BG = colors.bg || colors.background || '#F3F5F9';
-const LINE = 'rgba(11,27,58,0.05)';
-const LINE_SOFT = 'rgba(11,27,58,0.035)';
-const X_COLOR = 'rgba(11,27,58,0.07)';
-const O_COLOR = 'rgba(226,27,45,0.07)';
-const ARROW = 'rgba(22,163,74,0.10)';   // pas oku (success ailesi, çok soluk)
-const BALL = 'rgba(11,27,58,0.045)';    // top filigranı
+const LINE = 'rgba(11,27,58,0.09)';
+const LINE_SOFT = 'rgba(11,27,58,0.06)';
+const X_COLOR = 'rgba(11,27,58,0.24)';
+const O_COLOR = 'rgba(226,27,45,0.24)';
+const ARROW = 'rgba(22,163,74,0.30)';   // pas oku (success ailesi)
+const BALL = 'rgba(11,27,58,0.08)';     // top filigranı
 
 // Pas okları: uzun, sakin rotalar
 const ARROWS = [
@@ -85,7 +85,7 @@ export default function BultenBackdrop({ children, style, animated = true }) {
         <Svg width="100%" height="100%" viewBox="0 0 360 720" preserveAspectRatio="xMidYMid slice">
           <Defs>
             <RadialGradient id="bultenGlow" cx="50%" cy="8%" r="60%">
-              <Stop offset="0%" stopColor={colors.primary || '#0B1B3A'} stopOpacity="0.06" />
+              <Stop offset="0%" stopColor={colors.primary || '#0B1B3A'} stopOpacity="0.10" />
               <Stop offset="100%" stopColor={colors.primary || '#0B1B3A'} stopOpacity="0" />
             </RadialGradient>
           </Defs>

@@ -9,6 +9,7 @@ import PollsSection from '../Polls';
 import { MatchHeader, Tabs, Accordion, SectionCard, PollCard, EmptyState, RatingDots, SplitDonut, StatTile, InfoTile, PollTile, Logo } from '../ui';
 import CouponPickBlock from '../components/CouponPickBlock';
 import MatchInfoCard from '../components/MatchInfoCard';
+import UserAnalysisView from '../components/UserAnalysisView';
 
 const TABS = ['Özet', 'Analiz', 'İstatistik', 'Karşılaştırma', 'Yorumlar'];
 const sonRow = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' };
@@ -438,76 +439,11 @@ export default function MatchDetailScreen({ route, navigation }) {
       )}
 
       {tab === 'Analiz' && (<>
-      <Accordion title="Maç Analizi" icon="📈" defaultOpen>
-        <Text style={styles.comment}>{humanize(comment)}{fromAI ? '  ·  Claude' : ''}</Text>
-        {(hRating != null || aRating != null) && (
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-            <StatTile title="İç Saha Formu" sub={homeName}><RatingDots rating={hRating ?? 0} color={colors.field} /></StatTile>
-            <StatTile title="Deplasman Formu" sub={awayName}><RatingDots rating={aRating ?? 0} color={colors.gold} /></StatTile>
-            <StatTile title="Genel Güç" sub="Karşılaştırma"><SplitDonut home={gucHome} away={gucAway} /></StatTile>
-          </View>
-        )}
-        {m.prediction && m.prediction.symbol !== '-' && (
-          <View style={[styles.predCard, { borderLeftColor: pmeta.color, marginTop: 12, marginBottom: 0 }]}>
-            <View style={styles.pcTop}>
-              <View style={styles.pcLeft}>
-                <View style={[styles.pcSymbol, { borderColor: pmeta.color }]}>
-                  <Text style={[styles.pcSymbolTxt, { color: pmeta.color }]}>{m.prediction.symbol}</Text>
-                </View>
-                <Text style={styles.pcWho}>{SYM_WHO[m.prediction.symbol] || ''}</Text>
-              </View>
-              <View style={styles.pcMid}>
-                <Text style={styles.pcKicker}>TAHMİN ANALİZİ</Text>
-                <Text style={styles.pcMain}>{m.prediction.meaning}</Text>
-                {pickDesc ? <Text style={styles.pcDesc}>{pickDesc}</Text> : null}
-              </View>
-            </View>
-            <View style={styles.pcRight}>
-              <View style={[styles.pcBadge, { backgroundColor: pmeta.color + '22', borderColor: pmeta.color }]}>
-                <Text style={[styles.pcBadgeTxt, { color: pmeta.color }]}>{m.prediction.label}</Text>
-              </View>
-              <View style={styles.pcMetaRow}><Text style={styles.pcMetaK}>Güven</Text><Text style={styles.pcMetaV}>{pmeta.guven}</Text></View>
-              <View style={styles.pcMetaRow}><Text style={styles.pcMetaK}>Risk</Text><Text style={styles.pcMetaV}>{pmeta.risk}</Text></View>
-            </View>
-          </View>
-        )}
-      </Accordion>
+      <UserAnalysisView m={m} />
 
-      {sinyaller.length > 0 && (
-        <Accordion title="Güçlü Sinyaller" icon="⭐">
-          {sinyaller.map((sg, i) => <Text key={i} style={styles.aBullet}>•  {sg}</Text>)}
-        </Accordion>
-      )}
-
-      <Accordion title="Kazanma İhtimalleri" icon="📊" defaultOpen>
+      <Accordion title="Kazanma İhtimalleri" icon="📊">
         <ProbBars probabilities={a.probabilities} />
-        {a.estimated && <Text style={styles.estNote}>≈ tahmini (form + gol beklentisinden)</Text>}
-      </Accordion>
-
-      {kuponYorumu ? (
-        <Accordion title="Tahmin Notu" icon="📝">
-          <Text style={styles.comment}>{kuponYorumu}</Text>
-        </Accordion>
-      ) : null}
-
-      <Accordion title="Risk Analizi" icon="⚠️">
-        {a.surpriseScore != null && (() => {
-          const risk = riskOf(a.surpriseScore);
-          return (
-            <Text style={styles.comment}>Sürpriz Puanı: <Text style={styles.scoreBig}>{a.surpriseScore}</Text>/100{risk ? <Text> · <Text style={{ color: risk.color, fontWeight: '800' }}>{risk.word}</Text></Text> : null}</Text>
-          );
-        })()}
-        {riskNotu ? <Text style={[styles.comment, { marginTop: 8 }]}>{riskNotu}</Text> : null}
-        {a.factors && a.factors.length > 0 && (
-          <View style={{ marginTop: 10 }}>
-            {a.factors.map((f, i) => (
-              <View key={i} style={[styles.factorRow, i === a.factors.length - 1 && { borderBottomWidth: 0 }]}>
-                <Text style={styles.factorLabel}>{humanize(f.label)}</Text>
-                <Text style={styles.factorPts}>+{f.points}</Text>
-              </View>
-            ))}
-          </View>
-        )}
+        {a.estimated && <Text style={styles.estNote}>≈ tahmini (form + gol beklentisinden, oran yok)</Text>}
       </Accordion>
       </>)}
 

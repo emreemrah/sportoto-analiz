@@ -119,7 +119,7 @@ export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'impor
 }
 
 const s = StyleSheet.create({
-  card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: colors.border, ...shadow.soft },
+  card: { backgroundColor: 'rgba(255,255,255,0.86)', borderRadius: radius.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: colors.border, ...shadow.soft },
   row: { flexDirection: 'row', alignItems: 'center' },
   no: { color: colors.muted, fontSize: 11, fontWeight: '900', width: 16, textAlign: 'center', marginRight: 4 },
   team: { flex: 1, gap: 6, minWidth: 0 },

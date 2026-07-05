@@ -186,6 +186,20 @@ export async function fetchLeaguePlayers(seasonId) {
   }));
 }
 
+// Tek maçın ANLIK skoru + durumu (canlı/bitmiş) — geçmiş bültendeki başlamış
+// maçların geçici skorunu hedefli tazelemek için (tüm sezonu çekmeden).
+export async function fetchMatchScore(matchId) {
+  const m = await apiGet('match', { match_id: matchId });
+  const complete = m?.status === 'complete';
+  const dateUnix = num(m?.date_unix);
+  const started = dateUnix > 0 && dateUnix * 1000 <= Date.now();
+  const LIVE_WINDOW_MS = 3.5 * 3600 * 1000;
+  const live = !complete && started && (m?.status === 'incomplete' || m?.status === 'suspended') && (Date.now() - dateUnix * 1000 <= LIVE_WINDOW_MS);
+  const status = complete ? 'finished' : (live ? 'live' : 'upcoming');
+  const score = (complete || live) ? { home: num(m?.homeGoalCount), away: num(m?.awayGoalCount) } : null;
+  return { footyMatchId: matchId, status, score };
+}
+
 // --- TEK MAÇ DETAYI (h2h + potansiyeller) ---
 // Takımın stadyumu + adresi (şehir) — ev sahibi maç bilgisi kartı + hava için.
 export async function fetchTeamVenue(teamId) {

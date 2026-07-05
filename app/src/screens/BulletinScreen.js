@@ -382,6 +382,10 @@ export default function BulletinScreen({ navigation }) {
               <Text style={styles.mOfficial}>MS · Resmi Sonuç</Text>
             ) : notStarted ? (
               <Text style={styles.mWaitMuted}>Başlamadı</Text>
+            ) : (prov && prov.live) ? (
+              <Text style={styles.mLive}>🔴 CANLI{prov.minute != null ? ` ${prov.minute}'` : ''}</Text>
+            ) : (prov && prov.finished) ? (
+              <Text style={styles.mWait}>Bitti · resmi sonuç bekleniyor</Text>
             ) : (
               <Text style={styles.mWait}>Resmi sonuç bekliyor</Text>
             )}
@@ -763,6 +767,7 @@ const styles = StyleSheet.create({
   mFootLeft: { flex: 1, gap: 3 },
   mOfficial: { color: colors.success, fontSize: 11, fontWeight: '900', letterSpacing: 0.2 },
   mWait: { color: colors.warning, fontSize: 11, fontWeight: '900', letterSpacing: 0.2 },
+  mLive: { color: colors.accent, fontSize: 11, fontWeight: '900', letterSpacing: 0.2 },
   mWaitMuted: { color: colors.muted, fontSize: 11, fontWeight: '800' },
   mPicks: { fontSize: 12, color: colors.text },
   mPickLabel: { color: colors.muted, fontSize: 11, fontWeight: '800' },

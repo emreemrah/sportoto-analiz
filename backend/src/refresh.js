@@ -5,7 +5,7 @@
 // 4) Sonucu cache'e yazar (mobil uygulama buradan okur)
 import { config, usingExampleKey } from './config.js';
 import { getLatestBulletin, getBulletinByRoundId } from './sources/sportoto.js';
-import { fetchSeason, fetchMatches, fetchLeagueNames, fetchTeamVenue } from './sources/footystats.js';
+import { fetchSeason, fetchMatches, fetchLeagueNames, fetchTeamVenue, fetchMatchScore } from './sources/footystats.js';
 import { getWeather } from './weather.js';
 import { fetchLiveFixtures, findLiveFixture } from './sources/apifootball.js';
 import { findFootyMatch, normalizeName, hasFootyCandidate } from './matcher.js';
@@ -72,6 +72,27 @@ function saveFootyScores(footyMatches) {
     }
   }
   save('footyScores', idx);
+}
+
+// HEDEFLİ CANLI SKOR TAZELEME — başlamış ama resmi sonucu gelmemiş maçların
+// (footyMatchId'li) skorunu FootyStats'tan tek tek çekip footyScores'a MERGE eder.
+// Tam refresh (6 saat) beklemeden, geçmiş bültendeki bugünkü maçlar da akar.
+export async function refreshLiveFootyScores(footyMatchIds) {
+  const ids = [...new Set((footyMatchIds || []).filter((x) => x != null))];
+  if (!ids.length) return { updated: 0 };
+  const idx = load('footyScores')?.data || {};
+  let updated = 0;
+  for (const id of ids) {
+    try {
+      const r = await fetchMatchScore(id);
+      if (r && (r.status === 'live' || r.status === 'finished') && r.score) {
+        idx[id] = { score: r.score, status: r.status };
+        updated++;
+      }
+    } catch { /* tek maç hatası tüm akışı bozmasın */ }
+  }
+  if (updated) save('footyScores', idx);
+  return { updated };
 }
 
 // GEÇMİŞ HAFTA TAHMİN BACKFILL — bir geçmiş round'un maç-başı SİSTEM TAHMİNİNİ
@@ -476,6 +497,22 @@ function inLiveWindow(m, now) {
   return Number.isFinite(t) && t <= now && now - t <= LIVE_WINDOW_MS;
 }
 
+// PAYLAŞIMLI canlı fixture cache — API-Football'dan TÜM canlı maçlar tek çağrıda.
+// Hem güncel hem geçmiş bülten aynı 40sn'lik cache'i kullanır → ekstra API yok.
+let _liveFx = { at: 0, fixtures: [] };
+export async function getLiveFixtures() {
+  const now = Date.now();
+  if (now - _liveFx.at < 40000) return _liveFx.fixtures;
+  try {
+    const fx = await fetchLiveFixtures();
+    _liveFx = { at: now, fixtures: fx || [] };
+  } catch (e) {
+    console.warn(`[live] API-Football: ${e.message}`);
+    _liveFx = { at: now, fixtures: _liveFx.fixtures }; // eski cache'i koru, throttle'ı ilerlet
+  }
+  return _liveFx.fixtures;
+}
+
 export async function refreshLiveScores() {
   const cached = load('bulletin');
   if (!cached?.data) return null;
@@ -487,14 +524,8 @@ export async function refreshLiveScores() {
   const targets = data.matches.filter((m) => !m.finalized && inLiveWindow(m, now));
   if (targets.length === 0) return data; // canlı maç yok → API'ye gitme
 
-  // API-Football: şu an oynanan TÜM maçlar (gerçek canlı skor + dakika)
-  let fixtures = [];
-  try {
-    fixtures = await fetchLiveFixtures();
-  } catch (e) {
-    console.warn(`[live] API-Football: ${e.message}`);
-    return data;
-  }
+  // API-Football: şu an oynanan TÜM maçlar (gerçek canlı skor + dakika) — paylaşımlı cache
+  const fixtures = await getLiveFixtures();
 
   let changed = false;
   const matches = data.matches.map((m) => {

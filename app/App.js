@@ -5,6 +5,7 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import Svg, { Circle, Line } from 'react-native-svg';
 
 import HomeScreen from './src/screens/HomeScreen';
 import BulletinScreen from './src/screens/BulletinScreen';
@@ -131,6 +132,21 @@ const TabIcon = ({ name, focused }) => (
     resizeMode="contain"
   />
 );
+
+// Analiz sekmesi: RADAR ikonu (eş merkezli halkalar + tarama kolu + iz).
+const RadarIcon = ({ focused }) => {
+  const c = focused ? colors.accent : colors.muted;
+  return (
+    <Svg width={28} height={28} viewBox="0 0 24 24">
+      <Circle cx="12" cy="12" r="9.5" stroke={c} strokeWidth="1.5" fill="none" opacity={0.45} />
+      <Circle cx="12" cy="12" r="6" stroke={c} strokeWidth="1.5" fill="none" opacity={0.55} />
+      <Circle cx="12" cy="12" r="2.6" stroke={c} strokeWidth="1.5" fill="none" opacity={0.75} />
+      <Line x1="12" y1="12" x2="20" y2="6" stroke={c} strokeWidth="2" strokeLinecap="round" />
+      <Circle cx="16.6" cy="8.4" r="1.7" fill={c} />
+      <Circle cx="12" cy="12" r="1.1" fill={c} />
+    </Svg>
+  );
+};
 
 // Açılış ekranı: marka animasyonu en az ~1.2sn görünür kalır ve initAuth
 // tamamlanana kadar bekler (hangisi uzun sürerse), sonra ana uygulamaya geçer.
@@ -266,8 +282,9 @@ export default function App() {
           name="AnalizTab"
           component={AnalizStack}
           options={{
-            title: 'Analiz',
-            tabBarIcon: ({ focused }) => <TabIcon name="analysis" focused={focused} />,
+            title: 'Radar',
+            tabBarLabel: 'Radar',
+            tabBarIcon: ({ focused }) => <RadarIcon focused={focused} />,
           }}
         />
 

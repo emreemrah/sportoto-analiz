@@ -5,6 +5,7 @@ import { colors, spacing, radius, labelColors } from '../theme';
 import { SurpriseBadge, PredictionBadge } from '../components';
 import NoInternetScreen, { isNetworkError } from '../components/NoInternetScreen';
 import ScreenBackdrop from '../components/ScreenBackdrop';
+import AnalysisHeader from '../components/AnalysisHeader';
 
 export default function RadarScreen({ navigation }) {
   const [radar, setRadar] = useState(null);
@@ -51,13 +52,11 @@ export default function RadarScreen({ navigation }) {
   return (
     <ScreenBackdrop>
     <View style={[styles.container, { backgroundColor: 'transparent' }]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>🎯 Sürpriz Radarı</Text>
-        <Text style={styles.muted}>En sürprize açıktan en bankoya doğru sıralı</Text>
+      <AnalysisHeader title="Sürpriz Radarı" subtitle="En sürprize açıktan en bankoya doğru sıralı">
         <TouchableOpacity onPress={() => navigation.navigate('SystemScorecard')} style={styles.dashboardLink}>
-          <Text style={styles.dashboardLinkTxt}>📊 Sistem Karnesi · Doğru/Yanlış ›</Text>
+          <Text style={[styles.dashboardLinkTxt, { color: '#9FC4B0' }]}>📊 Sistem Karnesi · Doğru/Yanlış ›</Text>
         </TouchableOpacity>
-      </View>
+      </AnalysisHeader>
       <FlatList
         data={radar}
         keyExtractor={(r) => String(r.no)}

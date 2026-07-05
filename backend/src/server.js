@@ -8,7 +8,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
 import { load, listSnapshotRounds } from './cache.js';
-import { refreshAll, refreshLiveScores, snapshotRoundPredictions } from './refresh.js';
+import { refreshAll, refreshLiveScores, refreshLiveFootyScores, getLiveFixtures, snapshotRoundPredictions } from './refresh.js';
 import { getRoundsForNav, getBulletinByRoundId, getRoundResult } from './sources/sportoto.js';
 import { fetchLiveFixtures, findLiveFixture, fetchFixtureStatistics, fetchFixtureEvents, fetchFixturesByDate } from './sources/apifootball.js';
 import authRoutes from './routes/auth.js';
@@ -168,6 +168,7 @@ app.get('/api/rounds', async (req, res) => {
 // Geçmiş hafta bülteni: maç listesi + skor + resmi 1/X/2 + ikramiye (analiz yok).
 // İkramiye gelmişse (yayınlanmış) sonuç değişmez → 24 saat; değilse kısa TTL.
 const histFreshAt = new Map();  // roundId -> son taze sorgu zamanı (resmi API'yi korur)
+const liveFootyAt = new Map();  // roundId -> son CANLI footy skoru tazeleme zamanı (throttle)
 const snapshotJobs = new Set(); // arka planda tahmin snapshot'ı üretilen round'lar
 app.get('/api/history/:roundId', async (req, res) => {
   try {
@@ -203,6 +204,25 @@ app.get('/api/history/:roundId', async (req, res) => {
     const snap = load(`snapshot-${roundId}`)?.data;
     if (snap?.picks?.length) {
       const byNo = new Map(snap.picks.map((p) => [p.no, p]));
+      // CANLI YANSIMA: başlamış ama resmi sonucu gelmemiş maçların skorunu
+      // FootyStats'tan hedefli tazele (throttle 60sn/hafta) → tam refresh beklemez.
+      const nowMs = Date.now();
+      const liveIds = [];
+      for (const mm of payload.matches) {
+        const pp = byNo.get(mm.no);
+        const started = mm.date && new Date(mm.date).getTime() <= nowMs;
+        if (pp?.footyMatchId != null && started && !(mm.result && mm.score)) liveIds.push(pp.footyMatchId);
+      }
+      if (liveIds.length && nowMs - (liveFootyAt.get(roundId) || 0) > 60000) {
+        liveFootyAt.set(roundId, nowMs);
+        try { await refreshLiveFootyScores(liveIds); } catch (e) { console.warn('[live-footy] hata:', e.message); }
+      }
+      // CANLI (birebir): API-Football gerçek-zamanlı skor + DAKİKA — tek çağrı tüm
+      // canlı maçları verir (paylaşımlı cache, ekstra API yok). Başlamış-çözülmemiş
+      // maç varsa çekilir; yoksa footyScores geçici skoruna düşülür.
+      const hasLiveWindow = payload.matches.some((mm) => { const t = mm.date ? new Date(mm.date).getTime() : 0; return t && t <= nowMs && nowMs - t <= 3.5 * 3600 * 1000 && !(mm.result && mm.score); });
+      let liveFx = [];
+      if (hasLiveWindow) { try { liveFx = await getLiveFixtures(); } catch { liveFx = []; } }
       const footyScores = load('footyScores')?.data || {};
       payload = { ...payload, matches: payload.matches.map((m) => {
         const p = byNo.get(m.no);
@@ -211,11 +231,24 @@ app.get('/api/history/:roundId', async (req, res) => {
         if (p.symbol) merged.prediction = { symbol: p.symbol, label: p.label };
         if (p.homeLogo || p.homeRec) merged.home = { ...m.home, logo: p.homeLogo || m.home.logo, record: p.homeRec || null };
         if (p.awayLogo || p.awayRec) merged.away = { ...m.away, logo: p.awayLogo || m.away.logo, record: p.awayRec || null };
-        // Resmi sonuç yoksa FootyStats geçici skoru (footyMatchId ile hizalı).
-        const fs = (!(m.result && m.score) && p.footyMatchId != null) ? footyScores[p.footyMatchId] : null;
-        if (fs && fs.score) {
-          const score = p.footySwapped ? { home: fs.score.away, away: fs.score.home } : fs.score;
-          merged.provisional = { score, live: fs.status === 'live', finished: fs.status === 'finished', source: 'gecici' };
+        const unresolved = !(m.result && m.score);
+        const started = m.date && new Date(m.date).getTime() <= nowMs;
+        // 1) API-Football canlı (öncelik) — dakika dahil, gerçek-zamanlı.
+        if (unresolved && started && liveFx.length) {
+          const fnd = findLiveFixture(merged, liveFx);
+          const f = fnd?.fixture;
+          if (f) {
+            const score = fnd.swapped ? { home: f.awayGoals, away: f.homeGoals } : { home: f.homeGoals, away: f.awayGoals };
+            merged.provisional = { score, live: !!f.live, finished: !!f.finished, minute: f.live ? f.minute : null, source: 'canli' };
+          }
+        }
+        // 2) FootyStats geçici skoru (fallback — API-Football'da bulunmadıysa).
+        if (!merged.provisional && unresolved && p.footyMatchId != null) {
+          const fs = footyScores[p.footyMatchId];
+          if (fs && fs.score) {
+            const score = p.footySwapped ? { home: fs.score.away, away: fs.score.home } : fs.score;
+            merged.provisional = { score, live: fs.status === 'live', finished: fs.status === 'finished', source: 'gecici' };
+          }
         }
         return merged;
       }) };

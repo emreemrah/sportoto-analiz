@@ -10,7 +10,7 @@ import { api } from '../api';
 import { colors, spacing, radius, shadow } from '../theme';
 import { matchDate } from '../utils';
 import { getPref, setPref } from '../prefs';
-import { expandPick } from '../liveLogic';
+import { analyzeUserMatch } from '../userMatchEngine';
 import { columnCount, couponAmount, lockAtOf, isLockedNow, COUPON_COLUMN_PRICE, COUPON_MAX_COLUMNS, COUPON_MAX_AMOUNT, BUDGET_PRESETS, OUTCOMES } from '../couponConfig';
 import { createCoupon, addVersion, getCoupon, finalVersion, getDraft, setDraftPick, setDraftAll, clearDraft } from '../couponStore';
 import LoadingState from '../components/LoadingState';
@@ -18,19 +18,26 @@ import ErrorState from '../components/ErrorState';
 
 const fmtTL = (n) => `${String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} TL`;
 
+// Sistemin seçimi = KULLANICI ANALİZİ Ana Seçim'i (1X / X2 / 1X2 ...).
+// Geniş = tam öneri; Tekli = öneri içinden en olası tek sonuç.
 function systemPickFor(m, mode) {
-  const set = expandPick(m.prediction?.symbol);
+  const main = analyzeUserMatch(m)?.verdict?.main || '';
+  const set = OUTCOMES.filter((o) => main.includes(o));
   if (!set.length) return [];
   if (mode === 'wide') return set;
   const p = m.analysis?.probabilities;
-  if (p && (p.home != null || p.draw != null || p.away != null)) {
-    return [[['1', p.home ?? 0], ['X', p.draw ?? 0], ['2', p.away ?? 0]].sort((a, b) => b[1] - a[1])[0][0]];
+  if (p) {
+    const ranked = set.map((o) => [o, Number(p[o] ?? 0)]).sort((a, b) => b[1] - a[1]);
+    return [ranked[0][0]];
   }
   return [set[0]];
 }
 
 export default function CouponBuilderScreen({ navigation, route }) {
   const editId = route.params?.couponId || null;
+  const focusNo = route.params?.focusNo ?? null;   // gelinen maç → oraya kaydır
+  const scrollRef = useRef(null);
+  const rowY = useRef({});
   const insets = useSafeAreaInsets();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -60,7 +67,9 @@ export default function CouponBuilderScreen({ navigation, route }) {
   const lockAt = useMemo(() => lockAtOf(matches), [matches]);
   const locked = isLockedNow(lockAt);
 
-  // Seçimleri: düzenleme → kupon final; değilse paylaşılan TASLAK.
+  // Düzenlemede o kuponun seçimleri gelir; yeni kuponda kullanıcının maç
+  // detayında yaptığı seçimler (paylaşılan TASLAK) taşınır. Otomatik SİSTEM
+  // doldurma yok — taslak yalnız kullanıcının kendi seçtiklerini içerir.
   useEffect(() => {
     if (roundId == null) return;
     if (editId) {
@@ -68,7 +77,7 @@ export default function CouponBuilderScreen({ navigation, route }) {
       const picks = v ? Object.fromEntries(v.selections.map((s) => [s.no, s.selectedOutcomes])) : {};
       setSel(picks); setDraftAll(roundId, picks);
     } else {
-      setSel(getDraft(roundId).picks || {});
+      setSel(getDraft(roundId).picks || {});   // maç detayındaki seçimleri taşı
     }
   }, [roundId, editId]);
 
@@ -84,6 +93,16 @@ export default function CouponBuilderScreen({ navigation, route }) {
   const commit = (picks) => { setSel(picks); if (roundId != null && !editId) setDraftPickAll(picks); };
   const setDraftPickAll = (picks) => setDraftAll(roundId, picks);
 
+  // Gelinen maç aşağıdaysa sayfayı oraya kaydır (satır Y'leri onLayout'tan).
+  useEffect(() => {
+    if (focusNo == null || !matches.length) return;
+    const t = setTimeout(() => {
+      const y = rowY.current[focusNo];
+      if (y != null && scrollRef.current) scrollRef.current.scrollTo({ y: Math.max(0, y - 8), animated: true });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [focusNo, matches.length]);
+
   const toggle = (no, o) => {
     if (locked) return;
     const cur = new Set(sel[no] || []);
@@ -94,6 +113,7 @@ export default function CouponBuilderScreen({ navigation, route }) {
   };
   const applySystemOne = (m) => { if (locked) return; const next = { ...sel, [m.no]: systemPickFor(m, sysMode) }; commit(next); };
   const applySystemAll = () => { if (locked) return; const next = {}; for (const m of matches) next[m.no] = systemPickFor(m, sysMode); commit(next); };
+  const clearAll = () => { if (locked) return; commit({}); };
 
   const selections = useMemo(() => matches.map((m) => ({
     no: m.no, home: m.home.mediumName || m.home.name, away: m.away.mediumName || m.away.name,
@@ -170,21 +190,26 @@ export default function CouponBuilderScreen({ navigation, route }) {
             <SumCell label="Tutar" v={fmtTL(amount)} warn={overOfficial || overBudget} />
             <SumCell label="Limit" v={fmtTL(COUPON_MAX_AMOUNT)} />
           </View>
-          <TouchableOpacity style={s.applyAll} onPress={applySystemAll} disabled={locked}>
-            <Text style={s.applyAllTxt}>⚡ Sistem tahminlerini uygula ({sysMode === 'wide' ? 'Geniş' : 'Tekli'})</Text>
-          </TouchableOpacity>
+          <View style={s.applyRow}>
+            <TouchableOpacity style={[s.applyAll, { flex: 1 }]} onPress={applySystemAll} disabled={locked}>
+              <Text style={s.applyAllTxt}>⚡ Sistem tahminlerini uygula ({sysMode === 'wide' ? 'Geniş' : 'Tekli'})</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.clearAll} onPress={clearAll} disabled={locked || filledCount === 0}>
+              <Text style={s.clearAllTxt}>Tümünü Temizle</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
       {locked && <View style={s.lockedBar}><Text style={s.lockedTxt}>🔒 Bülten kilitlendi — bu kupon düzenlenemez.</Text></View>}
 
       {/* MAÇ LİSTESİ (analiz bilgili) */}
-      <ScrollView contentContainerStyle={[s.body, { paddingBottom: 90 + insets.bottom }]}>
+      <ScrollView ref={scrollRef} contentContainerStyle={[s.body, { paddingBottom: 90 + insets.bottom }]}>
         {matches.map((m) => {
           const cur = sel[m.no] || [];
           const a = m.analysis || {};
           return (
-            <View key={m.no} style={s.mRow}>
+            <View key={m.no} style={[s.mRow, focusNo === m.no && s.mRowFocus]} onLayout={(e) => { rowY.current[m.no] = e.nativeEvent.layout.y; }}>
               <View style={s.mTop}>
                 <Text style={s.mNo}>{m.no}</Text>
                 <View style={{ flex: 1 }}>
@@ -199,7 +224,10 @@ export default function CouponBuilderScreen({ navigation, route }) {
               <View style={s.mPick}>
                 <View style={s.otoggles}>
                   {OUTCOMES.map((o) => { const on = cur.includes(o); return (
-                    <TouchableOpacity key={o} onPress={() => toggle(m.no, o)} style={[s.oBtn, on && s.oBtnOn]} disabled={locked}><Text style={[s.oTxt, on && s.oTxtOn]}>{o}</Text></TouchableOpacity>
+                    <TouchableOpacity key={o} onPress={() => toggle(m.no, o)} activeOpacity={0.85} style={[s.oBtn, on && s.oBtnOn]} disabled={locked}>
+                      {on ? <Text style={s.oCheck}>✓</Text> : null}
+                      <Text style={[s.oTxt, on && s.oTxtOn]}>{o}</Text>
+                    </TouchableOpacity>
                   ); })}
                 </View>
                 <TouchableOpacity onPress={() => applySystemOne(m)} style={s.fromSys} disabled={locked}><Text style={s.fromSysTxt}>Sistemden al</Text></TouchableOpacity>
@@ -285,12 +313,15 @@ const s = StyleSheet.create({
   topSum: { backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border, padding: spacing.md, gap: 10 },
   sumGrid: { flexDirection: 'row', gap: 8 },
   sumCell: { flex: 1, alignItems: 'center' }, sumV: { color: colors.text, fontSize: 15, fontWeight: '900' }, sumL: { color: colors.textMuted, fontSize: 10, fontWeight: '700', marginTop: 2 },
-  applyAll: { backgroundColor: colors.primary, borderRadius: radius.md, paddingVertical: 10, alignItems: 'center' }, applyAllTxt: { color: '#fff', fontSize: 12.5, fontWeight: '800' },
+  applyRow: { flexDirection: 'row', gap: 8, alignItems: 'stretch' },
+  applyAll: { backgroundColor: colors.primary, borderRadius: radius.md, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' }, applyAllTxt: { color: '#fff', fontSize: 12.5, fontWeight: '800' },
+  clearAll: { paddingHorizontal: 14, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: colors.danger, backgroundColor: colors.dangerSoft }, clearAllTxt: { color: colors.danger, fontSize: 12, fontWeight: '900' },
 
   lockedBar: { backgroundColor: colors.warningSoft, borderBottomWidth: 1, borderBottomColor: colors.warning, padding: 10 }, lockedTxt: { color: '#7a4a00', fontSize: 12.5, fontWeight: '800', textAlign: 'center' },
 
   body: { padding: spacing.md },
   mRow: { backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm, ...shadow.soft },
+  mRowFocus: { borderColor: colors.primary, borderWidth: 2 },
   mTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   mNo: { color: colors.textMuted, fontSize: 12, fontWeight: '900', width: 18, textAlign: 'center' },
   mTeams: { color: colors.text, fontSize: 13, fontWeight: '800' },
@@ -298,8 +329,9 @@ const s = StyleSheet.create({
   detailBtn: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: radius.sm, backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.border }, detailTxt: { color: colors.textSoft, fontSize: 10.5, fontWeight: '800' },
   mPick: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
   otoggles: { flexDirection: 'row', gap: 6, flex: 1 },
-  oBtn: { flex: 1, paddingVertical: 11, borderRadius: radius.sm, backgroundColor: colors.cardAlt, alignItems: 'center', borderWidth: 1.5, borderColor: 'transparent' },
-  oBtnOn: { backgroundColor: colors.primarySoft, borderColor: colors.primary }, oTxt: { color: colors.textSoft, fontSize: 15, fontWeight: '900' }, oTxtOn: { color: colors.primary },
+  oBtn: { flex: 1, flexDirection: 'row', gap: 4, paddingVertical: 11, borderRadius: radius.sm, backgroundColor: colors.cardAlt, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
+  oBtnOn: { backgroundColor: colors.primary, borderColor: colors.primary, ...shadow.soft }, oTxt: { color: colors.textSoft, fontSize: 15, fontWeight: '900' }, oTxtOn: { color: '#fff' },
+  oCheck: { color: '#fff', fontSize: 12, fontWeight: '900' },
   fromSys: { paddingHorizontal: 10, paddingVertical: 9, borderRadius: radius.sm, backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.border }, fromSysTxt: { color: colors.textSoft, fontSize: 10.5, fontWeight: '800' },
 
   warnSoft: { backgroundColor: colors.warningSoft, borderWidth: 1, borderColor: colors.warning, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.sm },

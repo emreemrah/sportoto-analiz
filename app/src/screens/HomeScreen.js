@@ -15,6 +15,7 @@ import { api } from '../api';
 import { colors, spacing, radius, shadows } from '../theme';
 import { EmptyState, SkeletonCard, Logo } from '../ui';
 import { ProfileAvatar } from '../components';
+import BulletinHeroVisual, { BulletinHeroBackdrop } from '../components/BulletinHeroVisual';
 
 
 const QUICK = [
@@ -71,11 +72,6 @@ function Header({ data, navigation }) {
         <Text style={styles.brand}>
           Spor Toto <Text style={styles.brandAccent}>Analiz</Text>
         </Text>
-
-        <View style={styles.readyRow}>
-          <View style={styles.readyDot} />
-          <Text style={styles.readyText}>{data?.round || '48. Hafta hazır'}</Text>
-        </View>
       </View>
 
       <TouchableOpacity style={styles.topIconBtn} activeOpacity={0.85}>
@@ -96,54 +92,52 @@ function Header({ data, navigation }) {
 
 function HeroCard({ data, loading, onPress }) {
   const matches = data?.matches || [];
-  const total = matches.length;
-  const featured = matches.filter((m) => Number(m?.analysis?.surpriseScore || 0) >= 45).length;
-  const surprise = matches.filter((m) => Number(m?.analysis?.surpriseScore || 0) >= 65).length;
-  const v = (n) => (loading ? '–' : n);
+  // Sayılar YALNIZ güncel bültenin GERÇEK analizinden. "Maç Analizi" = analizi
+  // olan (kapsanan) maç sayısı; kapsam dışı maç varsa şişirmez, yanıltmaz.
+  const analyzed = matches.filter((m) => m?.analysis && m.analysis.surpriseScore != null);
+  const total = analyzed.length;
+  const featured = analyzed.filter((m) => Number(m.analysis.surpriseScore) >= 45).length;
+  const surprise = analyzed.filter((m) => Number(m.analysis.surpriseScore) >= 65).length;
+  const v = (n) => (loading || !data ? '–' : n);
 
   return (
     <View style={styles.heroCard}>
-      <View style={styles.heroLeft}>
+      <BulletinHeroBackdrop />
+
+      <View style={styles.heroWeekRow}>
+        <View style={styles.heroWeekDot} />
+        <Text style={styles.heroWeekText}>{data?.round || '—'}</Text>
+      </View>
+
+      <View style={styles.heroTopRow}>
         <View style={styles.heroTextBlock}>
           <Text style={styles.heroTitle}>Bu Haftanın Bülteni</Text>
           <Text style={styles.heroDesc}>
             Veriler hazır, analizler tamam. Haftaya dair öne çıkanlar burada.
           </Text>
         </View>
+        <BulletinHeroVisual width={128} height={92} />
+      </View>
 
+      <View style={styles.heroBottomRow}>
         <View style={styles.heroStats}>
           <View style={styles.heroStatItem}>
-            <Text style={styles.heroStatIcon}>⚽</Text>
             <Text style={styles.heroStatValue}>{v(total)}</Text>
             <Text style={styles.heroStatLabel}>Maç Analizi</Text>
           </View>
-
           <View style={styles.heroDivider} />
-
           <View style={styles.heroStatItem}>
-            <Text style={styles.heroStatIcon}>↗</Text>
             <Text style={styles.heroStatValue}>{v(featured)}</Text>
             <Text style={styles.heroStatLabel}>Öne Çıkan Analiz</Text>
           </View>
-
           <View style={styles.heroDivider} />
-
           <View style={styles.heroStatItem}>
-            <Text style={styles.heroStatIcon}>☆</Text>
             <Text style={styles.heroStatValue}>{v(surprise)}</Text>
             <Text style={styles.heroStatLabel}>Sürpriz Maç</Text>
           </View>
         </View>
-      </View>
 
-      <View style={styles.heroRight}>
-        <Image
-          source={require('../../assets/hero-illustration.png')}
-          style={styles.heroIllustration}
-          resizeMode="contain"
-        />
-
-        <TouchableOpacity style={styles.heroButton} onPress={onPress}>
+        <TouchableOpacity style={styles.heroButton} onPress={onPress} activeOpacity={0.88}>
           <Text style={styles.heroButtonText}>Bülteni Aç</Text>
           <Text style={styles.heroButtonArrow}>›</Text>
         </TouchableOpacity>
@@ -887,19 +881,42 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     marginTop: 12,
     borderRadius: 22,
-    backgroundColor: '#061b1c',
+    backgroundColor: '#0f2038',
     borderWidth: 1,
-    borderColor: '#0b4a45',
-    padding: 14,
-    flexDirection: 'row',
+    borderColor: '#1c3a5e',
+    padding: 16,
     overflow: 'hidden',
   },
-  heroLeft: {
-    flex: 1,
-    paddingRight: 10,
+  heroWeekRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  heroWeekDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#22c55e',
+    marginRight: 7,
+  },
+  heroWeekText: {
+    color: '#cdd8e6',
+    fontSize: 12.5,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  heroBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
   },
   heroTextBlock: {
     flex: 1,
+    paddingRight: 10,
   },
   heroTitle: {
     color: '#ffffff',
@@ -913,9 +930,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   heroStats: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
   },
   heroStatItem: {
     flex: 1,
@@ -954,14 +971,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   heroButton: {
-    width: 120,
     height: 44,
+    paddingHorizontal: 16,
     borderRadius: 14,
     backgroundColor: '#ff7a00',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginLeft: 10,
   },
   heroButtonText: {
     color: '#ffffff',

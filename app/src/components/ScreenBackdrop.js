@@ -16,10 +16,10 @@ import Svg, {
 import { colors } from '../theme';
 
 const BG = colors.bg || colors.background || '#F3F5F9';
-const LINE = 'rgba(11,27,58,0.05)';        // ana çizgi (soluk lacivert)
-const LINE_SOFT = 'rgba(11,27,58,0.035)';  // daha soluk
-const X_COLOR = 'rgba(11,27,58,0.06)';     // X işareti
-const O_COLOR = 'rgba(226,27,45,0.06)';    // O işareti (accent ailesi)
+const LINE = 'rgba(11,27,58,0.09)';        // ana çizgi (soluk lacivert)
+const LINE_SOFT = 'rgba(11,27,58,0.06)';   // daha soluk
+const X_COLOR = 'rgba(11,27,58,0.22)';     // X işareti
+const O_COLOR = 'rgba(226,27,45,0.22)';    // O işareti (accent ailesi)
 
 function XMark({ x, y, s = 10 }) {
   return (
@@ -58,7 +58,7 @@ export default function ScreenBackdrop({ children, style, animated = true }) {
         >
           <Defs>
             <RadialGradient id="topGlow" cx="50%" cy="10%" r="65%">
-              <Stop offset="0%" stopColor={colors.primary || '#0B1B3A'} stopOpacity="0.06" />
+              <Stop offset="0%" stopColor={colors.primary || '#0B1B3A'} stopOpacity="0.10" />
               <Stop offset="100%" stopColor={colors.primary || '#0B1B3A'} stopOpacity="0" />
             </RadialGradient>
           </Defs>
