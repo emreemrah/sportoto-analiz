@@ -23,6 +23,7 @@ export async function fetchLiveFixtures() {
   return (json.response || []).map((f) => {
     const short = f.fixture?.status?.short || '';
     return {
+      fixtureId: f.fixture?.id ?? null,
       homeName: f.teams?.home?.name || '',
       awayName: f.teams?.away?.name || '',
       homeGoals: num(f.goals?.home),
@@ -31,6 +32,80 @@ export async function fetchLiveFixtures() {
       statusShort: short,
       live: LIVE_CODES.has(short),
       finished: DONE_CODES.has(short),
+    };
+  });
+}
+
+// Belirli bir GÜNÜN tüm fikstürlerini getirir (canlı + bitmiş). Resmi Spor Toto
+// sonucu gelmeden önce GEÇİCİ (resmi değil) skor göstermek için — asla kesin sayılmaz.
+export async function fetchFixturesByDate(date) {
+  const key = config.apiFootballKey;
+  if (!key || !date) return [];
+  const res = await fetch(`${config.apiFootballApi}/fixtures?date=${date}`, {
+    headers: { 'x-apisports-key': key },
+  });
+  if (!res.ok) throw new Error(`API-Football date HTTP ${res.status}`);
+  const json = await res.json();
+  return (json.response || []).map((f) => {
+    const short = f.fixture?.status?.short || '';
+    return {
+      fixtureId: f.fixture?.id ?? null,
+      homeName: f.teams?.home?.name || '',
+      awayName: f.teams?.away?.name || '',
+      homeGoals: num(f.goals?.home),
+      awayGoals: num(f.goals?.away),
+      minute: f.fixture?.status?.elapsed ?? null,
+      statusShort: short,
+      live: LIVE_CODES.has(short),
+      finished: DONE_CODES.has(short),
+    };
+  });
+}
+
+// Bir fikstürün GERÇEK canlı istatistiklerini getirir (şut, korner, topla oynama…).
+// API ne veriyorsa o döner; veri yoksa boş dizi (uydurma YOK). swapped=true ise
+// ev/deplasman yer değiştirir (bülten maçıyla hizalamak için).
+export async function fetchFixtureStatistics(fixtureId, swapped = false) {
+  const key = config.apiFootballKey;
+  if (!key || !fixtureId) return [];
+  const res = await fetch(`${config.apiFootballApi}/fixtures/statistics?fixture=${fixtureId}`, {
+    headers: { 'x-apisports-key': key },
+  });
+  if (!res.ok) throw new Error(`API-Football stats HTTP ${res.status}`);
+  const json = await res.json();
+  const teams = json.response || [];
+  if (teams.length < 2) return [];
+  let [tA, tB] = teams;                       // API sırası: ev, deplasman
+  if (swapped) [tA, tB] = [tB, tA];
+  const mapOf = (t) => new Map((t.statistics || []).map((s) => [s.type, s.value]));
+  const mA = mapOf(tA), mB = mapOf(tB);
+  const types = [...new Set([...mA.keys(), ...mB.keys()])];
+  return types.map((type) => ({ type, home: mA.get(type) ?? null, away: mB.get(type) ?? null }));
+}
+
+// Bir fikstürün GERÇEK canlı olaylarını getirir (gol, kart, VAR, değişiklik…).
+// Oyuncu adı yoksa null döner (sahte ad üretilmez). swapped ev/deplasman'ı hizalar.
+export async function fetchFixtureEvents(fixtureId, homeName, awayName) {
+  const key = config.apiFootballKey;
+  if (!key || !fixtureId) return [];
+  const res = await fetch(`${config.apiFootballApi}/fixtures/events?fixture=${fixtureId}`, {
+    headers: { 'x-apisports-key': key },
+  });
+  if (!res.ok) throw new Error(`API-Football events HTTP ${res.status}`);
+  const json = await res.json();
+  return (json.response || []).map((e) => {
+    const teamName = e.team?.name || '';
+    // Bülten adına göre ev/deplasman tarafını belirle (bulunamazsa ham ad).
+    const side = sameTeam(teamName, homeName) ? 'home' : (sameTeam(teamName, awayName) ? 'away' : null);
+    return {
+      minute: e.time?.elapsed ?? null,
+      extra: e.time?.extra ?? null,
+      type: e.type || '',          // Goal, Card, subst, Var
+      detail: e.detail || '',      // Yellow Card, Red Card, Normal Goal, Penalty…
+      side,
+      team: teamName,
+      player: e.player?.name || null,
+      assist: e.assist?.name || null,
     };
   });
 }

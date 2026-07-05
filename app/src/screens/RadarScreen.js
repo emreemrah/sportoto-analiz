@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, 
 import { api } from '../api';
 import { colors, spacing, radius, labelColors } from '../theme';
 import { SurpriseBadge, PredictionBadge } from '../components';
+import NoInternetScreen, { isNetworkError } from '../components/NoInternetScreen';
 
 export default function RadarScreen({ navigation }) {
   const [radar, setRadar] = useState(null);
@@ -18,7 +19,12 @@ export default function RadarScreen({ navigation }) {
 
   useEffect(() => { load(); }, [load]);
 
-  if (error) return <View style={styles.center}><Text style={styles.muted}>{error}</Text></View>;
+  if (error) {
+    if (isNetworkError(error)) {
+      return <NoInternetScreen onRetry={load} onGoHome={() => navigation.navigate('HomeTab')} />;
+    }
+    return <View style={styles.center}><Text style={styles.muted}>{error}</Text></View>;
+  }
   if (!radar) return <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>;
 
   const renderItem = ({ item, index }) => {
@@ -46,6 +52,9 @@ export default function RadarScreen({ navigation }) {
       <View style={styles.header}>
         <Text style={styles.title}>🎯 Sürpriz Radarı</Text>
         <Text style={styles.muted}>En sürprize açıktan en bankoya doğru sıralı</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('SystemScorecard')} style={styles.dashboardLink}>
+          <Text style={styles.dashboardLinkTxt}>📊 Sistem Karnesi · Doğru/Yanlış ›</Text>
+        </TouchableOpacity>
       </View>
       <FlatList
         data={radar}
@@ -65,6 +74,8 @@ const styles = StyleSheet.create({
   header: { padding: spacing.lg, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
   title: { color: colors.text, fontSize: 20, fontWeight: '800' },
   muted: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
+  dashboardLink: { marginTop: 8 },
+  dashboardLinkTxt: { color: colors.primary, fontSize: 12, fontWeight: '700' },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm },
   rank: { color: colors.textMuted, fontSize: 16, fontWeight: '800', width: 22, textAlign: 'center' },
   teams: { color: colors.text, fontSize: 14, fontWeight: '700' },

@@ -5,21 +5,31 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 
 import HomeScreen from './src/screens/HomeScreen';
 import BulletinScreen from './src/screens/BulletinScreen';
 import MatchDetailScreen from './src/screens/MatchDetailScreen';
 import RadarScreen from './src/screens/RadarScreen';
+import LiveMatchDetailScreen from './src/screens/LiveMatchDetailScreen';
 import ForumScreen from './src/screens/ForumScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import AvatarPickerScreen from './src/screens/AvatarPickerScreen';
 import LeaderboardScreen from './src/screens/LeaderboardScreen';
 import { LoginScreen, RegisterScreen, ForgotPasswordScreen } from './src/screens/AuthScreens';
+import BulletinHistoryScreen from './src/screens/BulletinHistoryScreen';
+import BulletinDetailScreen from './src/screens/BulletinDetailScreen';
+import CouponCreateScreen from './src/screens/CouponCreateScreen';
+import CouponResultScreen from './src/screens/CouponResultScreen';
+import CouponBuilderScreen from './src/screens/CouponBuilderScreen';
+import CouponsScreen from './src/screens/CouponsScreen';
+import UserDashboardScreen from './src/screens/UserDashboardScreen';
+import SystemDashboardScreen from './src/screens/SystemDashboardScreen';
+import SystemScorecardScreen from './src/screens/SystemScorecardScreen';
 import { initAuth } from './src/auth';
 import { colors } from './src/theme';
 import AnimatedLogo from './src/components/AnimatedLogo';
 import { FanWoman, KickingMan, AnalystMan, AnalystWoman, AnalysisCard } from './src/components/SplashCharacters';
+import SplashTacticalScreen from './src/components/SplashTacticalScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -56,6 +66,10 @@ function HomeStack() {
     <Stack.Navigator screenOptions={header}>
       <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
       {detailScreen}
+      {/* Topluluk (eski "Stadyum" sekmesi) — alt menüden kaldırıldı, Ana Sayfa
+          "Toplulukta Gündem" bölümünden erişilir. */}
+      <Stack.Screen name="Forum" component={ForumScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
@@ -65,6 +79,14 @@ function BulletinStack() {
     <Stack.Navigator screenOptions={header}>
       <Stack.Screen name="Bulletin" component={BulletinScreen} options={{ headerShown: false }} />
       {detailScreen}
+      {/* Canlı maç detayı (istatistik/olaylar) — "Canlı" sekmesi Bülten'e taşındı. */}
+      <Stack.Screen name="LiveMatchDetail" component={LiveMatchDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="CouponBuilder" component={CouponBuilderScreen} options={{ title: 'Kupon Oluştur' }} />
+      <Stack.Screen name="Coupons" component={CouponsScreen} options={{ title: 'Kuponlarım' }} />
+      <Stack.Screen name="BulletinHistory" component={BulletinHistoryScreen} options={{ title: 'Bülten Geçmişi' }} />
+      <Stack.Screen name="BulletinDetail" component={BulletinDetailScreen} options={{ title: 'Bülten Detayı' }} />
+      <Stack.Screen name="CouponCreate" component={CouponCreateScreen} options={{ title: 'Kupon Oluştur' }} />
+      <Stack.Screen name="CouponResult" component={CouponResultScreen} options={{ title: 'Kupon Sonucu' }} />
     </Stack.Navigator>
   );
 }
@@ -74,16 +96,8 @@ function AnalizStack() {
     <Stack.Navigator screenOptions={header}>
       <Stack.Screen name="Analiz" component={RadarScreen} options={{ headerShown: false }} />
       {detailScreen}
-    </Stack.Navigator>
-  );
-}
-
-function ForumStack() {
-  return (
-    <Stack.Navigator screenOptions={header}>
-      <Stack.Screen name="Forum" component={ForumScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ headerShown: false }} />
-      {detailScreen}
+      <Stack.Screen name="SystemScorecard" component={SystemScorecardScreen} options={{ title: 'Sistem Karnesi' }} />
+      <Stack.Screen name="SystemDashboard" component={SystemDashboardScreen} options={{ title: 'Analiz Detayı (Demo)' }} />
     </Stack.Navigator>
   );
 }
@@ -93,6 +107,7 @@ function ProfileStack() {
     <Stack.Navigator screenOptions={header}>
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
       <Stack.Screen name="AvatarPicker" component={AvatarPickerScreen} options={{ title: 'Hazır Avatar Seç' }} />
+      <Stack.Screen name="UserDashboard" component={UserDashboardScreen} options={{ title: 'Başarı Panelim' }} />
       <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Giriş Yap' }} />
       <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Kayıt Ol' }} />
@@ -201,7 +216,7 @@ export default function App() {
   if (!ready) {
     return (
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-        <SplashScreen />
+        <SplashTacticalScreen />
       </SafeAreaProvider>
     );
   }
@@ -253,15 +268,6 @@ export default function App() {
           options={{
             title: 'Analiz',
             tabBarIcon: ({ focused }) => <TabIcon name="analysis" focused={focused} />,
-          }}
-        />
-
-        <Tab.Screen
-          name="ForumTab"
-          component={ForumStack}
-          options={{
-            title: 'Stadyum',
-            tabBarIcon: ({ focused }) => <TabIcon name="stadium" focused={focused} />,
           }}
         />
 

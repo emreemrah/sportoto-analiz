@@ -20,6 +20,10 @@ const ALIASES = {
   shanghaiport: ['shanghaisipg'],            // Shanghai Port = eski adı Shanghai SIPG
   shandongtaishan: ['shandongluneng'],       // Shandong Taishan = eski adı Shandong Luneng
   qingdaowestcoast: ['qingdaoyouthisland'],  // Qingdao West Coast = FootyStats'te Qingdao Youth Island
+  henansongshanlongmen: ['henanjianye'],     // Henan Songshan Longmen = FootyStats'te Henan Jianye
+  daejeonhanacitizen: ['daejeoncitizen'],    // Daejeon Hana Citizen = FootyStats'te Daejeon Citizen
+  helsinki: ['hjk'],                         // Helsinki = HJK (fikstürde kısa ad "HJK")
+  shenzhenpengcity: ['sichuanjiuniu'],       // Shenzhen Peng City = eski adı Sichuan Jiuniu (2024 taşındı)
 };
 
 // Bir bülten takımının tüm ad varyantlarını (normalize) döndürür:
@@ -35,6 +39,21 @@ function nameVariants(team) {
     for (const a of ALIASES[n] || []) out.add(a);
   }
   return [...out];
+}
+
+// KAPSAM TEŞHİSİ: bülten takımının (alias dahil) FootyStats veri havuzunda
+// karşılığı VAR mı? footyNorm = normalize edilmiş FootyStats takım adları kümesi.
+// (Eşleşme başarısız olunca sebebi sınıflamak için: takım hiç yok mu, yoksa
+//  var ama isim/tarih mi tutmadı.)
+export function hasFootyCandidate(team, footyNorm) {
+  for (const v of nameVariants(team)) {
+    if (!v || v.length < 3) continue;
+    for (const y of footyNorm) {
+      if (!y || y.length < 3) continue;
+      if (v === y || v.includes(y) || y.includes(v)) return true;
+    }
+  }
+  return false;
 }
 
 // Normalize edilmiş bir ad varyantı, FootyStats adını karşılıyor mu:

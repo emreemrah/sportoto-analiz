@@ -31,14 +31,21 @@ export const api = {
   bulletin: () => req('/api/bulletin'),
   radar: () => req('/api/surprise-radar'),
   match: (no) => req(`/api/match/${no}`),
+  live: (no) => req(`/api/live/${no}`),
   health: () => req('/api/health'),
   rounds: () => req('/api/rounds'),
-  history: (roundId) => req(`/api/history/${roundId}`),
+  history: (roundId, fresh = false) => req(`/api/history/${roundId}${fresh ? '?fresh=1' : ''}`),
+  systemScorecard: () => req('/api/system-scorecard'),
+  coverage: () => req('/api/coverage'),
 
   // üyelik
   register: (b) => req('/api/auth/register', { method: 'POST', body: b }),
   login: (b) => req('/api/auth/login', { method: 'POST', body: b }),
   forgotPassword: (b) => req('/api/auth/forgot-password', { method: 'POST', body: b }),
+
+  // kuponlar (hesaba bağlı kalıcı depo)
+  getCoupons: () => req('/api/coupons'),
+  putCoupons: (coupons) => req('/api/coupons', { method: 'PUT', body: { coupons } }),
 
   // profil
   me: () => req('/api/users/me'),

@@ -426,7 +426,7 @@ export default function HomeScreen({ navigation }) {
       <SectionHead
         title="Toplulukta Gündem"
         right="Tümünü Gör ›"
-        onPress={() => navigation.navigate('ForumTab')}
+        onPress={() => navigation.navigate('Forum')}
       />
 
       <View style={styles.communityGrid}>
