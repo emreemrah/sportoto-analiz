@@ -1,6 +1,7 @@
 // Oturum deposu: token + kullanıcı profili (sunucudan). Token web'de localStorage'da kalıcı.
 import { useEffect, useState } from 'react';
 import { api } from './api';
+import { syncFromServer } from './couponStore';
 
 const TOKEN_KEY = 'sportoto.token';
 
@@ -23,18 +24,20 @@ export function getToken() { return state.token; }
 // Uygulama açılışında: token varsa profili tazele
 export async function initAuth() {
   if (!state.token) { set({ ready: true }); return; }
-  try { const me = await api.me(); set({ user: me, ready: true }); }
+  try { const me = await api.me(); set({ user: me, ready: true }); syncFromServer(); }
   catch { writeToken(null); set({ token: null, user: null, ready: true }); }
 }
 
 export async function register(email, username, password) {
   const { token, user } = await api.register({ email, username, password });
   writeToken(token); set({ token, user });
+  syncFromServer();   // hesaba bağlı kuponları çek/birleştir
   return user;
 }
 export async function login(email, password) {
   const { token, user } = await api.login({ email, password });
   writeToken(token); set({ token, user });
+  syncFromServer();   // hesaba bağlı kuponları çek/birleştir
   return user;
 }
 export function logout() { writeToken(null); set({ token: null, user: null }); }

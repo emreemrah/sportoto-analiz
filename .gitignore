@@ -9,6 +9,9 @@ backend/.env
 backend/cache/
 *.log
 
+# Kullanıcı kupon verisi (hesaba bağlı, kalıcı depo)
+backend/data/
+
 # Derleme çıktıları
 backend/public/
 app/dist/

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Image, Modal } from 'react-native';
 import { api } from '../api';
 import { colors, spacing, radius } from '../theme';
 import { ProbBar, SurpriseBadge, PredictionBadge, FormStrip, RecordBadges, StatBar } from '../components';
@@ -7,8 +7,10 @@ import { countryCode, matchDate } from '../utils';
 import CommentsSection from '../CommentsSection';
 import PollsSection from '../Polls';
 import { MatchHeader, Tabs, Accordion, SectionCard, PollCard, EmptyState, RatingDots, SplitDonut, StatTile, InfoTile, PollTile, Logo } from '../ui';
+import CouponPickBlock from '../components/CouponPickBlock';
+import MatchInfoCard from '../components/MatchInfoCard';
 
-const TABS = ['Özet', 'Analiz', 'İstatistik', 'Yorumlar', 'Anketler'];
+const TABS = ['Özet', 'Analiz', 'İstatistik', 'Karşılaştırma', 'Yorumlar'];
 const sonRow = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' };
 const sonName = { color: colors.text, fontSize: 13.5, fontWeight: '700', flex: 1, marginRight: 8 };
 const topluLabel = { color: colors.textMuted, fontSize: 12, fontWeight: '800', letterSpacing: 0.5, marginTop: spacing.sm, marginBottom: spacing.sm };
@@ -16,6 +18,7 @@ const pollGrid = { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'spac
 const pollCell = { width: '48.5%' };
 const ozetRow = { flexDirection: 'row', gap: 8, marginBottom: spacing.md };
 const ozetMain = { flex: 1.4, backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.md };
+const ozetSummaryCard = { backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md };
 const infoLabel = { color: colors.textMuted, fontSize: 10, fontWeight: '800', letterSpacing: 0.4 };
 const ozetText = { color: colors.text, fontSize: 12, marginTop: 4, lineHeight: 16 };
 const pitchBox = { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: '#16432a', borderRadius: 6, paddingVertical: 10 };
@@ -38,15 +41,161 @@ function formRating(form) {
   return Math.round((pts / form.length) * 5 * 10) / 10;
 }
 
-// Tek simge: iç saha 🏠 / deplasman ✈️, sonuç rengi (yeşil/sarı/kırmızı)
+// Tek simge: iç saha (ev) / deplasman (uçak), sonuç rengi — hazır ikon görselleri.
+const VENUE_ICONS = {
+  home: {
+    G: require('../../assets/venue/home-win.png'),
+    M: require('../../assets/venue/home-loss.png'),
+    B: require('../../assets/venue/home-draw.png'),
+  },
+  away: {
+    G: require('../../assets/venue/away-win.png'),
+    M: require('../../assets/venue/away-loss.png'),
+    B: require('../../assets/venue/away-draw.png'),
+  },
+};
 function VenueIcon({ result, isHome, size = 22 }) {
-  const c = result === 'G' ? colors.green : result === 'M' ? colors.red : colors.yellow;
+  const set = VENUE_ICONS[isHome ? 'home' : 'away'];
+  const src = set[result] || set.B; // G=galibiyet · M=mağlubiyet · diğer=beraberlik
+  return <Image source={src} style={{ width: size, height: size }} resizeMode="contain" />;
+}
+// Takım istatistik penceresi — logoya basınca açılır. Maçta zaten gelen
+// stats.home/away verisiyle (yeni backend gerekmez). Sadece o takımın verisi.
+function TSBox({ label, value, color }) {
   return (
-    <View style={{ width: size, height: size, borderRadius: Math.round(size * 0.24), backgroundColor: c, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: Math.round(size * 0.5), lineHeight: Math.round(size * 0.72) }}>{isHome ? '🏠' : '✈️'}</Text>
+    <View style={tm.box}>
+      <Text style={[tm.boxVal, color && { color }]}>{value}</Text>
+      <Text style={tm.boxLbl}>{label}</Text>
     </View>
   );
 }
+function TeamStatsModal({ visible, onClose, data }) {
+  if (!data) return null;
+  const { name, logo, league, stats } = data;
+  const st = stats?.standing || {};
+  const sn = stats?.season || {};
+  const av = sn.avg || {};
+  const hs = st.home || {}, as = st.away || {};
+  const detail = [...(stats?.last5detail || [])].reverse();
+  const ppg = st.ppg != null ? Number(st.ppg).toFixed(2) : '—';
+  const gd = st.goalDiff > 0 ? `+${st.goalDiff}` : `${st.goalDiff ?? 0}`;
+  const n1 = (v) => (v == null ? '—' : Number(v).toFixed(1));
+  const n2 = (v) => (v == null ? '—' : Number(v).toFixed(2));
+  const pc = (v) => (v == null ? '—' : `%${Math.round(v)}`);
+  const hasAvg = av && (av.shots || av.corners || av.possession || av.cards);
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={tm.overlay}>
+        <TouchableOpacity style={tm.backdrop} activeOpacity={1} onPress={onClose} />
+        <View style={tm.sheet}>
+          <View style={tm.head}>
+            <Logo uri={logo} name={name} size={40} />
+            <View style={{ flex: 1 }}>
+              <Text style={tm.name} numberOfLines={1}>{st.name || name}</Text>
+              <Text style={tm.sub} numberOfLines={1}>{league || ''}{st.position ? ` · ${st.position}. sıra` : ''}</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} hitSlop={10}><Text style={tm.close}>✕</Text></TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }} showsVerticalScrollIndicator={false}>
+            <Text style={tm.section}>SEZON</Text>
+            <View style={tm.row}>
+              <TSBox label="O" value={st.played ?? '—'} />
+              <TSBox label="G" value={st.wins ?? '—'} color={colors.green} />
+              <TSBox label="B" value={st.draws ?? '—'} color={colors.yellow} />
+              <TSBox label="M" value={st.losses ?? '—'} color={colors.red} />
+              <TSBox label="Puan" value={st.points ?? '—'} />
+              <TSBox label="PPG" value={ppg} />
+            </View>
+            <Text style={tm.section}>GOLLER</Text>
+            <View style={tm.row}>
+              <TSBox label="Attığı" value={st.goalsFor ?? '—'} />
+              <TSBox label="Yediği" value={st.goalsAgainst ?? '—'} />
+              <TSBox label="Averaj" value={gd} />
+              <TSBox label="Gol/maç" value={n1(sn.goalsPerGame)} />
+              <TSBox label="Yediği/maç" value={n1(sn.concededPerGame)} />
+            </View>
+
+            <Text style={tm.section}>BEKLENTİ & EĞİLİM</Text>
+            <View style={tm.row}>
+              <TSBox label="xG (için)" value={n2(sn.xgFor)} color={colors.green} />
+              <TSBox label="xG (karşı)" value={n2(sn.xgAgainst)} color={colors.red} />
+              <TSBox label="2.5 Üst" value={pc(sn.over25Pct)} />
+              <TSBox label="KG Var" value={pc(sn.bttsPct)} />
+            </View>
+            <View style={tm.row}>
+              <TSBox label="Temiz kale" value={pc(sn.cleanSheetPct)} />
+              <TSBox label="Gol atamadı" value={pc(sn.failedToScorePct)} />
+            </View>
+
+            {hasAvg ? (
+              <>
+                <Text style={tm.section}>MAÇ BAŞI ORTALAMA</Text>
+                <View style={tm.row}>
+                  <TSBox label="Topla oynama" value={av.possession ? `%${Math.round(av.possession)}` : '—'} />
+                  <TSBox label="Şut" value={n1(av.shots)} />
+                  <TSBox label="İsabetli" value={n1(av.shotsOnTarget)} />
+                </View>
+                <View style={tm.row}>
+                  <TSBox label="Korner" value={n1(av.corners)} />
+                  <TSBox label="Faul" value={n1(av.fouls)} />
+                  <TSBox label="Kart" value={n1(av.cards)} />
+                </View>
+              </>
+            ) : null}
+
+            <Text style={tm.section}>İÇ SAHA / DEPLASMAN</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={tm.split}>
+                <Text style={tm.splitTitle}>İç Saha</Text>
+                <Text style={tm.splitLine}>{hs.wins ?? 0}G · {hs.draws ?? 0}B · {hs.losses ?? 0}M</Text>
+                <Text style={tm.splitGoals}>AT {hs.goalsFor ?? 0} · YE {hs.goalsAgainst ?? 0}</Text>
+              </View>
+              <View style={tm.split}>
+                <Text style={tm.splitTitle}>Deplasman</Text>
+                <Text style={tm.splitLine}>{as.wins ?? 0}G · {as.draws ?? 0}B · {as.losses ?? 0}M</Text>
+                <Text style={tm.splitGoals}>AT {as.goalsFor ?? 0} · YE {as.goalsAgainst ?? 0}</Text>
+              </View>
+            </View>
+            {detail.length ? (
+              <>
+                <Text style={tm.section}>SON MAÇLAR</Text>
+                {detail.map((d, i) => (
+                  <View key={i} style={tm.mRow}>
+                    <Logo uri={d.oppLogo} name={d.oppName} size={18} />
+                    <Text style={tm.mOpp} numberOfLines={1}>{d.oppName || '—'}</Text>
+                    <Text style={[tm.mScore, { color: d.result === 'G' ? colors.green : d.result === 'M' ? colors.red : colors.textMuted }]}>{d.score}</Text>
+                    <VenueIcon result={d.result} isHome={d.isHome} size={20} />
+                  </View>
+                ))}
+              </>
+            ) : null}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+const tm = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+  sheet: { maxHeight: '85%', backgroundColor: colors.bg, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, overflow: 'hidden' },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: spacing.lg, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
+  name: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  sub: { color: colors.textMuted, fontSize: 12, fontWeight: '700', marginTop: 1 },
+  close: { color: colors.textMuted, fontSize: 18, fontWeight: '900' },
+  section: { color: colors.textMuted, fontSize: 10.5, fontWeight: '900', letterSpacing: 0.4, marginTop: 2 },
+  row: { flexDirection: 'row', gap: 6 },
+  box: { flex: 1, backgroundColor: colors.card, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, alignItems: 'center' },
+  boxVal: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  boxLbl: { color: colors.textMuted, fontSize: 10, fontWeight: '800', marginTop: 2 },
+  split: { flex: 1, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: 3 },
+  splitTitle: { color: colors.text, fontSize: 12.5, fontWeight: '900' },
+  splitLine: { color: colors.textSoft, fontSize: 12.5, fontWeight: '800', marginTop: 2 },
+  splitGoals: { color: colors.textMuted, fontSize: 11.5, fontWeight: '700' },
+  mRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.card, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, paddingVertical: 7 },
+  mOpp: { flex: 1, color: colors.text, fontSize: 12.5, fontWeight: '700' },
+  mScore: { fontSize: 12.5, fontWeight: '900' },
+});
 // Son 5 şeridi (eski → yeni)
 function VenueForm({ detail }) {
   const arr = [...(detail || [])].reverse();
@@ -58,12 +207,131 @@ function VenueForm({ detail }) {
   );
 }
 
+// ——— "Karşılaştırma" sekmesi bileşenleri ———
+
+// Küçük takım arması (lig tablosuyla aynı) — TableLogo aşağıda tanımlı.
+// Maç-başı ortalama kıyası: iki takım · Gol / Yediği Gol / Şut / Korner / Kart / Faul
+const AVG_PICK = [
+  ['Maç Başı Gol', 'Gol'],
+  ['Yediği Gol', 'Yediği Gol'],
+  ['Toplam Şut', 'Şut'],
+  ['Korner', 'Korner'],
+  ['Kart', 'Kart'],
+  ['Faul', 'Faul'],
+];
+const fmtAvg = (v, sfx = '') => {
+  const n = Number(v);
+  if (!isFinite(n)) return `${v}${sfx}`;
+  return `${Number.isInteger(n) ? n : n.toFixed(1)}${sfx}`;
+};
+function AvgComparison({ compare, homeName, awayName, homeLogo, awayLogo }) {
+  const byLabel = new Map((compare || []).map((c) => [c.label, c]));
+  const rows = AVG_PICK
+    .map(([key, label]) => {
+      const c = byLabel.get(key);
+      return c ? { label, home: c.home, away: c.away, suffix: c.suffix || '' } : null;
+    })
+    .filter(Boolean);
+  if (!rows.length) return null;
+  return (
+    <View style={styles.avgCard}>
+      <View style={styles.avgHead}>
+        <View style={styles.avgTeam}>
+          <TableLogo logo={homeLogo} />
+          <Text style={styles.avgTeamTxt} numberOfLines={1}>{homeName}</Text>
+        </View>
+        <View style={[styles.avgTeam, { justifyContent: 'flex-end' }]}>
+          <Text style={[styles.avgTeamTxt, { textAlign: 'right' }]} numberOfLines={1}>{awayName}</Text>
+          <TableLogo logo={awayLogo} />
+        </View>
+      </View>
+      <Text style={styles.avgTitle}>Maç Başına Ortalamalar</Text>
+      {rows.map((r, i) => (
+        <View key={i} style={[styles.avgRow, i === 0 && { borderTopWidth: 0 }]}>
+          <Text style={styles.avgVal}>{fmtAvg(r.home, r.suffix)}</Text>
+          <Text style={styles.avgLabel} numberOfLines={1}>{r.label}</Text>
+          <Text style={[styles.avgVal, styles.avgValR]}>{fmtAvg(r.away, r.suffix)}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// G/B/M sayacı (son 5 form dizisinden)
+const countWDL = (form) => {
+  const f = form || [];
+  return {
+    win: f.filter((x) => x === 'G').length,
+    draw: f.filter((x) => x === 'B').length,
+    loss: f.filter((x) => x === 'M').length,
+  };
+};
+
+function WdlBox({ n, label, badge, badgeText }) {
+  return (
+    <View style={styles.wdlBox}>
+      <View style={[styles.wdlBadge, { backgroundColor: badge }]}>
+        <Text style={[styles.wdlBadgeTxt, { color: badgeText }]}>{n}</Text>
+      </View>
+      <Text style={styles.wdlBoxLabel} numberOfLines={2}>{label}</Text>
+    </View>
+  );
+}
+
+function WdlBar({ win, draw, loss, winLabel, drawLabel, lossLabel }) {
+  const seg = (v) => ({ flex: v, minWidth: v > 0 ? 4 : 0 });
+  return (
+    <View>
+      <View style={styles.wdlBar}>
+        <View style={[styles.wdlSeg, { backgroundColor: colors.accent }, seg(win)]} />
+        <View style={[styles.wdlSeg, { backgroundColor: colors.border }, seg(draw)]} />
+        <View style={[styles.wdlSeg, { backgroundColor: colors.primary }, seg(loss)]} />
+      </View>
+      <View style={styles.wdlBoxes}>
+        <WdlBox n={win} label={winLabel} badge={colors.accent} badgeText={colors.white} />
+        <WdlBox n={draw} label={drawLabel} badge={colors.cardAlt} badgeText={colors.textSoft} />
+        <WdlBox n={loss} label={lossLabel} badge={colors.primary} badgeText={colors.white} />
+      </View>
+    </View>
+  );
+}
+
+// Oklu + noktalı carousel: H2H + her takımın son 5 / iç-dış saha G-B-M dağılımı
+function WdlCarousel({ slides }) {
+  const [i, setI] = useState(0);
+  if (!slides.length) return null;
+  const n = slides.length;
+  const idx = Math.min(i, n - 1);
+  const cur = slides[idx];
+  const go = (d) => setI((p) => (Math.min(p, n - 1) + d + n) % n);
+  return (
+    <View style={styles.wdlCard}>
+      <View style={styles.wdlTop}>
+        <TouchableOpacity onPress={() => go(-1)} style={styles.wdlArrow} activeOpacity={0.6} disabled={n < 2}>
+          <Text style={styles.wdlArrowTxt}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.wdlTitle} numberOfLines={1}>{cur.title}</Text>
+        <TouchableOpacity onPress={() => go(1)} style={styles.wdlArrow} activeOpacity={0.6} disabled={n < 2}>
+          <Text style={styles.wdlArrowTxt}>›</Text>
+        </TouchableOpacity>
+      </View>
+      <WdlBar {...cur} />
+      {n > 1 && (
+        <View style={styles.wdlDots}>
+          {slides.map((_, k) => <View key={k} style={[styles.wdlDot, k === idx && styles.wdlDotOn]} />)}
+        </View>
+      )}
+    </View>
+  );
+}
+
 export default function MatchDetailScreen({ route, navigation }) {
   const { no } = route.params;
   const [m, setM] = useState(null);
   const [error, setError] = useState(null);
   const [openSquad, setOpenSquad] = useState(null); // 'home' | 'away' | null
   const [infoOpen, setInfoOpen] = useState(false);
+  const [teamModal, setTeamModal] = useState(null); // 'home' | 'away' | null
   const [tab, setTab] = useState(route.params?.tab || 'Özet');
 
   useEffect(() => {
@@ -112,43 +380,27 @@ export default function MatchDetailScreen({ route, navigation }) {
         stadium={m.stadium || m.stadiumName || ''}
         onBack={() => navigation.goBack()}
         onShare={() => {}}
+        onHomePress={s.home?.standing ? () => setTeamModal('home') : undefined}
+        onAwayPress={s.away?.standing ? () => setTeamModal('away') : undefined}
       />
-      <Tabs tabs={TABS} active={tab} onChange={setTab} icons={{ 'Özet': '🕐', 'Analiz': '📈', 'İstatistik': '📊', 'Yorumlar': '💬', 'Anketler': '🗳️' }} />
+      <Tabs tabs={TABS} active={tab} onChange={setTab} icons={{ 'Özet': '🕐', 'Analiz': '📈', 'İstatistik': '📊', 'Karşılaştırma': '⚖️', 'Yorumlar': '💬' }} />
+      {tab !== 'Yorumlar' && (
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, backgroundColor: colors.bg }}>
+          <CouponPickBlock m={m} navigation={navigation} />
+        </View>
+      )}
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xl }}>
 
       {tab === 'Özet' && (
         <>
-          <View style={ozetRow}>
-            <View style={ozetMain}>
-              <Text style={infoLabel}>MAÇ ÖZETİ</Text>
-              <Text style={ozetText} numberOfLines={4}>{humanize(comment)}</Text>
-            </View>
-            <InfoTile label="HAVA DURUMU" value="—" sub="Veri yok" icon="🌤️" />
-            <InfoTile label="HAKEM" value={m.referee || '—'} sub={m.referee ? '' : 'Açıklanmadı'} icon="🟨" />
+          <MatchInfoCard m={m} />
+          <View style={ozetSummaryCard}>
+            <Text style={infoLabel}>MAÇ ÖZETİ</Text>
+            <Text style={ozetText} numberOfLines={6}>{humanize(comment)}</Text>
           </View>
 
           <View style={{ marginBottom: spacing.sm }}>
             <SurpriseBadge label={a.label} labelColor={a.labelColor} />
-          </View>
-
-          <Text style={topluLabel}>TOPLULUK ETKİLEŞİMİ</Text>
-          <View style={pollGrid}>
-            <View style={pollCell}>
-              <PollTile icon="📋" title="Kadro Tahmini" desc="Muhtemel kadroyu tahmin et." button="Tahminini Paylaş" color={colors.field} onPress={() => setTab('Yorumlar')}
-                preview={<View style={pitchBox}>{['?', '?', '?', '?', '?'].map((q, i) => <Text key={i} style={pitchQ}>{q}</Text>)}</View>} />
-            </View>
-            <View style={pollCell}>
-              <PollTile icon="⭐" title="Maçın Oyuncusu" desc="Öne çıkacak oyuncuyu seç." button="Oyuncunu Seç" color="#a855f7" onPress={() => setTab('Yorumlar')}
-                preview={<View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}><View style={avatarCircle}><Text style={{ fontSize: 18 }}>👤</Text></View><Text style={{ fontSize: 18 }}>⭐</Text></View>} />
-            </View>
-            <View style={pollCell}>
-              <PollTile icon="🔢" title="Skor Tahmini" desc="İY ve MS skorunu paylaş." button="Ankete Katıl" color={colors.accent} onPress={() => setTab('Yorumlar')}
-                preview={<View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8 }}><View style={scoreChip}><Text style={scoreChipL}>İY</Text><Text style={scoreChipV}>1 - 0</Text></View><View style={scoreChip}><Text style={scoreChipL}>MS</Text><Text style={scoreChipV}>2 - 1</Text></View></View>} />
-            </View>
-            <View style={pollCell}>
-              <PollTile icon="💬" title="Maç Yorumu" desc="Görüşünü toplulukla paylaş." button="Yorum Yaz" color="#3b82f6" onPress={() => setTab('Yorumlar')}
-                preview={<View style={{ gap: 5 }}><View style={bubble} /><View style={[bubble, { width: '70%', alignSelf: 'flex-end' }]} /></View>} />
-            </View>
           </View>
 
           {sinyaller.length > 0 && (
@@ -163,7 +415,6 @@ export default function MatchDetailScreen({ route, navigation }) {
                 {[{ n: homeName, f: s.home?.last5, d: s.home?.last5detail }, { n: awayName, f: s.away?.last5, d: s.away?.last5detail }].map((col, ci) => (
                   <View key={ci} style={{ flex: 1 }}>
                     <Text style={smColTitle} numberOfLines={1}>{col.n}</Text>
-                    <View style={{ marginBottom: 8 }}>{(col.d && col.d.length) ? <VenueForm detail={col.d} /> : <FormStrip form={col.f} size={16} />}</View>
                     {(col.d && col.d.length) ? col.d.map((d, i) => (
                       <View key={i} style={smRow}>
                         <Logo uri={d.oppLogo} name={d.oppName} size={16} />
@@ -343,13 +594,7 @@ export default function MatchDetailScreen({ route, navigation }) {
       {/* Lig Tablosu (tam, Son 5 ile) */}
       {s.leagueTable && ((s.leagueTable.overall?.length || s.leagueTable.length) > 0) && (
         <Accordion title="Lig Tablosu" icon="📋">
-          <LeagueTableFull table={s.leagueTable} homeId={s.home?.standing?.teamId} awayId={s.away?.standing?.teamId} homeLogo={s.home?.logo} awayLogo={s.away?.logo} />
-          <Text style={styles.legend}>
-            <Text style={{ color: colors.green }}>G</Text> Galibiyet · <Text style={{ color: colors.yellow }}>B</Text> Beraberlik · <Text style={{ color: colors.red }}>M</Text> Mağlubiyet
-          </Text>
-          <Text style={styles.legend}>
-            <Text style={{ color: colors.green }}>▍</Text> Üst sıra / şampiyonluk bölgesi   ·   <Text style={{ color: colors.red }}>▍</Text> Alt sıra / düşme bölgesi
-          </Text>
+          <LeagueTableFull table={s.leagueTable} homeId={s.home?.standing?.teamId} awayId={s.away?.standing?.teamId} homeLogo={s.home?.logo} awayLogo={s.away?.logo} league={m.league} />
         </Accordion>
       )}
 
@@ -378,15 +623,52 @@ export default function MatchDetailScreen({ route, navigation }) {
       )}
       </>)}
 
+      {tab === 'Karşılaştırma' && (() => {
+        const wdl = [];
+        if (s.h2h && s.h2h.played > 0) {
+          wdl.push({
+            title: `Aralarındaki Maçlar · ${s.h2h.played}`,
+            win: s.h2h.homeWins || 0, draw: s.h2h.draws || 0, loss: s.h2h.awayWins || 0,
+            winLabel: `${homeName} Galibiyeti`, drawLabel: 'Beraberlik', lossLabel: `${awayName} Galibiyeti`,
+          });
+        }
+        const single = (name, form, suffix) => {
+          if (!form || !form.length) return;
+          const c = countWDL(form);
+          wdl.push({ title: `${name} Son 5 ${suffix}`, ...c, winLabel: 'Galibiyet', drawLabel: 'Beraberlik', lossLabel: 'Mağlubiyet' });
+        };
+        single(homeName, s.home?.last5, 'Maçı');
+        single(awayName, s.away?.last5, 'Maçı');
+        single(homeName, s.home?.last5venue, 'İç Saha Maçı');
+        single(awayName, s.away?.last5venue, 'Deplasman Maçı');
+        const hasAvg = (s.compare || []).some((c) => AVG_PICK.some(([k]) => k === c.label));
+        if (!hasAvg && !wdl.length) {
+          return <EmptyState icon="⚖️" title="Karşılaştırma verisi yok" message="Bu maç için ortalama/geçmiş verisi henüz bulunmuyor." />;
+        }
+        return (
+          <>
+            <AvgComparison compare={s.compare} homeName={homeName} awayName={awayName} homeLogo={s.home?.logo} awayLogo={s.away?.logo} />
+            <WdlCarousel slides={wdl} />
+          </>
+        );
+      })()}
+
       {tab === 'Yorumlar' && (
         <CommentsSection matchId={m.sportotoMatchId || String(m.no)} />
       )}
 
-      {tab === 'Anketler' && (
-        <PollsSection matchId={m.sportotoMatchId || String(m.no)} match={m} homeName={homeName} awayName={awayName} navigation={navigation} />
-      )}
-
       </ScrollView>
+
+      <TeamStatsModal
+        visible={!!teamModal}
+        onClose={() => setTeamModal(null)}
+        data={teamModal ? {
+          name: teamModal === 'home' ? homeName : awayName,
+          logo: (teamModal === 'home' ? s.home : s.away)?.logo,
+          league: m.league,
+          stats: teamModal === 'home' ? s.home : s.away,
+        } : null}
+      />
     </View>
   );
 }
@@ -579,28 +861,6 @@ function SquadSection({ title, squad, open, onToggle }) {
 }
 
 // Tam lig tablosu — Genel / İç Saha / Dış Saha sekmeli, yatay kaydırmalı
-function LeagueTableFull({ table, homeId, awayId, homeLogo, awayLogo }) {
-  // Eski sürümle uyum: table dizi gelirse genel kabul et
-  const variants = Array.isArray(table) ? { overall: table, home: [], away: [] } : (table || {});
-  const sections = [
-    ['Genel Lig Tablosu', variants.overall],
-    ['İç Saha Lig Tablosu', variants.home],
-    ['Dış Saha Lig Tablosu', variants.away],
-  ];
-  return (
-    <View style={styles.ltGrid}>
-      {sections.map(([title, rows]) =>
-        rows && rows.length > 0 ? (
-          <View key={title} style={styles.ltSection}>
-            <Text style={styles.subLabel}>{title}</Text>
-            <LeagueTableOne rows={rows} homeId={homeId} awayId={awayId} homeLogo={homeLogo} awayLogo={awayLogo} />
-          </View>
-        ) : null
-      )}
-    </View>
-  );
-}
-
 // Lig tablosu satır logosu — gerçek arma varsa onu, yoksa nötr küçük placeholder.
 function TableLogo({ logo }) {
   const [err, setErr] = useState(false);
@@ -610,51 +870,97 @@ function TableLogo({ logo }) {
   return <View style={styles.tlPh} />;
 }
 
-function LeagueTableOne({ rows, homeId, awayId, homeLogo, awayLogo }) {
+const LT_TABS = [
+  { key: 'overall', label: 'Tümü' },
+  { key: 'home', label: 'İç Saha' },
+  { key: 'away', label: 'Deplasman' },
+];
+
+// Pozisyon bölgeleri — Avrupa ligi düzenine göre görsel yaklaşım (yalnızca
+// tasarım/renk amaçlı; gerçek kupa kotaları lige göre değişebilir).
+function zoneOf(pos, n) {
+  if (pos === 1) return 'ucl';
+  if (pos <= 3) return 'conf';
+  if (n >= 6 && pos === n - 2) return 'playoff';
+  if (n >= 6 && pos >= n - 1) return 'releg';
+  return null;
+}
+const ZONE_COLOR = { ucl: colors.info, conf: colors.success, playoff: colors.warning, releg: colors.danger };
+const ZONE_LEGEND = [
+  { key: 'ucl', label: 'Şampiyonlar Ligi Eleme' },
+  { key: 'conf', label: 'Konferans Ligi Eleme' },
+  { key: 'playoff', label: 'Küme Düşme Play-off' },
+  { key: 'releg', label: 'Küme Düşme' },
+];
+
+// Tek kart · Tümü/İç Saha/Deplasman sekmeli tam lig tablosu.
+function LeagueTableFull({ table, homeId, awayId, homeLogo, awayLogo, league }) {
+  // Eski sürümle uyum: table dizi gelirse genel kabul et
+  const variants = Array.isArray(table) ? { overall: table, home: [], away: [] } : (table || {});
+  const tabs = LT_TABS.filter((t) => variants[t.key] && variants[t.key].length > 0);
+  const [view, setView] = useState('overall');
+  const active = variants[view] && variants[view].length ? view : 'overall';
+  const rows = variants[active] || [];
   const N = rows.length;
+
   return (
-    <View style={styles.tableCard}>
-      <ScrollView horizontal showsHorizontalScrollIndicator>
-        <View style={styles.ltInner}>
-          <View style={[styles.ltRow, styles.ltHead]}>
-            <Text style={[styles.ltH, styles.lPos]}>Sıra</Text>
-            <Text style={[styles.ltH, styles.lName]}>Takım</Text>
-            <Text style={[styles.ltH, styles.lNum]}>O</Text>
-            <Text style={[styles.ltH, styles.lNum, { color: colors.green }]}>G</Text>
-            <Text style={[styles.ltH, styles.lNum, { color: colors.yellow }]}>B</Text>
-            <Text style={[styles.ltH, styles.lNum, { color: colors.red }]}>M</Text>
-            <Text style={[styles.ltH, styles.lNum]}>A</Text>
-            <Text style={[styles.ltH, styles.lNum]}>Y</Text>
-            <Text style={[styles.ltH, styles.lNum]}>AV</Text>
-            <Text style={[styles.ltH, styles.lNum, { color: colors.primary }]}>P</Text>
-            <Text style={[styles.ltH, styles.lForm]}>Son 5 maç</Text>
-          </View>
-          {rows.map((r, idx) => {
-            const isHome = r.teamId === homeId;
-            const isAway = r.teamId === awayId;
-            const mine = isHome || isAway;
-            const zone = r.position <= 3 ? styles.zoneTop : (r.position > N - 3 ? styles.zoneBot : null);
+    <View style={styles.ltCard}>
+      {league ? <Text style={styles.ltTitle} numberOfLines={1}>{league}</Text> : null}
+
+      {tabs.length > 1 && (
+        <View style={styles.ltTabs}>
+          {tabs.map((t) => {
+            const on = t.key === active;
             return (
-              <View key={r.teamId} style={[styles.ltRow, idx % 2 === 1 && styles.ltAlt, zone, isHome && styles.ltHiHome, isAway && styles.ltHiAway]}>
-                <Text style={[styles.ltD, styles.lPos, styles.tMuted]}>{r.position}</Text>
-                <View style={[styles.lName, styles.lNameCell]}>
-                  <TableLogo logo={r.logo || (isHome ? homeLogo : isAway ? awayLogo : '')} />
-                  <Text style={[styles.ltD, styles.lNameTxt, mine && styles.tBold]} numberOfLines={1}>{r.name}</Text>
-                </View>
-                <Text style={[styles.ltD, styles.lNum, styles.tMuted]}>{r.played}</Text>
-                <Text style={[styles.ltD, styles.lNum, { color: colors.green }]}>{r.wins}</Text>
-                <Text style={[styles.ltD, styles.lNum, { color: colors.yellow }]}>{r.draws}</Text>
-                <Text style={[styles.ltD, styles.lNum, { color: colors.red }]}>{r.losses}</Text>
-                <Text style={[styles.ltD, styles.lNum, styles.tMuted]}>{r.goalsFor}</Text>
-                <Text style={[styles.ltD, styles.lNum, styles.tMuted]}>{r.goalsAgainst}</Text>
-                <Text style={[styles.ltD, styles.lNum]}>{r.goalDiff >= 0 ? '+' : ''}{r.goalDiff}</Text>
-                <Text style={[styles.ltD, styles.lNum, styles.ltPts]}>{r.points}</Text>
-                <View style={styles.lForm}><FormStrip form={r.last5} size={14} /></View>
-              </View>
+              <TouchableOpacity key={t.key} activeOpacity={0.8} onPress={() => setView(t.key)} style={[styles.ltTab, on && styles.ltTabOn]}>
+                <Text style={[styles.ltTabTxt, on && styles.ltTabTxtOn]}>{t.label}</Text>
+              </TouchableOpacity>
             );
           })}
         </View>
-      </ScrollView>
+      )}
+
+      <View style={[styles.ltR, styles.ltHeadR]}>
+        <Text style={[styles.ltHc, styles.cPos]}>#</Text>
+        <Text style={[styles.ltHc, styles.cName]}>Takım</Text>
+        <Text style={[styles.ltHc, styles.cN]}>O</Text>
+        <Text style={[styles.ltHc, styles.cN]}>G</Text>
+        <Text style={[styles.ltHc, styles.cN]}>B</Text>
+        <Text style={[styles.ltHc, styles.cN]}>M</Text>
+        <Text style={[styles.ltHc, styles.cAv]}>Av.</Text>
+        <Text style={[styles.ltHc, styles.cP]}>P</Text>
+      </View>
+
+      {rows.map((r, idx) => {
+        const isHome = r.teamId === homeId;
+        const isAway = r.teamId === awayId;
+        const mine = isHome || isAway;
+        const z = zoneOf(r.position, N);
+        return (
+          <View key={r.teamId} style={[styles.ltR, idx % 2 === 1 && styles.ltAltR, isHome && styles.ltMineHome, isAway && styles.ltMineAway, { borderLeftColor: z ? ZONE_COLOR[z] : 'transparent' }]}>
+            <Text style={[styles.ltDc, styles.cPos, styles.tMuted]}>{r.position}</Text>
+            <View style={[styles.cName, styles.ltNameCell]}>
+              <TableLogo logo={r.logo || (isHome ? homeLogo : isAway ? awayLogo : '')} />
+              <Text style={[styles.ltNameTxt, mine && styles.tBold]} numberOfLines={1}>{r.name}</Text>
+            </View>
+            <Text style={[styles.ltDc, styles.cN, styles.tMuted]}>{r.played}</Text>
+            <Text style={[styles.ltDc, styles.cN]}>{r.wins}</Text>
+            <Text style={[styles.ltDc, styles.cN]}>{r.draws}</Text>
+            <Text style={[styles.ltDc, styles.cN]}>{r.losses}</Text>
+            <Text style={[styles.ltDc, styles.cAv, styles.tMuted]}>{r.goalDiff >= 0 ? '+' : ''}{r.goalDiff}</Text>
+            <Text style={[styles.ltDc, styles.cP]}>{r.points}</Text>
+          </View>
+        );
+      })}
+
+      <View style={styles.ltLegend}>
+        {ZONE_LEGEND.map((z) => (
+          <View key={z.key} style={styles.ltLgItem}>
+            <View style={[styles.ltLgBar, { backgroundColor: ZONE_COLOR[z.key] }]} />
+            <Text style={styles.ltLgTxt}>{z.label}</Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -847,28 +1153,63 @@ const styles = StyleSheet.create({
   sqCell: { width: 36 },
   sqDk: { width: 46 },
 
-  // lig tablosu (tam)
-  ltRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, paddingHorizontal: spacing.sm, borderLeftWidth: 3, borderLeftColor: 'transparent' },
-  ltHead: { backgroundColor: colors.cardAlt, borderBottomWidth: 1, borderBottomColor: colors.border },
-  ltAlt: { backgroundColor: colors.cardAlt + '40' },
-  ltHiHome: { backgroundColor: colors.primary + '2e' },
-  ltHiAway: { backgroundColor: colors.orange + '2e' },
-  zoneTop: { borderLeftColor: colors.green },
-  zoneBot: { borderLeftColor: colors.red },
-  ltH: { color: colors.textMuted, fontSize: 11, fontWeight: '800', textAlign: 'center' },
-  ltD: { color: colors.text, fontSize: 12.5, textAlign: 'center' },
-  ltPts: { color: colors.primary, fontWeight: '900', fontSize: 14 },
-  ltGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, alignItems: 'flex-start' },
-  ltSection: { flex: 1, minWidth: 320 },
-  ltInner: { minWidth: '100%' },
-  lPos: { width: 30 },
-  lName: { flex: 1, minWidth: 116, textAlign: 'left', paddingRight: 4 },
-  lNameCell: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  lNameTxt: { flex: 1, textAlign: 'left' },
+  // lig tablosu (tam) — tek kart, Tümü/İç Saha/Deplasman sekmeli
+  ltCard: { backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', paddingBottom: spacing.sm },
+  ltTitle: { color: colors.text, fontSize: 13.5, fontWeight: '800', paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm },
+  ltTabs: { flexDirection: 'row', backgroundColor: colors.cardAlt, borderRadius: radius.sm, padding: 3, marginHorizontal: spacing.md, marginBottom: spacing.sm },
+  ltTab: { flex: 1, paddingVertical: 6, borderRadius: radius.sm - 3, alignItems: 'center' },
+  ltTabOn: { backgroundColor: colors.accent },
+  ltTabTxt: { color: colors.textSoft, fontSize: 12.5, fontWeight: '700' },
+  ltTabTxtOn: { color: colors.white, fontWeight: '800' },
+
+  ltR: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingRight: spacing.sm, borderLeftWidth: 3, borderLeftColor: 'transparent' },
+  ltHeadR: { backgroundColor: colors.surfaceSoft, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 7 },
+  ltAltR: { backgroundColor: colors.surfaceSoft },
+  ltMineHome: { backgroundColor: colors.info + '18' },
+  ltMineAway: { backgroundColor: colors.warning + '20' },
+  ltHc: { color: colors.muted, fontSize: 11.5, fontWeight: '800', textAlign: 'center' },
+  ltDc: { color: colors.text, fontSize: 13, textAlign: 'center' },
+  ltNameCell: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  ltNameTxt: { flex: 1, textAlign: 'left', color: colors.text, fontSize: 13 },
   tlImg: { width: 18, height: 18, borderRadius: 3 },
   tlPh: { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.border },
-  lNum: { width: 24 },
-  lForm: { width: 90, alignItems: 'flex-start', paddingLeft: 6 },
+  cPos: { width: 32, paddingLeft: 6, textAlign: 'left' },
+  cName: { flex: 1, minWidth: 90, textAlign: 'left' },
+  cN: { width: 26 },
+  cAv: { width: 34 },
+  cP: { width: 30, fontWeight: '900', color: colors.text },
+  ltLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: spacing.md, paddingTop: spacing.md },
+  ltLgItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ltLgBar: { width: 4, height: 14, borderRadius: 2 },
+  ltLgTxt: { color: colors.textSoft, fontSize: 10.5, fontWeight: '600' },
+
+  // Karşılaştırma — maç başına ortalamalar
+  avgCard: { backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.md },
+  avgHead: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  avgTeam: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  avgTeamTxt: { flex: 1, color: colors.text, fontSize: 12.5, fontWeight: '800' },
+  avgTitle: { color: colors.textSoft, fontSize: 12.5, fontWeight: '700', textAlign: 'center', marginTop: 6, marginBottom: 2 },
+  avgRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.border },
+  avgVal: { width: 56, color: colors.text, fontSize: 14.5, fontWeight: '800' },
+  avgValR: { textAlign: 'right' },
+  avgLabel: { flex: 1, color: colors.textSoft, fontSize: 12.5, fontWeight: '600', textAlign: 'center' },
+
+  // Karşılaştırma — G/B/M carousel
+  wdlCard: { backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.md },
+  wdlTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
+  wdlArrow: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.border },
+  wdlArrowTxt: { color: colors.textSoft, fontSize: 19, fontWeight: '800', lineHeight: 21, marginTop: -2 },
+  wdlTitle: { flex: 1, color: colors.text, fontSize: 13.5, fontWeight: '800', textAlign: 'center', paddingHorizontal: 6 },
+  wdlBar: { flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: colors.surfaceSoft, marginBottom: spacing.md },
+  wdlSeg: { height: 8 },
+  wdlBoxes: { flexDirection: 'row', gap: 8 },
+  wdlBox: { flex: 1, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  wdlBadge: { width: 22, height: 22, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  wdlBadgeTxt: { fontSize: 12.5, fontWeight: '900' },
+  wdlBoxLabel: { flex: 1, color: colors.textSoft, fontSize: 10.5, fontWeight: '700' },
+  wdlDots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: spacing.md },
+  wdlDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.border },
+  wdlDotOn: { backgroundColor: colors.accent },
 
   // iç/dış saha sekmeleri (segment kontrol)
   segWrap: { flexDirection: 'row', backgroundColor: colors.cardAlt, borderRadius: radius.md, padding: 3, marginBottom: spacing.sm },

@@ -100,6 +100,7 @@ function buildCompare(hStand, aStand, h, a) {
     const avgRows = [
       ['Topla Oynama', h.avg.possession, a.avg.possession, '%'],
       ['Maç Başı Gol', h.avg.scored, a.avg.scored, ''],
+      ['Yediği Gol', h.concededPerGame, a.concededPerGame, ''],
       ['Toplam Şut', h.avg.shots, a.avg.shots, ''],
       ['İsabetli Şut', h.avg.shotsOnTarget, a.avg.shotsOnTarget, ''],
       ['Korner', h.avg.corners, a.avg.corners, ''],
@@ -175,7 +176,8 @@ export function createExtrasCache(matchesBySeason, teamsBySeason) {
 
     const fullTable = { overall, home: venueTable('home'), away: venueTable('away') };
 
-    const extras = { table: tableMap, players: playersMap, formByTeam, fullTable, teamStats };
+    // matches: "son maçlar"ı maç-öncesi tarihe göre süzebilmek için ham liste.
+    const extras = { table: tableMap, players: playersMap, formByTeam, fullTable, teamStats, matches };
     cache.set(seasonId, extras);
     return extras;
   };
@@ -196,8 +198,19 @@ export async function buildMatchStats(found, getExtras) {
   const awayStanding = extras.table.get(awayTeamId) || null;
   const homePlayers = pickKeyPlayers(extras.players.get(homeTeamId));
   const awayPlayers = pickKeyPlayers(extras.players.get(awayTeamId));
-  const homeForm = extras.formByTeam.get(homeTeamId) || {};
-  const awayForm = extras.formByTeam.get(awayTeamId) || {};
+  // "Son maçlar" / form, BU MAÇTAN ÖNCEKİ maçlara göre hesaplanır (bu maç ve
+  // sonrası hariç) → maç-öncesi (pre-match). Başlamış maçta bile bu maç dahil edilmez.
+  const preMatches = (extras.matches || []).filter((m) => m.dateUnix < fm.dateUnix);
+  const homeForm = {
+    all: teamLast5(preMatches, homeTeamId, 'all'),
+    home: teamLast5(preMatches, homeTeamId, 'home'),
+    detail: teamLast5Detail(preMatches, homeTeamId, extras.teamStats),
+  };
+  const awayForm = {
+    all: teamLast5(preMatches, awayTeamId, 'all'),
+    away: teamLast5(preMatches, awayTeamId, 'away'),
+    detail: teamLast5Detail(preMatches, awayTeamId, extras.teamStats),
+  };
   const compare = buildCompare(homeStanding, awayStanding, extras.teamStats.get(homeTeamId), extras.teamStats.get(awayTeamId));
 
   const det = await fetchMatchDetails(fm.footyMatchId).catch(() => ({ potentials: null, h2h: null }));
@@ -217,11 +230,23 @@ export async function buildMatchStats(found, getExtras) {
   const homeLogo = homeImg ? CDN + homeImg : '';
   const awayLogo = awayImg ? CDN + awayImg : '';
 
+  // Tek takım istatistik penceresi için sezon özeti (zaten çekilen teamStats'tan).
+  const seasonStats = (id) => {
+    const t = extras.teamStats.get(id);
+    if (!t) return null;
+    return {
+      goalsPerGame: t.goalsPerGame, concededPerGame: t.concededPerGame,
+      cleanSheets: t.cleanSheets, cleanSheetPct: t.cleanSheetPct, failedToScorePct: t.failedToScorePct,
+      over25Pct: t.over25Pct, bttsPct: t.bttsPct, xgFor: t.xgFor, xgAgainst: t.xgAgainst,
+      recentPpg: t.recentPpg, avg: t.avg || null,
+    };
+  };
+
   return {
     potentials: det.potentials,
     h2h,
-    home: { standing: homeStanding, players: homePlayers, squad: buildSquad(extras.players.get(homeTeamId)), last5: homeForm.all || [], last5venue: homeForm.home || [], last5detail: homeForm.detail || [], logo: homeLogo },
-    away: { standing: awayStanding, players: awayPlayers, squad: buildSquad(extras.players.get(awayTeamId)), last5: awayForm.all || [], last5venue: awayForm.away || [], last5detail: awayForm.detail || [], logo: awayLogo },
+    home: { standing: homeStanding, season: seasonStats(homeTeamId), players: homePlayers, squad: buildSquad(extras.players.get(homeTeamId)), last5: homeForm.all || [], last5venue: homeForm.home || [], last5detail: homeForm.detail || [], logo: homeLogo },
+    away: { standing: awayStanding, season: seasonStats(awayTeamId), players: awayPlayers, squad: buildSquad(extras.players.get(awayTeamId)), last5: awayForm.all || [], last5venue: awayForm.away || [], last5detail: awayForm.detail || [], logo: awayLogo },
     compare,
     leagueTable: extras.fullTable,
   };

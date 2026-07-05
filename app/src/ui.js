@@ -104,9 +104,9 @@ export function StatCard({ label, value, hint, tone = 'primary', icon }) {
         <View style={[styles.statDot, toneStyle.dot]} />
       </Row>
 
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-      {!!hint && <Text style={styles.statHint}>{hint}</Text>}
+      <Text style={styles.statValue} numberOfLines={1}>{value}</Text>
+      <Text style={styles.statLabel} numberOfLines={1}>{label}</Text>
+      {!!hint && <Text style={styles.statHint} numberOfLines={1}>{hint}</Text>}
     </View>
   );
 }
@@ -361,14 +361,26 @@ export function MatchCard({ match, onPress }) {
   const as = match.stats?.away?.standing;
   const sc = match.score;
   const live = !!match.live;
+  // Bitmiş maç = başlamış + canlı değil + skor var. MS sonucu (1/X/2):
+  // resmi 'result' varsa onu, yoksa skordan hesapla. Skor ASLA MS ile karışmaz.
+  const isFinished = !!match.started && !live && !!sc;
+  const res = match.result
+    || (sc && sc.home != null && sc.away != null
+      ? (sc.home > sc.away ? '1' : sc.home < sc.away ? '2' : 'X')
+      : null);
+  const resColor = res === '1' ? colors.primary : res === '2' ? colors.yellow : colors.gray;
   return (
     <TouchableOpacity style={s.mc} onPress={onPress} activeOpacity={onPress ? 0.85 : 1}>
       <View style={s.mcTop}>
         <Text style={s.mcNo}>#{match.no}</Text>
         {match.league ? <Text style={s.mcLeague} numberOfLines={1}>{match.league}</Text> : <View style={{ flex: 1 }} />}
-        {live
-          ? <View style={s.mcLive}><View style={s.mcLiveDot} /><Text style={s.mcLiveTxt}>CANLI{match.minute ? ` ${match.minute}'` : ''}</Text></View>
-          : <Text style={s.mcDate}>{d.day} · {d.time}</Text>}
+        {live ? (
+          <View style={s.mcLive}><View style={s.mcLiveDot} /><Text style={s.mcLiveTxt}>CANLI{match.minute ? ` ${match.minute}'` : ''}</Text></View>
+        ) : isFinished && res ? (
+          <View style={[s.mcMs, { backgroundColor: resColor }]}><Text style={s.mcMsTxt}>MS {res}</Text></View>
+        ) : (
+          <Text style={s.mcDate}>{d.day} · {d.time}</Text>
+        )}
       </View>
       <View style={s.mcMain}>
         <View style={s.mcHome}>
@@ -394,7 +406,7 @@ export function MatchCard({ match, onPress }) {
 }
 
 // Maç detay üst başlığı
-export function MatchHeader({ home, away, homeLogo, awayLogo, league, dateLabel, time, stadium, onBack, onShare }) {
+export function MatchHeader({ home, away, homeLogo, awayLogo, league, dateLabel, time, stadium, onBack, onShare, onHomePress, onAwayPress }) {
   return (
     <View style={s.mh}>
       <View style={s.mhBar}>
@@ -406,10 +418,11 @@ export function MatchHeader({ home, away, homeLogo, awayLogo, league, dateLabel,
         <TouchableOpacity onPress={onShare} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Text style={s.mhIconSm}>☆</Text></TouchableOpacity>
       </View>
       <View style={s.mhMain}>
-        <View style={s.mhTeam}>
+        <TouchableOpacity style={s.mhTeam} onPress={onHomePress} disabled={!onHomePress} activeOpacity={0.7}>
           <Logo uri={homeLogo} name={home} size={50} />
           <Text style={s.mhTeamName} numberOfLines={2}>{home}</Text>
-        </View>
+          {onHomePress ? <Text style={s.mhStatHint}>istatistik ›</Text> : null}
+        </TouchableOpacity>
         <View style={s.mhCenter}>
           {league ? <Text style={s.mhLeague} numberOfLines={1}>{league}</Text> : null}
           <View style={s.mhTimeRow}>
@@ -422,10 +435,11 @@ export function MatchHeader({ home, away, homeLogo, awayLogo, league, dateLabel,
           </View>
           {stadium ? <Text style={s.mhStadium} numberOfLines={1}>{stadium}</Text> : null}
         </View>
-        <View style={s.mhTeam}>
+        <TouchableOpacity style={s.mhTeam} onPress={onAwayPress} disabled={!onAwayPress} activeOpacity={0.7}>
           <Logo uri={awayLogo} name={away} size={50} />
           <Text style={s.mhTeamName} numberOfLines={2}>{away}</Text>
-        </View>
+          {onAwayPress ? <Text style={s.mhStatHint}>istatistik ›</Text> : null}
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -563,6 +577,8 @@ const s = StyleSheet.create({
   mcLive: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.accent, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   mcLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#ffffff' },
   mcLiveTxt: { color: '#ffffff', fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
+  mcMs: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  mcMsTxt: { color: '#ffffff', fontSize: 10.5, fontWeight: '900', letterSpacing: 0.5 },
   mcForm: { flexDirection: 'row', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
   mcFormSide: { flex: 1 },
 
@@ -575,6 +591,7 @@ const s = StyleSheet.create({
   mhMain: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: spacing.lg, marginTop: spacing.sm },
   mhTeam: { flex: 1, alignItems: 'center', gap: 8 },
   mhTeamName: { color: colors.text, fontSize: 14, fontWeight: '800', textAlign: 'center' },
+  mhStatHint: { color: colors.accent, fontSize: 10, fontWeight: '800', marginTop: -2 },
   mhCenter: { width: 116, alignItems: 'center', justifyContent: 'center', paddingTop: 6 },
   mhLeague: { color: colors.textMuted, fontSize: 10.5, fontWeight: '700', textAlign: 'center', marginBottom: 4 },
   mhTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },

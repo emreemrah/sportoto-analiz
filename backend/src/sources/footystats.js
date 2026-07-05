@@ -18,6 +18,20 @@ async function apiGet(path, params) {
   return (await apiGetRaw(path, params)).data;
 }
 
+// seasonId → gerçek lig adı ("Sweden Allsvenskan", "China Chinese Super League"...)
+// FootyStats league-list'ten kurulur. Bülten maçının jenerik resmi etiketini
+// ("2026 Sezonu") eşleştiği FootyStats liginin GERÇEK adıyla değiştirmek için.
+export async function fetchLeagueNames() {
+  const data = await apiGet('league-list', { chosen_leagues_only: 'true' });
+  const map = new Map();
+  for (const lg of data || []) {
+    for (const s of lg.season || []) {
+      if (s?.id != null) map.set(String(s.id), lg.name);
+    }
+  }
+  return map;
+}
+
 // Bir sezonun maçlarını çeker (oran + xG + ppg dahil), temiz yapıya çevirir.
 // "example" anahtarı league_id ile, gerçek anahtarlar season_id ile çalışır.
 export async function fetchMatches(seasonId) {
@@ -79,6 +93,9 @@ export async function fetchTeams(seasonId) {
       image: t.image || '', // kulüp arması (mutlak URL)
       position: num(t.table_position),
       played: num(s.seasonMatchesPlayed_overall),
+      wins: num(s.seasonWinsNum_overall),
+      draws: num(s.seasonDrawsNum_overall),
+      losses: num(s.seasonLossesNum_overall),
       ppgHome: num(s.seasonPPG_home),
       ppgAway: num(s.seasonPPG_away),
       recentPpg: num(s.seasonRecentPPG),
@@ -87,6 +104,13 @@ export async function fetchTeams(seasonId) {
       goalsPerGame: num(s.seasonScoredAVG_overall),
       concededPerGame: num(s.seasonConcededAVG_overall),
       cleanSheets: num(s.seasonCSTotal_overall),
+      // yüzde eğilimler + beklenen gol (xG) — takım istatistik penceresi için
+      over25Pct: num(s.seasonOver25Percentage_overall),
+      bttsPct: num(s.seasonBTTSPercentage_overall),
+      cleanSheetPct: num(s.seasonCSPercentage_overall),
+      failedToScorePct: num(s.seasonFTSPercentage_overall),
+      xgFor: num(s.xg_for_avg_overall),
+      xgAgainst: num(s.xg_against_avg_overall),
       // maç başı sezon ortalamaları (kıyas çubukları için)
       avg: {
         possession: num(s.possessionAVG_overall),
@@ -163,6 +187,20 @@ export async function fetchLeaguePlayers(seasonId) {
 }
 
 // --- TEK MAÇ DETAYI (h2h + potansiyeller) ---
+// Takımın stadyumu + adresi (şehir) — ev sahibi maç bilgisi kartı + hava için.
+export async function fetchTeamVenue(teamId) {
+  if (teamId == null) return null;
+  try {
+    const t0 = await apiGet('team', { team_id: teamId });
+    const t = Array.isArray(t0) ? t0[0] : t0;
+    if (!t) return null;
+    const address = t.stadium_address || '';
+    // Adresin son parçası genelde şehir ("Rowsley Street, Manchester" → "Manchester")
+    const city = address.includes(',') ? address.split(',').pop().trim() : address.trim();
+    return { stadium: t.stadium_name || '', address, city: city || '', country: t.country || '' };
+  } catch { return null; }
+}
+
 export async function fetchMatchDetails(matchId) {
   const m = await apiGet('match', { match_id: matchId });
   const h = m?.h2h?.previous_matches_results;
