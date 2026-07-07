@@ -30,12 +30,15 @@ export const api = {
   // bülten / analiz
   bulletin: () => req('/api/bulletin'),
   radar: () => req('/api/surprise-radar'),
+  radarWeek: (roundId) => req(`/api/radar/${roundId}`),
+  radarScorecard: () => req('/api/radar-scorecard'),
   match: (no) => req(`/api/match/${no}`),
   live: (no) => req(`/api/live/${no}`),
   health: () => req('/api/health'),
   rounds: () => req('/api/rounds'),
   history: (roundId, fresh = false) => req(`/api/history/${roundId}${fresh ? '?fresh=1' : ''}`),
   systemScorecard: () => req('/api/system-scorecard'),
+  criteriaScorecard: () => req('/api/criteria-scorecard'),
   coverage: () => req('/api/coverage'),
 
   // üyelik

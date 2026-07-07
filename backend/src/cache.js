@@ -25,6 +25,17 @@ export function listSnapshotRounds() {
   }
 }
 
+// Kayıtlı radar arşivi olan round id'leri (geçmiş radar sekmeleri için).
+export function listRadarRounds() {
+  try {
+    return readdirSync(cacheDir)
+      .filter((f) => /^radar-\d+\.json$/.test(f))
+      .map((f) => Number(f.replace(/\D/g, '')));
+  } catch {
+    return [];
+  }
+}
+
 export function load(key) {
   const file = join(cacheDir, `${key}.json`);
   if (!existsSync(file)) return null;

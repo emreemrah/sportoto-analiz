@@ -26,6 +26,7 @@ import CouponsScreen from './src/screens/CouponsScreen';
 import UserDashboardScreen from './src/screens/UserDashboardScreen';
 import SystemDashboardScreen from './src/screens/SystemDashboardScreen';
 import SystemScorecardScreen from './src/screens/SystemScorecardScreen';
+import AnalysisSettingsScreen from './src/screens/AnalysisSettingsScreen';
 import { initAuth } from './src/auth';
 import { colors } from './src/theme';
 import AnimatedLogo from './src/components/AnimatedLogo';
@@ -62,6 +63,15 @@ const detailScreen = (
   />
 );
 
+// Analiz Kriterlerim — maç detayından ve profilden erişilir (aynı ekran, çok yerde kayıtlı).
+const analysisSettingsScreen = (
+  <Stack.Screen
+    name="AnalysisSettings"
+    component={AnalysisSettingsScreen}
+    options={{ title: 'Analiz Kriterlerim' }}
+  />
+);
+
 function HomeStack() {
   return (
     <Stack.Navigator screenOptions={header}>
@@ -71,6 +81,7 @@ function HomeStack() {
           "Toplulukta Gündem" bölümünden erişilir. */}
       <Stack.Screen name="Forum" component={ForumScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ headerShown: false }} />
+      {analysisSettingsScreen}
     </Stack.Navigator>
   );
 }
@@ -88,6 +99,7 @@ function BulletinStack() {
       <Stack.Screen name="BulletinDetail" component={BulletinDetailScreen} options={{ title: 'Bülten Detayı' }} />
       <Stack.Screen name="CouponCreate" component={CouponCreateScreen} options={{ title: 'Kupon Oluştur' }} />
       <Stack.Screen name="CouponResult" component={CouponResultScreen} options={{ title: 'Kupon Sonucu' }} />
+      {analysisSettingsScreen}
     </Stack.Navigator>
   );
 }
@@ -99,6 +111,7 @@ function AnalizStack() {
       {detailScreen}
       <Stack.Screen name="SystemScorecard" component={SystemScorecardScreen} options={{ title: 'Sistem Karnesi' }} />
       <Stack.Screen name="SystemDashboard" component={SystemDashboardScreen} options={{ title: 'Analiz Detayı (Demo)' }} />
+      {analysisSettingsScreen}
     </Stack.Navigator>
   );
 }
@@ -109,6 +122,7 @@ function ProfileStack() {
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
       <Stack.Screen name="AvatarPicker" component={AvatarPickerScreen} options={{ title: 'Hazır Avatar Seç' }} />
       <Stack.Screen name="UserDashboard" component={UserDashboardScreen} options={{ title: 'Başarı Panelim' }} />
+      {analysisSettingsScreen}
       <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Giriş Yap' }} />
       <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Kayıt Ol' }} />

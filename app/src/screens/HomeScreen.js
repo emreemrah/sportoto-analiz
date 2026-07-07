@@ -356,6 +356,7 @@ export default function HomeScreen({ navigation }) {
         onPress={() => navigation.navigate('BulletinTab')}
       />
 
+      {/* Hızlı Erişim — deneme amaçlı gizlendi. Beğenilmezse bu blok geri açılır.
       <SectionHead title="Hızlı Erişim" />
 
       <View style={styles.quickGrid}>
@@ -363,6 +364,7 @@ export default function HomeScreen({ navigation }) {
           <QuickCard key={item.key} item={item} navigation={navigation} />
         ))}
       </View>
+      */}
 
       <SectionHead
         title="Öne Çıkan Analizler"

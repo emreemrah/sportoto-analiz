@@ -10,18 +10,22 @@ import { api } from '../api';
 import { colors, spacing, radius, shadow } from '../theme';
 import { matchDate } from '../utils';
 import { getPref, setPref } from '../prefs';
-import { analyzeUserMatch } from '../userMatchEngine';
+import { userSelectedAnalysisEngine } from '../analysis/engine';
+import { getActiveProfile, countOn } from '../analysisProfile';
 import { columnCount, couponAmount, lockAtOf, isLockedNow, COUPON_COLUMN_PRICE, COUPON_MAX_COLUMNS, COUPON_MAX_AMOUNT, BUDGET_PRESETS, OUTCOMES } from '../couponConfig';
 import { createCoupon, addVersion, getCoupon, finalVersion, getDraft, setDraftPick, setDraftAll, clearDraft } from '../couponStore';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
+import VenueMark from '../components/VenueMark';
 
 const fmtTL = (n) => `${String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} TL`;
 
-// Sistemin seçimi = KULLANICI ANALİZİ Ana Seçim'i (1X / X2 / 1X2 ...).
-// Geniş = tam öneri; Tekli = öneri içinden en olası tek sonuç.
+// Sistemin seçimi = AKTİF ANALİZ PROFİLİ'ne göre Ana Seçim (1X / X2 / 1X2 ...).
+// Profil yoksa/boşsa öneri üretilmez. Geniş = tam öneri; Tekli = en olası tek sonuç.
 function systemPickFor(m, mode) {
-  const main = analyzeUserMatch(m)?.verdict?.main || '';
+  const profile = getActiveProfile();
+  if (!profile) return [];
+  const main = userSelectedAnalysisEngine(m, profile)?.verdict?.main || '';
   const set = OUTCOMES.filter((o) => main.includes(o));
   if (!set.length) return [];
   if (mode === 'wide') return set;
@@ -47,6 +51,7 @@ export default function CouponBuilderScreen({ navigation, route }) {
   const [preview, setPreview] = useState(getPref('couponPreview'));
   const [sysMode, setSysMode] = useState(getPref('couponSysMode'));
   const [budget, setBudget] = useState(getPref('couponBudget'));
+  const [target, setTarget] = useState(getPref('couponTarget') ?? null); // Kolon Doktoru hedefi (maks kolon)
   const [budgetInput, setBudgetInput] = useState(budget ? String(budget) : '');
   const [showSettings, setShowSettings] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -66,6 +71,10 @@ export default function CouponBuilderScreen({ navigation, route }) {
   const roundId = data?.roundId ?? null;
   const lockAt = useMemo(() => lockAtOf(matches), [matches]);
   const locked = isLockedNow(lockAt);
+
+  // Sistem tahmini artık ESKİ motordan değil, KULLANICININ analiz profilinden gelir.
+  const sysProfile = getActiveProfile();
+  const sysVerdictFor = (m) => (sysProfile ? userSelectedAnalysisEngine(m, sysProfile)?.verdict : null);
 
   // Düzenlemede o kuponun seçimleri gelir; yeni kuponda kullanıcının maç
   // detayında yaptığı seçimler (paylaşılan TASLAK) taşınır. Otomatik SİSTEM
@@ -111,21 +120,86 @@ export default function CouponBuilderScreen({ navigation, route }) {
     const next = { ...sel }; if (arr.length) next[no] = arr; else delete next[no];
     commit(next);
   };
-  const applySystemOne = (m) => { if (locked) return; const next = { ...sel, [m.no]: systemPickFor(m, sysMode) }; commit(next); };
-  const applySystemAll = () => { if (locked) return; const next = {}; for (const m of matches) next[m.no] = systemPickFor(m, sysMode); commit(next); };
+  // Profil yok / hiç kriter açık değil → sessiz kalma, kullanıcıyı bilgilendir.
+  const requireProfile = () => {
+    const p = getActiveProfile();
+    if (p && countOn(p) > 0) return true;
+    showToast('Analiz profili yok. Önce Analiz Kriterleri ekranından kriter seçip profili kaydet.');
+    return false;
+  };
+  const applySystemOne = (m) => {
+    if (locked || !requireProfile()) return;
+    const picks = systemPickFor(m, sysMode);
+    if (!picks.length) { showToast(`Maç ${m.no} için sistem tahmini üretilemedi (veri yetersiz).`); return; }
+    commit({ ...sel, [m.no]: picks });
+  };
+  const applySystemAll = () => {
+    if (locked || !requireProfile()) return;
+    const next = { ...sel }; let missed = 0;
+    for (const m of matches) {
+      const picks = systemPickFor(m, sysMode);
+      if (picks.length) next[m.no] = picks; else missed++;   // üretilemeyeni boşla EZME
+    }
+    commit(next);
+    if (missed) showToast(`${matches.length - missed} maça uygulandı · ${missed} maçta veri yetersiz.`);
+    else showToast('Sistem tahminleri tüm maçlara uygulandı ✅', 'success', 2000);
+  };
   const clearAll = () => { if (locked) return; commit({}); };
 
   const selections = useMemo(() => matches.map((m) => ({
     no: m.no, home: m.home.mediumName || m.home.name, away: m.away.mediumName || m.away.name,
-    selectedOutcomes: sel[m.no] || [], systemPrediction: m.prediction?.symbol || null,
-  })), [matches, sel]);
+    selectedOutcomes: sel[m.no] || [], systemPrediction: sysVerdictFor(m)?.main || null,
+  })), [matches, sel, sysProfile]);
   const filledCount = selections.filter((s) => s.selectedOutcomes.length > 0).length;
+  // Seçim dağılımı — kolon/maliyet dengesini göstermek için (tek=×1, çift=×2, 1X2=×3).
+  const pickDist = useMemo(() => {
+    let single = 0, double = 0, triple = 0, empty = 0;
+    for (const s of selections) { const n = s.selectedOutcomes.length; if (n === 0) empty++; else if (n === 1) single++; else if (n === 2) double++; else triple++; }
+    return { single, double, triple, empty };
+  }, [selections]);
   const allFilled = matches.length === 15 && filledCount === 15;
   const cols = allFilled ? columnCount(selections) : selections.reduce((n, s) => n * Math.max(1, s.selectedOutcomes.length), 1);
   const amount = couponAmount(cols);
   const overOfficial = cols > COUPON_MAX_COLUMNS || amount > COUPON_MAX_AMOUNT;
   const overBudget = budget != null && amount > budget;
   const canSave = allFilled && !overOfficial && !locked;
+
+  // ——— 🩺 KOLON DOKTORU — hedefe göre GEREKÇELİ daraltma önerileri ———
+  // Formül dağıtmaz: motorun kanıtı net olan maçlarda daraltma önerir,
+  // beraberlik sinyali güçlü maçlarda X silmeyi ASLA önermez.
+  const engineByNo = useMemo(() => {
+    const map = {};
+    if (!sysProfile) return map;
+    for (const m of matches) { try { map[m.no] = userSelectedAnalysisEngine(m, sysProfile); } catch { /* veri yoksa öneri de yok */ } }
+    return map;
+  }, [matches, sysProfile]);
+  const doctor = useMemo(() => {
+    const overTarget = target != null && cols > target;
+    const sugg = [];
+    if (!overOfficial && !overTarget) return { sugg, overTarget };
+    for (const m of matches) {
+      const cur = sel[m.no] || [];
+      if (cur.length < 2) continue;
+      const t = engineByNo[m.no]?.tally;
+      if (!t) continue;
+      const score = { '1': t.home, 'X': t.draw, '2': t.away };
+      const sorted = [...cur].sort((a, b) => score[b] - score[a]);
+      const weakest = sorted[sorted.length - 1];
+      // X koruması: X en zayıf görünse bile bir üstteki seçeneğe yakınsa silinmez
+      // (beraberlik kanıtı ihmal edilebilir değilse "X silme riski" vardır).
+      if (weakest === 'X' && score[sorted[sorted.length - 2]] - t.draw < 0.8) continue;
+      const gap = score[sorted[0]] - score[weakest];
+      if (gap < 0.8) continue;                 // kanıt net değilse daraltma önerme
+      const to = sorted.slice(0, cur.length - 1);
+      sugg.push({
+        no: m.no, name: m.home.mediumName || m.home.name,
+        from: cur.join(''), to, gap,
+        newCols: Math.max(1, Math.round(cols * to.length / cur.length)),
+      });
+    }
+    sugg.sort((a, b) => b.gap - a.gap);
+    return { sugg: sugg.slice(0, 3), overTarget };
+  }, [matches, sel, cols, target, engineByNo, overOfficial]);
 
   // Limit aşımında toast (yeni seçimlerde tekrar).
   useEffect(() => { if (overOfficial) showToast(`Kolon sınırı aşıldı (${cols}/${COUPON_MAX_COLUMNS}). Bazı çift/üçlü seçimleri azalt.`); }, [overOfficial, cols]); // eslint-disable-line
@@ -190,6 +264,25 @@ export default function CouponBuilderScreen({ navigation, route }) {
             <SumCell label="Tutar" v={fmtTL(amount)} warn={overOfficial || overBudget} />
             <SumCell label="Limit" v={fmtTL(COUPON_MAX_AMOUNT)} />
           </View>
+
+          {/* SEÇİM DAĞILIMI — kolon/maliyet dengesi anlık görünür (tek ×1 · çift ×2 · 1X2 ×3) */}
+          <View style={s.distRow}>
+            {[
+              { n: pickDist.single, l: 'Tek', x: '×1' },
+              { n: pickDist.double, l: 'Çift', x: '×2' },
+              { n: pickDist.triple, l: '1X2', x: '×3', warn: true },
+              { n: pickDist.empty, l: 'Boş' },
+            ].map((d, i) => (
+              <View key={i} style={[s.distChip, d.warn && d.n > 0 && s.distChipWarn]}>
+                <Text style={[s.distNum, d.warn && d.n > 0 && s.distWarnTxt]}>{d.n}</Text>
+                <Text style={s.distLbl}>{d.l}{d.x ? ` ${d.x}` : ''}</Text>
+              </View>
+            ))}
+          </View>
+          {pickDist.triple > 0 ? (
+            <Text style={s.distHint}>⚠ {pickDist.triple} maçı 1X2 (üç ihtimal) yaptın — her biri kolonu ×3 katlıyor. Kolonu düşük tutmak için okuyabildiğin maçlarda tek/çift seç.</Text>
+          ) : null}
+
           <View style={s.applyRow}>
             <TouchableOpacity style={[s.applyAll, { flex: 1 }]} onPress={applySystemAll} disabled={locked}>
               <Text style={s.applyAllTxt}>⚡ Sistem tahminlerini uygula ({sysMode === 'wide' ? 'Geniş' : 'Tekli'})</Text>
@@ -198,6 +291,43 @@ export default function CouponBuilderScreen({ navigation, route }) {
               <Text style={s.clearAllTxt}>Tümünü Temizle</Text>
             </TouchableOpacity>
           </View>
+
+          {/* 🩺 KOLON DOKTORU — hedef seç + gerekçeli daraltma */}
+          {(cols > 1 || target != null) && (
+            <View style={s.docBox}>
+              <View style={s.docHead}>
+                <Text style={s.docTitle}>🩺 Kolon Doktoru</Text>
+                <View style={s.docTargets}>
+                  {[[null, 'Serbest'], [32, '≤32'], [128, '≤128'], [512, '≤512']].map(([tv, tl]) => {
+                    const on = target === tv;
+                    return (
+                      <TouchableOpacity key={String(tv)} onPress={() => { setTarget(tv); setPref('couponTarget', tv); }} style={[s.docChip, on && s.docChipOn]}>
+                        <Text style={[s.docChipTxt, on && s.docChipTxtOn]}>{tl}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+              {(overOfficial || doctor.overTarget) ? (
+                doctor.sugg.length ? (
+                  doctor.sugg.map((su) => (
+                    <View key={su.no} style={s.docRow}>
+                      <Text style={s.docTxt} numberOfLines={2}>
+                        <Text style={s.docStrong}>Maç {su.no}</Text> ({su.name}): {su.from} → <Text style={s.docStrong}>{su.to.join('')}</Text> · kolon {cols} → {su.newCols}. Motor {su.to.join('')} tarafını net görüyor (kanıt farkı +{su.gap.toFixed(1)}).
+                      </Text>
+                      <TouchableOpacity onPress={() => commit({ ...sel, [su.no]: su.to })} style={s.docBtn} disabled={locked}>
+                        <Text style={s.docBtnTxt}>Uygula</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={s.docTxt}>Güvenli daraltma önerisi yok — kalan geniş maçlarda beraberlik sinyali güçlü (X silme riski) ya da kanıt farkı düşük. Hedefi büyütmeyi düşün.</Text>
+                )
+              ) : (
+                <Text style={s.docTxt}>Hedefin içindesin: {cols} kolon{target != null ? ` (hedef ≤${target})` : ''} · {fmtTL(amount)}.</Text>
+              )}
+            </View>
+          )}
         </View>
       )}
 
@@ -213,11 +343,19 @@ export default function CouponBuilderScreen({ navigation, route }) {
               <View style={s.mTop}>
                 <Text style={s.mNo}>{m.no}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.mTeams} numberOfLines={1}>{m.home.mediumName || m.home.name} - {m.away.mediumName || m.away.name}</Text>
+                  <View style={s.mTeamsRow}>
+                    <VenueMark side="home" size={13} />
+                    <Text style={[s.mTeams, { flexShrink: 1 }]} numberOfLines={1}>{m.home.mediumName || m.home.name}</Text>
+                    <Text style={s.mVs}>–</Text>
+                    <VenueMark side="away" size={13} />
+                    <Text style={[s.mTeams, { flexShrink: 1 }]} numberOfLines={1}>{m.away.mediumName || m.away.name}</Text>
+                  </View>
+                  {(() => { const sv = sysVerdictFor(m); return (
                   <Text style={s.mAnalysis} numberOfLines={1}>
-                    {m.date ? `${matchDate(m.date).time} · ` : ''}Sistem <Text style={s.mSysStrong}>{m.prediction?.symbol || '—'}</Text>
-                    {m.prediction?.label ? ` · ${m.prediction.label}` : ''}{a.surpriseScore != null ? ` · Sürpriz ${a.surpriseScore}` : ''}
+                    {m.date ? `${matchDate(m.date).time} · ` : ''}
+                    {sv ? <>Senin sistemin <Text style={s.mSysStrong}>{sv.main}</Text> · Güven {sv.confidence}</> : <Text style={s.mSysStrong}>Kriter seçilmedi</Text>}
                   </Text>
+                  ); })()}
                 </View>
                 <TouchableOpacity onPress={() => navigation.navigate('MatchDetail', { no: m.no })} style={s.detailBtn}><Text style={s.detailTxt}>Analiz</Text></TouchableOpacity>
               </View>
@@ -238,22 +376,28 @@ export default function CouponBuilderScreen({ navigation, route }) {
         {!overOfficial && overBudget && (
           <View style={s.warnSoft}><Text style={s.warnSoftTitle}>Bütçe limitin aşıldı</Text><Text style={s.warnSoftBody}>Bütçen: {fmtTL(budget)} · Kupon tutarı: {fmtTL(amount)} · yine de kaydedebilirsin.</Text></View>
         )}
+        <Text style={s.legal}>18+ · Bu uygulama analiz ve karar desteği amaçlıdır; kesin sonuç veya kazanç vaadi içermez. Spor Toto risk içerir.</Text>
       </ScrollView>
 
-      {/* ALT SABİT KAYDET BARI */}
-      {(place === 'bottom' || place === 'both') && (
-        <View style={[s.bottomBar, { paddingBottom: 10 + insets.bottom }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.barMain}>{cols} kolon · {fmtTL(amount)}</Text>
-            <Text style={s.barSub}>{filledCount}/15 maç{overOfficial ? ' · limit aşıldı' : overBudget ? ' · bütçe aşıldı' : ''}</Text>
-          </View>
-          {locked ? (
-            <View style={s.lockedMini}><Text style={s.lockedMiniTxt}>Kilitli</Text></View>
+      {/* ALT SABİT KAYDET BARI — "Kuponu Kaydet" HER ZAMAN görünür (yer tercihinden
+          bağımsız). Kolon/tutar özeti yalnız yer tercihi alt/ikisi ise gösterilir. */}
+      <View style={[s.bottomBar, { paddingBottom: 10 + insets.bottom }]}>
+        <View style={{ flex: 1 }}>
+          {(place === 'bottom' || place === 'both') ? (
+            <>
+              <Text style={s.barMain}>{cols} kolon · {fmtTL(amount)}</Text>
+              <Text style={s.barSub}>{filledCount}/15 maç{overOfficial ? ' · limit aşıldı' : overBudget ? ' · bütçe aşıldı' : ''}</Text>
+            </>
           ) : (
-            <TouchableOpacity style={[s.saveBtn, !canSave && s.saveBtnOff]} disabled={!canSave} onPress={onSavePress}><Text style={s.saveTxt}>Kuponu Kaydet</Text></TouchableOpacity>
+            <Text style={s.barSub}>{filledCount}/15 maç seçildi{overOfficial ? ' · limit aşıldı' : overBudget ? ' · bütçe aşıldı' : ''}</Text>
           )}
         </View>
-      )}
+        {locked ? (
+          <View style={s.lockedMini}><Text style={s.lockedMiniTxt}>Kilitli</Text></View>
+        ) : (
+          <TouchableOpacity style={[s.saveBtn, !canSave && s.saveBtnOff]} disabled={!canSave} onPress={onSavePress}><Text style={s.saveTxt}>Kuponu Kaydet</Text></TouchableOpacity>
+        )}
+      </View>
 
       {/* TOAST (yukarıdan kayan) */}
       {toast && (
@@ -313,9 +457,31 @@ const s = StyleSheet.create({
   topSum: { backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border, padding: spacing.md, gap: 10 },
   sumGrid: { flexDirection: 'row', gap: 8 },
   sumCell: { flex: 1, alignItems: 'center' }, sumV: { color: colors.text, fontSize: 15, fontWeight: '900' }, sumL: { color: colors.textMuted, fontSize: 10, fontWeight: '700', marginTop: 2 },
+  distRow: { flexDirection: 'row', gap: 6 },
+  distChip: { flex: 1, backgroundColor: colors.bgAlt, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, paddingVertical: 6, alignItems: 'center' },
+  distChipWarn: { backgroundColor: colors.dangerSoft, borderColor: colors.danger },
+  distNum: { color: colors.text, fontSize: 15, fontWeight: '900' },
+  distWarnTxt: { color: colors.danger },
+  distLbl: { color: colors.textMuted, fontSize: 9.5, fontWeight: '800', marginTop: 1 },
+  distHint: { color: colors.danger, fontSize: 11, fontWeight: '700', lineHeight: 15 },
   applyRow: { flexDirection: 'row', gap: 8, alignItems: 'stretch' },
   applyAll: { backgroundColor: colors.primary, borderRadius: radius.md, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' }, applyAllTxt: { color: '#fff', fontSize: 12.5, fontWeight: '800' },
   clearAll: { paddingHorizontal: 14, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: colors.danger, backgroundColor: colors.dangerSoft }, clearAllTxt: { color: colors.danger, fontSize: 12, fontWeight: '900' },
+
+  docBox: { backgroundColor: colors.surfaceSoft, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: 10, gap: 8 },
+  docHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 },
+  docTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  docTargets: { flexDirection: 'row', gap: 5 },
+  docChip: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: radius.pill, backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border },
+  docChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  docChipTxt: { color: colors.textSoft, fontSize: 10.5, fontWeight: '800' },
+  docChipTxtOn: { color: '#fff' },
+  docRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  docTxt: { flex: 1, color: colors.textSoft, fontSize: 11.5, lineHeight: 16, fontWeight: '600' },
+  docStrong: { color: colors.text, fontWeight: '900' },
+  docBtn: { backgroundColor: colors.primary, borderRadius: radius.sm, paddingHorizontal: 12, paddingVertical: 7 },
+  docBtnTxt: { color: '#fff', fontSize: 11.5, fontWeight: '900' },
+  legal: { color: colors.textMuted, fontSize: 10, fontWeight: '600', textAlign: 'center', marginTop: 8, lineHeight: 14 },
 
   lockedBar: { backgroundColor: colors.warningSoft, borderBottomWidth: 1, borderBottomColor: colors.warning, padding: 10 }, lockedTxt: { color: '#7a4a00', fontSize: 12.5, fontWeight: '800', textAlign: 'center' },
 
@@ -325,6 +491,8 @@ const s = StyleSheet.create({
   mTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   mNo: { color: colors.textMuted, fontSize: 12, fontWeight: '900', width: 18, textAlign: 'center' },
   mTeams: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  mTeamsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  mVs: { color: colors.textMuted, fontSize: 12, fontWeight: '700', marginHorizontal: 1 },
   mAnalysis: { color: colors.textMuted, fontSize: 10.5, fontWeight: '700', marginTop: 2 }, mSysStrong: { color: colors.text, fontWeight: '900' },
   detailBtn: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: radius.sm, backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.border }, detailTxt: { color: colors.textSoft, fontSize: 10.5, fontWeight: '800' },
   mPick: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },

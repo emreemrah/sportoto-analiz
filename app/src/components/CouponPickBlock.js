@@ -5,7 +5,8 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, spacing, radius, shadow } from '../theme';
 import { setDraftPick } from '../couponStore';
-import { analyzeUserMatch } from '../userMatchEngine';
+import { userSelectedAnalysisEngine } from '../analysis/engine';
+import { getActiveProfile, countOn } from '../analysisProfile';
 
 const OUT = ['1', 'X', '2'];
 
@@ -17,10 +18,13 @@ export default function CouponPickBlock({ m, navigation }) {
 
   const write = (arr) => { setPick(arr); setDraftPick(m.roundId, m.no, arr); };
   const toggle = (o) => { if (locked) return; const set = new Set(pick); set.has(o) ? set.delete(o) : set.add(o); write(OUT.filter((x) => set.has(x))); };
-  // "Sistemden al" → KULLANICI ANALİZİ Ana Seçim'i (1X / X2 / 1X2 vb.), tek tahmin değil.
+  // "Sistemden al" → AKTİF ANALİZ PROFİLİ'ne göre Ana Seçim (1X / X2 / 1X2 vb.).
+  // Profil yoksa/boşsa analiz üretilmez → kullanıcıyı kriter seçimine yönlendir.
   const fromSystem = () => {
     if (locked) return;
-    const main = analyzeUserMatch(m)?.verdict?.main || '';
+    const profile = getActiveProfile();
+    if (!profile || countOn(profile) === 0) { navigation.navigate('AnalysisSettings'); return; }
+    const main = userSelectedAnalysisEngine(m, profile)?.verdict?.main || '';
     write(OUT.filter((o) => main.includes(o)));
   };
 

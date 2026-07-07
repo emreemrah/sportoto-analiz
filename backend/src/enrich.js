@@ -97,15 +97,16 @@ function buildCompare(hStand, aStand, h, a) {
     rows.push({ label: 'Mağlubiyet', home: hStand.losses, away: aStand.losses, suffix: '' });
   }
   if (h?.avg && a?.avg) {
+    // Maça etki gücüne göre sıralı: en belirleyici en üstte.
     const avgRows = [
-      ['Topla Oynama', h.avg.possession, a.avg.possession, '%'],
       ['Maç Başı Gol', h.avg.scored, a.avg.scored, ''],
       ['Yediği Gol', h.concededPerGame, a.concededPerGame, ''],
-      ['Toplam Şut', h.avg.shots, a.avg.shots, ''],
       ['İsabetli Şut', h.avg.shotsOnTarget, a.avg.shotsOnTarget, ''],
+      ['Toplam Şut', h.avg.shots, a.avg.shots, ''],
       ['Korner', h.avg.corners, a.avg.corners, ''],
-      ['Faul', h.avg.fouls, a.avg.fouls, ''],
       ['Ofsayt', h.avg.offsides, a.avg.offsides, ''],
+      ['Topla Oynama', h.avg.possession, a.avg.possession, '%'],
+      ['Faul', h.avg.fouls, a.avg.fouls, ''],
       ['Kart', h.avg.cards, a.avg.cards, ''],
     ];
     for (const [label, home, away, suffix] of avgRows) {
@@ -238,6 +239,9 @@ export async function buildMatchStats(found, getExtras) {
       goalsPerGame: t.goalsPerGame, concededPerGame: t.concededPerGame,
       cleanSheets: t.cleanSheets, cleanSheetPct: t.cleanSheetPct, failedToScorePct: t.failedToScorePct,
       over25Pct: t.over25Pct, bttsPct: t.bttsPct, xgFor: t.xgFor, xgAgainst: t.xgAgainst,
+      // xG ev/deplasman ayrımı (İç/Dış xG kriterleri için)
+      xgForHome: t.xgForHome, xgForAway: t.xgForAway,
+      xgAgainstHome: t.xgAgainstHome, xgAgainstAway: t.xgAgainstAway,
       recentPpg: t.recentPpg, avg: t.avg || null,
     };
   };

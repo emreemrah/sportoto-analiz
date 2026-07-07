@@ -111,6 +111,11 @@ export async function fetchTeams(seasonId) {
       failedToScorePct: num(s.seasonFTSPercentage_overall),
       xgFor: num(s.xg_for_avg_overall),
       xgAgainst: num(s.xg_against_avg_overall),
+      // xG ev/deplasman ayrımı (maç başı ortalama) — venue kriterleri için
+      xgForHome: num(s.xg_for_avg_home),
+      xgForAway: num(s.xg_for_avg_away),
+      xgAgainstHome: num(s.xg_against_avg_home),
+      xgAgainstAway: num(s.xg_against_avg_away),
       // maç başı sezon ortalamaları (kıyas çubukları için)
       avg: {
         possession: num(s.possessionAVG_overall),

@@ -137,3 +137,72 @@ export function analyzeMatch(input) {
     factors,
   };
 }
+
+// --- 3) İSTATİSTİK DERİNLEŞTİRME (maçın kaderini belirleyen kriterler) ---
+// stats (enrich.js çıktısı) varsa sürpriz analizine kanıt tabanlı faktörler
+// ekler ve puan/etiketi günceller. Veri yoksa HİÇBİR ŞEY uydurmaz — analiz
+// olduğu gibi döner. Yalnız maç-öncesi ilk hesapta çağrılır (snapshot donuk).
+const formQ = (arr) => (Array.isArray(arr) && arr.length ? arr.reduce((s, r) => s + (r === 'G' ? 1 : r === 'B' ? 0.5 : 0), 0) / arr.length : null);
+const vRate = (rec) => {
+  if (!rec) return null;
+  const p = (rec.wins || 0) + (rec.draws || 0) + (rec.losses || 0);
+  return p ? (rec.wins || 0) / p : null;
+};
+
+export function enrichSurprise(analysis, stats) {
+  if (!analysis || analysis.surpriseScore == null || !stats?.home || !stats?.away) return analysis;
+  const favSym = analysis.favorite?.symbol;
+  if (!favSym || favSym === 'X') return analysis; // favori beraberlikse taraf kıyası anlamsız
+  const favIsHome = favSym === '1';
+  const fav = favIsHome ? stats.home : stats.away;
+  const opp = favIsHome ? stats.away : stats.home;
+
+  let score = analysis.surpriseScore;
+  const factors = [...(analysis.factors || [])];
+  const add = (active, label, points) => { if (active) { score += points; factors.push({ label, points }); } };
+
+  // Kader kriteri: son maç formu (güncel gidişat favoriyi desteklemiyor mu?)
+  const favForm = formQ(fav.last5), oppForm = formQ(opp.last5);
+  if (favForm != null && oppForm != null) {
+    add(oppForm > favForm + 0.15, 'Son maç formunda rakip önde', 8);
+  }
+
+  // Kader kriteri: saha performansı (ev evinde, deplasman dışarıda — adil kıyas)
+  const homeAtHome = vRate(stats.home.standing?.home);
+  const awayAtAway = vRate(stats.away.standing?.away);
+  if (homeAtHome != null && awayAtAway != null) {
+    add(favIsHome ? awayAtAway >= homeAtHome : homeAtHome >= awayAtAway,
+      'Saha performansı favoriyi desteklemiyor', 8);
+  }
+
+  // Kader kriteri: savunma kırılganlığı (favori gol yiyor + rakip gol buluyor)
+  const favCpg = Number(fav.season?.concededPerGame);
+  const oppGpg = Number(opp.season?.goalsPerGame);
+  if (Number.isFinite(favCpg) && Number.isFinite(oppGpg)) {
+    add(favCpg >= 1.5 && oppGpg >= 1.3, 'Favorinin savunması gol yemeye açık', 6);
+  }
+
+  if (factors.length === (analysis.factors || []).length) return analysis; // yeni kanıt yok
+
+  score = Math.round(clamp(score, 0, 100));
+  let label, labelColor;
+  if (score < 25) { label = 'BANKO'; labelColor = 'green'; }
+  else if (score <= 45) { label = 'DİKKAT'; labelColor = 'yellow'; }
+  else { label = 'SÜRPRİZE AÇIK'; labelColor = 'red'; }
+
+  // Yorumu yeni etikete göre yeniden kur (aynı üslup, iddiasız dil).
+  const favPct = analysis.favorite.percent;
+  const tag = analysis.estimated ? ' (≈ tahmini, oran yok)' : '';
+  let comment;
+  if (label === 'BANKO') {
+    comment = `Favori "${favSym}" %${favPct} ile açık ara önde. Güçlü banko adayı.${tag}`;
+  } else if (label === 'DİKKAT') {
+    comment = `Favori "${favSym}" (%${favPct}) önde ama tartışmalı.` +
+      (factors.length ? ` Dikkat: ${factors.map((f) => f.label.toLowerCase()).join(', ')}.` : '') + tag;
+  } else {
+    comment = `Sürprize açık maç. Favori "${favSym}" sadece %${favPct} ve ` +
+      `${factors.map((f) => f.label.toLowerCase()).join(', ')}. Çift düşünülebilir.${tag}`;
+  }
+
+  return { ...analysis, surpriseScore: score, label, labelColor, factors, comment };
+}

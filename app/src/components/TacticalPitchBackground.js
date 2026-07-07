@@ -1,15 +1,11 @@
 // src/components/TacticalPitchBackground.js
-// Lacivert "taktik tahtası" animasyonlu arka plan.
-// Bağımlılık: react-native-svg + RN Animated (yeni paket yok).
-// Web uyumu: SVG prop animasyonları useNativeDriver:false.
+// Lacivert "taktik tahtası" statik SVG arka plan.
+// Bağımlılık: react-native-svg (yeni paket yok).
 
-import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet } from 'react-native';
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
 import Svg, { G, Rect, Line, Circle, Path } from 'react-native-svg';
 import { colors } from '../theme';
-
-const AnimatedG = Animated.createAnimatedComponent(G);
-const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 const CHALK = 'rgba(255,255,255,0.32)';
 const CHALK_SOFT = 'rgba(255,255,255,0.18)';
@@ -42,44 +38,7 @@ function XMark({ x, y, s = 9 }) {
   );
 }
 
-export default function TacticalPitchBackground({ marks = true, animated = true, opacity = 1 }) {
-  const markAnims = useRef(MARKS.map(() => new Animated.Value(animated ? 0 : 1))).current;
-  const arrowAnims = useRef(ARROWS.map(() => new Animated.Value(animated ? 0 : 1))).current;
-
-  useEffect(() => {
-    if (!animated || !marks) return;
-
-    const seq = Animated.sequence([
-      Animated.delay(300),
-      // X/O işaretleri sırayla belirsin
-      Animated.stagger(
-        160,
-        markAnims.map((v) =>
-          Animated.timing(v, { toValue: 1, duration: 420, useNativeDriver: false })
-        )
-      ),
-      // Pas okları çizilerek gelsin
-      Animated.stagger(
-        260,
-        arrowAnims.map((v) =>
-          Animated.timing(v, { toValue: 1, duration: 800, useNativeDriver: false })
-        )
-      ),
-      Animated.delay(1600),
-      // Hepsi birlikte silinsin, döngü başa dönsün
-      Animated.parallel(
-        [...markAnims, ...arrowAnims].map((v) =>
-          Animated.timing(v, { toValue: 0, duration: 450, useNativeDriver: false })
-        )
-      ),
-      Animated.delay(400),
-    ]);
-
-    const loop = Animated.loop(seq);
-    loop.start();
-    return () => loop.stop();
-  }, [animated, marks, markAnims, arrowAnims]);
-
+export default function TacticalPitchBackground({ marks = true, opacity = 1 }) {
   return (
     <View style={[StyleSheet.absoluteFill, { opacity }]} pointerEvents="none">
       <Svg
@@ -112,47 +71,38 @@ export default function TacticalPitchBackground({ marks = true, animated = true,
             {/* Pas okları */}
             {ARROWS.map((a, i) => (
               <G key={`arrow-${i}`}>
-                <AnimatedPath
+                <Path
                   d={a.d}
                   fill="none"
                   stroke={colors.success}
                   strokeWidth={3}
                   strokeLinecap="round"
-                  strokeDasharray={`${a.len}`}
-                  strokeDashoffset={arrowAnims[i].interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [a.len, 0],
-                  })}
                 />
                 {/* Ok başı — çizim bitmeye yakın belirir */}
-                <AnimatedPath
-                  d={a.head}
-                  fill={colors.success}
-                  opacity={arrowAnims[i].interpolate({
-                    inputRange: [0, 0.8, 1],
-                    outputRange: [0, 0, 1],
-                  })}
-                />
+                <Path d={a.head} fill={colors.success} />
               </G>
             ))}
 
             {/* X / O işaretleri */}
-            {MARKS.map((m, i) => (
-              <AnimatedG key={`mark-${i}`} opacity={markAnims[i]}>
-                {m.type === 'x' ? (
-                  <XMark x={m.x} y={m.y} />
-                ) : (
-                  <Circle
-                    cx={m.x}
-                    cy={m.y}
-                    r={9}
-                    fill="none"
-                    stroke={colors.accent}
-                    strokeWidth={3.5}
-                  />
-                )}
-              </AnimatedG>
-            ))}
+            {MARKS.map((m, i) => {
+              const content = m.type === 'x' ? (
+                <XMark x={m.x} y={m.y} />
+              ) : (
+                <Circle
+                  cx={m.x}
+                  cy={m.y}
+                  r={9}
+                  fill="none"
+                  stroke={colors.accent}
+                  strokeWidth={3.5}
+                />
+              );
+              return (
+                <G key={`mark-${i}`}>
+                  {content}
+                </G>
+              );
+            })}
           </G>
         )}
       </Svg>

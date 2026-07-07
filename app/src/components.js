@@ -102,13 +102,15 @@ const fmtStat = (v, suffix) => {
   if (suffix === '%') return Math.round(n) + '%';
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 };
-export function StatBar({ label, home, away, suffix }) {
+export function StatBar({ label, home, away, suffix, lowerBetter }) {
   const h = Number(home) || 0;
   const a = Number(away) || 0;
   const total = h + a || 1;
-  const hPct = (h / total) * 100;
-  const aPct = (a / total) * 100;
-  const lead = h === a ? null : h > a ? 'h' : 'a';
+  // lowerBetter: düşük değer daha iyi (Yediği Gol, Faul, Kart) → bar uzunluğu
+  // ters orantılı çizilir, iyi olan (küçük) değer vurgulanır. Sayılar aynı kalır.
+  const hPct = ((lowerBetter ? a : h) / total) * 100;
+  const aPct = ((lowerBetter ? h : a) / total) * 100;
+  const lead = h === a ? null : (lowerBetter ? h < a : h > a) ? 'h' : 'a';
   return (
     <View style={styles.sbRow}>
       <Text style={styles.sbLabel}>{label}</Text>

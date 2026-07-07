@@ -196,7 +196,7 @@ export default function LiveMatchDetailScreen({ route, navigation }) {
             <SummaryRow k="Skor" v={d.score ? `${d.score.home} - ${d.score.away}` : '–'} />
             {d.minute != null && st === 'live' ? <SummaryRow k="Dakika" v={`${d.minute}'`} /> : null}
             <SummaryRow k="Sistem tahmini" v={sysSym || '—'} />
-            <SummaryRow k="Canlı veri" v={d.hasLiveData ? 'API-Football (gerçek)' : 'Şu an canlı ayrıntı yok'} />
+            <SummaryRow k="Canlı veri" v={d.hasLiveData ? 'Gerçek zamanlı veri' : 'Şu an canlı ayrıntı yok'} />
             {st === 'awaiting' && <Text style={s.ksNote}>Resmi sonuç bekleniyor. Sonuç kesinleşmeden kupon/sistem sonucu hesaplanmaz.</Text>}
             {st === 'suspended' && <Text style={s.ksNote}>Maç yarıda kaldı / durduruldu. Resmi karar bekleniyor.</Text>}
           </View>

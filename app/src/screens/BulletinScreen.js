@@ -209,7 +209,8 @@ export default function BulletinScreen({ navigation }) {
   }
 
   // ——— Başlık / hafta seçici ———
-  const upcomingCount = data ? data.matches.filter((m) => !isStarted(m)).length : 0;
+  const currentMatches = Array.isArray(data?.matches) ? data.matches : [];
+  const upcomingCount = currentMatches.filter((m) => !isStarted(m)).length;
   // GEÇMİŞ SONUÇ DURUMU — "Sonuçlar açıklandı" YALNIZ 15/15 resmi skor + 1/X/2
   // + ikramiye gelince. Aksi halde dereceli durum (n/15).
   const histMatches = hist?.matches || [];
@@ -250,7 +251,7 @@ export default function BulletinScreen({ navigation }) {
     ? (error ? 'güncel bülten alınamadı'
       : data?.pending ? 'güncel resmi bülten bekleniyor'
       : upcomingCount > 0
-        ? `${upcomingCount}/${data.matchCount} maç başlamadı · analiz hazır${data.usingExampleKey ? ' · (örnek anahtar)' : ''}`
+        ? `${upcomingCount}/${data?.matchCount ?? currentMatches.length} maç başlamadı · analiz hazır${data?.usingExampleKey ? ' · (örnek anahtar)' : ''}`
         : 'bu haftanın maçları başladı')
     : (histLoading ? 'yükleniyor…'
       : histError ? 'sonuç alınamadı'
@@ -308,6 +309,17 @@ export default function BulletinScreen({ navigation }) {
       <TouchableOpacity onPress={() => navigation.navigate('BulletinHistory')} style={styles.historyLink}>
         <Text style={styles.historyLinkTxt}>📜 Bülten Geçmişi · Kilitli Analiz ›</Text>
       </TouchableOpacity>
+      {/* Bülten Zorluk Skoru — analizden türetilir, veri yoksa gösterilmez */}
+      {viewingCurrent && !data?.pending && data?.difficulty ? (
+        <View style={[styles.diffBanner, {
+          borderColor: data.difficulty.score < 30 ? colors.success : data.difficulty.score < 50 ? colors.warning : colors.danger,
+        }]}>
+          <Text style={styles.diffTitle}>
+            🧭 Bu bülten: <Text style={{ color: data.difficulty.score < 30 ? colors.success : data.difficulty.score < 50 ? colors.warning : colors.danger }}>{data.difficulty.level}</Text> ({data.difficulty.score}/100)
+          </Text>
+          <Text style={styles.diffTxt}>{data.difficulty.text}</Text>
+        </View>
+      ) : null}
       {viewingCurrent && !data?.pending && data?.coverage?.uncoveredCount > 0 ? (
         <View style={styles.coverBanner}>
           <Text style={styles.coverBannerTxt}>
@@ -315,6 +327,7 @@ export default function BulletinScreen({ navigation }) {
           </Text>
         </View>
       ) : null}
+      <Text style={styles.legalTxt}>18+ · Analiz ve karar desteği amaçlıdır; kesin sonuç veya kazanç vaadi içermez.</Text>
     </View>
   );
 
@@ -479,7 +492,7 @@ export default function BulletinScreen({ navigation }) {
           <TouchableOpacity style={styles.retry} onPress={load}><Text style={styles.retryText}>Tekrar Dene</Text></TouchableOpacity>
         </Center>
       );
-    } else if (!data.matches || data.matches.length === 0) {
+    } else if (currentMatches.length === 0) {
       body = (
         <BultenEmptyState
           title={data?.title || 'Bu haftanın bülteni henüz yayınlanmadı'}
@@ -501,12 +514,12 @@ export default function BulletinScreen({ navigation }) {
       }
       body = (
         <LiveBulletinView
-          matches={data.matches}
+          matches={currentMatches}
           userPicks={rankedPicks}
           hasCoupon={Object.keys(rankedPicks).length > 0}
           subtitle={subtitle}
           onCardPress={(no) => {
-            const m = data.matches.find((x) => x.no === no);
+            const m = currentMatches.find((x) => x.no === no);
             const started = !!(m && (m.started || m.live || m.finalized || (m.date && new Date(m.date).getTime() <= Date.now())));
             navigation.navigate(started ? 'LiveMatchDetail' : 'MatchDetail', { no });
           }}
@@ -707,6 +720,10 @@ const styles = StyleSheet.create({
   couponBtn: { flex: 1, backgroundColor: colors.cardAlt, borderRadius: radius.md, paddingVertical: 11, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
   couponBtnTxt: { color: colors.primary, fontSize: 13, fontWeight: '900' },
   historyLink: { marginTop: 10, alignSelf: 'center' },
+  diffBanner: { marginTop: 10, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1.2, padding: 10 },
+  diffTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  diffTxt: { color: colors.textSoft, fontSize: 11.5, lineHeight: 16, fontWeight: '600', marginTop: 3 },
+  legalTxt: { color: colors.textMuted, fontSize: 10, fontWeight: '600', textAlign: 'center', marginTop: 10, lineHeight: 14 },
   historyLinkTxt: { color: colors.primary, fontSize: 12, fontWeight: '700' },
   coverBanner: { marginTop: 10, backgroundColor: colors.warningSoft, borderRadius: radius.md, borderWidth: 1, borderColor: colors.warning, paddingHorizontal: 12, paddingVertical: 8 },
   coverBannerTxt: { color: '#7a4a00', fontSize: 11.5, fontWeight: '800', lineHeight: 15, textAlign: 'center' },

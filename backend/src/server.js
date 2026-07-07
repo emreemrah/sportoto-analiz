@@ -7,7 +7,8 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
-import { load, listSnapshotRounds } from './cache.js';
+import { load, listSnapshotRounds, listRadarRounds } from './cache.js';
+import { CRITERIA_LABELS } from './analysis/criteriaEval.js';
 import { refreshAll, refreshLiveScores, refreshLiveFootyScores, getLiveFixtures, snapshotRoundPredictions } from './refresh.js';
 import { getRoundsForNav, getBulletinByRoundId, getRoundResult } from './sources/sportoto.js';
 import { fetchLiveFixtures, findLiveFixture, fetchFixtureStatistics, fetchFixtureEvents, fetchFixturesByDate } from './sources/apifootball.js';
@@ -73,10 +74,112 @@ app.get('/api/bulletin', async (req, res) => {
 });
 
 // Sürpriz radarı (sıralı liste)
+// Radar hafta listesi: arşivlenmiş (mühürlü) haftalar + güncel hafta, yeniden eskiye.
+function radarWeeks() {
+  const weeks = listRadarRounds()
+    .map((id) => load(`radar-${id}`)?.data)
+    .filter(Boolean)
+    .map((w) => ({ roundId: w.roundId, round: w.round, year: w.year, radarFrozenAt: w.radarFrozenAt }));
+  const cur = load('bulletin')?.data;
+  if (cur?.roundId != null && !weeks.some((w) => w.roundId === cur.roundId)) {
+    weeks.push({ roundId: cur.roundId, round: cur.round, year: cur.year, radarFrozenAt: cur.radarFrozenAt ?? null });
+  }
+  return weeks.sort((a, b) => b.roundId - a.roundId);
+}
+
 app.get('/api/surprise-radar', (req, res) => {
   const cached = load('bulletin');
   if (!cached) return res.status(503).json({ error: 'Veri henüz hazır değil.' });
-  res.json({ updatedAt: cached.data.updatedAt, radar: cached.data.radar });
+  // Donma anı (geri sayım için): ilk maçın başlamasına 5 dk kala.
+  const kickoffs = (cached.data.matches || []).map((m) => new Date(m.date).getTime()).filter(Number.isFinite);
+  const radarFreezeAt = kickoffs.length ? new Date(Math.min(...kickoffs) - 5 * 60 * 1000).toISOString() : null;
+  res.json({
+    updatedAt: cached.data.updatedAt,
+    round: cached.data.round ?? null,          // örn. "49. Hafta"
+    year: cached.data.year ?? null,
+    roundId: cached.data.roundId ?? null,
+    radarFrozenAt: cached.data.radarFrozenAt ?? null, // 🔒 null = canlı
+    radarFreezeAt,                             // mühür anı (geri sayım)
+    weeks: radarWeeks(),                       // üst hafta çubukları için
+    radar: cached.data.radar,
+  });
+});
+
+// Geçmiş hafta radarı (mühürlü arşiv). Güncel hafta istenirse canlı yanıt döner.
+// Arşive RESMİ sonuçlar işlenir: her maça result + skor + favori tuttu mu.
+app.get('/api/radar/:roundId', async (req, res) => {
+  const rid = String(req.params.roundId);
+  const cur = load('bulletin')?.data;
+  if (cur && String(cur.roundId) === rid) {
+    return res.json({ roundId: cur.roundId, round: cur.round, year: cur.year, radarFrozenAt: cur.radarFrozenAt ?? null, radar: cur.radar, current: true });
+  }
+  const arch = load(`radar-${rid}`);
+  if (!arch?.data) return res.status(404).json({ error: 'Bu hafta için radar arşivi yok.' });
+  // Resmi sonuçları maçlara işle (alınamazsa arşiv olduğu gibi döner — uydurma yok).
+  let radar = arch.data.radar || [];
+  try {
+    const bulletin = await getBulletinByRoundId(Number(rid));
+    const byNo = new Map((bulletin.matches || []).map((m) => [m.no, m]));
+    radar = radar.map((r) => {
+      const m = byNo.get(r.no);
+      if (!m?.result || !m?.score) return r;                  // resmi sonuç yoksa dokunma
+      const favHit = r.favorite?.symbol ? r.favorite.symbol === m.result : null;
+      return { ...r, result: m.result, score: m.score, favHit };
+    });
+  } catch { /* sonuç servisi yoksa arşiv sade döner */ }
+  res.json({ ...arch.data, radar, current: false });
+});
+
+// RADAR KARNESİ — radarın kendi başarısı (etiket bazında, yalnız RESMİ sonuçlarla).
+// BANKO "tuttu" = favori kazandı · SÜRPRİZE AÇIK "yakaladı" = favori kazanamadı.
+app.get('/api/radar-scorecard', async (req, res) => {
+  try {
+    let rs = cacheGet('radarScorecard');
+    if (!rs) {
+      const byLabel = {}; // label → { total, favWin }
+      let matchesCounted = 0, weeksCounted = 0;
+      for (const roundId of listRadarRounds()) {
+        const arch = load(`radar-${roundId}`)?.data;
+        if (!arch?.radar?.length) continue;
+        let bulletin;
+        try { bulletin = await getBulletinByRoundId(roundId); } catch { continue; }
+        const byNo = new Map((bulletin.matches || []).map((m) => [m.no, m]));
+        let used = false;
+        for (const r of arch.radar) {
+          const m = byNo.get(r.no);
+          if (!m?.result || !r.favorite?.symbol) continue;    // resmi sonuç + favori şart
+          const lb = r.label || '—';
+          if (!byLabel[lb]) byLabel[lb] = { total: 0, favWin: 0 };
+          byLabel[lb].total += 1;
+          if (r.favorite.symbol === m.result) byLabel[lb].favWin += 1;
+          matchesCounted += 1; used = true;
+        }
+        if (used) weeksCounted += 1;
+      }
+      const pct = (c, t) => (t ? Math.round(c / t * 100) : 0);
+      const banko = byLabel['BANKO'] || { total: 0, favWin: 0 };
+      const dikkat = byLabel['DİKKAT'] || { total: 0, favWin: 0 };
+      const surpriz = byLabel['SÜRPRİZE AÇIK'] || { total: 0, favWin: 0 };
+      rs = {
+        generatedAt: new Date().toISOString(),
+        source: 'Resmi Spor Toto sonuçları',
+        hasData: matchesCounted > 0,
+        weeksCounted, matchesCounted,
+        note: matchesCounted === 0
+          ? 'Radar karnesi mühürlenen haftaların resmi sonuçlarıyla dolacak — ilk hafta sonuçlandığında burada görünür.'
+          : (matchesCounted < 30 ? 'Örnek sayısı henüz az — oranlar zamanla oturur.' : null),
+        labels: {
+          banko: { total: banko.total, hit: banko.favWin, rate: pct(banko.favWin, banko.total), desc: 'Banko dediklerinde favori kazandı' },
+          dikkat: { total: dikkat.total, favWin: dikkat.favWin, favWinRate: pct(dikkat.favWin, dikkat.total), desc: 'Dikkat dediklerinde favorinin kazanma oranı' },
+          surpriz: { total: surpriz.total, hit: surpriz.total - surpriz.favWin, rate: pct(surpriz.total - surpriz.favWin, surpriz.total), desc: 'Sürprize açık dediklerinde favori kazanamadı' },
+        },
+      };
+      cacheSet('radarScorecard', rs, 5 * 60 * 1000);
+    }
+    res.json(rs);
+  } catch (e) {
+    res.status(500).json({ error: 'Radar karnesi hesaplanamadı.' });
+  }
 });
 
 // Tek maç detayı
@@ -333,6 +436,65 @@ app.get('/api/system-scorecard', async (req, res) => {
     res.json(sc);
   } catch (e) {
     res.status(500).json({ error: 'Karne hesaplanamadı.' });
+  }
+});
+
+// KRİTER KARNESİ — hangi analiz kriteri daha çok tutuyor?
+// Kilitli snapshot'lardaki maç-öncesi kriter sinyalleri × RESMİ sonuçlar.
+// Sinyal 'X' ise sonuç X'te tutar; '1'/'2' aynen. Sinyali olmayan maç sayılmaz.
+app.get('/api/criteria-scorecard', async (req, res) => {
+  try {
+    let cs = cacheGet('criteriaScorecard');
+    if (!cs) {
+      const byKey = new Map(); // key → { hit, total, weeks:Set }
+      let matchesCounted = 0, weeksCounted = 0;
+      for (const roundId of listSnapshotRounds()) {
+        const snap = load(`snapshot-${roundId}`)?.data;
+        if (!snap?.picks?.some((p) => p.criteria)) continue;   // kriter kaydı yok (eski hafta)
+        let bulletin;
+        try { bulletin = await getBulletinByRoundId(roundId); } catch { continue; }
+        const byNo = new Map(snap.picks.map((p) => [p.no, p]));
+        let weekUsed = false;
+        for (const m of bulletin.matches) {
+          if (!(m.result && m.score)) continue;                // yalnız RESMİ sonuç
+          const crit = byNo.get(m.no)?.criteria;
+          if (!crit) continue;
+          matchesCounted += 1; weekUsed = true;
+          for (const [key, sig] of Object.entries(crit)) {
+            if (!byKey.has(key)) byKey.set(key, { hit: 0, total: 0 });
+            const rec = byKey.get(key);
+            rec.total += 1;
+            if (sig === m.result) rec.hit += 1;
+          }
+        }
+        if (weekUsed) weeksCounted += 1;
+      }
+      const rate = (c, t) => (t ? Math.round(c / t * 100) : 0);
+      const criteria = [...byKey.entries()]
+        .map(([key, r]) => ({
+          key,
+          label: CRITERIA_LABELS[key] || key,
+          total: r.total,
+          hit: r.hit,
+          accuracy: rate(r.hit, r.total),
+          lowSample: r.total < 10,                             // az örnek → henüz güvenilir değil
+        }))
+        .sort((a, b) => b.accuracy - a.accuracy || b.total - a.total);
+      cs = {
+        generatedAt: new Date().toISOString(),
+        source: 'Resmi Spor Toto sonuçları',
+        hasData: matchesCounted > 0,
+        weeksCounted, matchesCounted,
+        note: matchesCounted === 0
+          ? 'Kriter sinyali kaydı bu haftadan itibaren tutuluyor — sonuçlar resmi olarak açıklandıkça karne dolacak.'
+          : (matchesCounted < 30 ? 'Örnek sayısı henüz az — oranlar zamanla oturur.' : null),
+        criteria,
+      };
+      cacheSet('criteriaScorecard', cs, 5 * 60 * 1000);
+    }
+    res.json(cs);
+  } catch (e) {
+    res.status(500).json({ error: 'Kriter karnesi hesaplanamadı.' });
   }
 });
 

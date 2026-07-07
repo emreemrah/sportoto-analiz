@@ -9,7 +9,8 @@ import { fetchSeason, fetchMatches, fetchLeagueNames, fetchTeamVenue, fetchMatch
 import { getWeather } from './weather.js';
 import { fetchLiveFixtures, findLiveFixture } from './sources/apifootball.js';
 import { findFootyMatch, normalizeName, hasFootyCandidate } from './matcher.js';
-import { analyzeMatch } from './analysis/surprise.js';
+import { analyzeMatch, enrichSurprise } from './analysis/surprise.js';
+import { evaluateCriteriaSignals } from './analysis/criteriaEval.js';
 import { createExtrasCache, buildMatchStats } from './enrich.js';
 import { predict } from './analysis/prediction.js';
 import { attachAiComments, aiEnabled } from './analysis/aiComment.js';
@@ -332,6 +333,8 @@ export async function refreshAll() {
       analysis = analyzeMatch({ odds, preXg, prePpg });
       try {
         stats = await buildMatchStats(found, getExtras);
+        // Kader kriterleri (form/saha/savunma) ile sürpriz analizini derinleştir.
+        analysis = enrichSurprise(analysis, stats);
       } catch (e) {
         console.warn(`[refresh] zenginleştirme atlandı (#${bm.no}): ${e.message}`);
       }
@@ -407,9 +410,31 @@ export async function refreshAll() {
     console.log(`[refresh] AI yorumu kapalı (ANTHROPIC_API_KEY yok) — kural-tabanlı yorum kullanılacak.`);
   }
 
-  // 4) Sürpriz radarı: puanı olan (oranlı VEYA tahmini) maçları sırala
-  const radar = analyzedMatches
-    .filter((m) => !m.started && m.analysis.surpriseScore != null)
+  // 4) Sürpriz radarı: puanı olan (oranlı VEYA tahmini) maçları sırala.
+  // En sürprize açık en üstte; karar destek için kader-kriter sinyalleri eklenir.
+  const radarSignals = (stats) => {
+    if (!stats?.home || !stats?.away) return null;
+    const h = stats.home, a = stats.away, sig = {};
+    if (h.last5?.length || a.last5?.length) sig.form = { home: h.last5 || [], away: a.last5 || [] };
+    const hv = h.standing?.home, av = a.standing?.away;
+    if (hv || av) sig.venue = {
+      home: hv ? { wins: hv.wins || 0, draws: hv.draws || 0, losses: hv.losses || 0 } : null,
+      away: av ? { wins: av.wins || 0, draws: av.draws || 0, losses: av.losses || 0 } : null,
+    };
+    if (h.season?.xgFor != null && a.season?.xgFor != null) sig.xg = {
+      home: h.season.xgFor, away: a.season.xgFor,                    // genel (overall) xG hücum
+      homeVenue: h.season.xgForHome ?? null, awayVenue: a.season.xgForAway ?? null,       // ev sahibi iç saha · deplasman dış saha xG
+      homeAgainst: h.season.xgAgainstHome ?? null, awayAgainst: a.season.xgAgainstAway ?? null, // iç/dış xGA (savunma)
+    };
+    if (h.season?.goalsPerGame != null && a.season?.goalsPerGame != null) sig.goals = {
+      home: { for: h.season.goalsPerGame, against: h.season.concededPerGame ?? null },
+      away: { for: a.season.goalsPerGame, against: a.season.concededPerGame ?? null },
+    };
+    if (h.standing?.position != null && a.standing?.position != null) sig.position = { home: h.standing.position, away: a.standing.position };
+    return Object.keys(sig).length ? sig : null;
+  };
+  const buildRadar = (includeStarted) => analyzedMatches
+    .filter((m) => (includeStarted || !m.started) && m.analysis.surpriseScore != null)
     .sort((a, b) => b.analysis.surpriseScore - a.analysis.surpriseScore)
     .map((m) => ({
       no: m.no,
@@ -420,7 +445,98 @@ export async function refreshAll() {
       labelColor: m.analysis.labelColor,
       estimated: m.analysis.estimated,
       prediction: m.prediction?.symbol,
+      predictionLabel: m.prediction?.label ?? null,   // eski sistemin verdict etiketi (BANKO/NET/TEMKİNLİ/ÇİFTE/AÇIK)
+      predictionReason: m.prediction?.reason ?? null,
+      favorite: m.analysis.favorite || null,
+      probabilities: m.analysis.probabilities || null,
+      comment: m.analysis.comment || null,
+      // Etkisi en yüksek kanıt en üstte (maçın kaderini belirleyen sırayla)
+      factors: (m.analysis.factors || []).slice().sort((x, y) => (y.points || 0) - (x.points || 0)).slice(0, 4),
+      signals: radarSignals(m.stats),
     }));
+
+  // 4b) RADAR DONDURMA ("screenshot" mantığı): ilk maçın başlamasına 5 dk kala
+  // radar MÜHÜRLENIR ve hafta boyunca bir daha DEĞİŞMEZ. Kullanıcının maç
+  // öncesi gördüğü tahmin, maçlar oynanırken/bitince de aynen kalır.
+  // Yeni hafta (roundId değişince) mühür sıfırlanır, normal akış başlar.
+  const RADAR_FREEZE_BEFORE_MS = 5 * 60 * 1000;
+  const kickoffs = analyzedMatches.map((m) => new Date(m.date).getTime()).filter(Number.isFinite);
+  const firstKickoff = kickoffs.length ? Math.min(...kickoffs)
+    : (bulletin.closeDate ? new Date(bulletin.closeDate).getTime() : null);
+  const radarFreezeAt = firstKickoff != null ? firstKickoff - RADAR_FREEZE_BEFORE_MS : null;
+  let radar, radarFrozenAt = null;
+  if (sameBulletin && previousBulletin?.radarFrozenAt && previousBulletin?.radar?.length) {
+    // Mühür zaten var → radarı AYNEN koru (yeni hesap yok).
+    radar = previousBulletin.radar;
+    radarFrozenAt = previousBulletin.radarFrozenAt;
+  } else if (radarFreezeAt != null && Date.now() >= radarFreezeAt) {
+    // Mühür anı geçti, kayıtlı mühür yok → ŞİMDİ hesapla ve mühürle.
+    // (Sunucu donma anında kapalıysa bile pre-match analizler snapshot'tan
+    //  donuk geldiği için başlayan maçlar dahil maç-öncesi değerler yazılır.)
+    radar = buildRadar(true);
+    radarFrozenAt = new Date().toISOString();
+    console.log(`[refresh] 🔒 radar donduruldu (${radar.length} maç) — hafta boyu değişmeyecek.`);
+  } else {
+    // Donma anından önce: normal canlı akış (her refresh'te güncellenir).
+    radar = buildRadar(false);
+  }
+  // Mühürlü radarı HAFTA ARŞİVİNE yaz (bir kez) — geçmiş radar sekmeleri buradan okur.
+  if (radarFrozenAt && !load(`radar-${bulletin.roundId}`)) {
+    save(`radar-${bulletin.roundId}`, {
+      roundId: bulletin.roundId, round: bulletin.round, year: bulletin.year,
+      radarFrozenAt, radar,
+    });
+    console.log(`[refresh] 🗂 radar arşivlendi: radar-${bulletin.roundId} (${bulletin.round})`);
+  }
+
+  // 4c) BÜLTEN ZORLUK SKORU — mevcut analizden türetilir (uydurma yok).
+  // Denk maç (net favori yok) + beraberlik sinyali + sürprize açık + veri eksiği.
+  const difficulty = (() => {
+    const total = analyzedMatches.length || 1;
+    let denk = 0, drawRisk = 0, noData = 0, surpriseOpen = 0;
+    for (const m of analyzedMatches) {
+      const p = m.analysis?.probabilities;
+      if (!p) { noData += 1; continue; }
+      if (Math.max(p['1'], p['X'], p['2']) < 45) denk += 1;
+      if (p['X'] >= 30) drawRisk += 1;
+      if (m.analysis.label === 'SÜRPRİZE AÇIK') surpriseOpen += 1;
+    }
+    const score = Math.round(Math.min(100,
+      (denk / total) * 55 + (drawRisk / total) * 25 + (surpriseOpen / total) * 15 + (noData / total) * 25));
+    const level = score < 30 ? 'Kolay' : score < 50 ? 'Orta' : score < 70 ? 'Orta-zor' : 'Zor';
+    const parts = [];
+    if (denk) parts.push(`${denk} maç denk güçte`);
+    if (drawRisk) parts.push(`${drawRisk} maçta beraberlik sinyali yüksek`);
+    if (surpriseOpen) parts.push(`${surpriseOpen} maç sürprize açık`);
+    if (noData) parts.push(`${noData} maçta veri eksik`);
+    const text = parts.length
+      ? `${parts.join(' · ')}.${score >= 30 ? ' Banko sayısını sınırlı tutmak mantıklı.' : ''}`
+      : 'Analiz verisi yeterli, belirgin risk kümesi yok.';
+    return { level, score, denk, drawRisk, surpriseOpen, noData, text };
+  })();
+
+  // 4d) MAÇ RİSK ETİKETLERİ — her maça hızlı okunur, nedenli etiketler.
+  // Yalnız eldeki analiz/istatistikten türetilir; veri yoksa etiket atılmaz.
+  const vRateOf = (rec) => {
+    if (!rec) return null;
+    const p = (rec.wins || 0) + (rec.draws || 0) + (rec.losses || 0);
+    return p ? (rec.wins || 0) / p : null;
+  };
+  for (const m of analyzedMatches) {
+    const tags = [];
+    const a = m.analysis || {};
+    const p = a.probabilities || null;
+    const fav = a.favorite?.symbol || null;
+    const awayWr = vRateOf(m.stats?.away?.standing?.away);
+    if (a.label === 'BANKO' && fav) tags.push({ t: 'Banko adayı', why: `Favori "${fav}" %${a.favorite.percent} ile açık önde.` });
+    if (p && p['X'] >= 30) tags.push({ t: 'Beraberlik kokusu', why: `Beraberlik ihtimali %${p['X']} — X / çift ihtimal düşünülmeli.` });
+    if ((a.label === 'DİKKAT' || a.label === 'SÜRPRİZE AÇIK') && fav) tags.push({ t: 'Riskli favori', why: `Favori var ama kanıtlar tartışmalı (sürpriz puanı ${a.surpriseScore}).` });
+    if (fav === '1' && awayWr != null && awayWr >= 0.45) tags.push({ t: 'Deplasman tuzağı', why: `Deplasman dış sahada güçlü (galibiyet %${Math.round(awayWr * 100)}) — ev favorisi yanıltabilir.` });
+    if (a.surpriseScore != null && a.surpriseScore >= 60) tags.push({ t: 'Tek geçilmez', why: 'Sürpriz puanı yüksek — tek seçim yerine çift/üçlü daha güvenli.' });
+    if (a.surpriseScore != null && a.surpriseScore >= 75) tags.push({ t: 'Kupon bozabilecek maç', why: 'Bültenin en riskli maçlarından — geniş geçilmezse kupon riski büyük.' });
+    if (p && !fav) tags.push({ t: 'Veri sınırlı', why: 'Favori belirlemek için kanıt yetersiz.' });
+    m.tags = tags.length ? tags : null;
+  }
 
   // TEYİT: bu bülten resmi teyidi geçti. Son teyit zamanını kaydet; imza aynı
   // kaldıysa ilk teyit zamanını (verifiedAt) koru (badge sabit görünsün).
@@ -459,6 +575,8 @@ export async function refreshAll() {
     coverage: { total: bulletin.matches.length, matched, uncoveredCount: uncovered.length, uncovered },
     matches: analyzedMatches,
     radar,
+    radarFrozenAt,                           // 🔒 mühür zamanı (null = henüz canlı)
+    difficulty,                              // bülten zorluk skoru
   };
 
   save('bulletin', result);
@@ -478,6 +596,8 @@ export async function refreshAll() {
           awayRec: recordBefore(as?.teamId, seasonMatches, beforeUnix),
           footyMatchId: m.footyMatchId ?? null,
           footySwapped: m.footySwapped ?? false,
+          // Kriter karnesi: her kriterin maç-öncesi sinyali (yoksa null).
+          criteria: evaluateCriteriaSignals(m.stats),
         };
       }),
     });

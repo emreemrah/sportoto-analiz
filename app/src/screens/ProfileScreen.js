@@ -150,6 +150,10 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.btnLeaderTxt}>📊  Başarı Panelim</Text>
       </TouchableOpacity>
 
+      <TouchableOpacity style={[styles.btn, styles.btnLeader]} onPress={() => navigation.navigate('AnalysisSettings')}>
+        <Text style={styles.btnLeaderTxt}>🧩  Analiz Kriterlerim</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={[styles.btn, styles.btnLeader]} onPress={() => navigation.navigate('Leaderboard')}>
         <Text style={styles.btnLeaderTxt}>🏆  Tahmin Sıralaması</Text>
       </TouchableOpacity>

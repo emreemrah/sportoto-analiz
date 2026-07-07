@@ -10,6 +10,7 @@ import { MatchHeader, Tabs, Accordion, SectionCard, PollCard, EmptyState, Rating
 import CouponPickBlock from '../components/CouponPickBlock';
 import MatchInfoCard from '../components/MatchInfoCard';
 import UserAnalysisView from '../components/UserAnalysisView';
+import CompareBars, { signalsFromStats } from '../components/CompareBars';
 
 const TABS = ['Özet', 'Analiz', 'İstatistik', 'Karşılaştırma', 'Yorumlar'];
 const sonRow = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' };
@@ -405,6 +406,18 @@ export default function MatchDetailScreen({ route, navigation }) {
             <SurpriseBadge label={a.label} labelColor={a.labelColor} />
           </View>
 
+          {/* Risk etiketleri — hızlı okunur, her biri nedenli (backend'den, veri yoksa yok) */}
+          {Array.isArray(m.tags) && m.tags.length > 0 && (
+            <Accordion title="Risk Etiketleri" icon="🏷️" defaultOpen>
+              {m.tags.map((tg, i) => (
+                <View key={i} style={{ marginBottom: 8 }}>
+                  <Text style={{ color: colors.text, fontSize: 13, fontWeight: '900' }}>• {tg.t}</Text>
+                  <Text style={{ color: colors.textSoft, fontSize: 11.5, lineHeight: 16, fontWeight: '600', marginLeft: 12 }}>{tg.why}</Text>
+                </View>
+              ))}
+            </Accordion>
+          )}
+
           {sinyaller.length > 0 && (
             <Accordion title="Öne Çıkan Notlar" icon="⭐">
               {sinyaller.map((sg, i) => <Text key={i} style={styles.aBullet}>•  {sg}</Text>)}
@@ -439,12 +452,9 @@ export default function MatchDetailScreen({ route, navigation }) {
       )}
 
       {tab === 'Analiz' && (<>
-      <UserAnalysisView m={m} />
-
-      <Accordion title="Kazanma İhtimalleri" icon="📊">
-        <ProbBars probabilities={a.probabilities} />
-        {a.estimated && <Text style={styles.estNote}>≈ tahmini (form + gol beklentisinden, oran yok)</Text>}
-      </Accordion>
+      {/* Analiz sekmesi TAMAMEN kullanıcının seçtiği kriterlere göre çalışır.
+          Sabit backend tahmini (Kazanma İhtimalleri) buradan kaldırıldı. */}
+      <UserAnalysisView m={m} navigation={navigation} />
       </>)}
 
       {tab === 'İstatistik' && (<>
@@ -518,17 +528,20 @@ export default function MatchDetailScreen({ route, navigation }) {
             <Text style={[styles.cmpStatTeam, { color: colors.orange, textAlign: 'right' }]} numberOfLines={1}>{awayName} ●</Text>
           </View>
         );
-        const pick = (labels) => s.compare.filter((c) => labels.includes(c.label));
+        // pick: verilen sıra korunur (etki sırası) — s.compare sırası değil.
+        const pick = (labels) => labels.map((l) => s.compare.find((c) => c.label === l)).filter(Boolean);
+        // Kategoriler maça etki gücüne göre sıralı: en belirleyici en üstte.
         const cats = [
-          { title: 'Topla Oynama', icon: '🎯', open: true, rows: pick(['Topla Oynama']) },
-          { title: 'Şut İstatistikleri', icon: '🥅', rows: pick(['Toplam Şut', 'İsabetli Şut', 'Maç Başı Gol']) },
-          { title: 'Hücum Verileri', icon: '🔥', rows: pick(['Korner', 'Ofsayt']) },
-          { title: 'Savunma Verileri', icon: '🛡️', rows: pick(['Faul', 'Kart']) },
+          { title: 'Gol Verimliliği', icon: '⚽', open: true, rows: pick(['Maç Başı Gol', 'Yediği Gol']) },
+          { title: 'Şut İstatistikleri', icon: '🥅', rows: pick(['İsabetli Şut', 'Toplam Şut']) },
+          { title: 'Hücum Baskısı', icon: '🔥', rows: pick(['Korner', 'Ofsayt']) },
+          { title: 'Oyun Kontrolü', icon: '🎯', rows: pick(['Topla Oynama']) },
+          { title: 'Disiplin', icon: '🛡️', rows: pick(['Faul', 'Kart']) },
         ].filter((c) => c.rows.length > 0);
         return cats.map((cat) => (
           <Accordion key={cat.title} title={cat.title} icon={cat.icon} defaultOpen={cat.open}>
             {head}
-            {cat.rows.map((c, i) => <StatBar key={i} label={c.label} home={c.home} away={c.away} suffix={c.suffix} />)}
+            {cat.rows.map((c, i) => <StatBar key={i} label={c.label} home={c.home} away={c.away} suffix={c.suffix} lowerBetter={['Yediği Gol', 'Faul', 'Kart'].includes(c.label)} />)}
           </Accordion>
         ));
       })()}
@@ -589,6 +602,15 @@ export default function MatchDetailScreen({ route, navigation }) {
         }
         return (
           <>
+            {/* Takım Kıyası (Sıra · xG · Gol/maç · İç/Dış) — Karşılaştırma sekmesinde */}
+            {(() => {
+              const sig = signalsFromStats(s);
+              return sig ? (
+                <Accordion title="Takım Kıyası" icon="⚖️" defaultOpen>
+                  <CompareBars sig={sig} />
+                </Accordion>
+              ) : null;
+            })()}
             <AvgComparison compare={s.compare} homeName={homeName} awayName={awayName} homeLogo={s.home?.logo} awayLogo={s.away?.logo} />
             <WdlCarousel slides={wdl} />
           </>
