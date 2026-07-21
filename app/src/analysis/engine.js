@@ -41,7 +41,7 @@ function emptySportotoDecision(message) {
 }
 
 function buildSportotoDecision(ctx) {
-  const { scores, totalScore, decisiveCount, clear, main, topOut, secondOut, names, results, availCount, selectedCount } = ctx;
+  const { scores, totalScore, decisiveCount, clear, main, alt, topOut, secondOut, names, results, availCount, selectedCount } = ctx;
 
   // Kriter puan payı (%) — OLASILIK DEĞİL, sadece puanların dağılımı.
   const pct = (o) => (totalScore > 0 ? Math.round((scores[o] / totalScore) * 100) : 0);
@@ -64,8 +64,11 @@ function buildSportotoDecision(ctx) {
   // clear (net lider var) → dar = tek ana seçim, güvenli = ana + hedge.
   // clear değil       → dar = en güçlü iki sonuç, güvenli = kapalı (1-X-2).
   const mainArr = main.split('');
-  const narrowCoupon = clear ? [topOut] : mainArr;
-  const safeCoupon = clear ? ['1', 'X', '2'].filter((o) => mainArr.includes(o) || o === topOut) : ['1', 'X', '2'];
+  const narrowCoupon = mainArr;
+  // DÜZELTME: güvenli kupon clear durumunda hedge'i (alt) korumalı. Eskiden
+  // mainArr üzerinden kurulduğu için tek sonuca düşüyor, güvenli kupon dar
+  // kuponla aynı çıkıyordu — yani alternatif hiç kupona ulaşmıyordu.
+  const safeCoupon = clear ? alt.split('') : ['1', 'X', '2'];
 
   // Silinmemesi gerekenler: ana eğilim + payı ciddi olan sonuçlar.
   const mustKeep = new Set([mainTrend]);
@@ -129,8 +132,10 @@ function buildSportotoDecision(ctx) {
 
   // ——— KISA YORUM: önce risk → sonra dayanak → sonra karar ———
   const parts = [];
+  // "kesin/garanti/banko/yanılmaz/net favori" kökleri olumsuzlama olarak bile
+  // kullanılmaz (CLAUDE.md: iddialı dil yok).
   parts.push(clear
-    ? `${outName(topOut)} yönünde eğilim var ama garanti değil.`
+    ? `${outName(topOut)} yönünde eğilim var; yine de diğer sonuçlar tamamen elenmez.`
     : `Bu maç tek sonuç için güvenli değil — ${outName(topOut)} ile ${outName(secondOut)} arasındaki fark kapanabilir.`);
   const ev = [`Kriter payları — 1: %${s1} · X: %${sX} · 2: %${s2}.`];
   if (sX >= 20) ev.push(`Beraberlik %${sX} ile silinemeyecek kadar canlı.`);
@@ -287,7 +292,7 @@ export function userSelectedAnalysisEngine(m, profile) {
   // Kupon karar katmanı (Spor Toto): aynı kriter puanlarından dar/güvenli kupon,
   // hedef stratejisi, risk ve banko uygunluğu türetir. Karara yeni veri KATMAZ.
   const sportotoDecision = buildSportotoDecision({
-    scores, totalScore, decisiveCount, clear, main, topOut, secondOut, names, results,
+    scores, totalScore, decisiveCount, clear, main, alt, topOut, secondOut, names, results,
     availCount: results.filter((x) => x.available).length,
     selectedCount: results.length,
   });
