@@ -272,7 +272,11 @@ test('marka metni görsel/SVG dosyalarına gömülmemiş', () => {
   }
 });
 
-test('derlenmiş web çıktısı: sekme başlığı ve paket temiz', { skip: !existsSync(path.join(APP, 'dist')) }, () => {
+// Atlama koşulu `dist` klasörüne değil OKUNAN DOSYAYA bakar: yarım kalmış bir
+// export'ta (dist var, index.html yok) klasör kontrolü testi ENOENT ile kırıyordu
+// — marka hatası olmadığı hâlde. `npx expo export` sonrası test kendiliğinden
+// tekrar çalışır.
+test('derlenmiş web çıktısı: sekme başlığı ve paket temiz', { skip: !existsSync(path.join(APP, 'dist', 'index.html')) }, () => {
   const html = oku('dist/index.html');
   const baslik = html.match(/<title>([^<]*)<\/title>/)?.[1];
   assert.equal(baslik, 'Sportoto Master Analiz', 'derlenmiş index.html sekme başlığı yanlış');

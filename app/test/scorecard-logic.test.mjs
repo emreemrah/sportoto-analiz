@@ -42,7 +42,8 @@ test('25. resmî veri yokken doğru dürüst boş durum metinleri', () => {
 
 test('19+22. YENİ BAŞLANGIÇ: Retrospektif sekmesi ve eski radar rozeti kullanıcıya YOK', () => {
   // Normal kullanıcı sekmelerinde Retrospektif yoktur:
-  assert.deepEqual(USER_SECTIONS.map((s) => s.key), ['official', 'weeks', 'byResult', 'coverage', 'radar', 'criteria', 'tech']);
+  // (T9: 'calibration' sekmesi eklendi — olasılık kalitesi ölçümü, resmî veriye dayanır.)
+  assert.deepEqual(USER_SECTIONS.map((s) => s.key), ['official', 'weeks', 'byResult', 'coverage', 'radar', 'criteria', 'calibration', 'tech']);
   assert.ok(!USER_SECTIONS.some((s) => /retro/i.test(s.key) || /retrospektif/i.test(s.label)), 'Retrospektif sekmesi kaldırıldı');
   // Eski Banko/Sürpriz rozeti HİÇBİR veriyle üretilemez:
   assert.equal(legacyRadarBadge({ hasData: true, provenanceType: 'legacy_backfill', labels: { banko: { rate: 50 } } }), null);

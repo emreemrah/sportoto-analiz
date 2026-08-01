@@ -8,10 +8,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const babel = require('@babel/core');
-const srcPath = new URL('../src/components/BulletinHeroVisual.js', import.meta.url).pathname;
+// fileURLToPath ŞART: Windows'ta URL.pathname "/C:/..." döner, readFileSync bunu
+// "C:\C:\..." diye çözer ve dosya daha ilk satırda ENOENT ile çöker (testler hiç
+// çalışmaz). POSIX'te fark edilmez — bu yüzden uzun süre görülmedi.
+const srcPath = fileURLToPath(new URL('../src/components/BulletinHeroVisual.js', import.meta.url));
 const src = readFileSync(srcPath, 'utf8');
 
 test('1. BulletinHeroVisual Expo babel preset ile hatasız derlenir (JSX dengeli)', () => {

@@ -29,6 +29,8 @@ export const USER_SECTIONS = [
   { key: 'coverage', label: 'Kapsama' },
   { key: 'radar', label: 'Radar' },
   { key: 'criteria', label: 'Kriter' },
+  // Kalibrasyon: "kaç tuttu" değil, SÖYLEDİĞİMİZ OLASILIK ne kadar doğruydu.
+  { key: 'calibration', label: 'Kalibrasyon' },
   { key: 'tech', label: 'Teknik' },
 ];
 

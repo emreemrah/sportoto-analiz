@@ -59,6 +59,9 @@ export const api = {
   scorecardsCoverage: () => req('/api/scorecards/coverage'),
   scorecardsRadar: () => req('/api/scorecards/radar'),
   scorecardsCriteria: () => req('/api/scorecards/criteria'),
+  // Kalibrasyon: "kaç tuttu" değil, söylenen OLASILIĞIN kalitesi
+  // (log-loss/Brier) + piyasaya ve lig taban oranına karşı beceri.
+  scorecardsCalibration: () => req('/api/scorecards/calibration'),
   scorecardsRetrospective: () => req('/api/scorecards/retrospective'),
   scorecardsProvenance: () => req('/api/scorecards/provenance'),
   coverage: () => req('/api/coverage'),

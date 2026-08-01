@@ -18,6 +18,11 @@ import {
   hasOfficialData, officialHeadline, weekRecordLabel,
   COVERAGE_NOTE, OFFICIAL_EMPTY_TITLE, OFFICIAL_EMPTY_MESSAGE, LEGACY_SEPARATION_NOTE, USER_SECTIONS,
 } from '../scorecardLogic';
+import {
+  hasCalibrationData, calibrationHeadline, marketDerivedNotice, independentTestText,
+  scoreRows, curveRows, curveUnavailableText,
+  EXPECTATION_NOTE, CALIBRATION_EMPTY_MESSAGE,
+} from '../calibrationLogic';
 
 // SEKMELER: yalnız resmî bölümler — Retrospektif sekmesi KULLANICIYA YOKTUR.
 // Eski %69/%64/%73 tarzı legacy başarılar bu ekranın hiçbir yerinde görünmez.
@@ -30,6 +35,7 @@ export default function SystemScorecardScreen({ navigation }) {
   const [sc, setSc] = useState(null);          // sistem (resmî + kapsama + provenance)
   const [radar, setRadar] = useState(null);    // resmî radar karnesi
   const [crit, setCrit] = useState(null);      // resmî kriter karnesi
+  const [cal, setCal] = useState(null);        // kalibrasyon (olasılık kalitesi)
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [section, setSection] = useState('official');
@@ -43,6 +49,7 @@ export default function SystemScorecardScreen({ navigation }) {
       // (Retrospektif uç ÇAĞRILMAZ — legacy başarılar kullanıcıya gösterilmez.)
       api.scorecardsRadar().then(setRadar).catch(() => {});
       api.scorecardsCriteria().then(setCrit).catch(() => {});
+      api.scorecardsCalibration().then(setCal).catch(() => {});
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   }, []);
@@ -192,7 +199,86 @@ export default function SystemScorecardScreen({ navigation }) {
         <EmptyLine text={crit?.note || 'Henüz resmî kriter verisi yok — rozetler gerçek bültenler mühürlenip sonuçlandıkça dolacaktır.'} />
       ))}
 
-      {/* 7) TEKNİK / KAYNAK ŞEFFAFLIĞI — eski başarı yüzdeleri YOKTUR. */}
+      {/* 7) KALİBRASYON — "kaç tuttu" DEĞİL, söylenen olasılığın kalitesi.
+          ANA RAKAM skill score'dur; isabet oranı bilerek başlıkta değildir
+          (bkz. src/calibrationLogic.js sunum kuralları). */}
+      {section === 'calibration' && (hasCalibrationData(cal) ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Kalibrasyon — söylediğimiz olasılık ne kadar doğruydu?</Text>
+
+          {/* Ana rakam: piyasaya karşı beceri */}
+          {(() => {
+            const h = calibrationHeadline(cal);
+            const t = h?.vsMarket;
+            return (
+              <>
+                <Text style={[styles.calBig, t?.tone === 'success' ? { color: colors.success }
+                  : t?.tone === 'danger' ? { color: colors.danger } : { color: colors.textSoft }]}>
+                  {h?.marketMissing ? 'Piyasa referansı yok (oran bulunamadı)' : t?.metin}
+                </Text>
+                <Text style={styles.calSub}>
+                  {h?.n} maç · {h?.weeks} hafta
+                  {h?.vsBaseline ? ` · lig taban oranına göre: ${h.vsBaseline.metin.replace('Piyasadan', '')}` : ''}
+                </Text>
+              </>
+            );
+          })()}
+
+          {/* Model = piyasa uyarısı (bu üründe kritik) */}
+          {(() => {
+            const n = marketDerivedNotice(cal);
+            if (!n) return null;
+            return (
+              <View style={styles.calNotice}>
+                <Text style={styles.calNoticeTitle}>{n.title}</Text>
+                <Text style={styles.calNoticeBody}>{n.body}</Text>
+              </View>
+            );
+          })()}
+
+          {/* Gerçek sınav: oranı olmayan maçlar */}
+          {(() => {
+            const t = independentTestText(cal);
+            if (!t) return null;
+            return (
+              <View style={styles.calNotice}>
+                <Text style={styles.calNoticeTitle}>{t.title} · n={t.n}</Text>
+                <Text style={styles.calNoticeBody}>{t.body}</Text>
+              </View>
+            );
+          })()}
+
+          {/* Skor tablosu */}
+          <Text style={styles.calSection}>Skorlar (düşük = iyi)</Text>
+          {scoreRows(cal).map((r) => (
+            <View key={r.ad} style={styles.critRow}>
+              <Text style={styles.critName} numberOfLines={1}>{r.ad}{r.not ? ` · ${r.not}` : ''}</Text>
+              <Text style={styles.critVal}>log-loss {r.logLoss ?? '—'} · Brier {r.brier ?? '—'}{r.n ? ` · n=${r.n}` : ''}</Text>
+            </View>
+          ))}
+
+          {/* Kalibrasyon eğrisi ya da dürüst yokluk cümlesi */}
+          <Text style={styles.calSection}>Kalibrasyon</Text>
+          {curveRows(cal).length ? curveRows(cal).map((b, i) => (
+            <View key={i} style={styles.critRow}>
+              <Text style={styles.critName} numberOfLines={2}>{b.metin}</Text>
+              <Text style={styles.critVal}>{b.durumMetni}</Text>
+            </View>
+          )) : <Text style={styles.honestNote}>{curveUnavailableText(cal)}</Text>}
+
+          {/* Beklenti ayarı — zorunlu */}
+          <Text style={styles.honestNote}>{EXPECTATION_NOTE}</Text>
+          {cal.conventions ? (
+            <Text style={styles.calFine}>
+              Ölçüm: Brier [0,2] · log-loss doğal logaritma · marj temizleme multiplicative
+            </Text>
+          ) : null}
+        </View>
+      ) : (
+        <EmptyLine text={cal?.insufficientNote || CALIBRATION_EMPTY_MESSAGE} />
+      ))}
+
+      {/* 8) TEKNİK / KAYNAK ŞEFFAFLIĞI — eski başarı yüzdeleri YOKTUR. */}
       {section === 'tech' && sc && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Kaynak Şeffaflığı</Text>
@@ -257,4 +343,12 @@ const styles = StyleSheet.create({
   critName: { flex: 1, color: colors.text, fontSize: 12.5, fontWeight: '700' },
   critVal: { color: colors.textSoft, fontSize: 12, fontWeight: '900' },
 
+  // KALİBRASYON — ana rakam bilerek en büyük punto; isabet oranı burada YOK.
+  calBig: { fontSize: 18, fontWeight: '900', marginTop: 4 },
+  calSub: { color: colors.textMuted, fontSize: 11.5, fontWeight: '700', marginTop: 2 },
+  calSection: { color: colors.text, fontSize: 12, fontWeight: '900', marginTop: 12, marginBottom: 2 },
+  calNotice: { backgroundColor: colors.bgAlt, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.sm, marginTop: 10 },
+  calNoticeTitle: { color: colors.text, fontSize: 11.5, fontWeight: '900' },
+  calNoticeBody: { color: colors.textSoft, fontSize: 11, fontWeight: '600', marginTop: 3, lineHeight: 16 },
+  calFine: { color: colors.textMuted, fontSize: 9.5, fontWeight: '600', marginTop: 6 },
 });
