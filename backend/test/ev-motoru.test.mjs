@@ -111,11 +111,23 @@ test('assertMatchCount: 15 dışı uzunluk sessizce geçmez', () => {
 
 // ——— N geri çıkarımı ———
 test('N geri çıkarımı: ρ bilinmiyorsa hesaplanmaz (uydurma yok)', () => {
-  assert.equal(PAYOUT_RATIO, null, 'ρ hâlâ bilinmiyor olmalı (araştırma bulamadı)');
-  const r = estimateColumnsFromWinners({ 13: { winners: 100, perPersonPrize: 500 } });
+  // ρ ARTIK BİLİNİYOR (0,775 — bkz. ev-rho.test.mjs). Bu testin koruduğu
+  // davranış hâlâ geçerli: ρ YOKSA N uydurulmaz. Eskiden bunu config'in
+  // null olmasına dayanarak sınıyordu; config dolunca test kırıldı — oysa
+  // kural değişmedi. Artık ρ AÇIKÇA null geçiliyor, config'e bağlı değil.
+  const r = estimateColumnsFromWinners(
+    { 13: { winners: 100, perPersonPrize: 500 } },
+    { payoutRatio: null },
+  );
   assert.equal(r.columns, null);
   assert.equal(r.reason, 'payout_ratio_unknown');
   assert.match(r.note, /Müşterek Oyun Planı/);
+});
+
+test('N geri çıkarımı: config ρ değeri artık DOLU — ölçek üretilebiliyor', () => {
+  assert.ok(PAYOUT_RATIO > 0, 'ρ bulundu (0,775); null kalmamalı');
+  const r = estimateColumnsFromWinners({ 13: { winners: 100, perPersonPrize: 500 } });
+  assert.ok(r.columns > 0, 'ρ varken N hesaplanabilmeli');
 });
 
 test('N geri çıkarımı: ρ verilirse el hesabıyla doğru; kademeler çapraz doğrulanır', () => {

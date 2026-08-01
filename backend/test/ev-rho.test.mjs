@@ -64,6 +64,37 @@ test('REGRESYON: ρ_net brüt bedele DOĞRUDAN uygulanmıyor', () => {
     `KDV etkisi anlamsız derecede küçük görünüyor (%${(sisme * 100).toFixed(1)}) — KDV oranı yanlış olabilir`);
 });
 
+test('KDV oranı 2023 gerçekleşmesiyle SAYISAL olarak tutuyor', () => {
+  // Spor Toto'yu adıyla anan bir tebliğ bulunamadı; %20 bir ÇIKARIMDIR
+  // (şans oyunları indirimli listelerde yok → genel oran). Bu testin işi o
+  // çıkarımı bağımsız bir ölçümle sınamak.
+  //
+  // 2023'te oran 10 Temmuz'da %18'den %20'ye geçti. KDV bedele DAHİLSE
+  // KDV/brüt oranı %15,254 ile %16,667 arasında olmalı ve gerçekleşen değer
+  // bu aralığın içine düşmeli. Düşmezse ya oran ya "dahil" varsayımı yanlış.
+  const brut = 333701762275.89;
+  const kdv = 53426468956.03;
+  const gerceklesen = kdv / brut;
+
+  const dahil18 = 0.18 / 1.18;
+  const dahil20 = 0.20 / 1.20;
+  assert.ok(gerceklesen > dahil18 && gerceklesen < dahil20,
+    `%16,010 beklenen aralıkta değil (${(dahil18 * 100).toFixed(3)}–${(dahil20 * 100).toFixed(3)})`);
+
+  // Ve gerekli ikinci-yarı payı MAKUL olmalı. Takvim %47,7; futbolun yaz
+  // arası verdiği düşünülünce %45-65 bandı beklenir. Bandın dışına çıkarsa
+  // "dahil %20" varsayımı zorlanıyor demektir.
+  const ikinciYariPayi = (gerceklesen - dahil18) / (dahil20 - dahil18);
+  assert.ok(ikinciYariPayi > 0.45 && ikinciYariPayi < 0.65,
+    `gerekli ikinci-yarı hasılat payı makul değil: %${(ikinciYariPayi * 100).toFixed(1)}`);
+});
+
+test('ρ = ρ_net / (1 + KDV) — 0,775', () => {
+  assert.equal(VAT_RATE, 0.20);
+  assert.ok(Math.abs(PAYOUT_RATIO - 0.775) < 1e-12,
+    `ρ 0,775 olmalı, gelen: ${PAYOUT_RATIO}`);
+});
+
 test('kolon bedeli hâlâ DOĞRULANMAMIŞ olarak işaretli', () => {
   // Araştırma 10 TL'yi teyit etti ama yalnız haber kaynağından; resmî tarife
   // belgesi bulunamadı. "Teyit edildi" demek yanlış olurdu.

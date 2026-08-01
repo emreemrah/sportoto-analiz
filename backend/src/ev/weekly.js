@@ -9,7 +9,7 @@
 //
 // KAYIT KULLANICIYA GÖSTERİLMEZ. Amaç ileriye dönük gölge test verisi biriktirmek.
 import { evaluateColumn, calibrateLambda, estimateColumnsFromWinners, poolsOf } from './engine.js';
-import { writeShadowRecord, readShadowRecord, appendShadowSettlement } from './shadowStore.js';
+import { writeShadowRecord, readShadowRecord, appendShadowSettlement, listShadowRounds } from './shadowStore.js';
 import { PAYOUT_RATIO, MATCH_COUNT, TIERS } from './config.js';
 import { KEYS } from './math.js';
 import { percentagesToProbs } from '../scorecards/calibration.js';
@@ -135,12 +135,45 @@ export function lambdaFromHistory(pastWeeks, { payoutRatio = PAYOUT_RATIO } = {}
 }
 
 /**
+ * GEÇMİŞ HAFTALAR — λ kalibrasyonunun yakıtı, kendi gölge kayıtlarımızdan.
+ *
+ * Sonuçlanmış her gölge kaydı şunları taşıyor: kilit anındaki kalabalık
+ * dağılımı (inputs.crowdMarginals), gerçekleşen sonuç (settlement.result) ve
+ * resmî kademe verisi (settlement.officialTiers). calibrateLambda'nın ihtiyacı
+ * olan tam da bu üçlü.
+ *
+ * `upToRoundId` verilirse YALNIZ ondan ÖNCEKİ haftalar döner — öğrenme sınırı:
+ * bir haftanın kendi sonucu kendi λ'sını besleyemez.
+ */
+export function pastWeeksFromShadow({ upToRoundId = null } = {}) {
+  const out = [];
+  for (const rid of listShadowRounds()) {
+    if (upToRoundId != null && Number(rid) >= Number(upToRoundId)) continue;
+    const rec = readShadowRecord(rid);
+    if (!rec?.ok || !rec.settlement?.officialTiers) continue;
+    const tiers = {};
+    for (const t of TIERS) {
+      const row = rec.settlement.officialTiers[t];
+      if (row) tiers[t] = row;
+    }
+    if (!TIERS.some((t) => Number(tiers[t]?.winners) > 0)) continue;
+    out.push({
+      roundId: Number(rid),
+      result: rec.settlement.result,
+      crowdMarginals: rec.inputs.crowdMarginals,
+      tiers,
+    });
+  }
+  return out;
+}
+
+/**
  * HAFTALIK GÖLGE KOŞUSU — kilit anında bir kez çalışır.
  * Başarısız olsa bile kayıt yazılır: kilit anı tekrar gelmez, hangi kaynağın
  * eksik olduğu bilgisi de veridir.
  */
 export async function runWeeklyShadow({
-  bulletinId, store, now = Date.now(), pastWeeks = [], payoutRatio = PAYOUT_RATIO,
+  bulletinId, store, now = Date.now(), pastWeeks = null, payoutRatio = PAYOUT_RATIO,
 } = {}) {
   const snapshot = await store.getSnapshot(String(bulletinId)).catch(() => null);
   if (!snapshot) return { ran: false, reason: 'snapshot_yok' };
@@ -163,7 +196,10 @@ export async function runWeeklyShadow({
     return { ran: false, reason: girdi.reason, note: girdi.note };
   }
 
-  const lam = lambdaFromHistory(pastWeeks, { payoutRatio });
+  // Geçmiş verilmezse kendi sonuçlanmış gölge kayıtlarımızdan toplanır.
+  // Öğrenme sınırı: yalnız BU haftadan ÖNCEKİ haftalar.
+  const gecmis = pastWeeks || pastWeeksFromShadow({ upToRoundId: bulletinId });
+  const lam = lambdaFromHistory(gecmis, { payoutRatio });
   const ev = evaluateColumn({
     column: girdi.column,
     outcomeProbs: girdi.outcomeProbs,

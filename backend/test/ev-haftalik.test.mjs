@@ -18,6 +18,7 @@ process.env.EV_SHADOW_DIR = mkdtempSync(join(tmpdir(), 'ev-haftalik-'));
 const {
   crowdConsensus, buildShadowInputs, lambdaFromHistory,
   runWeeklyShadow, settleWeeklyShadow, rescaleWithPayoutRatio,
+  pastWeeksFromShadow: pastWeeksFromShadowSync,
 } = await import('../src/ev/weekly.js');
 const { readShadowRecord } = await import('../src/ev/shadowStore.js');
 const { PAYOUT_RATIO } = await import('../src/ev/config.js');
@@ -152,12 +153,32 @@ test('15 maçı olmayan snapshot reddedilir', () => {
 // ---------------------------------------------------------------------------
 
 test('ρ yokken λ öğrenilemez ve bu AÇIKÇA bildirilir', () => {
-  assert.equal(PAYOUT_RATIO, null, 'ρ hâlâ bilinmiyor (resmî PDF elle okunmalı)');
-  const l = lambdaFromHistory([{ roundId: 1, tiers: { 13: { winners: 500, perPersonPrize: 100 } } }]);
+  // ρ ARTIK BİLİNİYOR (0,775). Korunan kural değişmedi: ρ YOKSA λ uydurulmaz
+  // ve dönen 0 bir ÖLÇÜM sayılmaz. Test artık ρ'yu açıkça null geçiyor.
+  const l = lambdaFromHistory(
+    [{ roundId: 1, tiers: { 13: { winners: 500, perPersonPrize: 100 } } }],
+    { payoutRatio: null },
+  );
   assert.equal(l.lambda, 0);
   assert.equal(l.reliable, false);
   assert.equal(l.reason, 'payout_ratio_unknown');
   assert.match(l.note, /ölçüm DEĞİLDİR/);
+});
+
+test('ρ BULUNDUĞU için λ artık öğrenilebiliyor (ρ=0,775)', () => {
+  assert.ok(PAYOUT_RATIO > 0, 'ρ config\'te dolu olmalı');
+  const l = lambdaFromHistory([{
+    roundId: 1,
+    result: Array(15).fill('1'),
+    crowdMarginals: Array.from({ length: 15 }, () => ({ '1': 0.6, X: 0.25, '2': 0.15 })),
+    tiers: { 13: { winners: 500, perPersonPrize: 1000 }, 12: { winners: 5000, perPersonPrize: 125 } },
+  }]);
+  // Artık 'payout_ratio_unknown' DEĞİL: gerçek bir kalibrasyon denemesi yapıldı.
+  assert.notEqual(l.reason, 'payout_ratio_unknown');
+  assert.equal(l.weeksUsed, 1);
+  // Tek haftayla güvenilir sayılmaz (≥30 şartı) — bu gizlenmez.
+  assert.equal(l.reliable, false);
+  assert.match(l.note, /30 hafta/);
 });
 
 // ---------------------------------------------------------------------------
@@ -245,9 +266,13 @@ test('sonuç açıklanınca kolonun kaç tuttuğu kayda eklenir', async () => {
   const rec = readShadowRecord(9004);
   assert.equal(rec.settlement.hits, 12);
   assert.equal(rec.settlement.officialTiers[13].winners, 420);
-  // ρ yok → N hesaplanamaz, uydurulmaz.
-  assert.equal(rec.settlement.estimatedColumns.columns, null);
-  assert.equal(rec.settlement.estimatedColumns.reason, 'payout_ratio_unknown');
+  // ρ ARTIK BİLİNİYOR → N resmî kademe verisinden geri çıkarılabiliyor.
+  // (Eskiden burada null bekleniyordu; ρ bulununca bu satır kırıldı ve
+  //  kırılması DOĞRU — motor artık ölçek üretebiliyor.)
+  assert.ok(rec.settlement.estimatedColumns.columns > 0,
+    'ρ varken N hesaplanmalı');
+  // Çapraz doğrulama alanı da geliyor: kademeler tutarsızsa ρ şüphelidir.
+  assert.ok('consistent' in rec.settlement.estimatedColumns);
   // Model bu kademeyi ne kadar bekliyordu? (EV tarafının kalibrasyonu)
   assert.ok(rec.settlement.expectedTierProb >= 0);
 });
@@ -306,4 +331,38 @@ test('gölge kayıtlar hiçbir API ucundan dönmüyor', () => {
   const server = readFileSync(new URL('../src/server.js', import.meta.url), 'utf8');
   assert.ok(!/ev-shadow|readShadowRecord|listShadowRounds|weekly\.js/.test(server),
     'gölge kayıt kullanıcıya sızmamalı');
+});
+
+// ---------------------------------------------------------------------------
+// λ ZİNCİRİ — sonuçlanmış hafta, SONRAKİ haftanın λ'sını besliyor mu?
+// ρ bulunmadan önce bu zincir zaten çalışamıyordu; ρ gelince ilk kez
+// anlamlı hâle geldi. Test, halkaların gerçekten birbirine bağlı olduğunu
+// ve ÖĞRENME SINIRININ korunduğunu kanıtlar.
+// ---------------------------------------------------------------------------
+
+test('sonuçlanmış gölge kaydı geçmiş hafta olarak toplanıyor', async () => {
+  const { pastWeeksFromShadow } = await import('../src/ev/weekly.js');
+  // 9004 yukarıda koşulup sonuçlandırıldı (kademe verisiyle birlikte).
+  const hepsi = pastWeeksFromShadow();
+  const w = hepsi.find((x) => x.roundId === 9004);
+  assert.ok(w, 'sonuçlanmış kayıt geçmiş listesinde yok');
+  assert.equal(w.result.length, 15, 'gerçekleşen sonuç taşınmalı');
+  assert.equal(w.crowdMarginals.length, 15, 'kilit anı kalabalığı taşınmalı');
+  assert.ok(Number(w.tiers[13]?.winners) > 0, 'resmî kademe verisi taşınmalı');
+});
+
+test('ÖĞRENME SINIRI: hafta kendi sonucuyla kendi λ\'sını besleyemez', () => {
+  // 9004'ten ÖNCEKİ haftalar istenirse 9004 listede OLMAMALI.
+  const oncekiler = pastWeeksFromShadowSync({ upToRoundId: 9004 });
+  assert.ok(!oncekiler.some((x) => x.roundId === 9004),
+    'haftanın kendi sonucu kendi kalibrasyonuna sızıyor');
+  // Ve kendisinden sonraki haftalar da giremez.
+  assert.ok(oncekiler.every((x) => x.roundId < 9004));
+});
+
+test('sonuçlanmamış kayıt geçmişe GİRMEZ (kademe verisi yok)', () => {
+  // 9005 sonuçlanamadı (sonuçlar eksikti), 9002 ise ok:false.
+  const hepsi = pastWeeksFromShadowSync();
+  assert.ok(!hepsi.some((x) => x.roundId === 9005), 'sonuçlanmamış hafta girmemeli');
+  assert.ok(!hepsi.some((x) => x.roundId === 9002), 'geçersiz kayıt girmemeli');
 });
