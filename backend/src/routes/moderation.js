@@ -15,6 +15,7 @@
 // src/moderationOps.js içinde, sebepleriyle birlikte yazılıdır. Bu dosya
 // yalnız HTTP kabuğudur; karar mantığı burada DEĞİLDİR (test edilebilirlik).
 import { Router } from 'express';
+import { safeError } from '../security/safeError.js';
 import { sbAdmin, supabaseEnabled, getProfiles } from '../supabase.js';
 import { uyelikKapisi } from '../security/supabaseGuard.js';
 import { requireAuth } from '../mw.js';
@@ -58,7 +59,7 @@ router.get('/reports', async (req, res) => {
     const sonuc = await bekleyenBildirimler(sbAdmin, { limit, profilOku: getProfiles });
     res.json(sonuc);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    safeError(res, e, 'Moderasyon işlemi şu an tamamlanamadı.');
   }
 });
 
@@ -71,7 +72,7 @@ router.post('/comments/:id/hide', async (req, res) => {
     if (!sonuc.ok) return res.status(sonuc.sebep === 'yorum-yok' ? 404 : 400).json({ error: mesaj(sonuc.sebep) });
     res.json(sonuc);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    safeError(res, e, 'Moderasyon işlemi şu an tamamlanamadı.');
   }
 });
 
@@ -84,7 +85,7 @@ router.post('/comments/:id/unhide', async (req, res) => {
     if (!sonuc.ok) return res.status(sonuc.sebep === 'yorum-yok' ? 404 : 400).json({ error: mesaj(sonuc.sebep) });
     res.json(sonuc);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    safeError(res, e, 'Moderasyon işlemi şu an tamamlanamadı.');
   }
 });
 
@@ -97,7 +98,7 @@ router.post('/reports/:id/dismiss', async (req, res) => {
     if (!sonuc.ok) return res.status(sonuc.sebep === 'bildirim-yok' ? 404 : 400).json({ error: mesaj(sonuc.sebep) });
     res.json(sonuc);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    safeError(res, e, 'Moderasyon işlemi şu an tamamlanamadı.');
   }
 });
 

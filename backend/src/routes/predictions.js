@@ -2,6 +2,7 @@
 //  • Skor Tahmini   • Maçın Oyuncusu   • Kadro Tahmini   • Topluluk Anketi
 // Hepsi maça (matchId) ve kullanıcıya bağlı; aynı kullanıcı aynı maçta günceller (upsert).
 import { Router } from 'express';
+import { safeError } from '../security/safeError.js';
 import { sbAdmin, supabaseEnabled, getProfiles } from '../supabase.js';
 import { uyelikKapisi } from '../security/supabaseGuard.js';
 import { requireAuth, optionalAuth } from '../mw.js';
@@ -30,7 +31,7 @@ router.post('/score', requireAuth, async (req, res) => {
     fh_home: clamp(fhHome), fh_away: clamp(fhAway), ft_home: clamp(ftHome), ft_away: clamp(ftAway), updated_at: now(),
   };
   const { error } = await sbAdmin.from('score_predictions').upsert(row, { onConflict: 'match_id,user_id' });
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return safeError(res, error, 'Tahminler şu an okunamadı.');
   // Katılım puanı — maç başına BİR KEZ (unique kısıt mükerrer ödülü engeller).
   awardParticipation(sbAdmin, req.user.id, 'lock_score', String(matchId));
   res.json({ ok: true });
@@ -51,7 +52,7 @@ router.post('/player', requireAuth, async (req, res) => {
     player_id: playerId ? String(playerId) : null, player_name: String(playerName), updated_at: now(),
   };
   const { error } = await sbAdmin.from('player_votes').upsert(row, { onConflict: 'match_id,user_id' });
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return safeError(res, error, 'Tahminler şu an okunamadı.');
   awardParticipation(sbAdmin, req.user.id, 'player_vote', String(matchId));
   res.json({ ok: true });
 });
@@ -73,7 +74,7 @@ router.post('/lineup', requireAuth, async (req, res) => {
     team_name: teamName || null, formation: formation || null, selected_players: players, updated_at: now(),
   };
   const { error } = await sbAdmin.from('lineup_predictions').upsert(row, { onConflict: 'match_id,user_id,team_id' });
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return safeError(res, error, 'Tahminler şu an okunamadı.');
   awardParticipation(sbAdmin, req.user.id, 'lineup', `${matchId}:${teamId}`);
   res.json({ ok: true });
 });
@@ -105,7 +106,7 @@ router.post('/poll', requireAuth, async (req, res) => {
     poll_key: String(pollKey), selected_option: String(selectedOption), updated_at: now(),
   };
   const { error } = await sbAdmin.from('community_poll_votes').upsert(row, { onConflict: 'match_id,user_id,poll_key' });
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return safeError(res, error, 'Tahminler şu an okunamadı.');
   awardParticipation(sbAdmin, req.user.id, 'poll_vote', `${matchId}:${pollKey}`);
   res.json({ ok: true });
 });

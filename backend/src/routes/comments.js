@@ -1,6 +1,7 @@
 // Maç yorumları (tweet mantığı): liste / yaz / düzenle / sil / beğen / cevap / görüntülenme
 // + MODERASYON: bildirme (E9). Engelleme uçları users.js'tedir (profile bağlı).
 import { Router } from 'express';
+import { safeError } from '../security/safeError.js';
 import { sbAdmin, supabaseEnabled, getProfiles } from '../supabase.js';
 import { uyelikKapisi } from '../security/supabaseGuard.js';
 import { requireAuth, optionalAuth } from '../mw.js';
@@ -22,7 +23,7 @@ router.get('/', optionalAuth, async (req, res) => {
 
   const { data: rows, error } = await sbAdmin.from('comments')
     .select('*').eq('match_id', matchId).order('created_at', { ascending: true });
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return safeError(res, error, 'Yorum işlemi şu an tamamlanamadı.');
 
   // Engel listesi okunamazsa liste GÖSTERİLMEZ. Sessizce boş küme kullanmak,
   // engellenen kişinin yorumlarını engelleyene göstermek demekti; özelliğin
@@ -104,7 +105,7 @@ router.post('/', requireAuth, async (req, res) => {
   const { data, error } = await sbAdmin.from('comments')
     .insert({ match_id: String(matchId), user_id: req.user.id, text: t, parent_id: parentId || null })
     .select('id').single();
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return safeError(res, error, 'Yorum işlemi şu an tamamlanamadı.');
   res.json({ id: data.id, ok: true });
 });
 
@@ -118,7 +119,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
   if (!row) return res.status(404).json({ error: 'Yorum bulunamadı.' });
   if (row.user_id !== req.user.id) return res.status(403).json({ error: 'Sadece kendi yorumunu düzenleyebilirsin.' });
   const { error } = await sbAdmin.from('comments').update({ text: t, edited_at: new Date().toISOString() }).eq('id', id);
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return safeError(res, error, 'Yorum işlemi şu an tamamlanamadı.');
   res.json({ ok: true });
 });
 
@@ -171,7 +172,7 @@ router.post('/:id/report', requireAuth, async (req, res) => {
     .insert({ comment_id: id, reporter_id: req.user.id, reason, note });
   if (error) {
     if (zatenVarMi(error.message)) return res.json({ ok: true, already: true });
-    return res.status(500).json({ error: error.message });
+    return safeError(res, error, 'Yorum işlemi şu an tamamlanamadı.');
   }
   res.json({ ok: true });
 });
@@ -180,7 +181,7 @@ router.post('/:id/report', requireAuth, async (req, res) => {
 router.post('/:id/like', requireAuth, async (req, res) => {
   const id = Number(req.params.id);
   const { error } = await sbAdmin.from('comment_likes').insert({ comment_id: id, user_id: req.user.id });
-  if (error && !/duplicate|unique|conflict/i.test(error.message)) return res.status(500).json({ error: error.message });
+  if (error && !/duplicate|unique|conflict/i.test(error.message)) return safeError(res, error, 'Beğeni işlemi şu an tamamlanamadı.');
   res.json({ ok: true });
 });
 

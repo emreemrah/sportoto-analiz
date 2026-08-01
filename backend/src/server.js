@@ -30,6 +30,9 @@ import { startArchiveWorker } from './archive/worker.js';
 import { getArchiveStatus } from './archive/snapshotService.js';
 import { sbAdmin, supabaseEnabled } from './supabase.js';
 import { sarmala, hataKatmani, surecAginiKur } from './security/asyncGuard.js';
+import { securityHeaders } from './security/headers.js';
+import { buildCorsOptions } from './security/corsPolicy.js';
+import { yorumEklemeLimiti, kuponYazmaLimiti, avatarLimiti, backtestLimiti } from './security/limits.js';
 import { syncCatalog } from './gamification/service.js';
 import { acilistaMigrationCalistir, migrationDurumu } from './migrate/index.js';
 
@@ -38,8 +41,19 @@ const app = express();
 // Bu olmadan req.ip herkes için vekilin IP'si olur: oran sınırlama tek
 // kullanıcı yerine HERKESİ kilitler, güvenlik logları yanlış IP yazar.
 app.set('trust proxy', 1);
-app.use(cors());
+// Güvenlik başlıkları (CSP/HSTS/nosniff/frame-ancestors) — bkz. security/headers.js
+app.use(securityHeaders());
+// CORS artık listeli: ALLOWED_ORIGINS (.env) + geliştirmede localhost/LAN.
+// Origin'siz istekler (mobil uygulama) serbesttir — bkz. security/corsPolicy.js
+app.use(cors(buildCorsOptions()));
 app.use(express.json({ limit: '4mb' })); // avatar yüklemesi (dataURL) için yeterli
+
+// MALİYETLİ UÇLARIN ORAN SINIRLARI (security/limits.js) — rota kayıtlarından
+// ÖNCE bağlanmalı ki sınır, işleyiciden önce çalışsın. GET'ler serbest.
+app.use('/api/comments', yorumEklemeLimiti);
+app.use('/api/coupons', kuponYazmaLimiti);
+app.use('/api/users/me/avatar', avatarLimiti);
+app.use('/api/analysis/backtest', backtestLimiti);
 
 // Üyelik / profil / yorum sistemi (Supabase)
 app.use('/api/auth', authRoutes);
@@ -110,7 +124,9 @@ app.get('/api/coverage', (req, res) => {
 // NEDEN: Arma dış kaynaktan geldiğinde tarayıcı onu EKRANDA çiziyor ama
 // "ekran görselini paylaş" karesine KOYAMIYOR (dış kaynak CORS izni vermiyor,
 // kare alan kitaplık da izinsiz görseli sessizce düşürüyor). Kendi
-// sunucumuzdan geçince izin var (app.use(cors())) ve arma kareye giriyor.
+// sunucumuzdan geçince sorun kalkıyor: üretim web'i aynı origin'den sunulur
+// (CORS gerekmez); geliştirmede :8081 → :4000 isteğine listeli CORS politikası
+// (security/corsPolicy.js, localhost/LAN serbest) izin verir ve arma kareye girer.
 //
 // GÜVENLİK: Adres doğrulaması crestProxy.js'te ve VARSAYILAN RET çalışır —
 // yalnız bilinen arma konağının /img/ altındaki görselleri geçer, başka her

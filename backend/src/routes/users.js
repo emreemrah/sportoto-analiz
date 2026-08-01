@@ -4,6 +4,7 @@
 //   Bildirme ucu routes/comments.js'tedir (yoruma bağlı); engel KİŞİYE bağlı
 //   olduğu için burada durur.
 import { Router } from 'express';
+import { safeError } from '../security/safeError.js';
 import { sbAdmin, supabaseEnabled, getProfile, getProfiles } from '../supabase.js';
 import { uyelikKapisi } from '../security/supabaseGuard.js';
 import { requireAuth } from '../mw.js';
@@ -126,7 +127,7 @@ router.patch('/me', requireAuth, async (req, res) => {
   if (req.body.favoriteTeam !== undefined) patch.favorite_team = req.body.favoriteTeam ? String(req.body.favoriteTeam).slice(0, 60) : null;
   if (!Object.keys(patch).length) return res.status(400).json({ error: 'Güncellenecek alan yok.' });
   const { error } = await sbAdmin.from('profiles').update(patch).eq('id', req.user.id);
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return safeError(res, error, 'Profil işlemi şu an tamamlanamadı.');
   res.json(await getProfile(req.user.id));
 });
 
@@ -161,7 +162,7 @@ router.get('/me/blocks', requireAuth, async (req, res) => {
   const { data, error } = await sbAdmin.from('user_blocks')
     .select('blocked_id,created_at').eq('blocker_id', req.user.id)
     .order('created_at', { ascending: false });
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return safeError(res, error, 'Profil işlemi şu an tamamlanamadı.');
 
   const rows = data || [];
   const profiles = await getProfiles(rows.map((r) => r.blocked_id));
@@ -195,7 +196,7 @@ router.post('/me/blocks', requireAuth, async (req, res) => {
     // uyarıyla karşılaşmamalı.
     if (zatenVarMi(error.message)) return res.json({ ok: true, already: true });
     if (gecersizHedefMi(error.message)) return res.status(400).json({ error: 'Kullanıcı bulunamadı.' });
-    return res.status(500).json({ error: error.message });
+    return safeError(res, error, 'Profil işlemi şu an tamamlanamadı.');
   }
   res.json({ ok: true });
 });
@@ -210,7 +211,7 @@ router.delete('/me/blocks/:userId', requireAuth, async (req, res) => {
     // Bozuk uuid silme sorgusunu düşürebilir; kullanıcıya 500 yerine anlaşılır
     // bir yanıt dönmeli.
     if (gecersizHedefMi(error.message)) return res.status(400).json({ error: 'Kullanıcı bulunamadı.' });
-    return res.status(500).json({ error: error.message });
+    return safeError(res, error, 'Profil işlemi şu an tamamlanamadı.');
   }
   res.json({ ok: true });
 });
