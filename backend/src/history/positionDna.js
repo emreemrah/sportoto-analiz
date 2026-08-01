@@ -49,6 +49,10 @@ export function computePositionDna(matches, {
   upToRoundCloseAt = null,      // öğrenme sınırı: bu tarihten (dahil değil) sonrası HARİÇ
   excludeRoundId = null,        // güncel haftanın kendisi asla dahil edilmez
   seasonYear = null,
+  // Bu sezonlar için SEZON PENCERESİ üretilmez → ekrandaki SEZON listesinde
+  // görünmezler. YALNIZ pencereyi kapatır: satırlar arşivde durur ve öbür
+  // hesaplara (sabit pencereler, prior) etkisi değişmez.
+  excludeSeasons = [],
 } = {}) {
   // GEÇERLİ SATIRLAR — sezon süzmesi HARİÇ. Sezon pencereleri bu kümeden
   // üretilir, sabit pencereler (allTime/last5/…) ise sezona süzülmüş
@@ -117,6 +121,7 @@ export function computePositionDna(matches, {
     // seçenek gösterilemez.
     for (const [y, list] of Object.entries(rowsBySeason)) {
       if (!y || y === 'bilinmiyor') continue;
+      if (excludeSeasons.some((h) => String(h) === String(y))) continue;   // kullanıcı kararıyla gizli
       windows[`season:${y}`] = countWindow(list);
     }
 

@@ -248,3 +248,19 @@ test('16. Sezon süzmesi VARKEN bile sezon listesi tüm sezonları gösterir', (
   assert.equal(p1.windows['season:2024/2025'].counts['1'], 4,
     'seçili olmayan sezonun kendi sayıları doğru kalmalı');
 });
+
+test('17. excludeSeasons: gizlenen sezonun PENCERESİ üretilmez, verisi durur', () => {
+  // KULLANICI KARARI (2026-08-01): 2022/2023 filtre listesinde gösterilmiyor.
+  // Pencere yoksa ekrandaki SEZON listesi de onu üretmez (liste pencere
+  // anahtarlarından türer). Satırlar arşivde durur; öbür hesaplar değişmez.
+  const ms = [
+    ...makeMatches(3, () => '1', { startRound: 1000 }).map((m) => ({ ...m, seasonYear: '2022/2023' })),
+    ...makeMatches(5, () => '2', { startRound: 2000 }).map((m) => ({ ...m, seasonYear: '2025/2026' })),
+  ];
+  const dna = computePositionDna(ms, { excludeSeasons: ['2022/2023'] });
+  const p1 = dna.positions.find((p) => p.position === 1);
+  assert.equal(p1.windows['season:2022/2023'], undefined, 'gizlenen sezonun penceresi olmamalı');
+  assert.ok(p1.windows['season:2025/2026'], 'öbür sezonlar durmalı');
+  // Veri SİLİNMEDİ: sezon süzmesi olmayan çağrıda allTime hâlâ 8 haftayı sayar.
+  assert.equal(p1.windows.allTime.sample, 8);
+});

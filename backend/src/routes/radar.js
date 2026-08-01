@@ -492,6 +492,10 @@ router.get('/position-dna', async (req, res) => {
       // Sabit pencereleri AKTİF SEZONA bağlar; sezon pencereleri bundan
       // etkilenmez (bkz. positionDna.js — gecerli/usable ayrımı).
       seasonYear: activeSeason,
+      // KULLANICI KARARI (2026-08-01): 2022/2023 SEZON listesinde gösterilmez.
+      // Veri arşivde duruyor (51 hafta, resmî kaynaktan); yalnız filtre
+      // seçeneği kapalı. Geri istenirse bu satırı silmek yeter.
+      excludeSeasons: ['2022/2023'],
     });
 
     // İleri-test (official_forward) sıra istatistikleri — geçmiş arşivle birleşik özet.
