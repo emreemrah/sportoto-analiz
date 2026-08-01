@@ -299,15 +299,26 @@ export default function BulletinScreen({ navigation }) {
               gitmek onlarca dokunuş demekti. Sezon seçilince o sezonun EN
               YENİ haftasına gidilir. Tek sezon varsa liste açılmaz. */}
           {roundYear ? (
-            <TouchableOpacity
-              onPress={() => sezonlar.length > 1 && setSezonAcik((v) => !v)}
-              activeOpacity={sezonlar.length > 1 ? 0.7 : 1}
-              accessibilityRole={sezonlar.length > 1 ? 'button' : 'text'}
-            >
-              <Text style={styles.weekYear}>
-                {sezonAdi(roundYear)}{sezonlar.length > 1 ? (sezonAcik ? ' ▴' : ' ▾') : ''}
-              </Text>
-            </TouchableOpacity>
+            sezonlar.length > 1 ? (
+              // FİLTRE DÜĞMESİ — çerçeveli, etiketli, dokunulabilir olduğu
+              // belli. Önce 11 punto soluk düz yazıydı ve seçilebilir olduğu
+              // ANLAŞILMIYORDU; "Sezon" etiketi de ne olduğunu söylüyor.
+              <TouchableOpacity
+                onPress={() => setSezonAcik((v) => !v)}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={`Sezon seç, şu an ${sezonAdi(roundYear)}`}
+                style={[styles.sezonChip, sezonAcik && styles.sezonChipAcik]}
+              >
+                <Text style={styles.sezonChipEtiket}>SEZON</Text>
+                <Text style={styles.sezonChipTxt}>{sezonAdi(roundYear)}</Text>
+                <Text style={styles.sezonChipOk}>{sezonAcik ? '▲' : '▼'}</Text>
+              </TouchableOpacity>
+            ) : (
+              // Tek sezon varsa seçecek bir şey yok: düğme gibi göstermek
+              // dokunup hiçbir şey olmamasına yol açar.
+              <Text style={styles.weekYear}>{sezonAdi(roundYear)}</Text>
+            )
           ) : null}
           {sezonAcik ? (
             <View style={styles.sezonListe}>
@@ -863,13 +874,24 @@ const styles = StyleSheet.create({
   hSep: { color: colors.border, fontSize: 12 },
 
   // İkramiye görünüm seçici + tablo/kart
+  // SEZON FİLTRESİ — bir kontrol gibi görünmeli: çerçeve, zemin, ok.
+  sezonChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSoft,
+    paddingHorizontal: 12, paddingVertical: 6, marginBottom: 4,
+  },
+  sezonChipAcik: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  sezonChipEtiket: { color: colors.muted, fontSize: 9.5, fontWeight: '900', letterSpacing: 0.6 },
+  sezonChipTxt: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  sezonChipOk: { color: colors.primary, fontSize: 10, fontWeight: '900' },
   sezonListe: {
     marginTop: 4, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,
     backgroundColor: colors.card, overflow: 'hidden', minWidth: 170,
   },
-  sezonOge: { paddingVertical: 9, paddingHorizontal: 14 },
+  sezonOge: { paddingVertical: 11, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
   sezonOgeSecili: { backgroundColor: colors.primarySoft },
-  sezonOgeTxt: { color: colors.textSoft, fontSize: 12.5, fontWeight: '700' },
+  sezonOgeTxt: { color: colors.textSoft, fontSize: 13, fontWeight: '700' },
   sezonOgeTxtSecili: { color: colors.primary, fontWeight: '900' },
   prizeMeta: { flex: 1, textAlign: 'right', color: colors.textSoft, fontSize: 12, fontWeight: '700' },
   prizeViewRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },
