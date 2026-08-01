@@ -8,7 +8,7 @@
 // yazılır (data/ev-shadow/). Sebep: λ (kalabalık yoğunlaşması) haftada yalnız
 // 4 sayıdan öğrenilir; ≥30 hafta öncesi güvenilir değildir (R1 §2.4).
 import {
-  TIER_SHARES, TIERS, MATCH_COUNT, PAYOUT_RATIO, COLUMN_PRICE_TL,
+  TIER_SHARES, TIERS, MATCH_COUNT, PAYOUT_RATIO, COLUMN_PRICE_TL, COLUMN_PRICE_VERIFIED,
   TAX_RATE, TAX_EXEMPTION_TL, DEFAULT_DRAWS,
 } from './config.js';
 import {
@@ -49,10 +49,23 @@ export function estimateColumnsFromWinners(tiers, { payoutRatio = PAYOUT_RATIO, 
   const enBuyuk = Math.max(...degerler), enKucuk = Math.min(...degerler);
   // Çapraz doğrulama: kademeler arası oran 1.25'i aşarsa ρ şüphelidir.
   const tutarli = enKucuk > 0 ? enBuyuk / enKucuk <= 1.25 : false;
+
+  // ⚠ ÇAPRAZ DOĞRULAMANIN KÖR NOKTASI — bilerek yazılıyor:
+  // Yanlış bir KOLON BEDELİ tüm kademeleri AYNI oranda ölçekler; kademeler
+  // arası oran değişmez, dolayısıyla yukarıdaki kontrol "tutarlı" der.
+  // Ölçüldü: 10/2/50 TL fiyatlarının üçünde de consistent=true, N ise 5 kat
+  // farklı. Yani bu kontrol ρ hatasını yakalar, FİYAT hatasını YAKALAMAZ.
+  // Fiyat doğrulanana kadar N (ve ondan türeyen λ) bu belirsizliği taşır —
+  // çağıran taraf bunu görebilsin diye açıkça bildiriliyor.
   return {
     columns: Math.round(ortalama),
     perTier: tahminler,
     consistent: tutarli,
+    priceAssumed: columnPrice,
+    priceVerified: COLUMN_PRICE_VERIFIED,
+    priceCaveat: COLUMN_PRICE_VERIFIED ? null
+      : `N, doğrulanmamış ${columnPrice} TL kolon bedeline dayanıyor. Bedel yanlışsa `
+        + 'N ve λ aynı oranda kayar; kademeler arası çapraz doğrulama bunu YAKALAYAMAZ.',
     note: tutarli ? null
       : 'Kademeler arası N tahminleri tutarsız — ρ değeri büyük olasılıkla yanlış.',
   };

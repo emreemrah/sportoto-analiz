@@ -16,7 +16,7 @@ import {
   PAYOUT_RATIO, PAYOUT_RATIO_NET, VAT_RATE,
   PAYOUT_RATIO_NET_SINCE, COLUMN_PRICE_VERIFIED,
 } from '../src/ev/config.js';
-import { poolsOf } from '../src/ev/engine.js';
+import { poolsOf, estimateColumnsFromWinners } from '../src/ev/engine.js';
 
 test('ρ_net bulundu ve kanundaki üst sınırla aynı', () => {
   assert.equal(PAYOUT_RATIO_NET, 0.93, '5602 s.K. md.4/2 üst sınırı (7491 s.K. sonrası)');
@@ -93,6 +93,36 @@ test('ρ = ρ_net / (1 + KDV) — 0,775', () => {
   assert.equal(VAT_RATE, 0.20);
   assert.ok(Math.abs(PAYOUT_RATIO - 0.775) < 1e-12,
     `ρ 0,775 olmalı, gelen: ${PAYOUT_RATIO}`);
+});
+
+test('ÇAPRAZ DOĞRULAMANIN KÖR NOKTASI: yanlış fiyatı YAKALAYAMAZ', () => {
+  // Bu test bir hatayı değil, emniyet ağının SINIRINI kilitler.
+  //
+  // estimateColumnsFromWinners kademeler arası tutarlılığa bakar ve bunu
+  // "ρ doğru mu?" sorusunun cevabı olarak sunar. Ama yanlış bir KOLON BEDELİ
+  // tüm kademeleri AYNI oranda ölçekler — oran değişmez, kontrol "tutarlı"
+  // der. Yani kontrolün yakalayamadığı bir hata sınıfı var ve bu bilinmeli.
+  const tiers = {
+    13: { winners: 100, perPersonPrize: 10000 },
+    12: { winners: 1000, perPersonPrize: 1250 },
+  };
+  const ucuz = estimateColumnsFromWinners(tiers, { payoutRatio: 0.775, columnPrice: 2 });
+  const pahali = estimateColumnsFromWinners(tiers, { payoutRatio: 0.775, columnPrice: 50 });
+
+  assert.equal(ucuz.consistent, true, 'yanlış fiyat "tutarsız" görünmüyor');
+  assert.equal(pahali.consistent, true, 'yanlış fiyat "tutarsız" görünmüyor');
+  // 25 kat fiyat farkı → 25 kat N farkı, ama ikisi de "tutarlı".
+  assert.ok(Math.abs(ucuz.columns / pahali.columns - 25) < 0.01,
+    'N fiyatla ters orantılı ölçeklenmeli');
+});
+
+test('fiyat doğrulanmadıkça N çıktısı UYARIYI TAŞIR', () => {
+  // Kör nokta bilindiğine göre, en azından görünür olmalı: N'i kullanan
+  // hiç kimse "bu sayı kesin" sanmasın.
+  const r = estimateColumnsFromWinners({ 13: { winners: 100, perPersonPrize: 10000 } });
+  assert.equal(r.priceVerified, false);
+  assert.equal(r.priceAssumed, 10);
+  assert.match(r.priceCaveat, /çapraz doğrulama bunu YAKALAYAMAZ/);
 });
 
 test('kolon bedeli hâlâ DOĞRULANMAMIŞ olarak işaretli', () => {
