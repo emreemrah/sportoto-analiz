@@ -488,3 +488,52 @@ describe('Radar 5 satır açılımı (sıranın geçmiş maçları)', () => {
     expect(await screen.findByText(/doğrulanmış geçmiş sonuç yok/)).toBeTruthy();
   });
 });
+
+// FİLTRE SATIRI YAPIŞIK — liste kayınca üstte sabit kalır.
+describe('Radar 5 filtre satırı yapışık kalır', () => {
+  const DNA5 = {
+    hasData: true,
+    dna: {
+      positions: Array.from({ length: 3 }, (_, i) => ({
+        position: i + 1,
+        windows: { allTime: { sample: 30, pct: { '1': 50, X: 30, '2': 20 } } },
+      })),
+    },
+  };
+
+  test('Radar 5 açıkken başlık YAPIŞIK indekste', async () => {
+    mockUclar({ ...VARSAYILAN, '/api/radar/position-dna': DNA5 });
+    const { UNSAFE_getByType } = render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Bülten DNA'));
+    await screen.findByText(/Tüm Haftalar/);
+
+    const { FlatList } = require('react-native');
+    expect(UNSAFE_getByType(FlatList).props.stickyHeaderIndices).toEqual([0]);
+  });
+
+  test('Master sekmesinde yapışık şerit YOK (başlık zaten çizilmiyor)', async () => {
+    mockUclar(VARSAYILAN);
+    const { UNSAFE_getByType } = render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    // Master sekmesi açık (varsayılan) — üst panel çizilmiyor…
+    expect(screen.queryByText(/Tüm Haftalar/)).toBeNull();
+    // …bu yüzden sticky indeks de verilmemeli.
+    const { FlatList } = require('react-native');
+    expect(UNSAFE_getByType(FlatList).props.stickyHeaderIndices).toBeUndefined();
+  });
+});
+
+// Radar 4 (Oran Takibi) başlığı UZUN bir bilgi panelidir — dondurulursa
+// ekranın yarısını kaplar. Yapışıklık yalnız Radar 5'e aittir.
+test('Radar 4 sekmesinde başlık YAPIŞIK DEĞİL', async () => {
+  mockUclar({ ...VARSAYILAN });
+  const { UNSAFE_getByType } = render(<RadarScreen navigation={nav} />);
+  await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+  fireEvent.press(screen.getByText('Oran Takibi'));
+  // Olumlu karşılık: Radar 4 paneli gerçekten çizildi…
+  expect(await screen.findByText(/Oran Takibi · Günlük/)).toBeTruthy();
+  // …ama yapışık değil.
+  const { FlatList } = require('react-native');
+  expect(UNSAFE_getByType(FlatList).props.stickyHeaderIndices).toBeUndefined();
+});

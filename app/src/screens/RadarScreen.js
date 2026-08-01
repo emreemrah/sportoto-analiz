@@ -777,6 +777,16 @@ export default function RadarScreen({ navigation }) {
         removeClippedSubviews={false}
         renderItem={renderItem}
         ListHeaderComponent={radarTabHeader()}
+        // FİLTRE SATIRI YAPIŞIK — liste aşağı kayınca üstte sabit kalır.
+        // Kaymayınca kullanıcı 15. sıraya inip hangi dönemin seçili olduğunu
+        // göremiyordu; dönem değiştirmek için hep başa dönmek gerekiyordu.
+        //
+        // YALNIZ RADAR 5: öbür sekmelerin başlığı uzun bir bilgi panelidir,
+        // onu dondurmak ekranın yarısını harcar. Master'da başlık zaten hiç
+        // çizilmez — sticky indeks vermek boş bir yapışık şerit bırakırdı.
+        // (radarTabHeader() ile koşullamak İŞE YARAMAZ: o bir React öğesi
+        // döndürür ve bileşen içeride null çizse bile öğe truthy'dir.)
+        stickyHeaderIndices={centerMode && tab === 'bulletinMemory' ? [0] : undefined}
         ListFooterComponent={
           centerMode && tab === 'bulletinMemory' && positionDna?.hasData ? (
             <Text style={styles.dnaFootnote}>

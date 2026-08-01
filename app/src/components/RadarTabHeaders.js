@@ -226,7 +226,15 @@ const styles = StyleSheet.create({
   tabBannerTxt: { color: colors.textSoft, fontSize: 11.5, lineHeight: 16, marginTop: 4 },
   tabBannerWarn: { color: colors.warning, fontSize: 11, fontWeight: '800', marginTop: 6, fontStyle: 'italic' },
 
-  dnaFilterWrap: { marginBottom: spacing.sm },
+  // YAPIŞIK BAŞLIK ZEMİNİ: bu panel FlatList'te stickyHeaderIndices ile üstte
+  // sabit kalıyor (bkz. RadarScreen). Zemin verilmezse altından kayan maç
+  // satırları filtre çiplerinin arasından görünür ve ikisi iç içe okunur.
+  dnaFilterWrap: {
+    marginBottom: spacing.sm,
+    backgroundColor: colors.bg,
+    paddingTop: 2,
+    paddingBottom: 6,
+  },
   dnaFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   dnaPeriodChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   dnaPeriodChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
