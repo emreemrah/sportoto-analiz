@@ -10,6 +10,7 @@ backend/cache/
 *.log
 
 # Kullanıcı kupon verisi (hesaba bağlı, kalıcı depo)
+# + EV motoru gölge kayıtları (backend/data/ev-shadow/) — iç ölçüm verisi
 backend/data/
 
 # Derleme çıktıları
