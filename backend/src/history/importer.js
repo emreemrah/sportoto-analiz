@@ -74,6 +74,60 @@ export function buildHistoryMatches(bulletin, { now = new Date().toISOString() }
 const isRoundComplete = (matches) =>
   matches.length > 0 && matches.every((m) => m.resultValid || m.conflict === 'result_conflict');
 
+// ---- DEĞERLENDİRME DIŞI (VOID) MAÇLAR --------------------------------------
+// Gerçek durum: resmî API bazı maçların sonucunu HİÇ yayımlamaz (ertelenen/
+// iptal maçlar — ör. 2024/2025 17. Hafta Fiorentina-Inter, 2025/2026 49. Hafta
+// iki Çin ligi maçı). Eski kural bu haftaları sonsuza dek dışarıda bırakıyordu:
+// 15 maçın 13'ü sonuçlu olsa bile hafta arşive giremiyor, sezon "45 hafta"
+// görünüyordu (gerçek: 51). Bu da bir tür sessiz veri kaybıydı.
+//
+// DÜRÜST KURAL: hafta BİTMİŞSE (son planlı maçının üzerinden VOID_GRACE_MS
+// geçmişse) sonuçsuz kalan maçlar 'void_no_result' işaretlenir ve analiz DIŞI
+// kalır (resultValid=false → DNA/istatistik bu satırı hiç görmez; sonuç
+// UYDURULMAZ). Haftanın sonuçlu maçları ise arşive girer.
+//
+// 7 gün: hafta sonu sarkması + sonuçların geç yayımlanması payı. Oynanacak
+// maçı olan hafta (1526 gibi, maçları yarın) bu eşiği AŞAMAZ ve beklemede
+// kalır — erken arşivleme yok.
+export const VOID_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Verilen satırların en geç maç saati. Tarihi olmayan satır sayılmaz.
+export const roundLastMatchAt = (matches) =>
+  matches.map((m) => m.matchAt).filter(Boolean).sort().pop() ?? null;
+
+/**
+ * Haftayı arşive hazırlamayı dener. Dönüş:
+ *   { ready: true,  matches, voided }  → arşivlenebilir (voided: işaretlenen sayı)
+ *   { ready: false }                   → beklemede (hafta sürüyor ya da hiç sonuç yok)
+ * nowIso enjekte edilir (test edilebilirlik; gerçek akışta now()).
+ */
+export function resolveRoundForArchive(matches, nowIso) {
+  if (isRoundComplete(matches)) return { ready: true, matches, voided: 0 };
+  const sonuclu = matches.filter((m) => m.resultValid || m.conflict === 'result_conflict');
+  // Hiç sonuç yoksa "bitti ama yayımlanmadı" ile "hiç oynanmadı" ayrılamaz —
+  // böyle bir hafta arşivlenmez (boş hafta, hafta sayısını şişirir).
+  if (!sonuclu.length) return { ready: false };
+  // ÇAPA = SON SONUÇLU MAÇ, planlı son maç DEĞİL. Gerçek durum: resmî API
+  // ertelenen maçı AYLAR sonrasına tarihleyip aynı bültende tutabiliyor
+  // (2025/2026 43. Hafta: 13 sonuç mayısta, 2 erteleme 3 Eylül'e yazılı).
+  // Planlı son maça bakılsaydı hafta eylüle dek "sürüyor" sayılırdı. Sonuç
+  // penceresi kapandıktan VOID_GRACE_MS sonra hafta bitmiş kabul edilir;
+  // ertelenen maçın resmî sonucu İLERİDE yayımlanırsa düzeltme mekanizması
+  // (sourceHash + correctionVersion + audit) satırı zaten günceller.
+  // Oynanan hafta bundan etkilenmez: sonuçlar yayımlandıkça çapa ilerler.
+  const last = roundLastMatchAt(sonuclu);
+  if (!last || (Date.parse(nowIso) - Date.parse(last)) <= VOID_GRACE_MS) return { ready: false };
+  let voided = 0;
+  const out = matches.map((m) => {
+    if (m.resultValid || m.conflict === 'result_conflict') return m;
+    voided += 1;
+    // resultValid=false KALIR; yalnız işaret netleşir: "kaynak açıklamadı"
+    // değil, "hafta bitti, bu maç değerlendirme dışı".
+    return { ...m, conflict: 'void_no_result' };
+  });
+  return { ready: true, matches: out, voided };
+}
+
 // ---------------------------------------------------------------------------
 // TEK ÇALIŞMA — checkpoint'ten devam eder; maxRoundsPerRun haftayla sınırlı.
 // api parametresi test edilebilirlik içindir (gerçek kaynak: sources/sportoto).
@@ -139,10 +193,21 @@ export async function importOfficialHistoryTick({
           log(`[history] hafta ${r.id} alınamadı (${e.message}) — sonraki döngüde denenecek.`);
           continue;                                                  // checkpoint'e YAZILMAZ → tekrar denenir
         }
-        const matches = buildHistoryMatches(bulletin, { now: now() });
-        if (!isRoundComplete(matches)) {
-          // Henüz sonuçlanmamış geçmiş hafta (nadir) — tamamlanınca alınır.
+        const cozum = resolveRoundForArchive(buildHistoryMatches(bulletin, { now: now() }), now());
+        if (!cozum.ready) {
+          // Hafta sürüyor ya da hiç sonucu yok — tamamlanınca alınır.
           continue;
+        }
+        const matches = cozum.matches;
+        if (cozum.voided) {
+          log(`[history] hafta ${r.id}: ${cozum.voided} maç sonuçsuz kaldı (ertelenen/iptal) — değerlendirme dışı işaretlendi, haftanın kalanı arşive giriyor.`);
+          for (const m of matches.filter((x) => x.conflict === 'void_no_result')) {
+            await store.appendAudit({
+              roundId: r.id, position: m.position, action: 'void',
+              field: 'result', oldValue: null, newValue: 'void_no_result',
+              sourceUrl: SOURCE_URL,
+            });
+          }
         }
         conflicts += matches.filter((m) => m.conflict === 'result_conflict').length;
 

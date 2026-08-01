@@ -212,7 +212,7 @@ test('10. Tek haftanın kaynak hatası turu ÖLDÜRMEZ; hata alan hafta sonra te
   assert.notEqual(await store.getRound('1400'), null);
 });
 
-test('11. Sonuçlanmamış geçmiş hafta arşive ALINMAZ (tamamlanınca alınır)', async () => {
+test('11. SÜREN hafta arşive ALINMAZ (7 günlük bekleme penceresi)', async () => {
   const store = mkStore();
   const b = fullRound(1403);
   b.matches[7] = { ...mkMatch(8, null, null, null), score: null }; // 8. maç sonuçsuz
@@ -220,9 +220,87 @@ test('11. Sonuçlanmamış geçmiş hafta arşive ALINMAZ (tamamlanınca alını
     roundsByYear: { '2023-2024': [{ id: 1403, isPublished: true }] },
     bulletins: { 1403: b },
   });
-  const res = await importOfficialHistoryTick({ store, api, pauseMs: 0, log: () => {} });
+  // Maçlar 10 Ocak'ta; "şimdi" 11 Ocak — hafta bekleme penceresinin İÇİNDE.
+  // Sonuç henüz yayımlanmamış olabilir; erken arşivleme yok.
+  const res = await importOfficialHistoryTick({
+    store, api, pauseMs: 0, log: () => {}, now: () => '2024-01-11T00:00:00.000Z',
+  });
   assert.equal(res.imported, 0);
   assert.equal(await store.getRound('1403'), null);
+});
+
+test('11b. BİTMİŞ haftanın sonuçsuz maçı VOID işaretlenir, haftanın kalanı arşive girer', async () => {
+  // Gerçek olay: resmî API ertelenen/iptal maçların sonucunu HİÇ yayımlamıyor
+  // (2024/2025 17. Hafta Fiorentina-Inter; 2025/2026 49. Hafta iki Çin ligi
+  // maçı). Eski kural bu haftaları sonsuza dek dışarıda bırakıyordu ve sezon
+  // "45 hafta" görünüyordu — gerçekte 51 hafta tamamlanmıştı.
+  const store = mkStore();
+  const b = fullRound(1404);
+  b.matches[7] = { ...mkMatch(8, null, null, null), score: null };
+  const api = makeApi({
+    roundsByYear: { '2023-2024': [{ id: 1404, isPublished: true }] },
+    bulletins: { 1404: b },
+  });
+  // Maçlar 10 Ocak'ta; "şimdi" 20 Ocak — pencere (7 gün) GEÇİLDİ: hafta bitti.
+  const res = await importOfficialHistoryTick({
+    store, api, pauseMs: 0, log: () => {}, now: () => '2024-01-20T00:00:00.000Z',
+  });
+  assert.equal(res.imported, 1);
+  const rows = await store.getMatches('1404');
+  assert.equal(rows.length, 15, 'void maç da satır olarak durur (hafta 15 maçlıydı)');
+  const voidRow = rows.find((m) => m.position === 8);
+  // Sonuç UYDURULMAZ: satır analiz dışıdır ve nedeni bellidir.
+  assert.equal(voidRow.result, null);
+  assert.equal(voidRow.resultValid, false);
+  assert.equal(voidRow.conflict, 'void_no_result');
+  // Kalan 14 maç normal doğrulanmış sonuç taşır.
+  assert.equal(rows.filter((m) => m.resultValid).length, 14);
+  // Şeffaflık: void kararı audit'e yazılır.
+  const audit = await store.listAudit();
+  const v = audit.find((a) => a.action === 'void' && String(a.roundId) === '1404');
+  assert.ok(v, 'void kaydı audit izinde olmalı');
+  assert.equal(v.position, 8);
+});
+
+test('11d. AYLAR sonrasına ertelenen maç haftayı açık TUTMAZ (çapa: son sonuçlu maç)', async () => {
+  // Gerçek olay: 2025/2026 43. Hafta — 13 maç mayısta sonuçlandı, 2 ertelenen
+  // maç resmî API'de 3 Eylül tarihiyle aynı bültende duruyor. Planlı son maça
+  // bakan çapa haftayı eylüle dek "sürüyor" sayardı.
+  const store = mkStore();
+  const b = fullRound(1406);
+  b.matches[10] = { ...mkMatch(11, null, null, null, '2024-03-15T18:00:00Z'), score: null };
+  b.matches[12] = { ...mkMatch(13, null, null, null, '2024-03-15T20:00:00Z'), score: null };
+  const api = makeApi({
+    roundsByYear: { '2023-2024': [{ id: 1406, isPublished: true }] },
+    bulletins: { 1406: b },
+  });
+  // Sonuçlu maçlar 10 Ocak'ta; "şimdi" 20 Ocak. Ertelemeler 15 Mart'ta ama
+  // sonuç penceresi kapanalı 10 gün oldu → hafta bitti, ertelemeler void.
+  const res = await importOfficialHistoryTick({
+    store, api, pauseMs: 0, log: () => {}, now: () => '2024-01-20T00:00:00.000Z',
+  });
+  assert.equal(res.imported, 1);
+  const rows = await store.getMatches('1406');
+  assert.equal(rows.filter((m) => m.conflict === 'void_no_result').length, 2);
+  assert.equal(rows.filter((m) => m.resultValid).length, 13);
+});
+
+test('11c. HİÇ sonucu olmayan eski hafta yine de arşive alınmaz', async () => {
+  // "Bitti ama yayımlanmadı" ile "hiç oynanmadı" ayrılamaz; 15/15 sonuçsuz
+  // bir haftayı void diye arşivlemek hafta sayısını şişirir.
+  const store = mkStore();
+  const b = mkBulletin(1405, Array.from({ length: 15 }, (_, i) => (
+    { ...mkMatch(i + 1, null, null, null), score: null }
+  )));
+  const api = makeApi({
+    roundsByYear: { '2023-2024': [{ id: 1405, isPublished: true }] },
+    bulletins: { 1405: b },
+  });
+  const res = await importOfficialHistoryTick({
+    store, api, pauseMs: 0, log: () => {}, now: () => '2024-06-01T00:00:00.000Z',
+  });
+  assert.equal(res.imported, 0);
+  assert.equal(await store.getRound('1405'), null);
 });
 
 test('12. Single-flight: eşzamanlı ikinci içe aktarma çağrısı atlanır', async () => {
