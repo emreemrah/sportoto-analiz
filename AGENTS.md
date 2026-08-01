@@ -29,7 +29,7 @@ kupon oluşturma ve **kullanıcı mantığı analiz motoru** (`app/src/userMatch
 - `backend/src/refresh.js` — Bülteni çeker, eşleştirir, analiz/tahmin ekler,
   cache'e yazar. `backend/src/enrich.js` — puan durumu/form/H2H/kadro zenginleştirme.
 - `backend/src/analysis/` — `surprise.js` (sürpriz puanı), `prediction.js`
-  (kupon kuralları), `aiComment.js` (opsiyonel Claude yorumu).
+  (kupon kuralları), `aiComment.js` (opsiyonel Codex yorumu).
 - `backend/src/cache.js` — dosya tabanlı JSON cache (`backend/cache/`).
 - `backend/src/config.js` — `.env`'den ayarlar (FOOTYSTATS_API_KEY, PORT, ...).
 
@@ -47,12 +47,6 @@ kupon oluşturma ve **kullanıcı mantığı analiz motoru** (`app/src/userMatch
 - Backend: `cd backend && npm install && npm run dev` (nodemon, :4000)
 - Web: `cd app && npm install && npm run web` (Metro, :8081)
 - Cache yenile: `cd backend && npm run refresh`
-- **Veritabanı migration'ları OTOMATİK**: backend açılışında `backend/migrations/`
-  sırayla uygulanır (defter: `public.schema_migrations`, advisory lock, tam
-  rollback, bütünlük mührü). Elle SQL çalıştırma. `SUPABASE_DB_URL` (session/direct)
-  yoksa migration olmaz: **üretimde** worker/scheduler'lar BAŞLAMAZ, geliştirmede
-  yüksek sesle uyarılır ve devam edilir (`MIGRATIONS_REQUIRED=1` orada da kapatır).
-  Ayrıntı: `backend/migrations/README.md`, `HANDOFF.md` §9.3.
 - Derleme kontrolü (web bundle): `curl -s -o /dev/null -w "%{http_code}" \
   "http://localhost:8081/index.bundle?platform=web&dev=true"` → 200 beklenir.
 

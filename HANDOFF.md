@@ -143,6 +143,210 @@ eşleşmedi (alias gerekir)**. Yeni maç veri gelmiyorsa buradan sebebi görül�
   Render free'de kalıcı değil (Supabase tablosuna taşınmalı).
 - Deploy istenirse: feature → `main` merge + push → Render otomatik deploy.
 
+### 9.1 Radar tamamlama sistemleri (2026-07 görevi)
+- **Resmî geçmiş bülten hafızası** (`src/history/`): sportoto.gov.tr'nin kendi
+  açık webapi'sinden geçmiş sezon/haftalar checkpoint'li + sayfalı içe aktarılır
+  (`importer.js`), provenance `official_result_history` — ileri-test karnelerine
+  ASLA girmez, geçmişe tahmin YAZILMAZ. Skor↔sonuç çapraz doğrulanır; uyuşmazlık
+  `result_conflict` + audit, analiz dışı. Depo: `historyStore.js` (dosya/Supabase
+  — migration **005**). Zamanlayıcı: `scheduler.js` (server.js açılışında).
+- **Bülten Sıra DNA'sı** (`src/history/positionDna.js`): 1-15 sıra 1/X/2
+  dağılımları (son 5/10/25/50/tümü + sezon + segment + eğilim + shrinkage;
+  n<10 yön sinyali yok). Uç: `GET /api/radar/position-dna` (öğrenme sınırı:
+  güncel hafta hariç). Radar 5 = "Bülten DNA".
+- **Oynanma yüzdesi çerçevesi** (`src/providers/playedPercentages.js` +
+  `percentageDna.js`): sağlayıcı adaptör kaydı (Bilyoner kayıtlı fakat açık uç
+  doğrulanmadığı için `enabled:false` — uydurma yüzde YOK), toplam doğrulama,
+  opening/regular/pre_freeze/post_lock_research semantiği (mühür = ilk maç −5dk),
+  bant + geri çekilme hiyerarşili DNA, sağlayıcı uzlaşması. Radar 3 = "Oynanma DNA".
+- **Rakip Seviyesi & Saha Performansı** (`src/analysis/opponentStrength.js`):
+  point-in-time rakip sınıfı (bugünkü tablo geçmişe uygulanmaz), ev yalnız iç
+  saha / deplasman yalnız dış saha, lig büyüklüğüne duyarlı yüzdelik, kalite
+  etiketleri (Kaliteli/Şişirilmiş/Seviye Testi Eksik/Güçlü Rakip Sorunu).
+  Radar 1 = "Rakip Gücü". refresh.js `attachVenueProfiles` ile bağlar.
+- **Kullanıcı dili**: Orta Risk→Temkinli, Sürpriz Adayı→Sürpriz Sinyali,
+  Yetersiz Veri→Analiz Hazır Değil; `unsupported` alanlar (sakatlık vb.) veri
+  puanını düşürmez ve kartlarda tekrarlanmaz (metodolojide bir kez açıklanır).
+- **Migration 005** (`migrations/005_history_dna.sql`): history tabloları +
+  `bulletin_data_observations`'a kind/usable_for_prediction/first_observed_late.
+  Idempotent, DELETE yok, kilitli snapshot'lara dokunmaz. Supabase'e uygulanmadan
+  geçmiş içe aktarım Supabase sürücüsünde bekler (backoff'la dener; dosya
+  sürücüsünde `HISTORY_DRIVER=file` ile çalışır).
+- **Migration 007** (`migrations/007_moderation_report_block.sql`): moderasyon —
+  `comment_reports` (aynı kişi aynı yorumu bir kez bildirir; sebep `CHECK` ile 7
+  değere kilitli) + `user_blocks` (çift yönlü tekillik). İkisinde de RLS açık.
+  Sebep listesi ÜÇ yerde yazılı — `backend/src/moderation.js`,
+  `app/src/moderationReasons.js` ve bu dosyadaki `CHECK` — ve üçünün eşleşmesi
+  `backend/test/moderation.test.mjs` + `app/test/moderation-reasons.test.mjs`
+  tarafından **testle** korunur; elle eşleşmeye güvenilmez.
+  **Gizlilik kararı:** bildirim sayısı, bildiren kimliği ve engelin yönü hiçbir
+  uçtan dönmez ve hiçbir ekranda gösterilmez; "beni kim engelledi" diye bir uç
+  YOKTUR. Yorum listesi engel kümesi okunamazsa **503 döner** (fail-closed),
+  süzgeçsiz liste asla gösterilmez.
+
+- **Moderasyon süreci — Topluluk Kuralları + operatör paneli (2026-07-25).**
+  Google'ın kullanıcı içeriği için istediği üç şartın üçüncüsü: bildirimlere
+  karşılık veren yazılı bir inceleme süreci.
+  - **Herkese açık sayfa:** `backend/legal/topluluk-kurallari.html` →
+    `/topluluk-kurallari` (+ `/community-guidelines`, `.html`). Gizlilik ve
+    hesap silme sayfalarıyla aynı `serveLegal()` mekanizması. Uygulama
+    kurulmadan açılır. Uygulamadaki bağlantı Hakkında ekranında; yol TEK
+    kaynakta: `app/src/brand.js` → `COMMUNITY_RULES_PATH`, ve
+    `app/test/moderation-panel.test.mjs` bunun `server.js`'teki rotayla
+    aynı olduğunu ölçer.
+  - **Yetki:** `backend/src/moderatorGate.js`. Operatör listesi YALNIZ
+    `backend/.env` → `MODERATOR_EMAILS`. Liste tanımsız/boşsa **herkes
+    reddedilir** (fail-closed). Eşleşme tamdır (alt-dize yetki vermez),
+    e-postası **doğrulanmamış** hesap listede olsa bile operatör değildir,
+    istemcinin "ben moderatörüm" demesi hiçbir şey ifade etmez. Bu değişkeni
+    başka hiçbir dosya okumaz — test bunu da korur.
+  - **Uçlar:** `backend/src/routes/moderation.js` (`/api/moderation` altında).
+    `GET /access` kapının ÜSTÜNDEDİR ve herkese **200** döner
+    (`{operator:true|false[, sebep:'eposta-dogrulanmamis']}`); diğer dördü —
+    `GET /reports`, `POST /comments/:id/hide`, `POST /comments/:id/unhide`,
+    `POST /reports/:id/dismiss` — operatör olmayana **403**.
+  - **İşlemler:** `backend/src/moderationOps.js`. `yorumuGizle` ÖNCE yorumu
+    gizler SONRA bildirimleri kapatır; sebebi **elle** yazar — bu, otomatik
+    gizlemeyi MÜHÜRLER (bildirimler geri çekilse de yorum açılmaz).
+    `yorumuGeriAl` ÖNCE bildirimleri kapatır SONRA gizlemeyi temizler (ters
+    sıra, yorumun kendini yeniden gizletmesine yol açardı).
+    `bildirimiYokSay` idempotenttir ve **elle** gizlenmiş yorumu AÇMAZ.
+    `bekleyenBildirimler` yoruma göre gruplar, `total` gerçeği söyler, silinmiş
+    yoruma ait bildirimler sessizce atılmaz — `orphanCount` olarak sayılır.
+  - **Uygulama tarafı:** `app/src/screens/ModerationScreen.js` (ekran),
+    `app/src/moderationView.js` (saf karar mantığı — ekran JSX olduğu için
+    testler bu modülü çalıştırır), Profil'deki giriş `moderationAccess()`
+    cevabına bağlı ve **varsayılan olarak gizlidir** (hata durumunda da).
+    **Uygulamaya hiçbir operatör kimliği gömülmez** — Android paketi okunabilir
+    bir dosyadır; `MODERATOR_EMAILS` uygulamanın hiçbir dosyasında geçmez ve
+    test bunu tarar.
+  - **Gizlilik:** bildirenin kimliği **operatöre de** gösterilmez. Panelde
+    yalnız KAÇ KİŞİ bildirdiği görünür (otomatik gizleme eşiği üç FARKLI
+    kişidir; bu sayı olmadan karar verilemez).
+  - **Testler:** `backend/test/moderation-ops.test.mjs` (52; 44–52 gerçek
+    şemaya karşı), `backend/test/legal-pages.test.mjs` (14),
+    `app/test/moderation-panel.test.mjs` (44).
+
+### 9.2 EN GÜNCEL DURUM (2026-07-22 · devir anı — buradan devam et)
+Radar bölümü şu an DÜRÜST HÂLİYLE KABUL EDİLDİ; kullanıcı diğer bölümlere geçmek
+istiyor. Bu görevlerde yapılanlar:
+
+- **Gerçek oynanma yüzdesi kaynağı (Bilyoner) — açık/oturumsuz uçlar bulundu:**
+  `GET https://www.bilyoner.com/api/sto/programs/active` (program + dinamik gcNo)
+  ve `GET .../api/sto/playratio?gcNo=<gcNo>` (count_1→1, count_0→X, count_2→2).
+  Tarayıcıda `credentials:'omit'` ile HTTP 200 doğrulandı. Adaptör:
+  `src/providers/bilyoner.js` (gerçek parser + matcher.js ile eşleştirme + belirsizlik
+  reddi + `assertAsciiHeaders`). Fixture: `test/fixtures/bilyoner-1525.json`.
+- **⚠️ AÇIK KONU — Bilyoner backend'den ERİŞİLEMİYOR:** ByteString hatası (UA'daki
+  Türkçe 'ı') düzeltildikten sonra backend gerçek çağrıyı yapabildi ama Bilyoner
+  sunucusu tarayıcı-dışı isteklere **HTTP 400 / code 40319 "giriş gerekli"** erişim
+  koruması uyguluyor (7 header setinde aynı; TLS parmak izi düzeyinde bir WAF).
+  **Bu koruma AŞILMADI ve aşılmayacak** (kullanıcı talimatı + ilke). Sonuç: Radar 3
+  şu an gerçek gözlem YAZMIYOR; `providers:1` ama `written:0`, hata izole. Radar 3
+  "gözlem bekleniyor" gösterir, sahte yüzde ÜRETMEZ — bu, kaynağın olmadığı durumda
+  DOĞRU davranış (kullanıcı onayladı). Sağlayıcı incelemesi: `src/providers/PROVIDERS.md`
+  (Misli = SockJS/cookie WebSocket, Nesine = İddaa'ya yönlendiriyor, Oley = yüzde yok).
+  Bilyoner `enabled:true` bırakıldı (kaynak gerçek + public; erişim yolu açılırsa çalışır).
+- **Migration 005 — artık elle uygulanmıyor.** Migration'lar backend açılışında
+  OTOMATİK uygulanıyor (bkz. §9.3). Tek koşul `SUPABASE_DB_URL`; tanımlanana dek
+  geçmiş arşiv `backend/data/history/` DOSYA deposunda birikiyor (dayanıklı düşüş:
+  `supabaseStore.addObservations` kolon-yok hatasında semantik kolonları düşürüp
+  raw ile yazar). Gerçek arşiv: **~23-31 hafta içe aktarıldı.**
+- **Radar 5 (Bülten DNA) ekranı SADELEŞTİRİLDİ (kullanıcı isteği):** üstte yalnız
+  dönem filtresi (Tüm Haftalar / Son 5 / Son 10 / Son 15), altında 15 maç, her maç
+  KENDİ satırında kendi sırasının geçmiş 1/X/2 yüzdesini gösterir ("Geçmiş 1. sıra:
+  1 %61 · X %13 · 2 %26", tam sayı, toplam 100). Sıra seçici / n / arşiv sayısı /
+  shrinkage ana ekrandan KALDIRILDI. Pencereler EN SON tamamlanmış bültenden geriye,
+  güncel hafta hariç. Kod: `positionDna.js` (`last15` penceresi eklendi),
+  `RadarScreen.js` (`dnaPeriod` state + `renderMemoryRow` + `roundPct100`).
+- **Test/derleme durumu:** backend **236/236** yeşil, app testleri yeşil,
+  `expo export --platform web` başarılı. Yeni test dosyaları: `bilyoner-adapter`,
+  `bilyoner-headers` (ByteString regresyon), `observation-resilience`.
+- **Teslim raporları** (kök dizinde): `RAPOR-radar-tamamlama.md`,
+  `RAPOR-oynanma-ve-migration.md`, `RAPOR-bytestring-duzeltme.md`,
+  `RAPOR-radar-tarif-denetimi.md`.
+- **Geçici tanı dosyası** cihazda `backend/_to_delete/bilyonerDiag.js` — silinebilir.
+- **SIRADAKİ:** kullanıcı radar dışı bölümlere geçmek istiyor (ana bülten ekranı,
+  maç detayı, geçmiş bülten/sonuç, kupon akışı, Sistem/Kriter Karnesi, üyelik/profil/
+  topluluk). Hangi bölüm + orada görülen sorun kullanıcıdan alınacak.
+
+### 9.3 OTOMATİK MIGRATION MOTORU (2026-07-25)
+Veritabanı şeması artık yayın altyapısının bir parçası: **elle SQL çalıştırılmıyor.**
+
+- **Nerede:** `backend/src/migrate/` — `plan.js` (hangi dosya çalışacak kararı; saf,
+  DB'siz test edilebilir), `sqlScan.js` (ifade ayırıcı: metin/tanımlayıcı/yorum/
+  dolar-tırnak farkındalığı + psql meta-komutu ayıklama), `runner.js` (uygulayıcı),
+  `verify.js` (tablo/RLS/trigger doğrulaması), `dbUrl.js` (bağlantı + gizlilik
+  süzgeci), `index.js` (açılış sarmalayıcısı). Ayrıntı: `backend/migrations/README.md`.
+- **Ne zaman:** `server.js` içinde `app.listen` geri çağrısında, **worker ve
+  scheduler'lardan ÖNCE**. Migration başarısızsa `startAutoRefreshScheduler`,
+  `startHistoryAndObservationScheduler`, `startArchiveWorker` ve `syncCatalog`
+  BAŞLAMAZ (hepsi veritabanına YAZAR). HTTP dinleyici bilerek ayakta bırakılır ki
+  durum `/api/health` → `migration` alanından okunabilsin.
+- **Açılış kapısı — ortam ayrımı (`index.js`):** `NODE_ENV=production` + Supabase
+  yapılandırılmış + `SUPABASE_DB_URL` YOK ⇒ `ok:false`, worker'lar başlamaz.
+  Aynı durum **geliştirmede** yüksek sesle uyarır ama backend'i durdurmaz
+  (`MIGRATIONS_REQUIRED=1` orada da kapatır). Supabase hiç yapılandırılmamışsa
+  dosya modudur, migration gerekmez. Karar tablosu `test/migrate-gate.test.mjs`
+  ile ölçülür (7 test, DB gerektirmez).
+  *Bu testler bir uyumsuzluktan doğdu: dokümanlar "bağlantı yoksa worker'lar
+  BAŞLAMAZ" diyordu, kod ise ortam ayrımı yapmadan devam ediyordu. Cihazda backend
+  açılıp log okununca görüldü ve düzeltildi.*
+- **Defter:** `public.schema_migrations` (version, filename, checksum(sha256),
+  applied_at, applied_ms, applied_by, seq). RLS açık + policy YOK ⇒ anon/publishable
+  anahtarla erişim reddedilir. Satırlar silinmez/güncellenmez.
+- **Eşzamanlılık:** PostgreSQL advisory lock (`sha256('sportoto:schema_migrations:v1')`
+  türevi anahtar, oturum düzeyinde ⇒ süreç çökerse kendiliğinden serbest kalır).
+- **Tek doğruluk kaynağı:** dosya listesi diskten okunur. `npm run migrate` artık
+  psql çağırmıyor, aynı motoru çalıştırıyor (`scripts/migrate.js`). *Eski psql
+  listesi 004'te unutulmuştu — 005 ve 006 o yoldan HİÇ çalışmıyordu.*
+- **Kanıt:** `test/migrate-live.test.mjs` gerçek PostgreSQL 16'ya karşı 12 test
+  (sıra, tek kez, 2 ve 5 eşzamanlı backend, tam rollback, kaldığı yerden devam,
+  bütünlük reddi, sırasız reddi, kurala uymayan dosya adı reddi, **kilitli veri
+  parmak izi değişmiyor**, gizlilik, doğrulayıcı öz-denetimi).
+  `MIGRATION_TEST_DB_URL` yoksa ATLANIR ve "atlandı ≠ geçti" uyarısı basar.
+  DB'siz statik/saf testler: `migrate-plan`, `migrate-scan`, `migration-safety`.
+- **⛔ AÇIK KOŞUL:** `SUPABASE_DB_URL` (Supabase → Project Settings → Database →
+  Connection string, **session/direct 5432**, 6543 pooler DEĞİL) backend ortamında
+  tanımlı olmalı. PostgREST (`SUPABASE_URL`+`SUPABASE_SECRET_KEY`) DDL çalıştıramaz —
+  yetki değil, protokol sınırı. Tanımlanana dek şema güncellenmez ve worker'lar başlamaz.
+
+### 9.4 DEVİR ANI (2026-07-25 · buradan devam et)
+
+- `SUPABASE_DB_URL` **tanımlandı**; otomatik migration çalıştı, worker/scheduler
+  kendiliğinden başladı (kullanıcının ölçümü — ne bulut kabı ne cihaz VM'i
+  Supabase'e ulaşabiliyor). Telefon bildirimleri **gerçek Android cihazda**
+  doğrulandı (yine kullanıcının ölçümü).
+- **E9 üç şartın üçü de kapandı:** bildirme + engelleme (yorum menüsü,
+  Engellenen Kullanıcılar ekranı) ve **inceleme süreci** (Topluluk Kuralları
+  sayfası + operatör paneli — yukarıdaki migration 007 maddesine bak).
+- **Kullanıcıdan beklenen tek kod-dışı adım:** `backend/.env` içine
+  `MODERATOR_EMAILS=<doğrulanmış e-posta>`. Bu satır olmadan operatör YOKTUR;
+  İnceleme girişi kimsede görünmez.
+- **Ölçüm (bulut):** backend **486/486** (gerçek PostgreSQL 16 bağlı, 0 atlandı),
+  uygulama **376 geçti / 1 atlandı**, `index.bundle` **HTTP 200**.
+- **Ölçüm (cihaz bilgisayarı):** `moderation-ops` + `legal-pages` **57 geçti /
+  0 kaldı / 9 atlandı**; `moderation` + `migrate-live` **21 geçti / 0 kaldı /
+  23 atlandı**. Atlananlar canlı PostgreSQL isteyen testlerdir (cihazda
+  `MIGRATION_TEST_DB_URL` yok) — **atlandı, geçti demek değildir.** Tam 486'lık
+  süit cihazda **ölçülemedi**: ağ dokunan testler cihaz VM'inde ~42 kat yavaş
+  (`api.test.mjs` 17,9 sn / bulutta 0,43 sn) ve cihaza verilen her komut 45 sn'de
+  kesiliyor, arka plan süreci de komutlar arasında yaşamıyor.
+- **Eşitleme dersi (tekrarlanacak):** `git status --short` bu çalışma kopyasında
+  2,1 MB çıktı ürettiği için bir bölümün değişenlerini ayırt etmeye yaramıyor.
+  Bunun yerine **dosya dosya md5 dökümü** alınıp bulut ↔ cihaz karşılaştırıldı
+  (`find … | xargs md5sum`). Yalnız bu tarama sayesinde cihazda **2 eksik yardımcı
+  dosya** (`backend/test/helpers/livePg.mjs`, `pgSupabase.mjs`) ve **2 eski test
+  dosyası** görüldü; bunlar olmadan cihazdaki moderasyon testleri
+  `ERR_MODULE_NOT_FOUND` ile çöküyordu. Şu an `backend/src` + `app/src` +
+  `app/test` (**261** dosya) ve `backend/test` (**45** dosya) ağaçlarının tamamı
+  bulutla **birebir aynı**.
+- **Henüz denenmemiş:** gerçek telefonda Bildir/Engelle ve İnceleme akışı.
+- **Ertelenmiş (kullanıcı kararı):** alan adı + HTTPS, destek e-postası, Play
+  Console + imzalama anahtarı, applicationId onayı, marka sorgusu, ad kararı,
+  "kupon" dili kararı, mağaza görselleri. Kod tarafındaki eksikler bitmeden
+  yayın adımlarına geçilmiyor.
+
 ## 10. YENİ CLAUDE İÇİN BAŞLANGIÇ PROMPT'U
 Yeni oturumun ilk mesajına şunu yapıştır:
 
