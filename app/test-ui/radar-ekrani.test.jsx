@@ -411,43 +411,57 @@ describe('Radar 5 dönem filtresi', () => {
     },
   });
 
-  test('sezon seçenekleri filtre satırında görünüyor', async () => {
+  // Radar 5'e gidip filtre satırını hazırlayan ortak adım.
+  const dnaSekmesi = async () => {
     mockUclar({ ...VARSAYILAN, '/api/radar/position-dna': dnaVer() });
     render(<RadarScreen navigation={nav} />);
     await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
     fireEvent.press(screen.getByText('Bülten DNA'));
+    await screen.findByText(/Tüm Haftalar/);
+  };
 
-    // Sabit dönemler duruyor…
-    expect(await screen.findByText(/Tüm Haftalar/)).toBeTruthy();
-    // …ve sezonlar eklendi (yeniden eskiye).
-    expect(screen.getByText(/2025\/2026 Sezonu/)).toBeTruthy();
-    expect(screen.getByText(/2024\/2025 Sezonu/)).toBeTruthy();
+  test('SEZON düğmesi var, liste KAPALI başlar', async () => {
+    await dnaSekmesi();
+    // Sabit dönem çipleri duruyor…
+    expect(screen.getByText(/Tüm Haftalar/)).toBeTruthy();
+    expect(screen.getByText(/Son 5 Hafta/)).toBeTruthy();
+    // …yanlarında tek bir SEZON düğmesi (dört sezon çipi DEĞİL).
+    expect(screen.getByText('SEZON')).toBeTruthy();
+    expect(screen.getByText('Seç')).toBeTruthy();     // henüz sezon seçili değil
+    expect(screen.getByTestId('sezon-ok').props.children).toBe('▼');
+    // Liste kapalı: sezonlar henüz yazılı değil.
+    expect(screen.queryByText('2025/2026')).toBeNull();
   });
 
-  test('sezon çipinde o sezonun kendi yüzdesi yazıyor', async () => {
-    mockUclar({ ...VARSAYILAN, '/api/radar/position-dna': dnaVer() });
-    render(<RadarScreen navigation={nav} />);
-    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
-    fireEvent.press(screen.getByText('Bülten DNA'));
-    // 2025/2026 → %55.0 · 2024/2025 → %45.0 (uydurma değil, veriden).
-    expect(await screen.findByText(/2025\/2026 Sezonu · %55\.0/)).toBeTruthy();
-    expect(screen.getByText(/2024\/2025 Sezonu · %45\.0/)).toBeTruthy();
+  test('SEZON düğmesine basınca liste açılır, sezonlar eskiden yeniye', async () => {
+    await dnaSekmesi();
+    fireEvent.press(screen.getByText('SEZON'));
+    expect(await screen.findByText('2024/2025')).toBeTruthy();
+    expect(screen.getByText('2025/2026')).toBeTruthy();
+    expect(screen.getByTestId('sezon-ok').props.children).toBe('▲');   // ok yön değiştirdi
   });
 
-  test('sezon çipi HAFTA SAYISINI da yazar (az veri gizlenmez)', async () => {
-    mockUclar({ ...VARSAYILAN, '/api/radar/position-dna': dnaVer() });
-    render(<RadarScreen navigation={nav} />);
-    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
-    fireEvent.press(screen.getByText('Bülten DNA'));
+  test('liste satırında YÜZDE ve HAFTA SAYISI yazılı (az veri gizlenmez)', async () => {
+    await dnaSekmesi();
+    fireEvent.press(screen.getByText('SEZON'));
     // 14 ve 16 hafta — kullanıcı yüzdenin kaç haftaya dayandığını görebilmeli.
-    expect(await screen.findByText(/2025\/2026 Sezonu · %55\.0 \(14 hafta\)/)).toBeTruthy();
-    expect(screen.getByText(/2024\/2025 Sezonu · %45\.0 \(16 hafta\)/)).toBeTruthy();
-    // Sabit pencerelerde hafta eki YOK (etikette zaten yazılı) — olumlu karşılık:
-    expect(screen.getByText(/Son 5 Hafta · %60\.0/)).toBeTruthy();
-    expect(screen.queryByText(/Son 5 Hafta.*\(\d+ hafta\)/)).toBeNull();
+    expect(await screen.findByText('%55.0 · 14 hafta')).toBeTruthy();
+    expect(screen.getByText('%45.0 · 16 hafta')).toBeTruthy();
   });
 
-  test('veride sezon YOKSA sezon çipi çıkmaz', async () => {
+  test('sezon seçilince dönem o sezona geçer ve liste kapanır', async () => {
+    await dnaSekmesi();
+    fireEvent.press(screen.getByText('SEZON'));
+    fireEvent.press(await screen.findByText('2024/2025'));
+    // Düğme artık seçili sezonu yazıyor ("Seç" değil).
+    expect(await screen.findByText('2024/2025')).toBeTruthy();
+    expect(screen.queryByText('Seç')).toBeNull();
+    // Liste kapandı: ok aşağı döndü, öbür sezon satırı kalktı.
+    expect(screen.getByTestId('sezon-ok').props.children).toBe('▼');
+    expect(screen.queryByText('2025/2026')).toBeNull();
+  });
+
+  test('veride sezon YOKSA SEZON düğmesi çıkmaz', async () => {
     mockUclar({
       ...VARSAYILAN,
       '/api/radar/position-dna': {
@@ -458,8 +472,11 @@ describe('Radar 5 dönem filtresi', () => {
     render(<RadarScreen navigation={nav} />);
     await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
     fireEvent.press(screen.getByText('Bülten DNA'));
-    await screen.findByText(/Tüm Haftalar/);
-    expect(screen.queryByText(/Sezonu/)).toBeNull();
+    // Olumlu karşılık: filtre satırı çiziliyor…
+    expect(await screen.findByText(/Tüm Haftalar/)).toBeTruthy();
+    // …ama seçilecek sezon olmadığı için düğme yok (dokunup hiçbir şey
+    // olmaması, olmayan veriyi varmış gibi göstermek olurdu).
+    expect(screen.queryByText('SEZON')).toBeNull();
   });
 
   test('filtre satırı YAPIŞIK — liste kayınca üstte kalır', async () => {

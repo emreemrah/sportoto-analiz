@@ -13,7 +13,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, spacing, radius } from '../theme';
-import { donemSecenekleri } from '../radarScreenData';
+import { DNA_PERIODS, sezonSecenekleri } from '../radarScreenData';
 
 // Oynanma yüzdesi sağlayıcı adları (Radar 3 kaynağı = hangi bahis sitesi).
 const PROVIDER_NAMES = { nesine: 'Nesine', bilyoner: 'Bilyoner', misli: 'Misli', oley: 'Oley' };
@@ -67,6 +67,10 @@ export default function RadarTabHeader({
   dailyOdds, oddsDay, onSelectOddsDay,
   dailyPlayed, playedDay, onSelectPlayedDay,
   positionDna, dnaPeriod, onSelectDnaPeriod,
+  // Sezon listesinin AÇIK/KAPALI durumu burada TUTULMAZ (bkz. dosya başlığı:
+  // bu başlıklar durumsuzdur ve RadarScreen içinde düz fonksiyon olarak
+  // çağrılır — burada useState kullanmak kancaları render dışına taşırdı).
+  sezonAcik = false, onToggleSezon = () => {},
   donemGucu = {}, donemEgilimi = {},
   muhurluHafta, muhurluRadar5Yok, meta,
 }) {
@@ -156,10 +160,12 @@ export default function RadarTabHeader({
     // SADE MAÇ ODAKLI GÖRÜNÜM: üstte yalnız küçük dönem filtresi. Sıra
     // yüzdeleri her maçın kendi kartında görünür. Teknik bilgiler (n, arşiv
     // sayısı, shrinkage) ana ekranda YOK — yalnız metodolojide.
+    const sezonlar = sezonSecenekleri(positionDna);
+    const seciliSezon = sezonlar.find((s) => s.k === dnaPeriod) || null;
     return (
       <View style={[styles.dnaFilterWrap, styles.yapiskan]}>
         <View style={styles.dnaFilterRow}>
-          {donemSecenekleri(positionDna).map((p) => {
+          {DNA_PERIODS.map((p) => {
             const on = dnaPeriod === p.k;
             return (
               <TouchableOpacity key={p.k} onPress={() => onSelectDnaPeriod(p.k)}
@@ -167,11 +173,6 @@ export default function RadarTabHeader({
                 <View style={styles.dnaPeriodLabel}>
                   <Text style={[styles.dnaPeriodTxt, on && styles.dnaPeriodTxtOn]}>
                     {p.label}{donemGucu[p.k] != null ? ` · %${donemGucu[p.k]}` : ''}
-                    {/* SEZON ÇİPİNDE HAFTA SAYISI: arşivde 2022/2023 yalnız 6,
-                        2025/2026 ise 51 hafta. Sayıyı yazmazsak 6 haftalık bir
-                        yüzde 51 haftalıkla eşit güvenilirlikte görünür. Sabit
-                        pencerelerde (Son 5/10/15) sayı zaten etikettedir. */}
-                    {p.hafta != null ? ` (${p.hafta} hafta)` : ''}
                   </Text>
                   {donemEgilimi[p.k] ? (
                     <Text style={[
@@ -185,7 +186,49 @@ export default function RadarTabHeader({
               </TouchableOpacity>
             );
           })}
+          {/* SEZON — açılır liste. Sabit pencerelerin yanına 4 sezonu daha çip
+              olarak dizmek satırı okunmaz hâle getiriyordu; Bülten ekranındaki
+              sezon seçiciyle AYNI kalıp kullanılır (etiket + değer + ok).
+              Sezon de bir DÖNEM'dir: seçilince dnaPeriod "season:2024/2025"
+              olur, sabit çiplerin seçimi kalkar — pencereler ayrıktır. */}
+          {sezonlar.length ? (
+            <TouchableOpacity
+              onPress={onToggleSezon}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel={`Sezon seç, şu an ${seciliSezon ? seciliSezon.sezon : 'seçili değil'}`}
+              style={[styles.sezonChip, (sezonAcik || !!seciliSezon) && styles.sezonChipAcik]}
+            >
+              <Text style={styles.sezonChipEtiket}>SEZON</Text>
+              <Text style={styles.sezonChipTxt}>{seciliSezon ? seciliSezon.sezon : 'Seç'}</Text>
+              {/* testID şart: ▲/▼ eğilim oklarında da kullanılıyor, düz metin
+                  aramasıyla bu ok onlardan ayırt edilemiyor. */}
+              <Text testID="sezon-ok" style={styles.sezonChipOk}>{sezonAcik ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
+        {sezonAcik && sezonlar.length ? (
+          <View style={styles.sezonListe}>
+            {sezonlar.map((s) => {
+              const secili = dnaPeriod === s.k;
+              return (
+                <TouchableOpacity
+                  key={s.k}
+                  style={[styles.sezonOge, secili && styles.sezonOgeSecili]}
+                  onPress={() => { onSelectDnaPeriod(s.k); onToggleSezon(); }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.sezonOgeTxt, secili && styles.sezonOgeTxtSecili]}>{s.sezon}</Text>
+                  {/* HAFTA SAYISI burada yazılır: 6 haftalık bir sezonun
+                      yüzdesi 51 haftalıkla eşit güvenilirlikte görünmemeli. */}
+                  <Text style={styles.sezonOgeMeta}>
+                    {donemGucu[s.k] != null ? `%${donemGucu[s.k]} · ` : ''}{s.hafta} hafta
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : null}
         {positionDna && !positionDna.hasData ? (
           <Text style={styles.dnaHint}>
             {positionDna.note || 'Resmî geçmiş arşiv birikiyor — veri geldikçe sıra yüzdeleri görünür.'}
@@ -235,7 +278,32 @@ const styles = StyleSheet.create({
   tabBannerWarn: { color: colors.warning, fontSize: 11, fontWeight: '800', marginTop: 6, fontStyle: 'italic' },
 
   dnaFilterWrap: { marginBottom: spacing.sm },
-  dnaFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  dnaFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' },
+  // SEZON SEÇİCİ — Bülten ekranındakiyle AYNI görünüm (BulletinScreen.js
+  // sezonChip*/sezonListe*/sezonOge*). İki ekranda aynı işi yapan iki farklı
+  // görünüm kullanıcıyı yanıltır.
+  sezonChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSoft, paddingHorizontal: 12, paddingVertical: 6,
+  },
+  sezonChipAcik: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  sezonChipEtiket: { color: colors.muted, fontSize: 9.5, fontWeight: '900', letterSpacing: 0.6 },
+  sezonChipTxt: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  sezonChipOk: { color: colors.primary, fontSize: 10, fontWeight: '900' },
+  sezonListe: {
+    marginTop: 6, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,
+    backgroundColor: colors.card, overflow: 'hidden', alignSelf: 'flex-start', minWidth: 200,
+  },
+  sezonOge: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+    paddingVertical: 11, paddingHorizontal: 16,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  sezonOgeSecili: { backgroundColor: colors.primarySoft },
+  sezonOgeTxt: { color: colors.textSoft, fontSize: 13, fontWeight: '700' },
+  sezonOgeTxtSecili: { color: colors.primary, fontWeight: '900' },
+  sezonOgeMeta: { color: colors.muted, fontSize: 11, fontWeight: '700' },
   dnaPeriodChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   dnaPeriodChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
   dnaPeriodLabel: { flexDirection: 'row', alignItems: 'center', gap: 5 },

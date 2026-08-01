@@ -31,18 +31,21 @@ export const sezonEtiketi = (y) => {
 };
 
 /**
- * DÖNEM SEÇENEKLERİ — sabit pencereler + VERİDE GERÇEKTEN BULUNAN sezonlar.
+ * SEZON SEÇENEKLERİ — açılır "SEZON" listesini besleyen kayıtlar.
  *
  * Sezonlar elle yazılmaz: arka uçtan gelen pencere anahtarlarından
  * ("season:2025/2026") türetilir. Böylece arşivde olmayan bir sezon seçenek
  * olarak GÖRÜNMEZ — dokunulduğunda boş çıkan bir filtre, olmayan veriyi
  * varmış gibi gösterir.
  *
- * Sezonlar yeniden eskiye sıralanır (kullanıcı önce güncel sezonu arar).
- * Sıralama METİN karşılaştırmasıyla yapılır: "2025/2026" bir sayı değildir,
- * Number() ile NaN olur ve sıralama çökerdi.
+ * Sıralama ESKİDEN YENİYE'dir (Bülten ekranındaki sezon listesiyle aynı
+ * düzen; iki ekranda farklı sıra kullanıcıyı yanıltır). Karşılaştırma METİN
+ * ile yapılır: "2025/2026" bir sayı değildir, Number() ile NaN olur.
+ *
+ * hafta: o sezonda arşivde kaç hafta var. Arşivde 2022/2023 yalnız 6,
+ * 2025/2026 ise 51 hafta — sayı yazılmazsa iki yüzde eşit güvenilir görünür.
  */
-export function donemSecenekleri(positionDna) {
+export function sezonSecenekleri(positionDna) {
   const pozisyonlar = positionDna?.dna?.positions || [];
   const hafta = new Map();     // anahtar → o sezondaki hafta sayısı
   for (const p of pozisyonlar) {
@@ -52,12 +55,21 @@ export function donemSecenekleri(positionDna) {
       if (n > 0) hafta.set(k, Math.max(hafta.get(k) ?? 0, n));
     }
   }
-  const sezonlar = [...hafta.keys()]
+  return [...hafta.keys()]
     .map((k) => ({ k, sezon: k.slice('season:'.length) }))
     .filter((x) => x.sezon && x.sezon !== 'bilinmiyor')
-    .sort((a, b) => String(b.sezon).localeCompare(String(a.sezon)))
-    .map((x) => ({ k: x.k, label: sezonEtiketi(x.sezon), hafta: hafta.get(x.k) }));
-  return [...DNA_PERIODS, ...sezonlar];
+    .sort((a, b) => String(a.sezon).localeCompare(String(b.sezon)))
+    .map((x) => ({
+      k: x.k,
+      sezon: x.sezon,                 // "2022/2023" — açılır listede yazılan
+      label: sezonEtiketi(x.sezon),   // "2022/2023 Sezonu"
+      hafta: hafta.get(x.k),
+    }));
+}
+
+/** Sabit pencereler + sezonlar tek listede (yüzde/eğilim hesapları için). */
+export function donemSecenekleri(positionDna) {
+  return [...DNA_PERIODS, ...sezonSecenekleri(positionDna)];
 }
 
 export const MASTER_FILTERS = [

@@ -179,28 +179,33 @@ const dnaIle = (windows) => ({ dna: { positions: [{ windows }] } });
 // (backend/src/history/historyStore.js). Sayı değildir: Number("2025/2026")
 // NaN verir. Bu testler o biçimi kilitler; bir zamanlar sayısal varsayan bir
 // eleme yüzünden BÜTÜN sezonlar düşmüş ve filtre boş görünmüştü.
-test('sezonlar VERİDEN türüyor, yeniden eskiye sıralı', async () => {
-  const { donemSecenekleri } = await import('../src/radarScreenData.js');
-  const s = donemSecenekleri(dnaIle({
-    allTime: { sample: 150, pct: { '1': 50, X: 30, '2': 20 } },
-    'season:2023/2024': { sample: 43, pct: { '1': 40, X: 30, '2': 30 } },
-    'season:2025/2026': { sample: 51, pct: { '1': 55, X: 25, '2': 20 } },
-    'season:2024/2025': { sample: 50, pct: { '1': 45, X: 35, '2': 20 } },
-    'season:2022/2023': { sample: 6, pct: { '1': 33, X: 33, '2': 34 } },
-  }));
-  const anahtarlar = s.map((x) => x.k);
-  // Önce sabit pencereler, sonra sezonlar (yeniden eskiye).
-  assert.deepEqual(anahtarlar.slice(0, 4), ['allTime', 'last5', 'last10', 'last15']);
-  assert.deepEqual(anahtarlar.slice(4), [
-    'season:2025/2026', 'season:2024/2025', 'season:2023/2024', 'season:2022/2023',
-  ]);
-  assert.equal(s.find((x) => x.k === 'season:2025/2026').label, '2025/2026 Sezonu');
-  assert.equal(s.find((x) => x.k === 'season:2022/2023').label, '2022/2023 Sezonu');
+const DORT_SEZON = {
+  allTime: { sample: 150, pct: { '1': 50, X: 30, '2': 20 } },
+  'season:2023/2024': { sample: 43, pct: { '1': 40, X: 30, '2': 30 } },
+  'season:2025/2026': { sample: 51, pct: { '1': 55, X: 25, '2': 20 } },
+  'season:2024/2025': { sample: 50, pct: { '1': 45, X: 35, '2': 20 } },
+  'season:2022/2023': { sample: 6, pct: { '1': 33, X: 33, '2': 34 } },
+};
+
+test('sezonlar VERİDEN türüyor, eskiden yeniye sıralı', async () => {
+  const { sezonSecenekleri } = await import('../src/radarScreenData.js');
+  const s = sezonSecenekleri(dnaIle(DORT_SEZON));
+  // Bülten ekranındaki sezon listesiyle AYNI düzen: eskiden yeniye.
+  assert.deepEqual(s.map((x) => x.sezon), ['2022/2023', '2023/2024', '2024/2025', '2025/2026']);
+  // Sabit pencereler bu listeye KARIŞMAZ (onlar ayrı çipler).
+  assert.ok(!s.some((x) => x.k === 'allTime'));
+  assert.equal(s.find((x) => x.sezon === '2025/2026').k, 'season:2025/2026');
+  assert.equal(s.find((x) => x.sezon === '2025/2026').label, '2025/2026 Sezonu');
   // HAFTA SAYISI taşınır: 6 haftalık sezon 51 haftalıkla eşit görünmemeli.
-  assert.equal(s.find((x) => x.k === 'season:2022/2023').hafta, 6);
-  assert.equal(s.find((x) => x.k === 'season:2025/2026').hafta, 51);
-  // Sabit pencerelerde hafta sayısı YOKTUR (zaten etikette yazılı).
-  assert.equal(s.find((x) => x.k === 'last5').hafta, undefined);
+  assert.equal(s.find((x) => x.sezon === '2022/2023').hafta, 6);
+  assert.equal(s.find((x) => x.sezon === '2025/2026').hafta, 51);
+});
+
+test('donemSecenekleri sabit pencereleri ve sezonları birlikte verir', async () => {
+  const { donemSecenekleri } = await import('../src/radarScreenData.js');
+  const anahtarlar = donemSecenekleri(dnaIle(DORT_SEZON)).map((x) => x.k);
+  assert.deepEqual(anahtarlar.slice(0, 4), ['allTime', 'last5', 'last10', 'last15']);
+  assert.equal(anahtarlar.length, 8, 'dört sabit pencere + dört sezon');
 });
 
 test('sezon etiketi BOŞ değerde uydurma sezon yazmaz', async () => {

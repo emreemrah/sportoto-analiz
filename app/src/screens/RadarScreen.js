@@ -62,7 +62,8 @@ export default function RadarScreen({ navigation }) {
   const [showMeth, setShowMeth] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [positionDna, setPositionDna] = useState(null); // Bülten DNA (Radar 5 detayı)
-  const [dnaPeriod, setDnaPeriod] = useState('allTime'); // dönem filtresi (Tüm/5/10/15)
+  const [dnaPeriod, setDnaPeriod] = useState('allTime'); // dönem filtresi (Tüm/5/10/15/sezon)
+  const [sezonAcik, setSezonAcik] = useState(false);     // SEZON açılır listesi kapalı başlar
   const [dailyOdds, setDailyOdds] = useState(null);   // Radar 4 Oran Takibi (günlük mühürlü oran)
   const [oddsDay, setOddsDay] = useState(null);       // seçili gün (Pazar..Cuma)
   const [dailyPlayed, setDailyPlayed] = useState(null); // Radar 3 Oynanma DNA (günlük mühürlü yüzde)
@@ -354,6 +355,7 @@ export default function RadarScreen({ navigation }) {
       dailyOdds={dailyOdds} oddsDay={oddsDay} onSelectOddsDay={setOddsDay}
       dailyPlayed={dailyPlayed} playedDay={playedDay} onSelectPlayedDay={setPlayedDay}
       positionDna={positionDna} dnaPeriod={dnaPeriod} onSelectDnaPeriod={setDnaPeriod}
+      sezonAcik={sezonAcik} onToggleSezon={() => setSezonAcik((v) => !v)}
       donemGucu={donemGucu} donemEgilimi={donemEgilimi}
       muhurluHafta={muhurluHafta} muhurluRadar5Yok={muhurluRadar5Yok} meta={meta}
     />
@@ -687,7 +689,7 @@ export default function RadarScreen({ navigation }) {
 
       <FlatList
         data={listData}
-        extraData={[tab, legacyView, filter, legacyFilter, sortMode, expandedNo, picks, dnaPeriod, positionDna, dailyOdds, oddsDay, dailyPlayed, playedDay, dnaKey]}
+        extraData={[tab, legacyView, filter, legacyFilter, sortMode, expandedNo, picks, dnaPeriod, sezonAcik, positionDna, dailyOdds, oddsDay, dailyPlayed, playedDay, dnaKey]}
         keyExtractor={(r) => String(r.no)}
         // BUG DÜZELTMESİ: Web'de FlatList varsayılan ilk 10 satırı çizer
         // (initialNumToRender=10) ve filtre küçülüp "Tümü"ne dönünce
