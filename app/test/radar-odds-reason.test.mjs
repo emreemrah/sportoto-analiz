@@ -14,20 +14,25 @@ const kok = join(dirname(fileURLToPath(import.meta.url)), '..');
 const oku = (...p) => readFileSync(join(kok, ...p), 'utf8');
 const kodu = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 const RADAR = kodu(oku('src', 'screens', 'RadarScreen.js'));
+// Sekme üst panelleri (Radar 3/4/5 başlıkları, gün çipleri, sayaç) ekrandan
+// ayrılıp components/RadarTabHeaders.js'e taşındı. Kaynak taraması artık iki
+// dosyaya bakar; taşınan blok için DOĞRU dosya okunmalı, yoksa test 'blok
+// bulunamadı' diye kırılır — davranış bozulmadığı hâlde.
+const BASLIKLAR = kodu(oku('src', 'components', 'RadarTabHeaders.js'));
 
 // Bir bileşen/blokun kaynağını SINIRLARIYLA al. Sabit uzunlukta dilim almak
 // komşu bloğa taşar ve testi yanlış yerden geçirir/düşürür.
-const blokAl = (bas, son) => {
-  const i = RADAR.indexOf(bas);
+const blokAl = (bas, son, kaynak = RADAR) => {
+  const i = kaynak.indexOf(bas);
   assert.ok(i > 0, `${bas} bulunamadı`);
-  const j = RADAR.indexOf(son, i);
+  const j = kaynak.indexOf(son, i);
   assert.ok(j > i, `${son} bulunamadı (blok sınırı)`);
-  return RADAR.slice(i, j);
+  return kaynak.slice(i, j);
 };
 
 // Radar 4 satır çizicisi — sebep burada yazılır.
-const marketRow = () => blokAl('const renderMarketRow', 'const DayChipsRow');
-const oddsCounter = () => blokAl('const OddsCounter', 'const playedDays');
+const marketRow = () => blokAl('const renderMarketRow', 'const playedDays');
+const oddsCounter = () => blokAl('export function OddsCounter', 'export default function', BASLIKLAR);
 
 test('satır, arka uçtan gelen KENDİ sebebini yazar (notes → why.text)', () => {
   const blok = marketRow();
@@ -65,9 +70,9 @@ test('sayaç arka uçtaki gerçek sayıyı gösterir (withData / counts.total)',
 });
 
 test('sayaç Radar 4 başlığında gerçekten çiziliyor', () => {
-  const i = RADAR.indexOf("if (tab === 'market')");
+  const i = BASLIKLAR.indexOf("if (tab === 'market')");
   assert.ok(i > 0, 'Radar 4 başlık dalı bulunamadı');
-  const blok = RADAR.slice(i, RADAR.indexOf("if (tab === 'publicBetting')", i));
+  const blok = BASLIKLAR.slice(i, BASLIKLAR.indexOf("if (tab === 'publicBetting')", i));
   assert.match(blok, /<OddsCounter/, 'sayaç başlığa eklenmemiş');
 });
 

@@ -15,37 +15,19 @@ import NoInternetScreen, { isNetworkError } from '../components/NoInternetScreen
 import ScreenBackdrop from '../components/ScreenBackdrop';
 import AnalysisHeader from '../components/AnalysisHeader';
 import { MasterMatchCard, RadarTabCard, RADAR_TAB_DEFS } from '../components/RadarCenterCards';
+import RadarTabHeader, { providerLabel } from '../components/RadarTabHeaders';
 import { getDraft, setDraftPick } from '../coupon/store';
 import { OUTCOMES } from '../couponConfig';
 import {
   normalizeWeeks, resolveCurrentId, isCurrentWeek, deriveScreenState, screenStateMessage,
 } from '../radarScreenLogic';
-
-// Yüzdeleri sade TAM SAYIya yuvarla ve toplamı 100'e sabitle (en büyük kalan
-// yöntemi) — kullanıcı örneğindeki "1 %44 · X %37 · 2 %19" gibi temiz görünüm.
-const roundPct100 = (pct) => {
-  if (!pct) return null;
-  const raw = { '1': Number(pct['1']) || 0, X: Number(pct.X) || 0, '2': Number(pct['2']) || 0 };
-  const floors = { '1': Math.floor(raw['1']), X: Math.floor(raw.X), '2': Math.floor(raw['2']) };
-  let rem = 100 - (floors['1'] + floors.X + floors['2']);
-  const order = ['1', 'X', '2'].sort((a, b) => (raw[b] - floors[b]) - (raw[a] - floors[a]));
-  for (let i = 0; i < order.length && rem > 0; i++) { floors[order[i]] += 1; rem -= 1; }
-  return floors;
-};
-
-const ord = (n) => (n != null ? `${n}.` : '—');
-const wdl = (v) => (v ? `${v.wins || 0}G ${v.draws || 0}B ${v.losses || 0}M` : null);
-const num1 = (v) => { const n = Number(v); return Number.isFinite(n) ? (Number.isInteger(n) ? String(n) : n.toFixed(1)) : null; };
-const fmtClock = (iso) => (iso ? new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '');
-
-// Radar 5 (Bülten DNA) dönem filtresi. Pencereler EN SON tamamlanmış bültenden
-// geriye doğru sayılır; güncel/sonuçlanmamış hafta backend'de zaten hariç.
-const DNA_PERIODS = [
-  { k: 'allTime', label: 'Tüm Haftalar' },
-  { k: 'last5', label: 'Son 5 Hafta' },
-  { k: 'last10', label: 'Son 10 Hafta' },
-  { k: 'last15', label: 'Son 15 Hafta' },
-];
+// Veri türetme (filtre/sıralama/sayaç/biçim) ekrandan ayrıldı — bkz.
+// radarScreenData.js. Ekran yalnız ÇİZER; ne göstereceğine orası karar verir.
+import {
+  DNA_PERIODS, MASTER_FILTERS, roundPct100, ord, wdl, num1, fmtClock, birOndalik,
+  classCountsOf, filterMaster, sortMaster, freezeMinutes,
+  legacyCountsOf, legacyFiltered, radar5PeriodSuccess, radar5PeriodTrend, rowTrend,
+} from '../radarScreenData';
 
 // RADAR 3 OTOMATİK TAZELEME — sekme açıkken ekran kendiliğinden yenilenir.
 // Sağlayıcı gözlemi arka planda 15 dk'da bir yazıldığı için 60 sn'lik ekran
@@ -53,19 +35,6 @@ const DNA_PERIODS = [
 // Yalnız GÜNCEL hafta tazelenir: mühürlü/geçmiş haftanın değeri değişmez.
 const PLAYED_REFRESH_MS = 60e3;
 
-// Oynanma yüzdesi sağlayıcı adları (Radar 3 kaynağı = hangi bahis sitesi).
-const PROVIDER_NAMES = { nesine: 'Nesine', bilyoner: 'Bilyoner', misli: 'Misli', oley: 'Oley' };
-const providerLabel = (s) => PROVIDER_NAMES[s] || s;
-
-const MASTER_FILTERS = [
-  { k: 'all', label: 'Tümü' },
-  { k: 'strong', label: '🟢 Güçlü Aday' },
-  { k: 'medium', label: '🟡 Karışık Sinyal' },
-  { k: 'surprise', label: '🔴 Sürpriz Sinyali' },
-  { k: 'insufficient', label: '⚪ Analiz Hazır Değil' },
-  { k: 'drawRisk', label: 'X Beraberlik Riski' },
-  { k: 'awaySurprise', label: '2 Dep. Sürprizi' },
-];
 
 export default function RadarScreen({ navigation }) {
   const [view, setView] = useState(null);            // Radar Merkezi görünümü (matches[])
@@ -105,6 +74,27 @@ export default function RadarScreen({ navigation }) {
   const [dnaBusy, setDnaBusy] = useState(false);
   const [playedTick, setPlayedTick] = useState(0);  // Radar 3 otomatik tazeleme sayacı
   const dnaSorguRef = useRef(null);                 // aynı DNA sorgusu mu (yükleniyor yazısı için)
+
+  // SEKME VERİSİ ÇEKME KİLİTLERİ — "bu hafta için istek zaten gitti mi?"
+  //
+  // ÖNCEKİ HÂLİ TEHLİKELİYDİ: her effect KENDİ doldurduğu state'i (dailyOdds,
+  // dailyPlayed, positionDna) bağımlılık dizisinde taşıyor ve döngüyü yalnız
+  // "gelen yanıtın roundId'si istediğimle aynı mı?" kontrolü kesiyordu. Sunucu
+  // farklı ya da eksik roundId dönerse kontrol tutmaz, effect kendi yazdığı
+  // state'le yeniden tetiklenir ve SONSUZ İSTEK DÖNGÜSÜ başlar — üstelik
+  // sessizce, yalnız ağ trafiğinden anlaşılır.
+  //
+  // Artık kilit İSTENEN haftadadır (yanıta bakmaz) ve ref'te tutulur, yani
+  // effect kendi sonucuna bağımlı değildir. Hata olursa kilit açılır ki tekrar
+  // denenebilsin; hafta değişince zaten yeni kilit oluşur.
+  const cekilenDna = useRef(null);
+  const cekilenOran = useRef(null);
+  const cekilenOynanma = useRef(null);
+  const zatenCekildi = (ref, rid) => {
+    if (ref.current != null && Number(ref.current) === Number(rid)) return true;
+    ref.current = rid;
+    return false;
+  };
 
   const applyResponse = useCallback((d, { current: fallbackCurrent }) => {
     // GÜNCEL/GEÇMİŞ ayrımı backend'in current alanından okunur (tek doğruluk
@@ -171,6 +161,10 @@ export default function RadarScreen({ navigation }) {
       setSelectedId(rid);
       setView(null); setLegacyRadar(null); setExpandedNo(null); setFilter('all');
       setDailyOdds(null); setOddsDay(null); setDailyPlayed(null); setPlayedDay(null);
+      // Veri TEMİZLENDİĞİ için çekme kilitleri de açılır. Açılmazsa A→B→A
+      // dönüşünde ref "A zaten çekildi" der ama state boştur → panel sonsuza
+      // kadar boş kalır.
+      cekilenDna.current = null; cekilenOran.current = null; cekilenOynanma.current = null;
       const d = await api.radarRound(rid);
       applyResponse(d, { current: false });
     } catch (e) {
@@ -205,9 +199,9 @@ export default function RadarScreen({ navigation }) {
     // Mühürlü haftada bu uç yalnız snapshot verisini döner; canlı hesap yapmaz.
     const rid = view?.roundId ?? selectedId;
     if (rid == null) return;
-    if (positionDna && Number(positionDna.cut?.roundId) === Number(rid)) return;
-    api.radarPositionDna(rid).then(setPositionDna).catch(() => {});
-  }, [tab, selectedId, view, positionDna]);
+    if (zatenCekildi(cekilenDna, rid)) return;
+    api.radarPositionDna(rid).then(setPositionDna).catch(() => { cekilenDna.current = null; });
+  }, [tab, selectedId, view]);
 
   // Radar 4 (Oran Takibi): sekme açılınca gösterilen haftanın günlük mühürlü
   // oranları çekilir. Hafta değişince yeniden çekilir; varsayılan gün = veri
@@ -216,20 +210,22 @@ export default function RadarScreen({ navigation }) {
     if (tab !== 'market') return;
     const rid = view?.roundId ?? selectedId;
     if (rid == null) return;
-    if (dailyOdds && Number(dailyOdds.roundId) === Number(rid)) return;
+    if (zatenCekildi(cekilenOran, rid)) return;
     api.radarDailyOdds(rid).then((d) => {
       setDailyOdds(d);
       const withData = (d?.days || []).filter((day) => (d.matches || []).some((m) => m.cells?.[day.date]));
       const pick = withData.length ? withData[withData.length - 1] : (d?.days || [])[(d?.days?.length || 1) - 1];
       setOddsDay(pick?.date || null);
-    }).catch(() => {});
-  }, [tab, selectedId, view, dailyOdds]);
+    }).catch(() => { cekilenOran.current = null; });
+  }, [tab, selectedId, view]);
 
   // Radar 3 (Oynanma DNA): gösterilen haftanın günlük mühürlü yüzdelerini çeker.
   // Tazelemede SEÇİLİ GÜN korunur — kullanıcının seçimi otomatik yenilemeyle
   // ezilmez. Varsayılan gün yalnız ilk yüklemede (veya seçili gün listeden
   // düştüyse) belirlenir. Hata olursa ekrandaki son GERÇEK değer kalır; boş
   // ekran gösterilmez, uydurma yüzde de yazılmaz.
+  // Dönüş: başarılı mı? (çağıran, hata hâlinde çekme kilidini açabilsin diye —
+  // hata yine SESSİZDİR, ekranda son gerçek değer kalır.)
   const fetchDailyPlayed = useCallback(async (rid, { ilkYukleme } = {}) => {
     try {
       const d = await api.radarDailyPlayed(rid);
@@ -241,7 +237,8 @@ export default function RadarScreen({ navigation }) {
         const sec = veriliGunler.length ? veriliGunler[veriliGunler.length - 1] : gunler[gunler.length - 1];
         return sec?.date || null;
       });
-    } catch { /* sessiz: son gerçek değer ekranda kalır */ }
+      return true;
+    } catch { return false; }   /* sessiz: son gerçek değer ekranda kalır */
   }, []);
 
   // İlk yükleme: sekme açılınca bir kez (hafta değişince yeniden).
@@ -249,9 +246,10 @@ export default function RadarScreen({ navigation }) {
     if (tab !== 'publicBetting') return;
     const rid = view?.roundId ?? selectedId;
     if (rid == null) return;
-    if (dailyPlayed && Number(dailyPlayed.roundId) === Number(rid)) return;
-    fetchDailyPlayed(rid, { ilkYukleme: true });
-  }, [tab, selectedId, view, dailyPlayed, fetchDailyPlayed]);
+    if (zatenCekildi(cekilenOynanma, rid)) return;
+    fetchDailyPlayed(rid, { ilkYukleme: true })
+      .then((ok) => { if (!ok) cekilenOynanma.current = null; });   // hata → tekrar denenebilsin
+  }, [tab, selectedId, view, fetchDailyPlayed]);
 
   // OTOMATİK TAZELEME: Radar 3 açıkken her PLAYED_REFRESH_MS'te sessizce yenile.
   // Mühürlü/geçmiş haftada ÇALIŞMAZ (o değerler tanım gereği değişmez) ve sekme
@@ -349,41 +347,15 @@ export default function RadarScreen({ navigation }) {
   // MÜHÜRLÜ HAFTA: güncel olmayan her hafta mühürlüdür. Bu haftalarda Radar 5
   // YENİDEN HESAPLANMAZ ve canlı /position-dna ucuna GİDİLMEZ.
   const muhurluHafta = centerMode && meta?.current === false;
-  const classCounts = { strong: 0, medium: 0, surprise: 0, insufficient: 0 };
-  for (const mm of masterMatches) {
-    if (mm.master?.classification === 'strong_candidate') classCounts.strong += 1;
-    else if (mm.master?.classification === 'surprise_candidate') classCounts.surprise += 1;
-    else if (mm.master?.classification === 'insufficient_data') classCounts.insufficient += 1;
-    else classCounts.medium += 1;
-  }
-  const filteredMaster = masterMatches.filter((mm) => {
-    const c = mm.master?.classification;
-    switch (filter) {
-      case 'strong': return c === 'strong_candidate';
-      case 'medium': return c === 'medium_risk';
-      case 'surprise': return c === 'surprise_candidate';
-      case 'insufficient': return c === 'insufficient_data';
-      case 'drawRisk': return (mm.master?.scores?.draw ?? 0) >= 30;
-      case 'awaySurprise':
-        return mm.master?.favorite?.symbol === '1' && (mm.master?.favoriteFailureRisk ?? 0) >= 55 && mm.master?.exactDirection === '2';
-      default: return true;
-    }
-  });
-  const sortedMaster = [...filteredMaster].sort((a, b) => (
-    sortMode === 'order'
-      ? a.no - b.no
-      : (b.master?.favoriteFailureRisk ?? -1) - (a.master?.favoriteFailureRisk ?? -1) || a.no - b.no
-  ));
+  const classCounts = classCountsOf(masterMatches);
+  const sortedMaster = sortMaster(filterMaster(masterMatches, filter), sortMode);
 
   // Donma geri sayımı
-  const freezeMs = meta?.current && !meta?.sealed && !meta?.frozenAt && meta?.freezeAt
-    ? new Date(meta.freezeAt).getTime() - now : null;
-  const freezeMin = freezeMs != null && freezeMs > 0 ? Math.ceil(freezeMs / 60000) : null;
+  const freezeMin = freezeMinutes(meta, now);
 
   // ---- Legacy kart (Radar Merkezi öncesi haftalar) — eski görünüm AYNEN ----
-  const legacyCounts = { red: 0, yellow: 0, green: 0 };
-  for (const r of legacyRadar || []) if (legacyCounts[r.labelColor] != null) legacyCounts[r.labelColor] += 1;
-  const legacyShown = legacyFilter ? (legacyRadar || []).filter((r) => r.labelColor === legacyFilter) : (legacyRadar || []);
+  const legacyCounts = legacyCountsOf(legacyRadar);
+  const legacyShown = legacyFiltered(legacyRadar, legacyFilter);
 
   const renderLegacyItem = ({ item, index }) => {
     const c = labelColors[item.labelColor] || colors.gray;
@@ -481,150 +453,18 @@ export default function RadarScreen({ navigation }) {
   };
 
   // ---- Radar sekmesi içerikleri ----
-  const radarTabHeader = () => {
-    if (!centerMode || tab === 'master') return null;
-    // RADAR 4 — ORAN TAKİBİ: gün filtreleri (Pazar→Cuma) + Radar 3/4 ayrımı.
-    if (tab === 'market') {
-      const dd = dailyOdds;
-      return (
-        <View>
-          <View style={styles.tabBanner}>
-            <Text style={styles.tabBannerTitle}>💹 Oran Takibi · Günlük 1/X/2 Oranları</Text>
-            <Text style={styles.tabBannerTxt}>
-              Gerçek 1/X/2 maç oranlarının gün gün hareketi. Bir gün seçin; 15 maçın o güne ait
-              mühürlü oranı kendi satırında görünür (ör. 1: 1.61 · X: 3.20 · 2: 4.25). Oran bir önceki güne göre
-              yükseldi (▲), düştü (▼) veya sabit (=) olarak işaretlenir.
-            </Text>
-            <Text style={styles.tabBannerTxt}>
-              Radar 3 (Oynanma DNA) kullanıcıların oynama YÜZDESİNİ, Radar 4 ise gerçek 1/X/2 ORANINI
-              gösterir — burada yüzde değil, oran vardır.
-            </Text>
-            <Text style={styles.tabBannerWarn}>Her günün oranı 23:55'te (maç günü ilk maçtan 5 dk önce) mühürlenir ve sonradan değişmez.</Text>
-          </View>
-          {dd?.days?.length ? (
-            <>
-              <DayChipsRow data={dd} selected={oddsDay} onSelect={setOddsDay} />
-              <OddsCounter data={dd} day={oddsDay} />
-            </>
-          ) : (
-            <Text style={styles.dnaHint}>{dd ? (dd.note || 'Bu hafta için oran kaydı yok.') : 'Oran kayıtları yükleniyor…'}</Text>
-          )}
-        </View>
-      );
-    }
-    // RADAR 3 — OYNANMA DNA: gün filtreleri (Pazar→Cuma) + günlük mühürlü yüzde.
-    if (tab === 'publicBetting') {
-      const dp = dailyPlayed;
-      return (
-        <View>
-          <View style={styles.tabBanner}>
-            <Text style={styles.tabBannerTitle}>📊 Oynanma DNA · Günlük 1/X/2 Yüzdeleri</Text>
-            <Text style={styles.tabBannerTxt}>
-              Kullanıcıların 1/X/2 OYNAMA YÜZDESİNİN gün gün değişimi. Bir gün seçin; 15 maçın o güne ait mühürlü
-              yüzdesi kendi satırında görünür (ör. 1 %62 · X %21 · 2 %17). Yüzde bir önceki güne göre yükseldi (▲),
-              düştü (▼) veya sabit (=) olarak işaretlenir.
-            </Text>
-            <Text style={styles.tabBannerTxt}>
-              Bu bir ORAN değildir — Radar 4 (Oran Takibi) gerçek oranı gösterir; Radar 3 oynanma yüzdesidir.
-            </Text>
-            {dp ? (
-              <Text style={styles.tabBannerTxt}>
-                {dp.sources?.length
-                  ? `Aktif kaynak: ${dp.sources.map(providerLabel).join(' · ')}${dp.sources.includes('bilyoner') ? '' : ' · Bilyoner erişim engelli (IP/WAF)'} — her maçta kaynaklar ayrı ayrı gösterilir.`
-                  : 'Aktif kaynak yok — sağlayıcı verisi bekleniyor (uydurma yüzde gösterilmez).'}
-              </Text>
-            ) : null}
-            <Text style={styles.tabBannerWarn}>Her günün yüzdesi 23:55'te (maç günü ilk maçtan 5 dk önce) mühürlenir ve sonradan değişmez. Kaynak yoksa uydurma yüzde gösterilmez.</Text>
-          </View>
-          {dp?.days?.length ? (
-            <DayChipsRow data={dp} selected={playedDay} onSelect={setPlayedDay} />
-          ) : (
-            <Text style={styles.dnaHint}>{dp ? (dp.note || 'Oynanma yüzdesi gözlemi yok — veri kaynağı bekleniyor.') : 'Yükleniyor…'}</Text>
-          )}
-        </View>
-      );
-    }
-    const items = masterMatches.map((mm) => mm.radars?.[tab]).filter(Boolean);
-    const anyData = items.some((r) => r.hasData);
-    if (tab === 'bulletinMemory') {
-      // MÜHÜRLÜ HAFTA: dönem filtresi GÖSTERİLMEZ. Filtre canlı yeniden hesap
-      // demektir; mühürlü haftada tek doğru kaynak snapshot'taki dondurulmuş
-      // değerdir. Yalnız hangi ana ait olduğu yazılır.
-      if (muhurluHafta && !positionDna?.dna) {
-        return (
-          <View style={styles.dnaFilterWrap}>
-            <Text style={styles.dnaHint}>
-              {muhurluRadar5Yok
-                ? 'Bu hafta için mühürlü Radar 5 kaydı yok.'
-                : `Mühürlü kayıt — bu hafta donduğu andaki değerler${meta?.sealedAt ? ` (${String(meta.sealedAt).slice(0, 10)})` : ''}. Sonradan gelen sonuçlar bu ekranı değiştirmez.`}
-            </Text>
-          </View>
-        );
-      }
-      // SADE MAÇ ODAKLI GÖRÜNÜM: üstte yalnız küçük dönem filtresi. Sıra
-      // yüzdeleri her maçın kendi kartında (aşağıda) görünür. Teknik bilgiler
-      // (n, arşiv sayısı, shrinkage) ana ekranda YOK — yalnız metodolojide.
-      return (
-        <View style={styles.dnaFilterWrap}>
-          <View style={styles.dnaFilterRow}>
-            {DNA_PERIODS.map((p) => {
-              const on = dnaPeriod === p.k;
-              return (
-                <TouchableOpacity key={p.k} onPress={() => setDnaPeriod(p.k)}
-                  style={[styles.dnaPeriodChip, on && styles.dnaPeriodChipOn]} activeOpacity={0.85}>
-                  <View style={styles.dnaPeriodLabel}>
-                    <Text style={[styles.dnaPeriodTxt, on && styles.dnaPeriodTxtOn]}>
-                      {p.label}{radar5PeriodSuccess[p.k] != null ? ` · %${radar5PeriodSuccess[p.k]}` : ''}
-                    </Text>
-                    {radar5PeriodTrend[p.k] ? (
-                      <Text style={[
-                        styles.dnaTrend,
-                        radar5PeriodTrend[p.k].key === 'up' && styles.dnaTrendUp,
-                        radar5PeriodTrend[p.k].key === 'down' && styles.dnaTrendDown,
-                        radar5PeriodTrend[p.k].key === 'flat' && styles.dnaTrendFlat,
-                      ]}>{radar5PeriodTrend[p.k].symbol}</Text>
-                    ) : null}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          {positionDna && !positionDna.hasData ? (
-            <Text style={styles.dnaHint}>
-              {positionDna.note || 'Resmî geçmiş arşiv birikiyor — veri geldikçe sıra yüzdeleri görünür.'}
-            </Text>
-          ) : null}
-          {positionDna?.retrospective ? (
-            <Text style={styles.dnaHint}>
-              Simülasyon: bu hafta için resmî mühür yok. Hesap yalnız bu haftadan önce tamamlanmış sonuçlardan üretildi.
-            </Text>
-          ) : null}
-        </View>
-      );
-    }
-    if (tab === 'performance' && anyData) {
-      return (
-        <View style={styles.tabBanner}>
-          <Text style={styles.tabBannerTitle}>🛡 Rakip Gücü & Saha Performansı</Text>
-          <Text style={styles.tabBannerTxt}>
-            Form, rakibin MAÇ TARİHİNDEKİ ligdeki yerine göre tartılır (bugünkü tablo geçmişe uygulanmaz).
-            Ev sahibi yalnız İÇ SAHA, deplasman yalnız DEPLASMAN maçlarıyla değerlendirilir. Zayıf rakiplere karşı
-            gelen seriler "Şişirilmiş Form", güçlü rakiplere karşı gelenler "Kaliteli Form" olarak etiketlenir;
-            ham form da ayrıca gösterilir — hiçbir veri gizlenmez.
-          </Text>
-        </View>
-      );
-    }
-    if (!anyData) {
-      return (
-        <View style={styles.tabBanner}>
-          <Text style={styles.tabBannerTitle}>— Bu radar bu hafta devre dışı</Text>
-          <Text style={styles.tabBannerTxt}>{items[0]?.note || 'Gerekli veri bulunamadı; skora katkısı yok.'}</Text>
-        </View>
-      );
-    }
-    return null;
-  };
+  // Sekme üst panelleri components/RadarTabHeaders.js'e taşındı (durum tutmayan
+  // saf çizim). Ekran yalnız veriyi verir; panel metinleri orada.
+  const radarTabHeader = () => (
+    <RadarTabHeader
+      centerMode={centerMode} tab={tab} masterMatches={masterMatches}
+      dailyOdds={dailyOdds} oddsDay={oddsDay} onSelectOddsDay={setOddsDay}
+      dailyPlayed={dailyPlayed} playedDay={playedDay} onSelectPlayedDay={setPlayedDay}
+      positionDna={positionDna} dnaPeriod={dnaPeriod} onSelectDnaPeriod={setDnaPeriod}
+      donemGucu={donemGucu} donemEgilimi={donemEgilimi}
+      muhurluHafta={muhurluHafta} muhurluRadar5Yok={muhurluRadar5Yok} meta={meta}
+    />
+  );
 
   // TÜM alt radar sekmeleri (Radar 1-5) master'ın 15 maçlık listesinden beslenir
   // → her sekmede 15 maç, HEP Spor Toto sırasıyla (no 1→15). Günlük oran/yüzde
@@ -660,39 +500,16 @@ export default function RadarScreen({ navigation }) {
       dnaStatsByPosition.set(p.position, p.windows || {});
     }
   }
-  // Yüzdeler BİR ONDALIK basamakla gösterilir. Tam sayıya yuvarlamak, yeni bir
-  // sonucun getirdiği değişimi gizleyebiliyordu (ör. %19.4 → %19.7 ikisi de 19).
-  // Örneklem / "n=" GÖSTERİLMEZ — yalnız yüzde.
-  const birOndalik = (p) => (p ? {
-    '1': Number(p['1']).toFixed(1), X: Number(p.X).toFixed(1), '2': Number(p['2']).toFixed(1),
-  } : null);
-  // 15 sıranın her birindeki en yüksek gerçekleşen sonucun ortalaması.
-  // Seçili dönemin genel baskın sonuç gücünü gösterir; kesin tahmin değildir.
-  const radar5PeriodSuccess = Object.fromEntries(DNA_PERIODS.map(({ k }) => {
-    const values = (positionDna?.dna?.positions || []).map((p) => {
-      const pct = p.windows?.[k]?.pct;
-      return pct ? Math.max(Number(pct['1']) || 0, Number(pct.X) || 0, Number(pct['2']) || 0) : null;
-    }).filter((v) => v != null);
-    const average = values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : null;
-    return [k, average == null ? null : average.toFixed(1)];
-  }));
-  const radar5PeriodTrend = Object.fromEntries(DNA_PERIODS.map(({ k }) => {
-    if (k === 'allTime') return [k, { key: 'flat', symbol: '—' }];
-    if (radar5PeriodSuccess[k] == null || radar5PeriodSuccess.allTime == null) return [k, null];
-    const delta = Number(radar5PeriodSuccess[k]) - Number(radar5PeriodSuccess.allTime);
-    if (Math.abs(delta) < 0.5) return [k, { key: 'flat', symbol: '—' }];
-    return [k, delta > 0 ? { key: 'up', symbol: '▲' } : { key: 'down', symbol: '▼' }];
-  }));
+  // Dönem gücü ve eğilim hesabı radarScreenData.js'te (saf, ayrı test edilir).
+  const donemGucu = radar5PeriodSuccess(positionDna);
+  const donemEgilimi = radar5PeriodTrend(donemGucu);
   const renderMemoryRow = ({ item }) => {
     const pct = birOndalik(dnaByPosition.get(item.no));
     const highest = pct ? Math.max(...['1', 'X', '2'].map((key) => Number(pct[key]))) : null;
     const strongest = pct ? ['1', 'X', '2'].filter((key) => Number(pct[key]) === highest) : [];
     const allTimePct = dnaStatsByPosition.get(item.no)?.allTime?.pct;
     const allTimeHighest = allTimePct ? Math.max(Number(allTimePct['1']) || 0, Number(allTimePct.X) || 0, Number(allTimePct['2']) || 0) : null;
-    const delta = highest != null && allTimeHighest != null ? highest - allTimeHighest : null;
-    const trend = dnaPeriod === 'allTime' ? { key: 'flat', symbol: '—' }
-      : delta == null ? null : Math.abs(delta) < 0.5 ? { key: 'flat', symbol: '—' }
-        : delta > 0 ? { key: 'up', symbol: '▲' } : { key: 'down', symbol: '▼' };
+    const trend = rowTrend({ highest, allTimeHighest, dnaPeriod });
     return (
       <View style={styles.memRow}>
         <View style={styles.memTop}>
@@ -810,44 +627,6 @@ export default function RadarScreen({ navigation }) {
             {why?.detail ? <Text style={styles.memWhy}>{why.detail}</Text> : null}
           </View>
         )}
-      </View>
-    );
-  };
-
-  // Ortak gün filtresi şeridi (Radar 3 & 4): Pazar→Cuma; veri olmayan gün soluk.
-  const DayChipsRow = ({ data, selected, onSelect }) => {
-    if (!data?.days?.length) return null;
-    return (
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.oddsDayRow}>
-        {data.days.map((day) => {
-          const on = selected === day.date;
-          const has = (data.matches || []).some((m) => m.cells?.[day.date]);
-          return (
-            <TouchableOpacity key={day.date} onPress={() => onSelect(day.date)}
-              style={[styles.dnaPeriodChip, on && styles.dnaPeriodChipOn, !has && !on && styles.oddsChipEmpty]} activeOpacity={0.85}>
-              <Text style={[styles.dnaPeriodTxt, on && styles.dnaPeriodTxtOn]}>{day.weekday}{day.isMatchDay ? ' ⚽' : ''}</Text>
-              <Text style={[styles.oddsChipSub, on && styles.dnaPeriodTxtOn]}>{(day.label.split(' ')[1] || '')}{has ? '' : ' · yok'}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-    );
-  };
-
-  // SAYAÇ (Radar 4): "15 maçın 5'inde oran var". Ekranda TEK GÜN görüldüğü için
-  // asıl sayı o güne aittir; eksik olanların sebebi kendi satırlarında yazar.
-  // Sayı arka uçtan gelir (day.withData) — burada uydurulmaz/tahmin edilmez.
-  const OddsCounter = ({ data, day }) => {
-    const d = (data?.days || []).find((x) => x.date === day);
-    const toplam = data?.counts?.total ?? (data?.matches || []).length;
-    if (!toplam || !d) return null;
-    const varOlan = d.withData ?? (data?.matches || []).filter((m) => m.cells?.[day]).length;
-    return (
-      <View>
-        <Text style={styles.oddsCount}>
-          {d.label}: {toplam} maçın {varOlan}'inde oran var
-          {varOlan < toplam ? ` · ${toplam - varOlan} maçta yok (sebebi satırında yazıyor)` : ''}
-        </Text>
       </View>
     );
   };
@@ -1378,23 +1157,10 @@ const styles = StyleSheet.create({
   sumChipTxtOn: { color: '#fff' },
   sortChip: { backgroundColor: colors.surfaceSoft, borderStyle: 'dashed' },
 
-  tabBanner: { backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.border },
-  tabBannerTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  tabBannerTxt: { color: colors.textSoft, fontSize: 11.5, lineHeight: 16, marginTop: 4 },
-  tabBannerWarn: { color: colors.warning, fontSize: 11, fontWeight: '800', marginTop: 6, fontStyle: 'italic' },
   // Radar 5 (Bülten DNA) — sade dönem filtresi + maç odaklı satır.
-  dnaFilterWrap: { marginBottom: spacing.sm },
-  dnaFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  dnaPeriodChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-  dnaPeriodChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-  dnaPeriodLabel: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  dnaPeriodTxt: { color: colors.textSoft, fontSize: 12, fontWeight: '800' },
-  dnaPeriodTxtOn: { color: '#fff' },
-  dnaTrend: { fontSize: 11, fontWeight: '900' },
   dnaTrendUp: { color: colors.success },
   dnaTrendDown: { color: colors.danger },
   dnaTrendFlat: { color: colors.warning },
-  dnaHint: { color: colors.textMuted, fontSize: 11.5, lineHeight: 16, marginTop: 8 },
   dnaFootnote: { color: colors.textMuted, fontSize: 10.5, lineHeight: 15, marginTop: 6, fontStyle: 'italic' },
   memRow: { backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm },
   memTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
@@ -1415,12 +1181,8 @@ const styles = StyleSheet.create({
   memNone: { color: colors.textMuted, fontSize: 12, fontStyle: 'italic', marginTop: 6, marginLeft: 34 },
   // Eksik oranın AYRINTILI gerekçesi (kapsam raporundan gelen gerçek cümle).
   memWhy: { color: colors.textMuted, fontSize: 11, marginTop: 2, marginLeft: 34, opacity: 0.85 },
-  oddsCount: { color: colors.textMuted, fontSize: 11.5, fontWeight: '700', marginTop: 6, marginBottom: 2 },
 
   // Radar 4 (Oran Takibi) — gün filtresi + günlük 1/X/2 oran satırı.
-  oddsDayRow: { flexDirection: 'row', gap: 6, paddingVertical: 2, marginBottom: spacing.sm },
-  oddsChipSub: { color: colors.textMuted, fontSize: 9.5, fontWeight: '700', marginTop: 1 },
-  oddsChipEmpty: { opacity: 0.55, borderStyle: 'dashed' },
   oddsWrap: { marginTop: 8, marginLeft: 34 },
   oddsLine: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   oddsCell: { flexDirection: 'row', alignItems: 'baseline', gap: 4, backgroundColor: colors.surfaceSoft, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, paddingVertical: 5 },
