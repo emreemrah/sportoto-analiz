@@ -15,7 +15,6 @@ import {
 import { CATALOG_MAP } from './criterionCatalog.js';
 
 const r1 = (x) => Math.round(x * 10) / 10;
-const pct = (x, t) => (t > 0 ? Math.round((x / t) * 100) : 0);
 
 // Akıllı Destek Modu güvenilirlik faktörü: yeterli örneklem yoksa 1.0 (etkisiz);
 // az örnekli yüksek başarı ASLA şişirmez. Açıklama üretir.
@@ -134,23 +133,40 @@ export function computeMasterAnalysis({
   }
 
   const totalSupport = support['1'] + support.X + support['2'];
-  const normalized = {
-    '1': pct(support['1'], totalSupport),
-    X: pct(support.X, totalSupport),
-    '2': pct(support['2'], totalSupport),
-  };
-  if (totalSupport > 0) normalized['2'] = Math.max(0, 100 - normalized['1'] - normalized.X);
+  // Yüzdeler EN BÜYÜK KALAN yöntemiyle 100'e tamamlanır. Eski hâl kalanı
+  // koşulsuz '2'ye yüklüyordu: desteği GERÇEKTEN 0 olan seçenek bile ekranda
+  // "%2" görünebiliyordu — "yok" ile "az" farkı bozuluyordu.
+  const normalized = { '1': 0, X: 0, '2': 0 };
+  if (totalSupport > 0) {
+    const keys = ['1', 'X', '2'];
+    const raw = keys.map((k) => (support[k] * 100) / totalSupport);
+    const floors = raw.map(Math.floor);
+    let rem = 100 - floors.reduce((a, b) => a + b, 0);
+    keys.forEach((k, i) => { normalized[k] = floors[i]; });
+    const byFrac = keys.map((k, i) => ({ k, frac: raw[i] - floors[i] })).sort((x, y) => y.frac - x.frac);
+    for (const o of byFrac) {
+      if (rem <= 0) break;
+      if (support[o.k] > 0) { normalized[o.k] += 1; rem -= 1; } // desteği 0 olana pay YAZILMAZ
+    }
+  }
 
   // ——— KARAR (sürümlü kurallar) ———
+  // Sıralama da fark (lead/spread) da AYNI ölçekten: ham destek yüzdesi.
+  // Eski hâl sıralamayı ham, farkı yuvarlanmış değerden alıyordu — sınır
+  // durumlarda lead negatif çıkıp karar zinciri yanlış dala girebiliyordu.
   const order = ['1', 'X', '2'].sort((x, y) => support[y] - support[x]);
   const top = order[0], second = order[1], third = order[2];
-  const lead = normalized[top] - normalized[second];
-  const spread = normalized[top] - normalized[third];
+  const pctRaw = (k) => (totalSupport > 0 ? (support[k] * 100) / totalSupport : 0);
+  const lead = Math.round(pctRaw(top) - pctRaw(second));
+  const spread = Math.round(pctRaw(top) - pctRaw(third));
   const decisiveCount = directional.length;
-  // GERÇEK yönlü sinyaller (yapısal/contextual ev avantajı HARİÇ). Kesin bir yön
+  // GERÇEK yönlü sinyaller (SABİT ev avantajı kuralı HARİÇ). Kesin bir yön
   // kararı için en az bir TAKIM-VERİSİ sinyali şarttır; aksi halde (ör. yeni lig)
   // yalnız ev avantajı kalır ve tek başına "1 %100" gibi sahte kesinlik üretir.
-  const meaningfulDirectional = directional.filter((x) => x.family !== 'contextual').length;
+  // NOT: Filtre aile ('contextual') üzerinden DEĞİL, kriter anahtarı üzerinden
+  // yapılır — aynı ailedeki commonOpponents GERÇEK bir takım-verisi kriteridir;
+  // aile filtresi onu da eleyip motoru sebepsiz "veri yetersiz"e düşürüyordu.
+  const meaningfulDirectional = directional.filter((x) => x.key !== 'homeAdvantage').length;
   // Yön kararı yoksa (yalnız yapısal ev avantajı) destek yüzdeleri de GÖSTERİLMEZ —
   // "1 %100" gibi sahte kesinlik oluşmasın; veri yetersiz olarak sunulur.
   if (!meaningfulDirectional) { normalized['1'] = 0; normalized.X = 0; normalized['2'] = 0; }

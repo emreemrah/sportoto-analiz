@@ -31,8 +31,10 @@ function buildFacts(m) {
   if (a.surpriseScore != null) L.push(`Sistem sürpriz puanı: ${a.surpriseScore}/100 (${a.label})`);
   if (a.factors?.length) L.push(`Sürpriz unsurları: ${a.factors.map((f) => f.label).join('; ')}`);
 
-  const standLine = (label, st) => st
-    ? `${label} puan durumu: ${st.position}. sıra, ${st.points} puan, ${st.wins}G ${st.draws}B ${st.losses}M, av ${st.goalDiff >= 0 ? '+' : ''}${st.goalDiff}`
+  // Eksik alan artık null gelebilir (footystats.numN) — satır ancak çekirdek
+  // alanlar doluysa kurulur; yarım veriyle "null puan" gibi metin üretilmez.
+  const standLine = (label, st) => (st && st.position != null && st.points != null)
+    ? `${label} puan durumu: ${st.position}. sıra, ${st.points} puan, ${st.wins ?? '?'}G ${st.draws ?? '?'}B ${st.losses ?? '?'}M${st.goalDiff != null ? `, av ${st.goalDiff >= 0 ? '+' : ''}${st.goalDiff}` : ''}`
     : null;
   const hp = standLine('Ev', s.home?.standing);
   const ap = standLine('Deplasman', s.away?.standing);

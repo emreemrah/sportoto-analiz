@@ -291,7 +291,11 @@ export async function legacyCriteriaScorecardResponse({ store = getArchiveStore(
     includedCount: s.includedCount, excludedCount: s.excludedCount,
     exclusionBreakdown: s.exclusionBreakdown,
     weeksCounted: s.roundsCounted,
-    matchesCounted: s.criteria.reduce((n, c) => Math.max(n, c.signals || 0), 0),
+    // GERÇEK sayım (analysisService'ten): resmî sonucu olan maç adedi.
+    // Eski hâl "kriterler arasındaki en yüksek sinyal sayısı"nı alıyordu —
+    // yalnız her maçta sinyal veren sabit homeAdvantage sayesinde tesadüfen
+    // doğru görünüyordu; o kriter karneden çıkınca tanım da düzeltildi.
+    matchesCounted: s.matchesCounted ?? 0,
     note: s.note,
     criteria: s.criteria
       .filter((c) => !c.informational && c.signals > 0)

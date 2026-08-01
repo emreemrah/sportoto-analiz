@@ -108,7 +108,9 @@ function newCritRow(key) {
   return {
     key, label: c?.label || key, version: c?.version || null,
     signalFamily: c?.signalFamily || null,
-    informational: c?.outputDirection === 'informational',
+    // 'informational' çıktılı kriterler + karneden açıkça hariç tutulanlar
+    // (ör. sabit homeAdvantage) doğruluk ölçümüne GİRMEZ.
+    informational: c?.outputDirection === 'informational' || c?.excludeFromScorecard === true,
     evaluated: 0, signals: 0, noData: 0, hits: 0, misses: 0,
     byDirection: { '1': { total: 0, hits: 0 }, X: { total: 0, hits: 0 }, '2': { total: 0, hits: 0 } },
     byOpponentTier: { strong: { total: 0, hits: 0 }, mid: { total: 0, hits: 0 }, weak: { total: 0, hits: 0 } },
@@ -125,6 +127,7 @@ export async function buildCriterionScorecard({ store = getArchiveStore(), upToR
 
   const rows = new Map();
   let roundsCounted = 0;
+  let matchesCounted = 0; // resmî sonucu olan, karneye gerçekten giren maç sayısı
   const excludedByType = {};                                   // provenance şeffaflığı
   let excludedCount = 0;
 
@@ -151,6 +154,7 @@ export async function buildCriterionScorecard({ store = getArchiveStore(), upToR
       const official = resBy.get(String(pm.matchId));
       if (!official) continue;                                   // resmî sonuç yoksa sayılmaz
       used = true;
+      matchesCounted += 1;
       const ctx = ac.context || {};
       for (const ev of ac.catalogEvaluations) {
         if (!rows.has(ev.key)) rows.set(ev.key, newCritRow(ev.key));
@@ -256,6 +260,7 @@ export async function buildCriterionScorecard({ store = getArchiveStore(), upToR
     excludedCount,
     exclusionBreakdown: excludedByType,
     roundsCounted,
+    matchesCounted,
     upToRoundId: upToRoundId ?? null,
     catalogVersion: CATALOG_VERSION,
     note: roundsCounted === 0

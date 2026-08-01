@@ -346,20 +346,37 @@ app.get('/api/live/:no', async (req, res) => {
   }
 
   liveDetailCache.set(req.params.no, { exp: now + 8000, val: base });
+  capMap(liveDetailCache); // anahtar kullanıcı girdisi (maç no) — sınırsız büyüyemez
   res.json(base);
 });
 
 // Basit bellek-içi TTL cache — geçmiş/sonuç uçları sık gezilir ve resmi API'yi
 // yormamak gerekir. Yayınlanmış geçmiş sonuçlar değişmez (uzun TTL).
-const memCache = new Map(); // key -> { exp, val }
+// SINIR: anahtarlar kullanıcı girdisinden (roundId) türeyebildiği için Map
+// sınırsız büyüyebilirdi (bellek tüketme yüzeyi). Basit LRU: tavana ulaşınca
+// en eski girdi atılır; get, girdiyi "yeni" konuma taşır.
+const MEM_CACHE_MAX = 200;
+const memCache = new Map(); // key -> { exp, val } (Map ekleme sırasını korur)
 function cacheGet(key) {
   const e = memCache.get(key);
-  if (e && e.exp > Date.now()) return e.val;
+  if (e && e.exp > Date.now()) {
+    memCache.delete(key); memCache.set(key, e); // LRU: kullanılanı sona taşı
+    return e.val;
+  }
   if (e) memCache.delete(key);
   return null;
 }
 function cacheSet(key, val, ttlMs) {
+  if (memCache.has(key)) memCache.delete(key);
   memCache.set(key, { exp: Date.now() + ttlMs, val });
+  while (memCache.size > MEM_CACHE_MAX) {
+    memCache.delete(memCache.keys().next().value); // en eski (LRU) girdi atılır
+  }
+}
+// Yardımcı Map'ler için ortak sınır (histFreshAt/liveFootyAt gibi zaman
+// damgası haritaları) — değerler küçük ama anahtar sayısı sınırlanmalı.
+function capMap(map, max = 500) {
+  while (map.size > max) map.delete(map.keys().next().value);
 }
 
 // Hafta listesi (geçmiş/güncel navigasyon). Liste seyrek değişir → 10 dk cache.
@@ -406,7 +423,7 @@ app.get('/api/history/:roundId', async (req, res) => {
       };
       // Çözülmemiş hafta kısa TTL (sık kontrol); tam çözülmüş + ikramiye uzun TTL.
       cacheSet(key, payload, (payload.fullyResolved && prize) ? 24 * 60 * 60 * 1000 : 30 * 1000);
-      if (fresh) histFreshAt.set(roundId, Date.now());
+      if (fresh) { histFreshAt.set(roundId, Date.now()); capMap(histFreshAt); }
     }
 
     // Geçmiş hafta: kayıtlı SİSTEM TAHMİNİ + maç-öncesi donmuş kayıt/arma
@@ -425,7 +442,7 @@ app.get('/api/history/:roundId', async (req, res) => {
         if (pp?.footyMatchId != null && started && !(mm.result && mm.score)) liveIds.push(pp.footyMatchId);
       }
       if (liveIds.length && nowMs - (liveFootyAt.get(roundId) || 0) > 60000) {
-        liveFootyAt.set(roundId, nowMs);
+        liveFootyAt.set(roundId, nowMs); capMap(liveFootyAt);
         try { await refreshLiveFootyScores(liveIds); } catch (e) { console.warn('[live-footy] hata:', e.message); }
       }
       // CANLI (birebir): API-Football gerçek-zamanlı skor + DAKİKA — tek çağrı tüm

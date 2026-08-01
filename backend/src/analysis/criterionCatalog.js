@@ -670,6 +670,12 @@ export const CATALOG = [
   // ——— 7) Maç Yorumu ———
   def({
     key: 'homeAdvantage', label: 'Ev Sahibi Avantajı', category: 'yorum', signalFamily: 'contextual', defaultImpact: 'low', outputDirection: '1',
+    // SABİT sinyal: her maçta koşulsuz '1' der. Motor katkısı bilinçli (hafif,
+    // meaningfulDirectional bekçisiyle sınırlı) ama KARNEDE ölçülmez —
+    // bilgi taşımayan bir sabitin "isabet oranı", gerçek kriterlerle aynı
+    // listede sıralanınca "her zaman ev sahibi de" stratejisini kriter
+    // başarısı gibi gösteriyordu.
+    excludeFromScorecard: true,
     shortDescription: 'Sahasında oynayan takım lehine hafif katkı.',
     detailedExplanation: 'Kendi seyircisi önünde oynamanın bilinen avantajı; ev sahibi lehine sabit hafif katkı ekler.',
     whenMisleading: 'Seyircisiz/tarafsız sahada anlamsızlaşır; tek başına belirleyici değildir.',

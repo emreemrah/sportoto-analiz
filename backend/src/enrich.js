@@ -152,7 +152,9 @@ export function createExtrasCache(matchesBySeason, teamsBySeason) {
 
     // Tam lig tablosu — üç varyant: genel / iç saha / dış saha (her satırda kulüp arması)
     const overall = table.slice()
-      .sort((a, b) => a.position - b.position || b.points - a.points)
+      // Kaynakta eksik alan artık 0 değil null gelir (footystats.numN) — null'lu
+      // satır sıralamayı NaN ile bozmasın diye sona itilir.
+      .sort((a, b) => (a.position ?? 1e9) - (b.position ?? 1e9) || (b.points ?? -1) - (a.points ?? -1))
       .map((r) => ({
         teamId: r.teamId, name: r.name, position: r.position, played: r.played,
         wins: r.wins, draws: r.draws, losses: r.losses,

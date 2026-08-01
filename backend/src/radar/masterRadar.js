@@ -25,11 +25,17 @@ export function normalizeWeights(radars) {
 
   // Radar 5 tavanı: hafıza yardımcı sinyaldir, normalize sonrası bile şişemez.
   if (weights[RADAR_IDS.MEMORY] > MEMORY_WEIGHT_CAP) {
-    const excess = weights[RADAR_IDS.MEMORY] - MEMORY_WEIGHT_CAP;
-    weights[RADAR_IDS.MEMORY] = MEMORY_WEIGHT_CAP;
     const others = entries.filter((e) => e.active && e.id !== RADAR_IDS.MEMORY);
-    const otherSum = others.reduce((s, e) => s + weights[e.id], 0);
-    for (const e of others) weights[e.id] += otherSum > 0 ? (weights[e.id] / otherSum) * excess : 0;
+    if (others.length) {
+      const excess = weights[RADAR_IDS.MEMORY] - MEMORY_WEIGHT_CAP;
+      weights[RADAR_IDS.MEMORY] = MEMORY_WEIGHT_CAP;
+      const otherSum = others.reduce((s, e) => s + weights[e.id], 0);
+      for (const e of others) weights[e.id] += otherSum > 0 ? (weights[e.id] / otherSum) * excess : 0;
+    }
+    // Dağıtılacak başka aktif radar yoksa tavan UYGULANAMAZ: fazlalık kaybolup
+    // ağırlık toplamını ~15'e düşürüyordu (veri kalitesi hesabı + ekran bozuk).
+    // Toplam-100 değişmezi korunur; hafızanın tek başına karar sürmesini asıl
+    // engelleyen mekanizma zaten sınıf kapılarıdır (GATES).
   }
   for (const k of Object.keys(weights)) weights[k] = Math.round(weights[k] * 10) / 10;
   return weights;

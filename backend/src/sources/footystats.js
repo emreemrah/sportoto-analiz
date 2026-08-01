@@ -3,6 +3,18 @@
 import { config } from '../config.js';
 
 const num = (v) => (typeof v === 'number' ? v : Number(v) || 0);
+// EKSİK VERİYİ KORUYAN sürüm: kaynakta olmayan alan 0 DEĞİL null olur.
+// num() eksik alanı 0'a çevirdiğinde, kriter katmanındaki "iki taraf da 0"
+// koruması atlatılıyordu: ev sahibinin 25 puanı varken deplasman verisi eksikse
+// motor "0 puanlı takım" görüp YANLIŞ tarafa güçlü sinyal üretiyordu
+// (prediction.js'in belgelediği "uydurulmuş gerekçe" hatasının kök nedeni).
+// Takım istatistikleri ve puan tablosu alanları bu yüzden numN ile eşlenir;
+// kriter katmanı null'u zaten "veri yok → analiz dışı" olarak ele alıyor.
+export const numN = (v) => {
+  if (v == null || v === '') return null;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isNaN(n) ? null : n;
+};
 
 // Ham JSON'u (data + pager) döndürür — sayfalama için pager lazım.
 async function apiGetRaw(path, params) {
@@ -127,41 +139,41 @@ export async function fetchTeams(seasonId) {
       cleanName: t.cleanName || t.name,
       shortHand: t.shortHand || '',
       image: t.image || '', // kulüp arması (mutlak URL)
-      position: num(t.table_position),
-      played: num(s.seasonMatchesPlayed_overall),
-      wins: num(s.seasonWinsNum_overall),
-      draws: num(s.seasonDrawsNum_overall),
-      losses: num(s.seasonLossesNum_overall),
-      ppgHome: num(s.seasonPPG_home),
-      ppgAway: num(s.seasonPPG_away),
-      recentPpg: num(s.seasonRecentPPG),
-      winsHome: num(s.seasonWinsNum_home),
-      winsAway: num(s.seasonWinsNum_away),
-      goalsPerGame: num(s.seasonScoredAVG_overall),
-      concededPerGame: num(s.seasonConcededAVG_overall),
-      cleanSheets: num(s.seasonCSTotal_overall),
+      position: numN(t.table_position),
+      played: numN(s.seasonMatchesPlayed_overall),
+      wins: numN(s.seasonWinsNum_overall),
+      draws: numN(s.seasonDrawsNum_overall),
+      losses: numN(s.seasonLossesNum_overall),
+      ppgHome: numN(s.seasonPPG_home),
+      ppgAway: numN(s.seasonPPG_away),
+      recentPpg: numN(s.seasonRecentPPG),
+      winsHome: numN(s.seasonWinsNum_home),
+      winsAway: numN(s.seasonWinsNum_away),
+      goalsPerGame: numN(s.seasonScoredAVG_overall),
+      concededPerGame: numN(s.seasonConcededAVG_overall),
+      cleanSheets: numN(s.seasonCSTotal_overall),
       // yüzde eğilimler + beklenen gol (xG) — takım istatistik penceresi için
-      over25Pct: num(s.seasonOver25Percentage_overall),
-      bttsPct: num(s.seasonBTTSPercentage_overall),
-      cleanSheetPct: num(s.seasonCSPercentage_overall),
-      failedToScorePct: num(s.seasonFTSPercentage_overall),
-      xgFor: num(s.xg_for_avg_overall),
-      xgAgainst: num(s.xg_against_avg_overall),
+      over25Pct: numN(s.seasonOver25Percentage_overall),
+      bttsPct: numN(s.seasonBTTSPercentage_overall),
+      cleanSheetPct: numN(s.seasonCSPercentage_overall),
+      failedToScorePct: numN(s.seasonFTSPercentage_overall),
+      xgFor: numN(s.xg_for_avg_overall),
+      xgAgainst: numN(s.xg_against_avg_overall),
       // xG ev/deplasman ayrımı (maç başı ortalama) — venue kriterleri için
-      xgForHome: num(s.xg_for_avg_home),
-      xgForAway: num(s.xg_for_avg_away),
-      xgAgainstHome: num(s.xg_against_avg_home),
-      xgAgainstAway: num(s.xg_against_avg_away),
+      xgForHome: numN(s.xg_for_avg_home),
+      xgForAway: numN(s.xg_for_avg_away),
+      xgAgainstHome: numN(s.xg_against_avg_home),
+      xgAgainstAway: numN(s.xg_against_avg_away),
       // maç başı sezon ortalamaları (kıyas çubukları için)
       avg: {
-        possession: num(s.possessionAVG_overall),
-        scored: num(s.seasonScoredAVG_overall),
-        shots: num(s.shotsAVG_overall),
-        shotsOnTarget: num(s.shotsOnTargetAVG_overall),
-        corners: num(s.cornersTotalAVG_overall),
-        fouls: num(s.foulsAVG_overall),
-        offsides: num(s.offsidesAVG_overall),
-        cards: num(s.cardsAVG_overall),
+        possession: numN(s.possessionAVG_overall),
+        scored: numN(s.seasonScoredAVG_overall),
+        shots: numN(s.shotsAVG_overall),
+        shotsOnTarget: numN(s.shotsOnTargetAVG_overall),
+        corners: numN(s.cornersTotalAVG_overall),
+        fouls: numN(s.foulsAVG_overall),
+        offsides: numN(s.offsidesAVG_overall),
+        cards: numN(s.cardsAVG_overall),
       },
     };
   });
@@ -184,18 +196,18 @@ export async function fetchLeagueTable(seasonId) {
   return rows.map((r) => ({
     teamId: r.id,
     name: r.cleanName || r.name,
-    position: num(r.position),
-    played: num(r.matchesPlayed),
-    wins: num(r.seasonWins_overall),
-    draws: num(r.seasonDraws_overall),
-    losses: num(r.seasonLosses_overall),
-    points: num(r.points),
-    goalsFor: num(r.seasonGoals),
-    goalsAgainst: num(r.seasonConceded),
-    goalDiff: num(r.seasonGoalDifference),
-    ppg: num(r.ppg_overall),
-    home: { wins: num(r.seasonWins_home), draws: num(r.seasonDraws_home), losses: num(r.seasonLosses_home), goalsFor: num(r.seasonGoals_home), goalsAgainst: num(r.seasonConceded_home) },
-    away: { wins: num(r.seasonWins_away), draws: num(r.seasonDraws_away), losses: num(r.seasonLosses_away), goalsFor: num(r.seasonGoals_away), goalsAgainst: num(r.seasonConceded_away) },
+    position: numN(r.position),
+    played: numN(r.matchesPlayed),
+    wins: numN(r.seasonWins_overall),
+    draws: numN(r.seasonDraws_overall),
+    losses: numN(r.seasonLosses_overall),
+    points: numN(r.points),
+    goalsFor: numN(r.seasonGoals),
+    goalsAgainst: numN(r.seasonConceded),
+    goalDiff: numN(r.seasonGoalDifference),
+    ppg: numN(r.ppg_overall),
+    home: { wins: numN(r.seasonWins_home), draws: numN(r.seasonDraws_home), losses: numN(r.seasonLosses_home), goalsFor: numN(r.seasonGoals_home), goalsAgainst: numN(r.seasonConceded_home) },
+    away: { wins: numN(r.seasonWins_away), draws: numN(r.seasonDraws_away), losses: numN(r.seasonLosses_away), goalsFor: numN(r.seasonGoals_away), goalsAgainst: numN(r.seasonConceded_away) },
   }));
 }
 
