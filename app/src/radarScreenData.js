@@ -23,29 +23,6 @@ export const DNA_PERIODS = [
 export const DONEM_MAC_SAYISI = { last5: 5, last10: 10, last15: 15 };
 export const DNA_PERIOD_LABELS = Object.fromEntries(DNA_PERIODS.map((p) => [p.k, p.label]));
 
-/**
- * ÖRNEKLEM UYARISI — "%100" tek maçtan gelmiş olabilir.
- *
- * SEZON GEÇİŞİ İÇİN ŞART: 53. haftadan sonra yeni sezon 1. haftayla başlar ve
- * sabit pencereler AKTİF SEZONA bağlı olduğu için örneklem 51 haftadan 1'e
- * düşer. Ölçüldü: yeni sezonun ilk haftasında bir sıra "1 %100.0" gösteriyor.
- * Arka uç bunu zaten "yön sinyali üretilmez" diye işaretliyor (directional),
- * ama ekran o işareti okumuyordu — çıplak yüzde bir bulguymuş gibi duruyordu.
- *
- * Eşik arka uçtaki kuralla AYNIDIR (positionDna.js → directional: n >= 10).
- * İki ayrı eşik, iki farklı doğruluk tanımı demek olurdu.
- */
-export const YON_SINYALI_ESIGI = 10;
-
-export function orneklemUyarisi(sample) {
-  const n = Number(sample);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  if (n >= YON_SINYALI_ESIGI) return null;
-  return n === 1
-    ? 'Yalnız 1 hafta — yön sinyali üretilmez'
-    : `Yalnız ${n} hafta — yön sinyali üretilmez`;
-}
-
 /** 2026 → "2025/2026 Sezonu"; "2025/2026" → "2025/2026 Sezonu"; boşsa ''. */
 export const sezonAdiUzun = (y) => {
   const s = String(y ?? '').trim();

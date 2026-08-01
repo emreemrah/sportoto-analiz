@@ -29,7 +29,7 @@ import {
   DNA_PERIODS, MASTER_FILTERS, roundPct100, ord, wdl, num1, fmtClock, birOndalik,
   classCountsOf, filterMaster, sortMaster,
   legacyCountsOf, legacyFiltered, radar5PeriodSuccess, radar5PeriodTrend, rowTrend,
-  DONEM_MAC_SAYISI, DNA_PERIOD_LABELS, orneklemUyarisi,
+  DONEM_MAC_SAYISI, DNA_PERIOD_LABELS,
 } from '../radarScreenData';
 
 // RADAR 3 OTOMATİK TAZELEME — sekme açıkken ekran kendiliğinden yenilenir.
@@ -414,10 +414,6 @@ export default function RadarScreen({ navigation }) {
     const allTimePct = dnaStatsByPosition.get(item.no)?.allTime?.pct;
     const allTimeHighest = allTimePct ? Math.max(Number(allTimePct['1']) || 0, Number(allTimePct.X) || 0, Number(allTimePct['2']) || 0) : null;
     const trend = rowTrend({ highest, allTimeHighest, dnaPeriod });
-    // ÖRNEKLEM UYARISI — sezon geçişinde örneklem 51 haftadan 1'e düşer ve
-    // çıplak "%100" bir bulguymuş gibi görünür. Kaç haftaya dayandığı yazılır.
-    const orneklem = dnaStatsByPosition.get(item.no)?.[dnaPeriod]?.sample ?? null;
-    const uyari = orneklemUyarisi(orneklem);
     // SATIR AÇILIMI — dokununca bu SIRANIN geçmiş maçları listelenir. Yüzdenin
     // arkasındaki maçlar gösterilmezse kullanıcı sayıyı doğrulayamaz.
     const acik = acikSira === item.no;
@@ -465,10 +461,6 @@ export default function RadarScreen({ navigation }) {
                 trend.key === 'flat' && styles.dnaTrendFlat,
               ]}>{trend.symbol}</Text> : null}
             </View>
-            {/* AZ ÖRNEKLEM: yüzde yine gösterilir (veri gizlenmez) ama neye
-                dayandığı yazılır. Sezon başında bu satır 15 sıranın hepsinde
-                görünür ve kullanıcı %100'ü bulgu sanmaz. */}
-            {uyari ? <Text style={styles.memUyari}>⚠ {uyari}</Text> : null}
           </>
         ) : (
           <Text style={styles.memNone}>
@@ -781,7 +773,6 @@ const styles = StyleSheet.create({
   memSuccess: { color: colors.success, fontSize: 12, fontWeight: '900' },
   memSuccessValue: { color: colors.success, fontSize: 12, fontWeight: '900' },
   memTrend: { fontSize: 12, fontWeight: '900' },
-  memUyari: { color: colors.warning, fontSize: 11, fontWeight: '800', marginTop: 4, marginLeft: 34 },
   memNone: { color: colors.textMuted, fontSize: 12, fontStyle: 'italic', marginTop: 6, marginLeft: 34 },
   // RADAR 5 SATIR AÇILIMI — o sıranın geçmiş maçları.
   memAc: { color: colors.primary, fontSize: 11, fontWeight: '900', marginLeft: 6 },

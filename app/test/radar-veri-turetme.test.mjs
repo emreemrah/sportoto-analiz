@@ -172,25 +172,6 @@ test('satır eğilimi dönem seçimine göre davranır', () => {
 // Ölçülen gerçek: sabit pencereler aktif sezona bağlı olduğu için örneklem
 // 51 haftadan 1'e düşüyor ve bir sıra "1 %100.0" gösteriyor.
 // ---------------------------------------------------------------------------
-test('örneklem uyarısı: az veride yüzdenin neye dayandığı yazılır', async () => {
-  const { orneklemUyarisi, YON_SINYALI_ESIGI } = await import('../src/radarScreenData.js');
-  // Eşik arka uçtaki directional kuralıyla AYNI olmalı (positionDna.js: n>=10).
-  assert.equal(YON_SINYALI_ESIGI, 10);
-  assert.equal(orneklemUyarisi(1), 'Yalnız 1 hafta — yön sinyali üretilmez');
-  assert.equal(orneklemUyarisi(3), 'Yalnız 3 hafta — yön sinyali üretilmez');
-  assert.equal(orneklemUyarisi(9), 'Yalnız 9 hafta — yön sinyali üretilmez');
-  // Eşikte ve üstünde uyarı YOK.
-  assert.equal(orneklemUyarisi(10), null);
-  assert.equal(orneklemUyarisi(51), null);
-  // Veri yoksa uyarı da yok (satır zaten "geçmiş sonuç yok" der).
-  assert.equal(orneklemUyarisi(0), null);
-  assert.equal(orneklemUyarisi(null), null);
-  assert.equal(orneklemUyarisi(undefined), null);
-});
-
-// ---------------------------------------------------------------------------
-// HAFTA SEÇİCİ — resmî listedeki gezinti verisi.
-// ---------------------------------------------------------------------------
 test('hafta seçici: TÜM haftalar güncel dahil, yeniden eskiye', async () => {
   const { haftaSeciciVerisi } = await import('../src/radarScreenData.js');
   const v = haftaSeciciVerisi([

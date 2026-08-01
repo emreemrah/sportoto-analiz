@@ -604,53 +604,6 @@ describe('Sezon geçişi (yeni sezon 1. hafta)', () => {
     expect(screen.queryByText('1. Hafta')).toBeNull();
   });
 
-  test('TEK maçlık örneklemde "%100" çıplak bırakılmaz', async () => {
-    mockUclar({
-      ...VARSAYILAN,
-      '/api/radar/current': { ...GUNCEL, roundId: 1528, round: '1. Hafta', year: 2027 },
-      '/api/radar/weeks': YENI_SEZON_HAFTALAR,
-      // Yeni sezonun ilk haftası: her sırada tek maç.
-      '/api/radar/position-dna': {
-        hasData: true,
-        dna: {
-          positions: Array.from({ length: 3 }, (_, i) => ({
-            position: i + 1,
-            windows: { allTime: { sample: 1, pct: { '1': 100, X: 0, '2': 0 } } },
-          })),
-        },
-      },
-    });
-    render(<RadarScreen navigation={nav} />);
-    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
-    fireEvent.press(screen.getByText('Bülten DNA'));
-    // Yüzde GİZLENMEZ (veri saklanmaz)…
-    expect((await screen.findAllByText('%100.0')).length).toBeGreaterThan(0);
-    // …ama neye dayandığı yazılır ve yön sinyali üretilmediği söylenir.
-    expect(screen.getAllByText(/Yalnız 1 hafta — yön sinyali üretilmez/).length).toBe(3);
-    // Hafta sayısı parantezi kaldırıldı ("52/51/50 ne demek?"); satır sade.
-    expect(screen.getByText('Geçmiş 1. sıra')).toBeTruthy();
-    expect(screen.queryByText(/Geçmiş 1\. sıra \(/)).toBeNull();
-  });
-
-  test('örneklem yeterliyken uyarı çıkmaz (olumlu karşılık)', async () => {
-    mockUclar({
-      ...VARSAYILAN,
-      '/api/radar/position-dna': {
-        hasData: true,
-        dna: {
-          positions: Array.from({ length: 3 }, (_, i) => ({
-            position: i + 1,
-            windows: { allTime: { sample: 51, pct: { '1': 51.9, X: 17.3, '2': 30.8 } } },
-          })),
-        },
-      },
-    });
-    render(<RadarScreen navigation={nav} />);
-    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
-    fireEvent.press(screen.getByText('Bülten DNA'));
-    expect(await screen.findByText('Geçmiş 1. sıra')).toBeTruthy();
-    expect(screen.queryByText(/yön sinyali üretilmez/)).toBeNull();
-  });
 });
 
 // HAFTA SEÇİCİ — resmî listedeki gezinti: [sezon ▼] [hafta ▼].
