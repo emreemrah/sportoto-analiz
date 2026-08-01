@@ -2,23 +2,42 @@
 // Mobil uygulama SADECE buraya bağlanır; FootyStats anahtarı asla dışarı çıkmaz.
 import express from 'express';
 import cors from 'cors';
-import cron from 'node-cron';
+// (node-cron kaldırıldı — zamanlama artık autoRefresh scheduler'ında.)
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
-import { load, listSnapshotRounds, listRadarRounds } from './cache.js';
-import { CRITERIA_LABELS } from './analysis/criteriaEval.js';
-import { refreshAll, refreshLiveScores, refreshLiveFootyScores, getLiveFixtures, snapshotRoundPredictions } from './refresh.js';
+import { load, listSnapshotRounds, listRadarRounds, CACHE_DIR } from './cache.js';
+import { crestTargetOf, crestFileNameOf, crestContentTypeOf, fetchCrest } from './crestProxy.js';
+import { refreshLiveScores, refreshLiveFootyScores, getLiveFixtures } from './refresh.js';
+import { refreshCurrentBulletin, startAutoRefreshScheduler } from './autoRefresh.js';
+import { startHistoryAndObservationScheduler } from './history/scheduler.js';
 import { getRoundsForNav, getBulletinByRoundId, getRoundResult } from './sources/sportoto.js';
 import { fetchLiveFixtures, findLiveFixture, fetchFixtureStatistics, fetchFixtureEvents, fetchFixturesByDate } from './sources/apifootball.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import commentRoutes from './routes/comments.js';
+import moderationRoutes from './routes/moderation.js';
 import predictionRoutes from './routes/predictions.js';
 import couponRoutes from './routes/coupons.js';
+import bulletinArchiveRoutes from './routes/bulletins.js';
+import radarRoutes, { makeLegacyRadarHandler } from './routes/radar.js';
+import analysisRoutes from './routes/analysis.js';
+import makeScorecardsRouter from './routes/scorecards.js';
+import { legacySystemScorecardResponse, legacyCriteriaScorecardResponse } from './scorecards/scorecardService.js';
+import { buildCriterionScorecard } from './analysis/analysisService.js';
+import { startArchiveWorker } from './archive/worker.js';
+import { getArchiveStatus } from './archive/snapshotService.js';
+import { sbAdmin, supabaseEnabled } from './supabase.js';
+import { sarmala, hataKatmani, surecAginiKur } from './security/asyncGuard.js';
+import { syncCatalog } from './gamification/service.js';
+import { acilistaMigrationCalistir, migrationDurumu } from './migrate/index.js';
 
 const app = express();
+// Render/ters vekil arkasında gerçek istemci IP'sini görmek için şart.
+// Bu olmadan req.ip herkes için vekilin IP'si olur: oran sınırlama tek
+// kullanıcı yerine HERKESİ kilitler, güvenlik logları yanlış IP yazar.
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json({ limit: '4mb' })); // avatar yüklemesi (dataURL) için yeterli
 
@@ -26,16 +45,50 @@ app.use(express.json({ limit: '4mb' })); // avatar yüklemesi (dataURL) için ye
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/comments', commentRoutes);
+// MODERASYON (yalnız operatör) — /api/moderation/{access,reports,
+// comments/:id/hide, comments/:id/unhide, reports/:id/dismiss}. Yetki
+// .env'deki MODERATOR_EMAILS ile belirlenir, uygulamaya gömülmez.
+app.use('/api/moderation', moderationRoutes);
 app.use('/api/predictions', predictionRoutes);
 app.use('/api/coupons', couponRoutes);
+
+// BÜLTEN ARŞİVİ + DEĞİŞMEZ SNAPSHOT MOTORU (kalıcı arşiv uçları)
+// /api/bulletins · /api/bulletins/:id/{snapshot,results,evaluation,audit,observations}
+// /api/archive/position-stats · /api/internal/bulletins/:id/freeze (korumalı)
+app.use('/api', bulletinArchiveRoutes);
+
+// RADAR MERKEZİ — /api/radar/{current,weeks,scorecard,methodology,data-quality,
+// public-percentage-history,market-history,:roundId,:roundId/match/:matchId}
+// Radar Merkezi kaydı olmayan haftalarda :roundId, aşağıdaki ESKİ işleyiciye
+// düşer (geriye uyumluluk). /api/surprise-radar ve /api/radar-scorecard aynen durur.
+app.use('/api/radar', radarRoutes);
+
+// MASTER ANALİZ MOTORU — /api/analysis/{criteria,criteria-scorecard,methodology,
+// profiles,bulletins/:id/calculate|official|user|save-user-analysis,backtest,...}
+app.use('/api/analysis', analysisRoutes);
+
+// KARNELER (doğrulanmış) — /api/scorecards/{system,system/weeks,system/errors,
+// coverage,radar,criteria,retrospective,provenance}. Üç karne de TEK merkezî
+// resmî ileri-test kuralını kullanır (scorecards/provenance.js — default-deny).
+app.use('/api/scorecards', makeScorecardsRouter({ fetchBulletin: getBulletinByRoundId }));
 
 // Sağlık kontrolü
 app.get('/api/health', (req, res) => {
   const cached = load('bulletin');
+  const migration = migrationDurumu();
   res.json({
     ok: true,
     hasData: !!cached,
     updatedAt: cached?.data?.updatedAt || null,
+    // Şema durumu: hangi migration'lar uygulandı ve doğrulama geçti mi.
+    // Bağlantı bilgisi, sunucu adresi veya gizli değer TAŞIMAZ.
+    migration: {
+      durum: migration.durum,
+      ok: migration.ok,
+      uygulanan: migration.uygulanan,
+      zaman: migration.zaman,
+      semaDogrulandi: migration.dogrulama ? migration.dogrulama.ok : null,
+    },
   });
 });
 
@@ -50,6 +103,48 @@ app.get('/api/coverage', (req, res) => {
   const uncovered = ms.filter((m) => m.coverage ? !m.coverage.ok : !m.footyMatchId)
     .map((m) => ({ no: m.no, home: m.home?.name, away: m.away?.name, league: m.league || null, reason: m.coverage?.reason || 'Eşleşmedi' }));
   res.json({ generatedAt: b?.updatedAt || null, roundId: b?.roundId ?? null, round: b?.round ?? null, total: ms.length, matched: ms.length - uncovered.length, uncoveredCount: uncovered.length, uncovered });
+});
+
+// KULÜP ARMASI VEKİLİ — /api/crest?u=<arma adresi>
+//
+// NEDEN: Arma dış kaynaktan geldiğinde tarayıcı onu EKRANDA çiziyor ama
+// "ekran görselini paylaş" karesine KOYAMIYOR (dış kaynak CORS izni vermiyor,
+// kare alan kitaplık da izinsiz görseli sessizce düşürüyor). Kendi
+// sunucumuzdan geçince izin var (app.use(cors())) ve arma kareye giriyor.
+//
+// GÜVENLİK: Adres doğrulaması crestProxy.js'te ve VARSAYILAN RET çalışır —
+// yalnız bilinen arma konağının /img/ altındaki görselleri geçer, başka her
+// şey 400 alır. Bu uç genel bir "adres getir" kapısı değildir (SSRF).
+//
+// BAŞARISIZLIK = 404, 500 DEĞİL: arma indirilememesi sunucu arızası değildir;
+// uygulamadaki arma bileşeni 404'ü görünce nötr ⚽ çizer. Yanlış/benzeri bir
+// arma asla konmaz.
+const crestDir = path.join(CACHE_DIR, 'crests');
+app.get('/api/crest', async (req, res) => {
+  const hedef = crestTargetOf(req.query?.u);
+  if (!hedef) return res.status(400).json({ error: 'Geçersiz arma adresi.' });
+  const ad = crestFileNameOf(hedef);
+  const tur = crestContentTypeOf(hedef);
+  const dosya = path.join(crestDir, ad);
+
+  // Bir kez indirilen arma diskte kalır; her yayında dış ağa gidilmez.
+  const yolla = (govde) => {
+    res.set('Content-Type', tur);
+    res.set('Cache-Control', 'public, max-age=2592000, immutable');
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.send(govde);
+  };
+  try {
+    if (fs.existsSync(dosya)) return yolla(fs.readFileSync(dosya));
+  } catch { /* bozuk dosya — aşağıda yeniden indirilir */ }
+
+  const arma = await fetchCrest(hedef);
+  if (!arma) return res.status(404).json({ error: 'Arma bulunamadı.' });
+  try {
+    fs.mkdirSync(crestDir, { recursive: true });
+    fs.writeFileSync(dosya, arma.body);
+  } catch { /* disk yazılamadıysa da görseli yollarız */ }
+  return yolla(arma.body);
 });
 
 // Analizli bülten (ana ekran). Lig tablosu büyük; sadece maç detayında döner.
@@ -70,8 +165,27 @@ app.get('/api/bulletin', async (req, res) => {
     const away = restStats.away ? { ...restStats.away, squad: undefined } : restStats.away;
     return { ...m, stats: { ...restStats, home, away } };
   });
-  res.json({ ...data, matches });
+  // Arşiv/mühür durumu (freezeAt geri sayımı + "Mühürlü Analiz" rozeti için).
+  // Arşiv okunamazsa bülten yine döner (mevcut akış bozulmaz).
+  let archive = null;
+  try { archive = await getArchiveStatus(data.roundId); } catch { archive = null; }
+  res.json({ ...data, matches, archive, couponPricing: readCouponPricing() });
 });
+
+// BİRİM KOLON BEDELİ — KODA YAZILMAZ/UYDURULMAZ. Yalnız backend/data/
+// coupon-pricing.json'dan okunur: { "unitPrice": <TL>, "source": "<kaynak>",
+// "updatedAt": "<ISO tarih>" }. Dosya yoksa/eksikse null döner → uygulama
+// "birim bedel verisi yok" der, yanlış maliyet GÖSTERMEZ. Resmi kaynaktan
+// güncel bedeli öğrenince bu dosyayı doldurman yeterli.
+function readCouponPricing() {
+  try {
+    const p = JSON.parse(fs.readFileSync(new URL('../data/coupon-pricing.json', import.meta.url), 'utf8'));
+    if (Number(p?.unitPrice) > 0 && p?.source && p?.updatedAt) {
+      return { unitPrice: Number(p.unitPrice), source: String(p.source), updatedAt: String(p.updatedAt) };
+    }
+  } catch {}
+  return null;
+}
 
 // Sürpriz radarı (sıralı liste)
 // Radar hafta listesi: arşivlenmiş (mühürlü) haftalar + güncel hafta, yeniden eskiye.
@@ -107,31 +221,14 @@ app.get('/api/surprise-radar', (req, res) => {
 
 // Geçmiş hafta radarı (mühürlü arşiv). Güncel hafta istenirse canlı yanıt döner.
 // Arşive RESMİ sonuçlar işlenir: her maça result + skor + favori tuttu mu.
-app.get('/api/radar/:roundId', async (req, res) => {
-  const rid = String(req.params.roundId);
-  const cur = load('bulletin')?.data;
-  if (cur && String(cur.roundId) === rid) {
-    return res.json({ roundId: cur.roundId, round: cur.round, year: cur.year, radarFrozenAt: cur.radarFrozenAt ?? null, radar: cur.radar, current: true });
-  }
-  const arch = load(`radar-${rid}`);
-  if (!arch?.data) return res.status(404).json({ error: 'Bu hafta için radar arşivi yok.' });
-  // Resmi sonuçları maçlara işle (alınamazsa arşiv olduğu gibi döner — uydurma yok).
-  let radar = arch.data.radar || [];
-  try {
-    const bulletin = await getBulletinByRoundId(Number(rid));
-    const byNo = new Map((bulletin.matches || []).map((m) => [m.no, m]));
-    radar = radar.map((r) => {
-      const m = byNo.get(r.no);
-      if (!m?.result || !m?.score) return r;                  // resmi sonuç yoksa dokunma
-      const favHit = r.favorite?.symbol ? r.favorite.symbol === m.result : null;
-      return { ...r, result: m.result, score: m.score, favHit };
-    });
-  } catch { /* sonuç servisi yoksa arşiv sade döner */ }
-  res.json({ ...arch.data, radar, current: false });
-});
+// İşleyici routes/radar.js'te (makeLegacyRadarHandler): sayısal doğrulama +
+// güncel hafta asla "arşiv yok" 404'üne düşmez; eski davranış aynen korunur.
+app.get('/api/radar/:roundId', makeLegacyRadarHandler({ fetchBulletin: getBulletinByRoundId }));
 
-// RADAR KARNESİ — radarın kendi başarısı (etiket bazında, yalnız RESMİ sonuçlarla).
-// BANKO "tuttu" = favori kazandı · SÜRPRİZE AÇIK "yakaladı" = favori kazanamadı.
+// ESKİ RADAR KARNESİ — eski sürpriz radarı arşivlerinden (radar-*.json).
+// ⚠️ PROVENANCE: bu kayıtların maç öncesi mühürlendiği DOĞRULANAMAZ (hash yok)
+// — bu yüzden yanıt AÇIKÇA retrospektif/legacy işaretlenir ve güncel Radar
+// Merkezi'nde GERÇEK başarı olarak GÖSTERİLMEZ. Resmî karne: /api/radar/scorecard.
 app.get('/api/radar-scorecard', async (req, res) => {
   try {
     let rs = cacheGet('radarScorecard');
@@ -160,16 +257,24 @@ app.get('/api/radar-scorecard', async (req, res) => {
       const banko = byLabel['BANKO'] || { total: 0, favWin: 0 };
       const dikkat = byLabel['DİKKAT'] || { total: 0, favWin: 0 };
       const surpriz = byLabel['SÜRPRİZE AÇIK'] || { total: 0, favWin: 0 };
+      const anyBackfilled = listRadarRounds().some((rid) => load(`radar-${rid}`)?.data?.backfilled === true);
       rs = {
         generatedAt: new Date().toISOString(),
-        source: 'Resmi Spor Toto sonuçları',
+        source: 'Eski sürpriz radarı arşivi × resmî Spor Toto sonuçları',
+        predictionSource: 'Eski sistem radar arşivi (doğrulama hash\'i YOK — maç öncesi kanıtlanamaz)',
+        resultSource: 'Resmî Spor Toto 90 dakika sonuçları',
         hasData: matchesCounted > 0,
+        isOfficialForward: false,                       // ❗ resmî ileri-test DEĞİL
+        isDemo: false,
+        retrospective: true,
+        provenanceType: anyBackfilled ? 'legacy_backfill' : 'unknown',
+        officialNote: 'RESMÎ BAŞARIYA DAHİL DEĞİLDİR — eski sistem arşivi; resmî Radar Karnesi /api/radar/scorecard ucundadır.',
         weeksCounted, matchesCounted,
         note: matchesCounted === 0
-          ? 'Radar karnesi mühürlenen haftaların resmi sonuçlarıyla dolacak — ilk hafta sonuçlandığında burada görünür.'
+          ? 'Eski radar arşivi kaydı yok.'
           : (matchesCounted < 30 ? 'Örnek sayısı henüz az — oranlar zamanla oturur.' : null),
         labels: {
-          banko: { total: banko.total, hit: banko.favWin, rate: pct(banko.favWin, banko.total), desc: 'Banko dediklerinde favori kazandı' },
+          banko: { total: banko.total, hit: banko.favWin, rate: pct(banko.favWin, banko.total), desc: 'Güçlü aday dediklerinde favori kazandı' },
           dikkat: { total: dikkat.total, favWin: dikkat.favWin, favWinRate: pct(dikkat.favWin, dikkat.total), desc: 'Dikkat dediklerinde favorinin kazanma oranı' },
           surpriz: { total: surpriz.total, hit: surpriz.total - surpriz.favWin, rate: pct(surpriz.total - surpriz.favWin, surpriz.total), desc: 'Sürprize açık dediklerinde favori kazanamadı' },
         },
@@ -212,6 +317,9 @@ app.get('/api/live/:no', async (req, res) => {
 
   const base = {
     no: m.no, home: m.home?.mediumName || m.home?.name, away: m.away?.mediumName || m.away?.name,
+    // roundId: istemci bu maç için KULLANICININ GERÇEK kuponunu bulabilsin diye
+    // gerekir (kupon istemcide saklanır; sunucu kupon içeriğini burada dönmez).
+    roundId: data.roundId ?? null,
     score: m.score || null, minute: m.minute ?? null, live: !!m.live, finalized: !!m.finalized,
     started: !!m.started, liveStatus: m.liveStatus || null, prediction: m.prediction || null,
     stats: [], events: [], hasLiveData: false, updatedAt: new Date().toISOString(),
@@ -272,7 +380,7 @@ app.get('/api/rounds', async (req, res) => {
 // İkramiye gelmişse (yayınlanmış) sonuç değişmez → 24 saat; değilse kısa TTL.
 const histFreshAt = new Map();  // roundId -> son taze sorgu zamanı (resmi API'yi korur)
 const liveFootyAt = new Map();  // roundId -> son CANLI footy skoru tazeleme zamanı (throttle)
-const snapshotJobs = new Set(); // arka planda tahmin snapshot'ı üretilen round'lar
+// (snapshotJobs kaldırıldı — geçmişe otomatik backfill üretimi tamamen kapalı.)
 app.get('/api/history/:roundId', async (req, res) => {
   try {
     const roundId = Number(req.params.roundId);
@@ -355,11 +463,11 @@ app.get('/api/history/:roundId', async (req, res) => {
         }
         return merged;
       }) };
-    } else if (!snapshotJobs.has(roundId)) {
-      // Snapshot yok → arka planda üret (bir kez). Sonraki yenilemede dolar.
-      snapshotJobs.add(roundId);
-      snapshotRoundPredictions(roundId).catch(() => {}).finally(() => snapshotJobs.delete(roundId));
     }
+    // ⛔ OTOMATİK BACKFILL KALDIRILDI: geçmiş haftaya BAKMAK tahmin snapshot'ı
+    // ÜRETMEZ. Eski davranış (snapshotRoundPredictions arka plan çağrısı) geçmişe
+    // sonradan üretilmiş 'backfilled' kayıtlarla karneleri kirletiyordu. Geçmiş
+    // haftada snapshot yoksa sistem tahmini alanı boş kalır — uydurma üretilmez.
 
     res.json(payload);
   } catch (e) {
@@ -367,150 +475,134 @@ app.get('/api/history/:roundId', async (req, res) => {
   }
 });
 
-// SİSTEM KARNESİ — sistemin maç-öncesi tahminleri (snapshot) ile RESMİ Spor Toto
-// sonuçlarını karşılaştırır. Sadece resmi sonucu gelen maçlar sayılır (canlı/geçici
-// skor SAYILMAZ). Hatalar açık açık listelenir. 5 dk cache.
-const expandPick = (sym) => String(sym || '').split('').map((c) => (c === '0' ? 'X' : c)).filter((c) => ['1', 'X', '2'].includes(c));
-const pickHits = (sym, actual) => { const set = expandPick(sym); return (set.length && actual) ? set.includes(actual) : null; };
+// SİSTEM KARNESİ — ✅ YENİ DOĞRULANMIŞ HESAP (geriye uyumlu uç).
+// ⚠️ ESKİ HESAP KALDIRILDI: eski sürüm TÜM snapshot-*.json dosyalarını (11'i
+// backfilled:true — geçmişe sonradan üretilmiş) tarıyor ve '1X'/'X2'/'102' gibi
+// KAPALI tercihleri de "doğru" sayıyordu → %69'luk sahte resmî başarı.
+// Yeni hesap: yalnız KANITLI official_forward mühürlü snapshot'ların TEKLİ
+// mainPrediction (1/X/2) doğruluğu (scorecards/scorecardService.js).
+// Kapalı tercihler yalnız AYRI "Kapsama Başarısı"nda ölçülür. Eski kayıtlar
+// SİLİNMEZ: /api/scorecards/retrospective bölümünde açık etiketle raporlanır.
 app.get('/api/system-scorecard', async (req, res) => {
   try {
     let sc = cacheGet('scorecard');
     if (!sc) {
-      const rounds = listSnapshotRounds();
-      // Resmi hafta adları (48. Hafta gibi) — nav listesinden (10 dk cache).
-      let roundsNav = cacheGet('rounds');
-      if (!roundsNav) { try { roundsNav = await getRoundsForNav(); cacheSet('rounds', roundsNav, 10 * 60 * 1000); } catch { roundsNav = { rounds: [] }; } }
-      const nameMap = new Map((roundsNav.rounds || []).map((r) => [r.id, r.name]));
-      let total = 0, correct = 0, wrong = 0, single = 0, singleCorrect = 0;
-      const byResult = { '1': { t: 0, c: 0 }, X: { t: 0, c: 0 }, '2': { t: 0, c: 0 } };
-      const weeks = [];
-      const errors = [];
-      let weeksCounted = 0;
-      for (const roundId of rounds) {
-        const snap = load(`snapshot-${roundId}`)?.data;
-        if (!snap?.picks?.length) continue;
-        let bulletin;
-        try { bulletin = await getBulletinByRoundId(roundId); } catch { continue; }
-        const roundName = nameMap.get(roundId) || snap.round || `#${roundId}`;
-        const byNo = new Map(snap.picks.map((p) => [p.no, p]));
-        let wT = 0, wC = 0, wS = 0, wSC = 0;
-        const wRes = { '1': { t: 0, c: 0 }, X: { t: 0, c: 0 }, '2': { t: 0, c: 0 } };
-        for (const m of bulletin.matches) {
-          if (!(m.result && m.score)) continue;               // yalnız RESMİ sonuç
-          const sym = byNo.get(m.no)?.symbol;
-          const hit = pickHits(sym, m.result);
-          if (hit == null) continue;                           // tahmin yok
-          total += 1; wT += 1;
-          if (byResult[m.result]) { byResult[m.result].t += 1; wRes[m.result].t += 1; }
-          const isSingle = expandPick(sym).length === 1;
-          if (isSingle) { single += 1; wS += 1; }
-          if (hit) {
-            correct += 1; wC += 1;
-            if (byResult[m.result]) { byResult[m.result].c += 1; wRes[m.result].c += 1; }
-            if (isSingle) { singleCorrect += 1; wSC += 1; }
-          } else {
-            wrong += 1;
-            errors.push({ roundId, round: roundName, no: m.no, home: m.home.name, away: m.away.name, system: sym, result: m.result, score: `${m.score.home}-${m.score.away}` });
-          }
-        }
-        if (wT > 0) { weeks.push({ roundId, round: roundName, total: wT, correct: wC, wrong: wT - wC, accuracy: Math.round(wC / wT * 100), byResult: wRes, single: wS, singleCorrect: wSC }); weeksCounted += 1; }
-      }
-      const rate = (c, t) => (t ? Math.round(c / t * 100) : 0);
-      sc = {
-        generatedAt: new Date().toISOString(),
-        source: 'Resmi Spor Toto sonuçları',
-        hasData: total > 0,
-        weeksCounted, total, correct, wrong,
-        accuracy: rate(correct, total),
-        single, singleCorrect, singleAccuracy: rate(singleCorrect, single),
-        byResult: {
-          '1': { ...byResult['1'], rate: rate(byResult['1'].c, byResult['1'].t) },
-          X: { ...byResult.X, rate: rate(byResult.X.c, byResult.X.t) },
-          '2': { ...byResult['2'], rate: rate(byResult['2'].c, byResult['2'].t) },
-        },
-        weeks: weeks.sort((a, b) => b.roundId - a.roundId),
-        errors: errors.slice(0, 60),
-      };
+      // Geriye uyumlu alanlar: eski istemciler total/correct/wrong/accuracy okur —
+      // bu değerler artık YALNIZ tekli resmî ana tahmin başarısıdır.
+      sc = await legacySystemScorecardResponse();
       cacheSet('scorecard', sc, 5 * 60 * 1000);
     }
     res.json(sc);
   } catch (e) {
+    console.warn('[system-scorecard] hata:', e.message);
     res.status(500).json({ error: 'Karne hesaplanamadı.' });
   }
 });
 
-// KRİTER KARNESİ — hangi analiz kriteri daha çok tutuyor?
-// Kilitli snapshot'lardaki maç-öncesi kriter sinyalleri × RESMİ sonuçlar.
-// Sinyal 'X' ise sonuç X'te tutar; '1'/'2' aynen. Sinyali olmayan maç sayılmaz.
+// KRİTER KARNESİ — ✅ YENİ DOĞRULANMIŞ HESAP (geriye uyumlu uç).
+// ⚠️ ESKİ HESAP KALDIRILDI: eski sürüm backfilled snapshot-*.json kriter
+// sinyallerini de sayıyordu. Yeni hesap yalnız official_forward mühürlü
+// catalogEvaluation × resmî sonuç kullanır (analysisService.buildCriterionScorecard).
+// Eski istemci şekli (criteria[].total/hit/accuracy/lowSample) korunur.
 app.get('/api/criteria-scorecard', async (req, res) => {
   try {
     let cs = cacheGet('criteriaScorecard');
     if (!cs) {
-      const byKey = new Map(); // key → { hit, total, weeks:Set }
-      let matchesCounted = 0, weeksCounted = 0;
-      for (const roundId of listSnapshotRounds()) {
-        const snap = load(`snapshot-${roundId}`)?.data;
-        if (!snap?.picks?.some((p) => p.criteria)) continue;   // kriter kaydı yok (eski hafta)
-        let bulletin;
-        try { bulletin = await getBulletinByRoundId(roundId); } catch { continue; }
-        const byNo = new Map(snap.picks.map((p) => [p.no, p]));
-        let weekUsed = false;
-        for (const m of bulletin.matches) {
-          if (!(m.result && m.score)) continue;                // yalnız RESMİ sonuç
-          const crit = byNo.get(m.no)?.criteria;
-          if (!crit) continue;
-          matchesCounted += 1; weekUsed = true;
-          for (const [key, sig] of Object.entries(crit)) {
-            if (!byKey.has(key)) byKey.set(key, { hit: 0, total: 0 });
-            const rec = byKey.get(key);
-            rec.total += 1;
-            if (sig === m.result) rec.hit += 1;
-          }
-        }
-        if (weekUsed) weeksCounted += 1;
-      }
-      const rate = (c, t) => (t ? Math.round(c / t * 100) : 0);
-      const criteria = [...byKey.entries()]
-        .map(([key, r]) => ({
-          key,
-          label: CRITERIA_LABELS[key] || key,
-          total: r.total,
-          hit: r.hit,
-          accuracy: rate(r.hit, r.total),
-          lowSample: r.total < 10,                             // az örnek → henüz güvenilir değil
-        }))
-        .sort((a, b) => b.accuracy - a.accuracy || b.total - a.total);
-      cs = {
-        generatedAt: new Date().toISOString(),
-        source: 'Resmi Spor Toto sonuçları',
-        hasData: matchesCounted > 0,
-        weeksCounted, matchesCounted,
-        note: matchesCounted === 0
-          ? 'Kriter sinyali kaydı bu haftadan itibaren tutuluyor — sonuçlar resmi olarak açıklandıkça karne dolacak.'
-          : (matchesCounted < 30 ? 'Örnek sayısı henüz az — oranlar zamanla oturur.' : null),
-        criteria,
-      };
+      cs = await legacyCriteriaScorecardResponse({ buildCriterionScorecard });
       cacheSet('criteriaScorecard', cs, 5 * 60 * 1000);
     }
     res.json(cs);
   } catch (e) {
+    console.warn('[criteria-scorecard] hata:', e.message);
     res.status(500).json({ error: 'Kriter karnesi hesaplanamadı.' });
   }
 });
 
-// Elle yenileme (geliştirme için)
-app.post('/api/refresh', async (req, res) => {
+// Yalnız iç erişim: INTERNAL_API_KEY tanımlıysa doğru anahtar, değilse
+// yalnız localhost. /api/internal/refresh-status ile aynı kural.
+function yalnizIcErisim(req, res, next) {
+  const key = process.env.INTERNAL_API_KEY;
+  const given = req.get('x-internal-key') || req.query.key;
+  const local = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.ip);
+  if (key ? given !== key : !local) return res.status(403).json({ error: 'Yetkisiz.' });
+  next();
+}
+
+// Elle yenileme (geliştirme için). Kimliksiz bırakılamaz: dış API
+// kotamız (FootyStats/API-Football) üçüncü kişilerce tüketilebilirdi.
+app.post('/api/refresh', yalnizIcErisim, async (req, res) => {
   try {
-    const data = await refreshAll();
-    res.json({ ok: true, updatedAt: data.updatedAt, matchedCount: data.matchedCount });
+    // Tek doğruluk kaynağı: single-flight kilitli kontrollü yenileme.
+    const r = await refreshCurrentBulletin({ trigger: 'manual-api' });
+    if (!r.ok) return res.status(500).json({ ok: false, error: r.error });
+    res.json({ ok: true, updatedAt: r.data?.updatedAt, matchedCount: r.data?.matchedCount });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
 });
 
+// İÇ TEŞHİS UCU (korumalı): otomatik yenileme + sezon keşfi durumu.
+// Müşteri ekranına teknik bilgi sızdırmadan operasyonel gözlem sağlar.
+app.get('/api/internal/refresh-status', (req, res) => {
+  const key = process.env.INTERNAL_API_KEY;
+  const given = req.get('x-internal-key') || req.query.key;
+  const local = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.ip);
+  if (key ? given !== key : !local) return res.status(403).json({ error: 'Yetkisiz.' });
+  res.json({
+    autoRefresh: load('autoRefreshStatus')?.data ?? null,
+    seasonDiscovery: load('seasonDiscovery')?.data?.meta ?? null,
+    coverage: load('coverage')?.data ?? null,
+    historyImport: load('historyImportStatus')?.data ?? null,
+    playedObserve: load('playedObserveStatus')?.data ?? null,
+    // Oran sağlayıcı çerçevesinin durumu. 27 Temmuz 2026'dan beri KAYITLI
+    // SAĞLAYICI YOK → burada `no-provider` görünür. Bu uç yalnız teşhis
+    // içindir; kullanıcı ekranına teknik bilgi sızmaz.
+    marketOddsObserve: load('marketOddsObserveStatus')?.data ?? null,
+  });
+});
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// ————————————————————————————————————————————————————————————————
+// YASAL SAYFALAR — Google Play zorunluluğu.
+// Gizlilik politikası ve hesap silme sayfası, uygulama KURULMADAN da
+// erişilebilir olmalıdır. Bu yüzden statik HTML olarak, web uygulamasının
+// yönlendirmesine takılmadan (catch-all'dan ÖNCE) sunulur.
+//
+// Sayfalardaki {{DESTEK_EPOSTA}} yer tutucusu, .env içindeki SUPPORT_EMAIL
+// ile doldurulur. Tanımlı değilse uydurma adres YAZILMAZ; kullanıcıya
+// mağaza sayfasındaki iletişim adresine başvurması söylenir.
+// ————————————————————————————————————————————————————————————————
+const legalDir = path.join(__dirname, '..', 'legal');
+const SUPPORT_EMAIL_FALLBACK = 'mağaza sayfasındaki iletişim adresi';
+
+function serveLegal(file) {
+  return (req, res) => {
+    try {
+      const html = fs
+        .readFileSync(path.join(legalDir, file), 'utf8')
+        .replaceAll('{{DESTEK_EPOSTA}}', process.env.SUPPORT_EMAIL || SUPPORT_EMAIL_FALLBACK);
+      res.set('Content-Type', 'text/html; charset=utf-8');
+      res.set('Cache-Control', 'public, max-age=3600');
+      res.send(html);
+    } catch {
+      res.status(500).send('Sayfa şu an açılamıyor. Lütfen daha sonra tekrar dene.');
+    }
+  };
+}
+
+app.get(['/gizlilik', '/privacy', '/gizlilik.html'], serveLegal('gizlilik.html'));
+app.get(['/hesap-silme', '/delete-account', '/hesap-silme.html'], serveLegal('hesap-silme.html'));
+// Topluluk Kuralları: Google Play'in kullanıcı içeriği şartlarından üçüncüsü —
+// bildirimlere karşılık veren bir moderasyon SÜRECİNİN yazılı olması. Sayfa
+// uygulama kurulmadan da açılabilmeli ki mağaza incelemesi doğrudan görebilsin.
+app.get(
+  ['/topluluk-kurallari', '/community-guidelines', '/topluluk-kurallari.html'],
+  serveLegal('topluluk-kurallari.html'),
+);
+
 // Üretim (Render): derlenmiş web uygulaması varsa onu da aynı sunucudan servis et.
 // Geliştirmede public/ olmadığı için bu blok atlanır, normal akış bozulmaz.
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const webDir = path.join(__dirname, '..', 'public');
 if (fs.existsSync(path.join(webDir, 'index.html'))) {
   app.use(express.static(webDir));
@@ -520,20 +612,75 @@ if (fs.existsSync(path.join(webDir, 'index.html'))) {
   });
 }
 
-app.listen(config.port, () => {
+// ——— ASENKRON HATA KORUMASI ———
+// TÜM rotalar tanımlandıktan SONRA çalışmalı: sarmala() var olan katmanları
+// gezer, sonradan eklenen bir rota kapsanmaz. Bu yüzden app.listen'in hemen
+// üstünde duruyor.
+//
+// Neden: Express 4, async bir rota işleyicisinin fırlattığı hatayı yakalamaz;
+// hata süreci sonlandırır. Ölçüldü: Supabase kapalıyken giriş bile
+// gerektirmeyen GET /api/comments sunucunun tamamını düşürüyordu. Artık
+// istek 500 alır, sunucu ayakta kalır.
+sarmala(app);
+app.use(hataKatmani);
+surecAginiKur();
+
+app.listen(config.port, async () => {
   console.log(`✅ Backend çalışıyor: http://localhost:${config.port}`);
   console.log(`   Uçlar: /api/health  /api/bulletin  /api/surprise-radar  /api/match/:no`);
 
-  // Açılışta veri yoksa bir kez yenile
-  if (!load('bulletin')) {
-    console.log('   Cache boş, ilk veri çekiliyor…');
-    refreshAll().catch((e) => console.error('İlk yenileme hatası:', e.message));
+  // ——— ŞEMA KAPISI ———
+  // Veritabanı güncellemeleri yayın altyapısının parçasıdır: backend açılırken
+  // backend/migrations altındaki dosyalar sırasıyla ve OTOMATİK uygulanır.
+  // Kimsenin SQL kopyalaması, dosya seçmesi veya komut çalıştırması gerekmez.
+  //
+  // Bu kapı worker ve scheduler'ların ÜSTÜNDEDİR ve bilinçlidir: aşağıdaki
+  // servislerin hepsi veritabanına YAZAR (arşiv worker'ı snapshot kilitler,
+  // scheduler geçmiş bülten yazar, syncCatalog katalog upsert eder). Şema
+  // hazır değilken bunları başlatmak, yarım bir şemaya veri yazmak demektir.
+  //
+  // HTTP sunucusu bilerek ayakta bırakılır: sorunun ne olduğu /api/health
+  // üzerinden görülebilsin diye. Sessizce ölen bir süreç teşhis edilemez.
+  let semaHazir = false;
+  try {
+    const sonuc = await acilistaMigrationCalistir();
+    semaHazir = sonuc.ok;
+  } catch (err) {
+    // Beklenmedik bir hata bile sessiz kalmaz; kapı KAPALI sayılır.
+    console.error('⛔ Migration açılış kontrolü beklenmedik şekilde başarısız:', err?.message || err);
+    semaHazir = false;
   }
 
-  // Belirli aralıkla otomatik yenile (limiti korur)
-  const everyN = Math.max(1, config.refreshHours);
-  cron.schedule(`0 */${everyN} * * *`, () => {
-    console.log('[cron] zamanlanmış yenileme…');
-    refreshAll().catch((e) => console.error('[cron] hata:', e.message));
-  });
+  if (!semaHazir) {
+    console.error('⛔ Veritabanı şeması hazır değil — arka plan servisleri BAŞLATILMADI.');
+    console.error('   (Sunucu, durumu /api/health üzerinden bildirmek için ayakta.)');
+    return;
+  }
+
+  // OTOMATİK YENİLEME SERVİSİ — kullanıcı komutu gerekmez: açılışta bir kez
+  // kontrollü refresh (cache boş/eski/güncel farketmez, resmî durumla hizalar),
+  // sonra kontrollü aralıklarla; hata → üstel backoff; donmadan ~10 dk önce son
+  // güvenli yenileme. Single-flight kilidiyle çifte refresh imkânsız. Test
+  // ortamında otomatik BAŞLAMAZ; kapanışta timer'lar temizlenir.
+  const autoRefresh = startAutoRefreshScheduler();
+
+  // GEÇMİŞ ARŞİV + OYNANMA GÖZLEMİ: resmî geçmiş bültenler checkpoint'ten
+  // kaldığı yerden sayfalı içe aktarılır (kaynağa yük binmez, güncel hafta
+  // asla arşive girmez); etkin oynanma yüzdesi sağlayıcısı varsa aktif bülten
+  // periyodik gözlemlenir + donmadan önce son gözlem alınır. Test ortamında
+  // otomatik BAŞLAMAZ; kapanışta timer'lar temizlenir.
+  const historySched = startHistoryAndObservationScheduler();
+  const stopAll = () => { autoRefresh.stop(); historySched.stop(); };
+  process.on('SIGTERM', stopAll);
+  process.on('SIGINT', stopAll);
+
+  // ARŞİV WORKER'I: ilk maçtan 5 dk önce otomatik snapshot kilidi + resmî sonuç
+  // toplama + bülten tamamlama/değerlendirme. Sunucu freeze anında kapalıysa
+  // açılışta ilk tick telafi eder. Mevcut refresh cron'unu BOZMAZ.
+  startArchiveWorker();
+
+  // BAŞARI/GÖREV KATALOĞU: kod → veritabanı eşitlemesi (idempotent upsert).
+  // Migration 006 uygulanmadıysa kendini kapatır ve tek uyarı basar.
+  if (supabaseEnabled) syncCatalog(sbAdmin);
+
 });

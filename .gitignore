@@ -21,3 +21,12 @@ dist/
 # Sistem
 .DS_Store
 Thumbs.db
+
+# Geçici/denetim klasörleri ve sır yedekleri — ASLA git'e gitmez
+_to_delete/
+_sync/
+_audit_fresh/
+app/.audit-web-*/
+*env-yedek*
+*.zip
+*.tar.gz
