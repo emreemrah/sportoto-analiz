@@ -1,4 +1,4 @@
-// SPOR TOTO — KULLANICI SEÇİMLİ ANALİZ MOTORU (userSelectedAnalysisEngine)
+// KULLANICI SEÇİMLİ ANALİZ MOTORU (userSelectedAnalysisEngine)
 // Sabit/hazır analiz YOK. Motor BOŞ başlar: aktif profildeki AÇIK kriterleri okur
 // ve SADECE onları çalıştırır. Kapalı/seçilmemiş kriter sonuca, güvene, riske,
 // yoruma HİÇ etki etmez. Veri yoksa uydurmaz; kriteri "analiz dışı" bırakır.
@@ -6,11 +6,11 @@
 // Girdi:  m (maç + m.stats), profile (aktif analiz profili)
 // Çıktı:  { ok, empty?, message?, matchInfo, usedCriteria[], results[],
 //           verdict:{ main, alt, confidence, risk, reason, favor } }
-import { CRITERIA_MAP, IMPACT } from './criteria.js';
+import { CRITERIA_MAP, IMPACT, logFilteredEvalApp } from './criteria.js';
 
 const wOf = (impKey) => (IMPACT[impKey] || IMPACT.mid).w;
 
-// ——— SPOR TOTO KUPON KARAR KATMANI ———
+// ——— KUPON KARAR KATMANI ———
 // Seçili kriterlerin puanlarından KUPON kararı üretir: ana eğilim, dar/güvenli
 // kupon, hedef stratejisi (12 / 13-14 / 15), risk ve "banko uygunluğu".
 // OLASILIK ÜRETMEZ: aşağıdaki yüzdeler yalnızca seçili kriterlerin puan
@@ -36,7 +36,7 @@ function emptySportotoDecision(message) {
     dataConfidence: 'Çok Düşük',
     tags: [{ name: 'Veri Yetersiz', weight: 100, reason: message, couponEffect: 'Kör karar verilmez; kapalı (1-X-2) düşünülmeli veya bu maç kupona alınmamalı.' }],
     unknownData: [message],
-    shortComment: `${message} Bu maç için yön verilemez; güvenli kupon 1-X-2, banko önerilmez.`,
+    shortComment: `${message} Bu maç için yön verilemez; güvenli kupon 1-X-2, güçlü aday önerilmez.`,
   };
 }
 
@@ -97,7 +97,7 @@ function buildSportotoDecision(ctx) {
   if (dataConfidence === 'Çok Düşük' || decisiveCount < 2) riskLevel = bumpRisk(riskLevel, 1);
   if (spread <= 14) riskLevel = bumpRisk(riskLevel, 1);
 
-  // ——— BANKO UYGUNLUĞU ———
+  // ——— GÜÇLÜ ADAY UYGUNLUĞU ———
   // "Evet" YOK: kadro/sakatlık/hoca bilgisi hiçbir zaman doğrulanamıyor.
   const bankoReasons = [];
   let bankoStatus = 'Şartlı';
@@ -105,7 +105,7 @@ function buildSportotoDecision(ctx) {
   if (gap12 < 15) { bankoStatus = 'Hayır'; bankoReasons.push(`1 ve 2 kriter payı farkı sadece %${gap12} (15 puanın altında).`); }
   if (decisiveCount < 3) { bankoStatus = 'Hayır'; bankoReasons.push(`Yalnız ${decisiveCount} kriter bir tarafı işaret ediyor — dayanak zayıf.`); }
   if (dataConfidence !== 'Orta') { bankoStatus = 'Hayır'; bankoReasons.push(`Veri güvenliği "${dataConfidence}" — seçili kriterlerin ${naRows.length} tanesi veri bulamadı.`); }
-  if (mainTrend === 'X') { bankoStatus = 'Hayır'; bankoReasons.push('En yüksek puan beraberlikte — beraberlik banko olarak değerlendirilmez.'); }
+  if (mainTrend === 'X') { bankoStatus = 'Hayır'; bankoReasons.push('En yüksek puan beraberlikte — beraberlik güçlü aday olarak değerlendirilmez.'); }
   if (bankoStatus !== 'Hayır') {
     if (sX >= 20) bankoReasons.push(`Beraberlik payı %${sX} — tamamen silinemez.`);
     bankoReasons.push('Kadro eksiği / teknik direktör bilgisi doğrulanamadığı için en fazla "Şartlı" verilir.');
@@ -116,14 +116,16 @@ function buildSportotoDecision(ctx) {
   const addTag = (name, weight, reason, couponEffect) => {
     if (weight >= 40) tags.push({ name, weight: Math.max(0, Math.min(100, Math.round(weight))), reason, couponEffect });
   };
-  if (!clear) addTag('Net Favori Yok', 65, `Sonuç payları yakın (1: %${s1} · X: %${sX} · 2: %${s2}).`, 'Tek seçim önerilmez; çift ya da kapalı düşünülmeli.');
+  if (!clear) addTag('Belirgin Üstünlük Yok', 65, `Sonuç payları yakın (1: %${s1} · X: %${sX} · 2: %${s2}).`, 'Tek seçim önerilmez; çift ya da kapalı düşünülmeli.');
   if (spread <= 14) addTag('Kapama Adayı', 60 + (14 - spread), 'Üç sonucun kriter payı birbirine çok yakın.', '15 hedefinde 1-X-2 kapalı değerlendirilebilir.');
   if (gap12 < 15) addTag('Tek Oynanmaz', 55 + (15 - gap12), `1 ve 2 arasındaki fark %${gap12} — güçler yakın.`, 'Tek yerine dar (1-2) veya kapalı oyna.');
   if (sX >= 20) addTag('X Silinmez', 45 + (sX - 20) * 2, `Beraberlik kriter payı %${sX}.`, 'Güvenli kuponda X kalmalı.');
   if (s2 >= 30) addTag('2 Silinmez', 45 + (s2 - 28), `Deplasman kriter payı %${s2} — gerçek risk.`, 'Güvenli kuponda 2 kalmalı.');
   if (naRows.length) addTag('Veri Eksikliği Riski', 40 + naRows.length * 6, `Seçili ${selectedCount} kriterden ${naRows.length} tanesi veri bulamadı: ${naRows.slice(0, 3).map((x) => x.label).join(', ')}.`, 'Eksik veri nedeniyle daha geniş (güvenli) seçim tercih edilmeli.');
   if (decisiveCount <= 1) addTag('Dayanak Zayıf', 70, `Yalnız ${decisiveCount} kriter bir tarafı gösteriyor.`, 'Daha çok kriter seçmeden bu maça tek oynanmamalı.');
-  if (bankoStatus === 'Hayır') addTag('Banko Freni', 60, bankoReasons[0] || 'Banko koşulları sağlanmadı.', 'Bu maç banko oynanmaz.');
+  // Alan adları (bankoStatus/bankoReasons) İÇ İSİMDİR, değiştirilmedi; ama
+  // kullanıcıya GÖRÜNEN her kelime "güçlü aday" dilinde olmak zorunda.
+  if (bankoStatus === 'Hayır') addTag('Güçlü Aday Freni', 60, bankoReasons[0] || 'Güçlü aday koşulları sağlanmadı.', 'Bu maç tek başına güçlü aday sayılmaz.');
   tags.sort((x, y) => y.weight - x.weight);
 
   // ——— BİLİNMEYENLER (uydurma yok) ———
@@ -142,7 +144,7 @@ function buildSportotoDecision(ctx) {
   if (s2 >= 30) ev.push(`Deplasman %${s2} ile 2 ihtimalini ayakta tutuyor.`);
   if (naRows.length) ev.push(`${naRows.length} kriter veri bulamadığı için güven düşürüldü.`);
   parts.push(ev.join(' '));
-  parts.push(`Dar kupon: ${joinCoupon(narrowCoupon)} · Güvenli kupon: ${joinCoupon(safeCoupon)} · Banko uygunluğu: ${bankoStatus} · Risk: ${riskLevel}.`);
+  parts.push(`Dar kupon: ${joinCoupon(narrowCoupon)} · Güvenli kupon: ${joinCoupon(safeCoupon)} · Güçlü aday uygunluğu: ${bankoStatus} · Risk: ${riskLevel}.`);
 
   return {
     available: true,
@@ -175,7 +177,9 @@ export function userSelectedAnalysisEngine(m, profile) {
   const cr = profile?.criteria || {};
   for (const key of Object.keys(cr)) {
     const conf = cr[key];
-    if (conf && conf.on && CRITERIA_MAP[key]) selected.push({ key, impact: conf.impact || CRITERIA_MAP[key].defaultImpact });
+    if (conf && conf.on && CRITERIA_MAP[key]) {
+      selected.push({ key, impact: conf.impact || CRITERIA_MAP[key].defaultImpact, filters: conf.filters || null });
+    }
   }
 
   // Hiç kriter seçilmemiş → analiz YAPILMAZ.
@@ -196,11 +200,35 @@ export function userSelectedAnalysisEngine(m, profile) {
   const results = [];
   let homeScore = 0, awayScore = 0, drawScore = 0;
   let homeW = 0, awayW = 0, availDirW = 0; // yönlü (home/away) ağırlık toplamları
+  // FİLTRE ÇÖZÜMÜ (kullanıcı kuralı): KRİTER BAZLI override > Genel Filtreler
+  // > varsayılan. Yani üstten seçilen ayar her kritere körlemesine yayılmaz —
+  // kullanıcı istediği kriterde kendi filtresini seçer, istediğini "Tümü/Genel"
+  // diyerek genel ayardan MUAF tutar. Uygulayan satır "[Filtre: …]" notu taşır;
+  // uygulayamayan DÜRÜSTÇE "genel değer" olarak işaretlenir.
+  const gDefaults = { period: 'season', venueScope: 'overall', opponentStrength: 'all' };
+  const gFilters = { ...gDefaults, ...(profile?.globalFilters || {}) };
+  const explicitOf = (f) => f.period !== gDefaults.period
+    || f.venueScope !== gDefaults.venueScope
+    || f.opponentStrength !== gDefaults.opponentStrength;
+
   for (const sel of selected) {
     const def = CRITERIA_MAP[sel.key];
     const weight = wOf(sel.impact);
+    // Bu kriterin ETKİN filtresi: kriter override'ı genel ayarın üstüne biner.
+    const eff = { ...gFilters, ...(sel.filters || {}) };
+    const effExplicit = explicitOf(eff);
     let r;
-    try { r = def.evaluate(home, away, m, names); } catch { r = { available: false, note: `${def.label}: değerlendirilemedi — analiz dışı.` }; }
+    // MERKEZÎ LOG FİLTRESİ: filtre açıkken maç-logu ile hesaplanabilen kriterler
+    // buradan hesaplanır (sonuç/skor/saha/rakip sınıfı gerçek satırlardan).
+    if (effExplicit) {
+      try { r = logFilteredEvalApp(sel.key, home, away, names, eff) || undefined; } catch { r = undefined; }
+    }
+    if (!r) {
+      try { r = def.evaluate(home, away, m, names, { filters: eff, filtersExplicit: effExplicit }); } catch { r = { available: false, note: `${def.label}: değerlendirilemedi — analiz dışı.` }; }
+    }
+    if (effExplicit && r?.available && !r.filterApplied) {
+      r = { ...r, note: `${r.note} [Filtre bu kriterde uygulanamadı — kaynakta kırılım yok; genel değer kullanıldı.]` };
+    }
     const row = { key: sel.key, label: def.label, cat: def.cat, impact: sel.impact, impactLabel: (IMPACT[sel.impact] || IMPACT.mid).label, weight, points: 0, ...r };
     results.push(row);
     if (!r.available) { row.points = 0; continue; }
@@ -248,7 +276,18 @@ export function userSelectedAnalysisEngine(m, profile) {
     favor = topOut === '1' ? 'home' : topOut === '2' ? 'away' : 'draw';
     let hedge;
     if (main === 'X') hedge = homeScore >= awayScore ? '1' : '2';
-    else { const opp = main === '1' ? '2' : '1'; hedge = (scores[opp] > drawScore * 2) ? opp : 'X'; }
+    else {
+      const opp = main === '1' ? '2' : '1';
+      // HEDGE KURALI (düzeltme): karşı GALİBİYET hedge'i yalnız karşı taraf
+      // GERÇEK rakipse verilir — ana seçimin en az %45'i kadar puan toplamış
+      // VE X'in belirgin üstünde olmalı. X, kriterlerce YAPISAL olarak az
+      // temsil edilir (çoğu kriter ev/dep yönü üretir); X puanının 0/düşük
+      // olması "beraberlik imkânsız" demek DEĞİLDİR. Ezici favorinin gerçekçi
+      // riski beraberliktir → varsayılan hedge X'tir. Eski kural (karşı > X×2)
+      // X=0 iken 2.2 gibi kırıntı puanla bile "12" üretiyordu — saçmaydı.
+      const contender = scores[opp] >= scores[main] * 0.45 && scores[opp] > drawScore * 2;
+      hedge = contender ? opp : 'X';
+    }
     alt = ['1', 'X', '2'].filter((o) => o === main || o === hedge).join('');
   } else {
     main = ['1', 'X', '2'].filter((o) => o === topOut || o === secondOut).join(''); // en güçlü iki → çift
@@ -275,7 +314,7 @@ export function userSelectedAnalysisEngine(m, profile) {
   if (decisiveCount === 0) {
     risk = 'Seçili kriterler net bir taraf göstermedi — veri yetersiz; çift/üçlü ihtimal daha güvenli.';
   } else if (!clear) {
-    risk = `Bu maçta net favori yok — puanlar birbirine yakın (1: ${r1(homeScore)} · X: ${r1(drawScore)} · 2: ${r1(awayScore)}), maç her sonuca açık. Ana seçim geniş tutuldu (${main}), alternatif üç ihtimal (${alt}).`;
+    risk = `Bu maçta belirgin bir üstünlük yok — puanlar birbirine yakın (1: ${r1(homeScore)} · X: ${r1(drawScore)} · 2: ${r1(awayScore)}), maç her sonuca açık. Ana seçim geniş tutuldu (${main}), alternatif üç ihtimal (${alt}).`;
   } else if (lead >= 0.55) {
     risk = `${outName(topOut)} açık ara önde (${r1(scores[topOut])} — ${r1(scores[secondOut])}). Ana seçim ${main} göreceli güvenli; daha geniş oynamak istersen alternatif ${alt}.`;
   } else {

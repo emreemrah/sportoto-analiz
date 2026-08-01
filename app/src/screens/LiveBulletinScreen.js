@@ -7,6 +7,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api';
 import { colors, spacing } from '../theme';
 import LiveBulletinView from '../components/LiveBulletinView';
+import { getRankedCoupon } from '../coupon/store';
+import { picksMapOf } from '../couponEval';
 
 const REFRESH_MS = 15000;
 
@@ -49,6 +51,10 @@ export default function LiveBulletinScreen({ navigation }) {
     </Center>;
   }
 
+  // DERECELİ kuponun seçimleri "Sen" satırını besler (kilitli FINAL versiyon).
+  // Kupon yoksa satır boş kalır — uydurma seçim gösterilmez.
+  const rankedPicks = data?.roundId != null ? picksMapOf(getRankedCoupon(data.roundId)) : {};
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -56,6 +62,7 @@ export default function LiveBulletinScreen({ navigation }) {
       </View>
       <LiveBulletinView
         matches={data.matches || []}
+        userPicks={rankedPicks}
         subtitle={`${data.round ? `${data.round} · ` : ''}✓ resmi teyitli · 15 sn'de bir yenilenir`}
         onCardPress={(no) => navigation.navigate('LiveMatchDetail', { no })}
         onRefresh={load}

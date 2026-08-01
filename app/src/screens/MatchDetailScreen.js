@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Image, Modal } from 'react-native';
 import { api } from '../api';
 import { colors, spacing, radius } from '../theme';
-import { ProbBar, SurpriseBadge, PredictionBadge, FormStrip, RecordBadges, StatBar } from '../components';
+import { ProbBar, SurpriseBadge, PredictionBadge, RecordBadges } from '../components';
 import { countryCode, matchDate } from '../utils';
 import CommentsSection from '../CommentsSection';
 import PollsSection from '../Polls';
@@ -10,9 +10,13 @@ import { MatchHeader, Tabs, Accordion, SectionCard, PollCard, EmptyState, Rating
 import CouponPickBlock from '../components/CouponPickBlock';
 import MatchInfoCard from '../components/MatchInfoCard';
 import UserAnalysisView from '../components/UserAnalysisView';
+import { statsFromLog, derivedStats } from '../analysis/criteria';
+import MasterAnalysisView from '../components/MasterAnalysisView';
 import CompareBars, { signalsFromStats } from '../components/CompareBars';
+import TeamCompareRadar from '../components/TeamCompareRadar';
 
-const TABS = ['Özet', 'Analiz', 'İstatistik', 'Karşılaştırma', 'Yorumlar'];
+// Karşılaştırma ayrı sekme DEĞİL: içeriği İstatistik sekmesinin altında (kullanıcı kararı).
+const TABS = ['Özet', 'Analiz', 'İstatistik', 'Yorumlar'];
 const sonRow = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' };
 const sonName = { color: colors.text, fontSize: 13.5, fontWeight: '700', flex: 1, marginRight: 8 };
 const topluLabel = { color: colors.textMuted, fontSize: 12, fontWeight: '800', letterSpacing: 0.5, marginTop: spacing.sm, marginBottom: spacing.sm };
@@ -336,6 +340,11 @@ export default function MatchDetailScreen({ route, navigation }) {
   const [infoOpen, setInfoOpen] = useState(false);
   const [teamModal, setTeamModal] = useState(null); // 'home' | 'away' | null
   const [tab, setTab] = useState(route.params?.tab || 'Özet');
+  // İstatistik sekmesi filtresi (Genel Filtreler'in yeni evi — görünüm katmanı).
+  // İstatistik karne filtresi — yalnız Dönem + Saha (Rakip gücü filtresi
+  // kullanıcı kararıyla panelden tamamen kaldırıldı; altın kural sınıflaması
+  // analiz/radar tarafında yaşamaya devam eder).
+  const [statF, setStatF] = useState({ period: 'season', venueScope: 'overall' });
 
   useEffect(() => {
     api.match(no).then(setM).catch((e) => setError(e.message));
@@ -386,7 +395,7 @@ export default function MatchDetailScreen({ route, navigation }) {
         onHomePress={s.home?.standing ? () => setTeamModal('home') : undefined}
         onAwayPress={s.away?.standing ? () => setTeamModal('away') : undefined}
       />
-      <Tabs tabs={TABS} active={tab} onChange={setTab} icons={{ 'Özet': '🕐', 'Analiz': '📈', 'İstatistik': '📊', 'Karşılaştırma': '⚖️', 'Yorumlar': '💬' }} />
+      <Tabs tabs={TABS} active={tab} onChange={setTab} icons={{ 'Özet': '🕐', 'Analiz': '📈', 'İstatistik': '📊', 'Yorumlar': '💬' }} />
       {tab !== 'Yorumlar' && (
         <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, backgroundColor: colors.bg }}>
           <CouponPickBlock m={m} navigation={navigation} />
@@ -452,99 +461,223 @@ export default function MatchDetailScreen({ route, navigation }) {
       )}
 
       {tab === 'Analiz' && (<>
-      {/* Analiz sekmesi TAMAMEN kullanıcının seçtiği kriterlere göre çalışır.
-          Sabit backend tahmini (Kazanma İhtimalleri) buradan kaldırıldı. */}
+      {/* MASTER ANALİZ — kriter hesabının tek doğruluk kaynağı BACKEND'dir.
+          Kullanıcının seçtiği kriterler sunucuda hesaplanır; mühürlü haftada
+          mühürlü değerlendirme gösterilir. Radar kıyası ayrı sistem olarak sunulur. */}
+      <MasterAnalysisView m={m} navigation={navigation} />
+      {/* Yerel hızlı görünüm — aynı kriter mantığının cihaz kopyası (parite
+          testli). Çevrimdışı durumda da çalışır; mevcut tasarım korunur. */}
       <UserAnalysisView m={m} navigation={navigation} />
       </>)}
 
-      {tab === 'İstatistik' && (<>
-      {/* Puan Durumu — Takım Kıyası ile aynı karşılaştırma grafiği yapısı */}
-      {(s.home?.standing || s.away?.standing) && (() => {
-        const hs = s.home?.standing || {};
-        const as = s.away?.standing || {};
-        const minGd = Math.min(hs.goalDiff ?? 0, as.goalDiff ?? 0, 0);
-        const sign = (n) => (n >= 0 ? '+' : '') + n;
+      {/* 🎛️ FİLTRELİ KARNE — İstatistik sekmesinin merkezi. Görsel dil: kullanıcının
+          referans ekran görüntüsü ("hepsi bu şekilde olsun") — logolu başlık,
+          ortalanmış bölüm başlığı, solda/sağda kalın değer, ortada soluk etiket,
+          ince ayraçlı satırlar; bar yok. Filtre yalnız Dönem + Saha (Rakip gücü
+          filtresi kullanıcı kararıyla kaldırıldı). Her kesit maç logundan GERÇEK
+          maçlarla hesaplanır; log yoksa dürüst geri düşüş: resmi sezon karnesi. */}
+      {/* 🕸️ GÜÇ KARŞILAŞTIRMASI — iki takımın gerçek istatistiklerinden radar;
+          yeterli ortak veri yoksa bileşen kendini gizler (uydurma eksen yok). */}
+      {tab === 'İstatistik' ? (
+        <TeamCompareRadar home={s.home} away={s.away} homeName={homeName} awayName={awayName} />
+      ) : null}
+
+      {tab === 'İstatistik' && (() => {
+        const F_DIMS = [
+          { k: 'period', label: 'Dönem', opts: [['season', 'Sezon'], ['last5', 'Son 5'], ['last10', 'Son 10'], ['last15', 'Son 15']] },
+          { k: 'venueScope', label: 'Saha', opts: [['overall', 'Genel'], ['home', 'İçeride'], ['away', 'Dışarıda'], ['split', 'İç/Dış']] },
+        ];
+        const hv = statsFromLog(s.home, statF, 'home');
+        const av = statsFromLog(s.away, statF, 'away');
+        const noLog = hv == null || av == null;
+        const tooFew = !noLog && ((hv.n || 0) < 2 || (av.n || 0) < 2);
+        const num = (x) => (x == null ? '—' : x);
+        // Maç logu yoksa (eski cache): resmi sezon karnesine dürüstçe geri düş,
+        // filtre çiplerini hiç gösterme (tıklanıp da değişmeyen filtre = kafa karışıklığı).
+        if (noLog) {
+          const hstd = s.home?.standing, astd = s.away?.standing;
+          const pp = (t) => (t && t.played > 0 && t.points != null ? Math.round((t.points / t.played) * 100) / 100 : null);
+          return (
+            <SectionCard>
+              <CmpHead s={s} homeName={homeName} awayName={awayName} />
+              <CmpTitle>Karne</CmpTitle>
+              {(hstd || astd) ? (
+                <>
+                  <CmpRow label="Maç" home={num(hstd?.played)} away={num(astd?.played)} />
+                  <CmpRow label="G-B-M"
+                    left={hstd ? <RecordBadges wins={hstd.wins} draws={hstd.draws} losses={hstd.losses} /> : <Text style={styles.clVal}>—</Text>}
+                    right={astd ? <RecordBadges wins={astd.wins} draws={astd.draws} losses={astd.losses} align="right" /> : <Text style={[styles.clVal, styles.clValR]}>—</Text>} />
+                  <CmpRow label="Puan / Maç" home={num(pp(hstd))} away={num(pp(astd))} last />
+                </>
+              ) : (
+                <Text style={styles.muted}>Bu maç için karne verisi bulunamadı.</Text>
+              )}
+              <Text style={styles.fltHint}>Filtreler bu maçta henüz kullanılamıyor — maç logu bir sonraki bülten tazelemesinde oluşur. Yukarıdaki değerler resmi sezon karnesidir; uydurma hesap yapılmaz.</Text>
+            </SectionCard>
+          );
+        }
         return (
-          <Accordion title="Puan Durumu" icon="🏆" defaultOpen>
-            <View style={styles.card}>
-              {/* Takım adları — bar yarımlarının üstüne hizalı */}
-              <View style={styles.puanHead}>
-                <View style={styles.puanSpacer} />
-                <Text style={[styles.puanTeam, { color: colors.green }]} numberOfLines={1}>● {homeName}</Text>
-                <Text style={[styles.puanTeam, styles.puanTeamR, { color: colors.orange }]} numberOfLines={1}>{awayName} ●</Text>
-                <View style={styles.puanSpacer} />
+          <SectionCard>
+            <CmpHead s={s} homeName={homeName} awayName={awayName} />
+            <CmpTitle>Karne</CmpTitle>
+            {F_DIMS.map((dim) => (
+              <View key={dim.k} style={styles.fltRow}>
+                <Text style={styles.fltDim}>{dim.label}</Text>
+                {dim.opts.map(([k, l]) => {
+                  const on = statF[dim.k] === k;
+                  return (
+                    <TouchableOpacity key={k} onPress={() => setStatF((f) => ({ ...f, [dim.k]: k }))} style={[styles.fltBtn, on && styles.fltBtnOn]} activeOpacity={0.85}>
+                      <Text style={[styles.fltTxt, on && styles.fltTxtOn]}>{l}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-
-              {/* Karşılaştırmalı bar satırları */}
-              <StatRow label="Sıra" home={ord(hs.position)} away={ord(as.position)} homeBar={as.position || 1} awayBar={hs.position || 1} />
-              <StatRow label="Puan" home={hs.points ?? '–'} away={as.points ?? '–'} homeBar={hs.points} awayBar={as.points} />
-              <StatRow label="Averaj" home={sign(hs.goalDiff ?? 0)} away={sign(as.goalDiff ?? 0)} homeBar={(hs.goalDiff ?? 0) - minGd + 1} awayBar={(as.goalDiff ?? 0) - minGd + 1} />
-
-              {/* Rozet / bilgi satırları (bardan ayrı) */}
-              <View style={styles.cardDivider} />
-              <StatRow label="O-G-B-M"
-                left={<RecordBadges wins={hs.wins} draws={hs.draws} losses={hs.losses} played={hs.played} />}
-                right={<RecordBadges wins={as.wins} draws={as.draws} losses={as.losses} played={as.played} align="right" />} />
-              <StatRow label="İç / Dış form" sub="(ev içeride · dep dışarıda)"
-                left={<RecordBadges wins={hs.home?.wins} draws={hs.home?.draws} losses={hs.home?.losses} />}
-                right={<RecordBadges wins={as.away?.wins} draws={as.away?.draws} losses={as.away?.losses} align="right" />} />
-              <StatRow label="Son 5 maç" sub="(içerde · dışarıda)"
-                left={<FormStrip form={s.home?.last5venue} size={20} />}
-                right={<FormStrip form={s.away?.last5venue} size={20} />} />
-
-              {s.h2h && s.h2h.played > 0 && (
+            ))}
+            {tooFew ? (() => {
+              // SEZON BAŞI GERİ DÜŞÜŞÜ: seçili kesitte yeterli maç yoksa ve
+              // "Sezon" seçiliyken Son 15 (geçen sezon dahil) yeterliyse, ölü
+              // alan yerine o kesit AÇIK ETİKETLE gösterilir. Uydurma hesap yok:
+              // veriler yine gerçek maç logundan gelir, kaynağı yazılıdır.
+              const fbF = { ...statF, period: 'last15' };
+              const fh = statF.period === 'season' ? statsFromLog(s.home, fbF, 'home') : null;
+              const fa = statF.period === 'season' ? statsFromLog(s.away, fbF, 'away') : null;
+              const fbOk = fh && fa && (fh.n || 0) >= 2 && (fa.n || 0) >= 2;
+              if (!fbOk) {
+                return <Text style={styles.muted}>Bu kesit için yeterli maç yok ({homeName} {hv.n || 0} · {awayName} {av.n || 0} maç) — karne gösterilmez, uydurma hesap yapılmaz.</Text>;
+              }
+              return (
                 <>
-                  <View style={styles.cardDivider} />
-                  <Text style={styles.subLabel}>Karşılıklı Geçmiş · {s.h2h.played} maç</Text>
-                  <View style={styles.miniRow}>
-                    <H2hCell n={s.h2h.homeWins} label={`${homeName} galibiyeti`} icon="🟢" color={colors.primary} />
-                    <H2hCell n={s.h2h.draws} label="Beraberlik" icon="🤝" color={colors.gray} />
-                    <H2hCell n={s.h2h.awayWins} label={`${awayName} galibiyeti`} icon="🟠" color={colors.orange} />
-                  </View>
+                  <Text style={styles.fltHint}>Sezon henüz başladı ({homeName} {hv.n || 0} · {awayName} {av.n || 0} maç) — aşağıda <Text style={{ fontWeight: '900' }}>Son 15 maç (geçen sezon dahil)</Text> gösteriliyor.</Text>
+                  <CmpRow label="Maç" home={fh.n} away={fa.n} />
+                  <CmpRow label="G-B-M"
+                    left={<RecordBadges wins={fh.w} draws={fh.d} losses={fh.l} />}
+                    right={<RecordBadges wins={fa.w} draws={fa.d} losses={fa.l} align="right" />} />
+                  <CmpRow label="Puan / Maç" home={fh.ppg} away={fa.ppg} />
+                  <CmpRow label="Gol" home={fh.gfPg} away={fa.gfPg} />
+                  <CmpRow label="Yediği Gol" home={fh.gaPg} away={fa.gaPg} />
+                  <CmpRow label="Temiz Kale" home={`%${fh.csPct}`} away={`%${fa.csPct}`} />
+                  <CmpRow label="Gol Atamadı" home={`%${fh.ftsPct}`} away={`%${fa.ftsPct}`} />
+                  <CmpRow label="KG Var" home={`%${fh.bttsPct}`} away={`%${fa.bttsPct}`} />
+                  <CmpRow label="2.5 Üst" home={`%${fh.overPct}`} away={`%${fa.overPct}`} last />
                 </>
-              )}
-
-              {s.potentials && (
-                <>
-                  <View style={styles.cardDivider} />
-                  <Text style={styles.subLabel}>Maç Beklentileri</Text>
-                  <View style={styles.miniRow}>
-                    <Pot label="2.5 Üst" val={`%${s.potentials.over25}`} icon="🔥" />
-                    <Pot label="KG Var" val={`%${s.potentials.btts}`} icon="⚽" />
-                    <Pot label="Korner" val={s.potentials.corners?.toFixed(1)} icon="🚩" />
-                  </View>
-                </>
-              )}
-            </View>
-          </Accordion>
+              );
+            })() : (
+              <>
+                <CmpRow label="Maç" home={hv.n} away={av.n} />
+                <CmpRow label="G-B-M"
+                  left={<RecordBadges wins={hv.w} draws={hv.d} losses={hv.l} />}
+                  right={<RecordBadges wins={av.w} draws={av.d} losses={av.l} align="right" />} />
+                <CmpRow label="Puan / Maç" home={hv.ppg} away={av.ppg} />
+                <CmpRow label="Gol" home={hv.gfPg} away={av.gfPg} />
+                <CmpRow label="Yediği Gol" home={hv.gaPg} away={av.gaPg} />
+                <CmpRow label="Temiz Kale" home={`%${hv.csPct}`} away={`%${av.csPct}`} />
+                <CmpRow label="Gol Atamadı" home={`%${hv.ftsPct}`} away={`%${av.ftsPct}`} />
+                <CmpRow label="KG Var" home={`%${hv.bttsPct}`} away={`%${av.bttsPct}`} />
+                <CmpRow label="2.5 Üst" home={`%${hv.overPct}`} away={`%${av.overPct}`} last />
+              </>
+            )}
+            {statF.venueScope === 'split' ? (
+              <Text style={styles.fltHint}>İç/Dış: {homeName} içerideki, {awayName} dışarıdaki maçları.</Text>
+            ) : null}
+          </SectionCard>
         );
       })()}
 
-      {/* Takım Karşılaştırması — kategorilere ayrılmış */}
-      {s.compare && s.compare.length > 0 && (() => {
-        const head = (
-          <View style={styles.cmpStatHead}>
-            <Text style={[styles.cmpStatTeam, { color: colors.green }]} numberOfLines={1}>● {homeName}</Text>
-            <Text style={[styles.cmpStatTeam, { color: colors.orange, textAlign: 'right' }]} numberOfLines={1}>{awayName} ●</Text>
+      {tab === 'İstatistik' && (<>
+      {/* Maç Başına Ortalamalar — referans ekran görüntüsündeki kart:
+          logolu başlık + ortalanmış başlık + temiz satırlar (sezon geneli).
+          Kaynağın verdiği TÜM sezon istatistikleri burada ya da Karne'de —
+          eksik bırakılmaz, mükerrer de olmaz (her istatistik tek yerde). */}
+      {((s.compare && s.compare.length > 0) || s.home?.season || s.away?.season) && (() => {
+        // xG ailesi kaynaktan sezon ortalamasıdır; 0/boş = veri yok → satır düşer
+        // (uydurma "0 xG" gösterilmez). İç/Dış satırı maç bağlamında okunur:
+        // ev takımının İÇERİDEKİ, dep takımının DIŞARIDAKİ değeri.
+        const hSe = s.home?.season, aSe = s.away?.season;
+        const pos = (x) => (x != null && x > 0 ? x : null);
+        const xgRows = [
+          { label: 'xG (Beklenen Gol)', home: pos(hSe?.xgFor), away: pos(aSe?.xgFor) },
+          { label: 'xG Karşı', home: pos(hSe?.xgAgainst), away: pos(aSe?.xgAgainst) },
+          { label: 'xG (içerde · dışarda)', home: pos(hSe?.xgForHome), away: pos(aSe?.xgForAway) },
+          { label: 'xG Karşı (içerde · dışarda)', home: pos(hSe?.xgAgainstHome), away: pos(aSe?.xgAgainstAway) },
+        ].filter((r) => r.home != null || r.away != null);
+        // [kaynak etiketi, ekrandaki kısa ad]. Gol satırları BURADA YOK —
+        // Karne'de zaten var (mükerrer sıfır kuralı: her istatistik tek yerde).
+        const ORDER = [
+          ['Toplam Şut', 'Şut'], ['İsabetli Şut', 'İsabetli Şut'],
+          ['Korner', 'Korner'], ['Ofsayt', 'Ofsayt'], ['Topla Oynama', 'Topla Oynama'],
+          ['Kart', 'Kart'], ['Faul', 'Faul'],
+        ];
+        const cmpRows = ORDER.map(([src, lbl]) => {
+          const c = (s.compare || []).find((x) => x.label === src);
+          return c ? { ...c, label: lbl } : null;
+        }).filter(Boolean);
+        // En belirleyici en üstte: xG ailesi önce, stil istatistikleri sonra.
+        const rows = [...xgRows, ...cmpRows];
+        if (rows.length === 0) return null;
+        const fv = (v, suffix) => (v == null ? '—' : `${v}${suffix || ''}`);
+        return (
+          <SectionCard>
+            <CmpHead s={s} homeName={homeName} awayName={awayName} />
+            <CmpTitle>Maç Başına Ortalamalar</CmpTitle>
+            {rows.map((c, i) => (
+              <CmpRow key={c.label} label={c.label} home={fv(c.home, c.suffix)} away={fv(c.away, c.suffix)} last={i === rows.length - 1} />
+            ))}
+            <Text style={styles.fltHint}>Sezon geneli ortalamalar — kaynak maç bazında kırılım vermediği için Karne filtrelerinden etkilenmez. xG İç/Dış: {homeName} içerideki, {awayName} dışarıdaki değeri.</Text>
+          </SectionCard>
+        );
+      })()}
+
+      {/* ÜRETİLMİŞ GÖSTERGELER — ham veriden şeffaf formülle türetilen YENİ
+          bilgi (mükerrer değil): bitiricilik, savunma verimi, şut kalitesi,
+          form ivmesi, ağırlıklı son 5 (altın kural), ev/dep farkı, seriler.
+          Verisi olmayan satır dürüstçe düşer; hesap: criteria.derivedStats. */}
+      {(() => {
+        const dh = derivedStats(s.home), da = derivedStats(s.away);
+        const sgn = (x) => (x == null ? null : `${x > 0 ? '+' : ''}${x}`);
+        const pct = (x) => (x == null ? null : `%${x}`);
+        const R = [
+          ['Form İvmesi', sgn(dh.momentum), sgn(da.momentum)],
+          ['Ağırlıklı Son 5', dh.weightedLast5, da.weightedLast5],
+          ['Bitiricilik (Gol÷xG)', dh.finishing, da.finishing],
+          ['Savunma (Yediği÷xGA)', dh.defEff, da.defEff],
+          ['Şut İsabeti', pct(dh.shotAcc), pct(da.shotAcc)],
+          ['Şut Başına Gol', dh.goalsPerShot, da.goalsPerShot],
+          ['Ev/Dep Farkı', sgn(dh.venueGap), sgn(da.venueGap)],
+          ['Yenilmezlik Serisi', dh.unbeatenRun, da.unbeatenRun],
+          ['Galibiyet Serisi', dh.winRun, da.winRun],
+          ['Gol Atma Serisi', dh.scoringRun, da.scoringRun],
+          ['Temiz Kale Serisi', dh.csRun, da.csRun],
+          ['KG Serisi', dh.bttsRun, da.bttsRun],
+        ].filter(([, h, a]) => h != null || a != null);
+        if (R.length === 0) return null;
+        return (
+          <SectionCard>
+            <CmpHead s={s} homeName={homeName} awayName={awayName} />
+            <CmpTitle>Üretilmiş Göstergeler</CmpTitle>
+            {R.map(([lbl, h, a], i) => (
+              <CmpRow key={lbl} label={lbl} home={h == null ? '—' : h} away={a == null ? '—' : a} last={i === R.length - 1} />
+            ))}
+            <Text style={styles.fltHint}>Ham veriden şeffaf formülle türetilir: Bitiricilik = Gol ÷ xG (1 üstü beklenenden verimli) · Savunma = Yediği ÷ xGA (1 altı beklenenden sağlam) · İvme = son 5 puan/maç − sezon puan/maç · Ağırlıklı Son 5 = puan × rakip katsayısı (altın kural: güçlü 1.5 · denk 1 · zayıf 0.5) · Ev/Dep = içerideki − dışarıdaki puan/maç · Seriler maç anına kadar kesintisiz sayımdır. Verisi olmayan satır gösterilmez.</Text>
+          </SectionCard>
+        );
+      })()}
+
+      {/* Karşılıklı Geçmiş — eski ikonlu mini kart görünümü, kendi kartında.
+          Maç Beklentileri KALDIRILDI (mükerrerdi: 2.5 Üst ve KG Var Karne'de,
+          Korner Ortalamalar'da zaten var — her istatistik tek yerde). */}
+      {s.h2h && s.h2h.played > 0 ? (
+        <SectionCard>
+          <Text style={styles.subLabel}>Karşılıklı Geçmiş · {s.h2h.played} maç</Text>
+          <View style={styles.miniRow}>
+            <H2hCell n={s.h2h.homeWins} label={`${homeName} galibiyeti`} icon="🟢" color={colors.primary} />
+            <H2hCell n={s.h2h.draws} label="Beraberlik" icon="🤝" color={colors.gray} />
+            <H2hCell n={s.h2h.awayWins} label={`${awayName} galibiyeti`} icon="🟠" color={colors.orange} />
           </View>
-        );
-        // pick: verilen sıra korunur (etki sırası) — s.compare sırası değil.
-        const pick = (labels) => labels.map((l) => s.compare.find((c) => c.label === l)).filter(Boolean);
-        // Kategoriler maça etki gücüne göre sıralı: en belirleyici en üstte.
-        const cats = [
-          { title: 'Gol Verimliliği', icon: '⚽', open: true, rows: pick(['Maç Başı Gol', 'Yediği Gol']) },
-          { title: 'Şut İstatistikleri', icon: '🥅', rows: pick(['İsabetli Şut', 'Toplam Şut']) },
-          { title: 'Hücum Baskısı', icon: '🔥', rows: pick(['Korner', 'Ofsayt']) },
-          { title: 'Oyun Kontrolü', icon: '🎯', rows: pick(['Topla Oynama']) },
-          { title: 'Disiplin', icon: '🛡️', rows: pick(['Faul', 'Kart']) },
-        ].filter((c) => c.rows.length > 0);
-        return cats.map((cat) => (
-          <Accordion key={cat.title} title={cat.title} icon={cat.icon} defaultOpen={cat.open}>
-            {head}
-            {cat.rows.map((c, i) => <StatBar key={i} label={c.label} home={c.home} away={c.away} suffix={c.suffix} lowerBetter={['Yediği Gol', 'Faul', 'Kart'].includes(c.label)} />)}
-          </Accordion>
-        ));
-      })()}
+        </SectionCard>
+      ) : null}
+
+      {/* Puan Durumu kartı kullanıcı kararıyla KALDIRILDI ("bunu kaldır"):
+          Sıra/Puan/Averaj zaten Lig Tablosu'nda, Son 5 karne filtresinde. */}
 
       {/* Lig Tablosu (tam, Son 5 ile) */}
       {s.leagueTable && ((s.leagueTable.overall?.length || s.leagueTable.length) > 0) && (
@@ -578,45 +711,7 @@ export default function MatchDetailScreen({ route, navigation }) {
       )}
       </>)}
 
-      {tab === 'Karşılaştırma' && (() => {
-        const wdl = [];
-        if (s.h2h && s.h2h.played > 0) {
-          wdl.push({
-            title: `Aralarındaki Maçlar · ${s.h2h.played}`,
-            win: s.h2h.homeWins || 0, draw: s.h2h.draws || 0, loss: s.h2h.awayWins || 0,
-            winLabel: `${homeName} Galibiyeti`, drawLabel: 'Beraberlik', lossLabel: `${awayName} Galibiyeti`,
-          });
-        }
-        const single = (name, form, suffix) => {
-          if (!form || !form.length) return;
-          const c = countWDL(form);
-          wdl.push({ title: `${name} Son 5 ${suffix}`, ...c, winLabel: 'Galibiyet', drawLabel: 'Beraberlik', lossLabel: 'Mağlubiyet' });
-        };
-        single(homeName, s.home?.last5, 'Maçı');
-        single(awayName, s.away?.last5, 'Maçı');
-        single(homeName, s.home?.last5venue, 'İç Saha Maçı');
-        single(awayName, s.away?.last5venue, 'Deplasman Maçı');
-        const hasAvg = (s.compare || []).some((c) => AVG_PICK.some(([k]) => k === c.label));
-        if (!hasAvg && !wdl.length) {
-          return <EmptyState icon="⚖️" title="Karşılaştırma verisi yok" message="Bu maç için ortalama/geçmiş verisi henüz bulunmuyor." />;
-        }
-        return (
-          <>
-            {/* Takım Kıyası (Sıra · xG · Gol/maç · İç/Dış) — Karşılaştırma sekmesinde */}
-            {(() => {
-              const sig = signalsFromStats(s);
-              return sig ? (
-                <Accordion title="Takım Kıyası" icon="⚖️" defaultOpen>
-                  <CompareBars sig={sig} />
-                </Accordion>
-              ) : null;
-            })()}
-            <AvgComparison compare={s.compare} homeName={homeName} awayName={awayName} homeLogo={s.home?.logo} awayLogo={s.away?.logo} />
-            <WdlCarousel slides={wdl} />
-          </>
-        );
-      })()}
-
+      
       {tab === 'Yorumlar' && (
         <CommentsSection matchId={m.sportotoMatchId || String(m.no)} />
       )}
@@ -638,19 +733,6 @@ export default function MatchDetailScreen({ route, navigation }) {
 }
 
 // --- küçük yardımcı bileşenler ---
-function CmpRow({ label, h, a, bold, sub }) {
-  return (
-    <View style={styles.cmpRow}>
-      <Text style={[styles.cmpVal, { textAlign: 'left' }, bold && styles.cmpValBold]}>{h ?? '–'}</Text>
-      <View style={styles.cmpMidWrap}>
-        <Text style={styles.cmpLabel}>{label}</Text>
-        {sub && <Text style={styles.cmpSub}>{sub}</Text>}
-      </View>
-      <Text style={[styles.cmpVal, { textAlign: 'right' }, bold && styles.cmpValBold]}>{a ?? '–'}</Text>
-    </View>
-  );
-}
-
 // Kazanma ihtimali — kalın dolu barlar, yüzde bar içinde ortalı (1=mavi, X=gri, 2=sarı)
 function ProbBars({ probabilities }) {
   if (!probabilities) return <Text style={styles.muted}>Oran yok</Text>;
@@ -673,57 +755,48 @@ function ProbBars({ probabilities }) {
 
 // Takım Kıyası tarzı karşılaştırma satırı: ortada metrik, solda yeşil/ev, sağda turuncu/deplasman.
 // Sayısal satırlarda bar; rozet/form satırlarında left/right öğeleri.
-function StatRow({ label, sub, home, away, homeBar, awayBar, suffix, left, right }) {
-  const custom = left != null || right != null;
-  // Rozet/bilgi satırı: 3 kolon (sol değer · ortada başlık · sağ değer), bar yok
-  if (custom) {
-    return (
-      <View style={styles.srRow}>
-        <View style={styles.badgeRow}>
-          <View style={styles.badgeSide}>{left}</View>
-          <View style={styles.badgeMid}>
-            <Text style={styles.srLabel}>{label}</Text>
-            {sub ? <Text style={styles.srSub}>{sub}</Text> : null}
-          </View>
-          <View style={[styles.badgeSide, styles.badgeRight]}>{right}</View>
-        </View>
-      </View>
-    );
-  }
-  const hb = Math.max(0, homeBar != null ? homeBar : Number(home) || 0);
-  const ab = Math.max(0, awayBar != null ? awayBar : Number(away) || 0);
-  const total = hb + ab || 1;
+// --- Referans tasarım dili (kullanıcı ekran görüntüsü): temiz kıyas kartı ---
+// Logolu takım başlığı: solda ev (logo + ad), sağda deplasman (ad + logo).
+function CmpHead({ s, homeName, awayName }) {
   return (
-    <View style={styles.srRow}>
-      <Text style={styles.srLabel}>{label}</Text>
-      {sub ? <Text style={styles.srSub}>{sub}</Text> : null}
-      <View style={styles.srBars}>
-        <Text style={styles.srVal}>{home}{suffix || ''}</Text>
-        <View style={styles.srHalf}>
-          <View style={[styles.srFill, { width: `${(hb / total) * 100}%`, alignSelf: 'flex-end', backgroundColor: colors.green }]} />
-        </View>
-        <View style={styles.srHalf}>
-          <View style={[styles.srFill, { width: `${(ab / total) * 100}%`, backgroundColor: colors.orange }]} />
-        </View>
-        <Text style={[styles.srVal, { textAlign: 'right' }]}>{away}{suffix || ''}</Text>
+    <View style={styles.chRow}>
+      <View style={styles.chSide}>
+        <Logo uri={s.home?.logo} name={homeName} size={22} />
+        <Text style={styles.chName} numberOfLines={1}>{homeName}</Text>
+      </View>
+      <View style={[styles.chSide, styles.chSideR]}>
+        <Text style={styles.chName} numberOfLines={1}>{awayName}</Text>
+        <Logo uri={s.away?.logo} name={awayName} size={22} />
       </View>
     </View>
   );
 }
-
-function BadgeRow({ label, sub, home, away, played }) {
+// Ortalanmış bölüm başlığı.
+function CmpTitle({ children, style }) {
+  return <Text style={[styles.cmpTitle, style]}>{children}</Text>;
+}
+// Temiz kıyas satırı: solda/sağda kalın değer (veya özel içerik), ortada soluk
+// etiket, altta ince ayraç (son satırda yok). Bar yok — referans tasarım.
+function CmpRow({ label, home, away, left, right, last }) {
   return (
-    <View style={styles.cmpRow}>
-      <View style={{ flex: 1, alignItems: 'flex-start' }}>
-        <RecordBadges wins={home?.wins} draws={home?.draws} losses={home?.losses} played={played ? home?.played : undefined} />
+    <View style={[styles.clRow, last && styles.clRowLast]}>
+      <View style={styles.clSide}>
+        {left != null ? left : <Text style={styles.clVal}>{home}</Text>}
       </View>
-      <View style={styles.cmpMidWrap}>
-        <Text style={styles.cmpLabel}>{label}</Text>
-        {sub ? <Text style={styles.cmpSub}>{sub}</Text> : null}
+      <Text style={styles.clLab} numberOfLines={1}>{label}</Text>
+      <View style={[styles.clSide, styles.clSideR]}>
+        {right != null ? right : <Text style={[styles.clVal, styles.clValR]}>{away}</Text>}
       </View>
-      <View style={{ flex: 1, alignItems: 'flex-end' }}>
-        <RecordBadges wins={away?.wins} draws={away?.draws} losses={away?.losses} played={played ? away?.played : undefined} align="right" />
-      </View>
+    </View>
+  );
+}
+// H2H mini kartı — eski görünüm (kullanıcı tercihi): ikon + büyük sayı + etiket.
+function H2hCell({ n, label, icon, color }) {
+  return (
+    <View style={[styles.miniCard, { borderColor: color + '66', backgroundColor: color + '14' }]}>
+      <Text style={styles.miniIcon}>{icon}</Text>
+      <Text style={[styles.miniNum, { color }]}>{n}</Text>
+      <Text style={styles.miniLabel} numberOfLines={2}>{label}</Text>
     </View>
   );
 }
@@ -753,26 +826,6 @@ function InjuryCol({ title, list }) {
           {p.reason ? <Text style={styles.playerLine}>{p.reason}</Text> : null}
         </View>
       )) : <Text style={styles.muted}>Bilinen eksik yok</Text>}
-    </View>
-  );
-}
-
-function H2hCell({ n, label, icon, color }) {
-  return (
-    <View style={[styles.miniCard, { borderColor: color + '66', backgroundColor: color + '14' }]}>
-      <Text style={styles.miniIcon}>{icon}</Text>
-      <Text style={[styles.miniNum, { color }]}>{n}</Text>
-      <Text style={styles.miniLabel} numberOfLines={2}>{label}</Text>
-    </View>
-  );
-}
-
-function Pot({ label, val, icon }) {
-  return (
-    <View style={styles.miniCard}>
-      <Text style={styles.miniIcon}>{icon}</Text>
-      <Text style={styles.potValBig}>{val}</Text>
-      <Text style={styles.miniLabel}>{label}</Text>
     </View>
   );
 }
@@ -1016,6 +1069,26 @@ const gd = (s) => (s ? `${s.goalsFor}-${s.goalsAgainst} (${s.goalDiff >= 0 ? '+'
 const rec = (r) => (r ? `${r.wins}G ${r.draws}B ${r.losses}M` : null);
 
 const styles = StyleSheet.create({
+  fltRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 6 },
+  fltDim: { color: colors.textMuted, fontSize: 11.5, fontWeight: '800', width: 78 },
+  fltBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  fltBtnOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  fltTxt: { color: colors.textSoft, fontSize: 11.5, fontWeight: '800' },
+  fltTxtOn: { color: '#fff' },
+  fltHint: { color: colors.textMuted, fontSize: 10.5, lineHeight: 14, marginTop: 6, fontStyle: 'italic' },
+  // Referans tasarım dili — temiz kıyas kartları (İstatistik sekmesi).
+  chRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  chSide: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  chSideR: { justifyContent: 'flex-end' },
+  chName: { color: colors.text, fontSize: 13.5, fontWeight: '800', flexShrink: 1 },
+  cmpTitle: { textAlign: 'center', color: colors.text, fontSize: 13.5, fontWeight: '800', marginTop: spacing.md, marginBottom: 2 },
+  clRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  clRowLast: { borderBottomWidth: 0 },
+  clSide: { flex: 1, alignItems: 'flex-start', justifyContent: 'center' },
+  clSideR: { alignItems: 'flex-end' },
+  clVal: { color: colors.text, fontSize: 14.5, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  clValR: { textAlign: 'right' },
+  clLab: { minWidth: 130, textAlign: 'center', color: colors.textSoft, fontSize: 12.5 },
   container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   league: { color: colors.textMuted, fontSize: 13 },
@@ -1066,31 +1139,8 @@ const styles = StyleSheet.create({
   pbSeg: { alignItems: 'center', justifyContent: 'center' },
   pbK: { color: colors.bg, fontSize: 12, fontWeight: '900' },
   pbV: { color: colors.bg, fontSize: 14, fontWeight: '800', marginTop: 1 },
-  srRow: { marginVertical: 7 },
-  srLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '700', textAlign: 'center', marginBottom: 4 },
-  srSub: { color: colors.textMuted, fontSize: 9, textAlign: 'center', marginBottom: 4 },
-  srBars: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  srVal: { width: 46, color: colors.text, fontSize: 13, fontWeight: '700' },
-  srHalf: { flex: 1, height: 8, backgroundColor: colors.track, borderRadius: 4, overflow: 'hidden' },
-  srFill: { height: 8, borderRadius: 4 },
-  srSide: { flex: 1, alignItems: 'flex-start' },
-  // rozet satırı 3 kolon
-  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  badgeSide: { flex: 1, alignItems: 'flex-start', justifyContent: 'center' },
-  badgeRight: { alignItems: 'flex-end' },
-  badgeMid: { alignItems: 'center', paddingHorizontal: 4 },
   estNote: { color: colors.textMuted, fontSize: 11, fontStyle: 'italic', marginTop: 8 },
 
-  // puan durumu karşılaştırması
-  cmpHeader: { flexDirection: 'row', alignItems: 'center', paddingBottom: spacing.sm, marginBottom: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
-  cmpTeam: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '800' },
-  cmpMid: { width: 96 },
-  cmpRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7 },
-  cmpVal: { flex: 1, color: colors.text, fontSize: 14 },
-  cmpValBold: { fontWeight: '800', fontSize: 15 },
-  cmpMidWrap: { width: 110, alignItems: 'center' },
-  cmpLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
-  cmpSub: { color: colors.textMuted, fontSize: 9, textAlign: 'center', marginTop: 1 },
 
   // ortak tablo
   tableCard: { backgroundColor: colors.card, borderRadius: radius.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
@@ -1191,8 +1241,7 @@ const styles = StyleSheet.create({
   playerName: { color: colors.text, fontSize: 14, fontWeight: '600', marginTop: 1 },
   playerLine: { color: colors.textMuted, fontSize: 11, marginTop: 1 },
 
-  // kart içi alt bölümler (H2H + Maç Beklentileri, Puan Durumu kartının içinde)
-  cardDivider: { height: 1, backgroundColor: colors.border, marginTop: spacing.lg, marginBottom: spacing.md },
+  // kart içi alt bölüm başlığı (Karşılıklı Geçmiş)
   subLabel: { color: colors.text, fontSize: 14, fontWeight: '800', marginBottom: spacing.sm },
 
   // mini analiz kartları (H2H + Maç Beklentileri)
@@ -1200,23 +1249,7 @@ const styles = StyleSheet.create({
   miniCard: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.lg, paddingHorizontal: spacing.xs, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.cardAlt },
   miniIcon: { fontSize: 19, marginBottom: 4 },
   miniNum: { fontSize: 28, fontWeight: '900' },
-  potValBig: { color: colors.text, fontSize: 24, fontWeight: '900' },
   miniLabel: { color: colors.textMuted, fontSize: 11, textAlign: 'center', marginTop: 3, lineHeight: 15 },
-
-  // h2h (eski)
-  h2hRow: { flexDirection: 'row' },
-  h2hCell: { flex: 1, alignItems: 'center' },
-  h2hNum: { fontSize: 26, fontWeight: '900' },
-  h2hLabel: { color: colors.textMuted, fontSize: 11, textAlign: 'center', marginTop: 2 },
-
-  // sezon kıyas
-  cmpStatHead: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm, paddingBottom: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
-  cmpStatTeam: { flex: 1, fontSize: 13, fontWeight: '800' },
-  // Puan Durumu başlığı — takım adları bar yarımlarının üstüne hizalı
-  puanHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.md },
-  puanSpacer: { width: 46 },
-  puanTeam: { flex: 1, fontSize: 13.5, fontWeight: '800' },
-  puanTeamR: { textAlign: 'right' },
 
   // potansiyel
   potRow: { flexDirection: 'row' },

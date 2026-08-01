@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { uyari } from '../components/Uyari';
 import { colors, spacing, radius } from '../theme';
 import { ProfileAvatar } from '../components';
 import ScreenBackdrop from '../components/ScreenBackdrop';
 import { api } from '../api';
 import { useAuth, logout, refreshUser } from '../auth';
+import { COPYRIGHT, INDEPENDENCE_NOTICE } from '../brand';
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const OK_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -13,7 +15,7 @@ const OK_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 function ImageUploadButton({ onDone }) {
   const [busy, setBusy] = useState(false);
   const pick = () => {
-    if (typeof document === 'undefined') { Alert.alert('Bilgi', 'Resim yükleme şimdilik web sürümünde.'); return; }
+    if (typeof document === 'undefined') { uyari.alert('Bilgi', 'Resim yükleme şimdilik web sürümünde.'); return; }
     const input = document.createElement('input');
     input.type = 'file'; input.accept = OK_TYPES.join(',');
     input.onchange = () => {
@@ -62,7 +64,81 @@ function LoggedOut({ navigation }) {
       <TouchableOpacity style={[styles.btn, styles.btnAlt, { width: '100%' }]} onPress={() => navigation.navigate('Register')}>
         <Text style={styles.btnAltTxt}>Kayıt Ol</Text>
       </TouchableOpacity>
+
+      {/* Gizlilik metni giriş yapmadan da erişilebilir olmalıdır. */}
+      <TouchableOpacity style={[styles.btn, styles.btnDelete]} onPress={() => navigation.navigate('About')}>
+        <Text style={styles.btnDeleteTxt}>Hakkında ve Gizlilik</Text>
+      </TouchableOpacity>
+      <Text style={styles.legalNote}>{INDEPENDENCE_NOTICE}</Text>
+      <Text style={styles.copyright}>{COPYRIGHT}</Text>
     </ScrollView>
+  );
+}
+
+// İlerleme bölümü: puan, seviye, başarılar, görevler — TÜMÜ sunucudan gelir;
+// istemci hiçbir puanı kendisi hesaplamaz/yazamaz.
+function ProgressSection() {
+  const [progress, setProgress] = useState(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    api.progress()
+      .then((p) => { if (alive) setProgress(p); })
+      .catch(() => { /* ilerleme yüklenemezse bölüm sessizce gizlenir */ })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, []);
+
+  if (loading) return <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} />;
+  if (!progress) return null;
+  if (progress.available === false) {
+    return <Text style={styles.progressNote}>{progress.note}</Text>;
+  }
+  const lvl = progress.level || {};
+  const earned = (progress.achievements || []).filter((a) => a.earned);
+  const tasks = progress.tasks || [];
+  const doneTasks = tasks.filter((t) => t.completedAt).length;
+  return (
+    <View style={styles.progressWrap}>
+      {/* Seviye + puan kartı */}
+      <View style={styles.levelCard}>
+        <View style={styles.levelBadge}><Text style={styles.levelBadgeTxt}>{lvl.level ?? 1}</Text></View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.levelTitle}>Seviye {lvl.level ?? 1} · {progress.points ?? 0} puan</Text>
+          <View style={styles.levelTrack}>
+            <View style={[styles.levelFill, { width: `${lvl.progressPct ?? 0}%` }]} />
+          </View>
+          <Text style={styles.levelSub}>
+            {lvl.nextAt != null ? `Sonraki seviye: ${lvl.nextAt} puan (%${lvl.progressPct ?? 0})` : 'En üst seviye'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Başarılar */}
+      <Text style={styles.sectionTitle}>🏅 Başarılar ({earned.length}/{(progress.achievements || []).length})</Text>
+      <View style={styles.badgeRowLeft}>
+        {(progress.achievements || []).map((a) => (
+          <View key={a.key} style={[styles.achBadge, !a.earned && styles.achBadgeLocked]}>
+            <Text style={[styles.achBadgeTxt, !a.earned && styles.achBadgeTxtLocked]}>{a.icon} {a.title}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Görevler + genel ilerleme */}
+      <Text style={styles.sectionTitle}>📋 Görevler ({doneTasks}/{tasks.length})</Text>
+      {tasks.map((t) => (
+        <View key={t.key} style={styles.taskRow}>
+          <Text style={styles.taskIcon}>{t.completedAt ? '✅' : t.icon}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.taskTitle, t.completedAt && styles.taskDone]}>{t.title} <Text style={styles.taskPts}>+{t.points}p</Text></Text>
+            <View style={styles.taskTrack}>
+              <View style={[styles.taskFill, { width: `${Math.min(100, Math.round((t.progress / t.target) * 100))}%` }]} />
+            </View>
+          </View>
+          <Text style={styles.taskCount}>{Math.min(t.progress, t.target)}/{t.target}</Text>
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -72,6 +148,25 @@ export default function ProfileScreen({ navigation }) {
   const [savingName, setSavingName] = useState(false);
   const [fav, setFav] = useState(null);
   const [savingFav, setSavingFav] = useState(false);
+  const [operator, setOperator] = useState(false);
+
+  // İNCELEME GİRİŞİ — kararı SUNUCU verir, uygulama değil.
+  //
+  // Uygulamanın içinde hiçbir operatör e-postası veya listesi YOKTUR; Android
+  // paketi açılıp okunabildiği için oraya yazılan her şey herkese açıktır.
+  // Bunun yerine her açılışta /api/moderation/access sorulur.
+  //
+  // Uç, yetkisiz hesaba 403 değil {operator:false} döner: bu yüzden normal
+  // kullanıcıda ne bir hata görünür ne de bu satır çizilir. Giriş görünmüyorsa
+  // kullanıcı reddedilecek bir ekrana hiç gitmez.
+  useEffect(() => {
+    let iptal = false;
+    if (!token) { setOperator(false); return undefined; }
+    api.moderationAccess()
+      .then((r) => { if (!iptal) setOperator(r?.operator === true); })
+      .catch(() => { if (!iptal) setOperator(false); }); // yetki bilinmiyorsa GÖSTERME
+    return () => { iptal = true; };
+  }, [token]);
 
   if (!ready) return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
   if (!token || !user) return <LoggedOut navigation={navigation} />;
@@ -110,7 +205,12 @@ export default function ProfileScreen({ navigation }) {
             </TouchableOpacity>
           )}
         </View>
-        <Text style={styles.email}>{user.email}</Text>
+        <View style={styles.emailRow}>
+          <Text style={styles.email}>{user.email}</Text>
+          {user.email_verified
+            ? <Text style={styles.verified}>✓ doğrulandı</Text>
+            : <Text style={styles.unverified}>doğrulanmadı</Text>}
+        </View>
         <View style={styles.stats}>
           <Text style={styles.stat}>💬 {user.total_comments ?? 0} yorum</Text>
           <Text style={styles.stat}>♥ {user.total_likes_received ?? 0} beğeni</Text>
@@ -136,6 +236,9 @@ export default function ProfileScreen({ navigation }) {
         )}
       </View>
 
+      {/* Puan · seviye · başarılar · görevler (sunucu doğrulamalı) */}
+      <ProgressSection />
+
       <ImageUploadButton />
       <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => navigation.navigate('AvatarPicker')}>
         <Text style={styles.btnAltTxt}>⚽  Hazır Avatar Seç</Text>
@@ -158,9 +261,48 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.btnLeaderTxt}>🏆  Tahmin Sıralaması</Text>
       </TouchableOpacity>
 
+      {/* Güvenlik: şifre/e-posta değiştirme, güvenlik olayları, bağlı cihazlar */}
+      <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => navigation.navigate('SecuritySettings')}>
+        <Text style={styles.btnAltTxt}>🔐  Güvenlik Ayarları</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => navigation.navigate('Devices')}>
+        <Text style={styles.btnAltTxt}>📱  Bağlı Cihazlar</Text>
+      </TouchableOpacity>
+
+      {/* Engellediğin kullanıcılar ve engeli kaldırma. Engellemek yorumun
+          altından yapılır; GERİ ALMAK için de bir yol olmak zorunda. */}
+      <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => navigation.navigate('BlockedUsers')}>
+        <Text style={styles.btnAltTxt}>🚫  Engellenen Kullanıcılar</Text>
+      </TouchableOpacity>
+
+      {/* İNCELEME — yalnız sunucunun operatör dediği hesapta çizilir.
+          Koşul `operator` başlangıçta false'tur: yetki cevabı gelene kadar
+          giriş görünmez. Ters kurgu (önce göster, sonra gizle) girişi bir an
+          herkese göstermek olurdu. */}
+      {operator && (
+        <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => navigation.navigate('Moderation')}>
+          <Text style={styles.btnAltTxt}>🛡️  İnceleme (bildirilen yorumlar)</Text>
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => navigation.navigate('About')}>
+        <Text style={styles.btnAltTxt}>ℹ️  Hakkında ve Gizlilik</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={[styles.btn, styles.btnLogout]} onPress={logout}>
         <Text style={styles.btnLogoutTxt}>Çıkış Yap</Text>
       </TouchableOpacity>
+
+      {/* HESAP SİLME — Google Play, hesap açan uygulamalarda uygulama içinden
+          erişilebilen bir silme yolu ister. Silme gerçek ve kalıcıdır. */}
+      <TouchableOpacity style={[styles.btn, styles.btnDelete]} onPress={() => navigation.navigate('DeleteAccount')}>
+        <Text style={styles.btnDeleteTxt}>Hesabımı Sil</Text>
+      </TouchableOpacity>
+
+      {/* Kurum bağımsızlığı ve telif — kullanıcıya görünen sabit yasal metin. */}
+      <Text style={styles.legalNote}>{INDEPENDENCE_NOTICE}</Text>
+      <Text style={styles.copyright}>{COPYRIGHT}</Text>
     </ScrollView>
     </ScreenBackdrop>
   );
@@ -178,7 +320,33 @@ const styles = StyleSheet.create({
   nameInput: { color: colors.text, fontSize: 18, fontWeight: '800', textAlign: 'center', borderBottomWidth: 1, borderBottomColor: colors.border, minWidth: 140, paddingVertical: 4 },
   nameSave: { backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.sm },
   nameSaveTxt: { color: colors.bg, fontWeight: '800', fontSize: 12 },
-  email: { color: colors.textMuted, fontSize: 12.5, marginTop: 6 },
+  email: { color: colors.textMuted, fontSize: 12.5 },
+  emailRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  verified: { color: colors.green, fontSize: 11.5, fontWeight: '800' },
+  unverified: { color: '#f0883e', fontSize: 11.5, fontWeight: '800' },
+  progressWrap: { marginBottom: spacing.md },
+  progressNote: { color: colors.textMuted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginBottom: spacing.md },
+  levelCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.md },
+  levelBadge: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.gold + '22', borderWidth: 2, borderColor: colors.gold, alignItems: 'center', justifyContent: 'center' },
+  levelBadgeTxt: { color: colors.gold, fontSize: 18, fontWeight: '900' },
+  levelTitle: { color: colors.text, fontSize: 14.5, fontWeight: '800', marginBottom: 6 },
+  levelTrack: { height: 6, backgroundColor: colors.border, borderRadius: 3, overflow: 'hidden' },
+  levelFill: { height: 6, backgroundColor: colors.gold, borderRadius: 3 },
+  levelSub: { color: colors.textMuted, fontSize: 11.5, marginTop: 5 },
+  sectionTitle: { color: colors.text, fontSize: 14.5, fontWeight: '800', marginTop: spacing.sm, marginBottom: 8 },
+  badgeRowLeft: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  achBadge: { backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accent, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
+  achBadgeLocked: { backgroundColor: 'transparent', borderColor: colors.border },
+  achBadgeTxt: { color: colors.accent, fontSize: 11.5, fontWeight: '800' },
+  achBadgeTxtLocked: { color: colors.textMuted, fontWeight: '700' },
+  taskRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: 10, marginBottom: 7 },
+  taskIcon: { fontSize: 17 },
+  taskTitle: { color: colors.text, fontSize: 13, fontWeight: '700', marginBottom: 5 },
+  taskDone: { color: colors.textMuted, textDecorationLine: 'line-through' },
+  taskPts: { color: colors.gold, fontSize: 11.5, fontWeight: '800' },
+  taskTrack: { height: 4, backgroundColor: colors.border, borderRadius: 2, overflow: 'hidden' },
+  taskFill: { height: 4, backgroundColor: colors.primary, borderRadius: 2 },
+  taskCount: { color: colors.textMuted, fontSize: 11.5, fontWeight: '800' },
   stats: { flexDirection: 'row', gap: 14, marginTop: 10, flexWrap: 'wrap', justifyContent: 'center' },
   stat: { color: colors.textMuted, fontSize: 13, fontWeight: '700' },
   favRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
@@ -198,4 +366,14 @@ const styles = StyleSheet.create({
   btnGhostTxt: { color: colors.textMuted, fontSize: 13.5, fontWeight: '700' },
   btnLogout: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.red, marginTop: spacing.xl },
   btnLogoutTxt: { color: colors.red, fontSize: 14, fontWeight: '800' },
+  btnDelete: { backgroundColor: 'transparent', paddingVertical: 10 },
+  btnDeleteTxt: { color: colors.textMuted, fontSize: 13, fontWeight: '700', textDecorationLine: 'underline' },
+  legalNote: {
+    color: colors.textMuted, fontSize: 11.5, lineHeight: 17,
+    textAlign: 'center', marginTop: spacing.lg,
+  },
+  copyright: {
+    color: colors.textMuted, fontSize: 11.5, textAlign: 'center',
+    marginTop: 6, marginBottom: spacing.lg,
+  },
 });

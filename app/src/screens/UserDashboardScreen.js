@@ -10,7 +10,7 @@ import { colors, spacing, radius, shadow } from '../theme';
 import { matchDate } from '../utils';
 import { getPref, setPref } from '../prefs';
 import { pickHits, resultFromScore } from '../liveLogic';
-import { getWeekCoupons, getRankedCoupon, finalVersion, syncFromServer } from '../couponStore';
+import { getWeekCoupons, getRankedCoupon, finalVersion, syncFromServer } from '../coupon/store';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import ScoreLegend from '../components/ScoreLegend';
@@ -172,7 +172,9 @@ export default function UserDashboardScreen({ navigation }) {
                     <TouchableOpacity
                       key={o.couponNo}
                       style={styles.otherRow}
-                      onPress={() => navigation.navigate('BulletinTab', { screen: 'Coupons', params: { focusId: o.id } })}
+                      // 'Coupons' diye bir ekran YOK — bu satır hiçbir yere
+                      // gitmiyordu. Kuponlarım sekmesindeki gerçek sonuç ekranı.
+                      onPress={() => navigation.navigate('CouponsTab', { screen: 'CouponResult', params: { roundId: selectedId, couponId: o.id } })}
                     >
                       <Text style={styles.otherName}>Kupon {o.couponNo}<Text style={styles.otherTag}>  · Derecesiz</Text></Text>
                       <Text style={styles.otherMeta}>
@@ -185,7 +187,7 @@ export default function UserDashboardScreen({ navigation }) {
                   ))}
                 </View>
               )}
-              <TouchableOpacity style={styles.couponBtn} onPress={() => navigation.navigate('BulletinTab', { screen: 'Coupons' })}><Text style={styles.couponBtnTxt}>Kuponlarım</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.couponBtn} onPress={() => navigation.navigate('CouponsTab', { screen: 'CouponCenter' })}><Text style={styles.couponBtnTxt}>Kuponlarım</Text></TouchableOpacity>
             </View>
           ) : (
             <View style={styles.couponCard}>
@@ -194,6 +196,14 @@ export default function UserDashboardScreen({ navigation }) {
               <TouchableOpacity style={styles.couponBtn} onPress={() => navigation.navigate('BulletinTab')}><Text style={styles.couponBtnTxt}>Bülten Detayını Gör</Text></TouchableOpacity>
             </View>
           )}
+
+          {/* HAFTA KAPANIŞI — seçili haftanın sen vs sistem karnesi. */}
+          <TouchableOpacity
+            style={styles.recapLink}
+            onPress={() => navigation.navigate('HomeTab', { screen: 'WeekRecap', params: { roundId: selectedId } })}
+          >
+            <Text style={styles.recapLinkTxt}>🏁 Bu Haftanın Kapanışı · Sen vs Sistem ›</Text>
+          </TouchableOpacity>
 
           {/* RESMİ SONUÇ + SİSTEM (o hafta, gerçek) */}
           <View style={styles.wkCard}>
@@ -325,6 +335,8 @@ const styles = StyleSheet.create({
   rankedKicker: { color: '#7a4a00', fontSize: 10.5, fontWeight: '900', letterSpacing: 0.5 },
   rankedBig: { color: colors.text, fontSize: 20, fontWeight: '900', marginTop: 4 },
   rankedSub: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
+  recapLink: { backgroundColor: '#132244', borderRadius: radius.md, paddingVertical: 12, alignItems: 'center', marginBottom: spacing.md },
+  recapLinkTxt: { color: '#ffffff', fontSize: 13, fontWeight: '900' },
   othersWrap: { marginTop: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },
   othersHead: { color: colors.textMuted, fontSize: 11, fontWeight: '900', marginBottom: 6, letterSpacing: 0.3 },
   otherRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.cardAlt, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 5 },

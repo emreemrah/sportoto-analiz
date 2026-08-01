@@ -68,7 +68,7 @@ function buildSnapshot(bulletinId, isLocked, lockedAt, rows) {
 
 /* B27 — ACTIVE, snapshot editable (isLocked:false) */
 const snapB27 = buildSnapshot('b27', false, null, [
-  [1, '1', 62, 30, 'Galatasaray iç sahada net favori, son 5 derbinin 4ünü kazandı.', 'Ev sahibi son 5 maç: 4G 1B. Deplasman son 5: 2G 1B 2M.', 'Her iki takım da tam kadro, sakatlık riski düşük.', [], null],
+  [1, '1', 62, 30, 'Galatasaray iç sahada güçlü aday, son 5 derbinin 4ünü kazandı.', 'Ev sahibi son 5 maç: 4G 1B. Deplasman son 5: 2G 1B 2M.', 'Her iki takım da tam kadro, sakatlık riski düşük.', [], null],
   [2, '1', 58, 34, 'Beşiktaş formda ama Trabzonspor deplasmanda dirençli.', 'Karşılıklı gollü geçme oranı yüksek (%70).', 'Trabzonspor’da bir sağ bek şüpheli.', [{ name: 'Umut Bozok', reason: 'doubtful' }], null],
   [3, '1', 55, 38, 'Başakşehir evinde güçlü, Sivasspor deplasmanda gol sıkıntısı yaşıyor.', 'Sivasspor son 5 deplasmanda sadece 3 gol attı.', 'Kadro planlanan haliyle sahada.', [], null],
   [4, 'X', 48, 45, 'Konyaspor-Alanyaspor dengeli, beraberlik riski var.', 'Son 4 karşılaşmanın 2si berabere bitti.', 'Konyaspor’da orta saha eksikliği hissedilebilir.', [{ name: 'Berkan Emir', reason: 'injury' }], null],
@@ -116,7 +116,7 @@ const snapB24 = buildSnapshot('b24', true, findMockBulletin('b24').lockedAt, [
   [8, '1', 53, 43, 'IFK Göteborg evinde iyi seri yakalamıştı.', 'Elfsborg deplasmanda ortalama form gösteriyordu.', 'Elfsborg’da bir stoper cezalıydı.', [{ name: 'Marcus Boström', reason: 'suspension' }], ERROR_TAGS.FAVORITE_FAILED],
   [9, '1', 71, 18, 'Bodø/Glimt evinde neredeyse yenilmiyordu.', 'Viking deplasmanda çok zayıftı.', 'Kadro tam.', [], null],
   [10, '1', 50, 48, 'Rosenborg evinde az farkla favoriydi.', 'Molde deplasmanda güçlü seri yakalamıştı.', 'Rosenborg’da bir bek sakattı.', [{ name: 'Even Hovland', reason: 'injury' }], ERROR_TAGS.AWAY_WIN_MISSED],
-  [11, '1', 56, 40, 'Arsenal evinde favoriydi.', 'Liverpool deplasmanda gol garantiliydi.', 'Kadro tam.', [], ERROR_TAGS.DRAW_MISSED],
+  [11, '1', 56, 40, 'Arsenal evinde favoriydi.', 'Liverpool deplasmanda gol beklentisi yüksekti.', 'Kadro tam.', [], ERROR_TAGS.DRAW_MISSED],
   [12, 'X', 46, 47, 'Tottenham-Chelsea dengeli görülmüştü, X ağırlıklıydı.', 'Son 4 maçın 2si berabere bitmişti.', 'Tottenham’da bir stoper şüpheliydi.', [{ name: 'Cristian Romero', reason: 'doubtful' }], ERROR_TAGS.AWAY_WIN_MISSED],
   [13, '1', 69, 20, 'Real Madrid evinde çok güçlüydü.', 'Napoli deplasmanda form arayışındaydı.', 'Kadro tam.', [], null],
   [14, '2', 44, 55, 'Inter evinde hafif favoriydi ama Bayern Münih deplasmanda çok golcüydü.', 'Karşılıklı gollü geçme oranı yüksekti.', 'Inter’de bir stoper cezalıydı.', [{ name: 'Francesco Acerbi', reason: 'suspension' }], ERROR_TAGS.SURPRISE_MATCH],
@@ -137,7 +137,7 @@ const snapB22 = buildSnapshot('b22', true, findMockBulletin('b22').lockedAt, [
   [10, '2', 52, 45, 'Molde deplasmanda güçlü seri yakalamıştı.', 'Viking evinde zayıftı.', 'Kadro tam.', [], null],
   [11, '1', 63, 28, 'Arsenal evinde çok güçlüydü.', 'Tottenham deplasmanda savunma açığı veriyordu.', 'Kadro tam.', [], null],
   [12, '1', 51, 44, 'Liverpool evinde az farkla favoriydi.', 'Chelsea deplasmanda direnç gösteriyordu.', 'Kadro tam.', [], ERROR_TAGS.DRAW_MISSED],
-  [13, '1', 55, 41, 'Real Madrid evinde favoriydi.', 'Inter deplasmanda gol garantiliydi.', 'Kadro tam.', [], ERROR_TAGS.FAVORITE_FAILED],
+  [13, '1', 55, 41, 'Real Madrid evinde favoriydi.', 'Inter deplasmanda gol beklentisi yüksekti.', 'Kadro tam.', [], ERROR_TAGS.FAVORITE_FAILED],
   [14, '1', 59, 33, 'Napoli evinde güçlüydü.', 'Sevilla deplasmanda zayıf seri yaşıyordu.', 'Kadro tam.', [], null],
   [15, '1', 66, 24, 'Bayern Münih evinde çok güçlüydü.', 'Leipzig deplasmanda istikrarsızdı.', 'Kadro tam.', [], null],
 ]);

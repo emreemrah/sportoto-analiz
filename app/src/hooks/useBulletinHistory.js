@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { listBulletins, getBulletinById } from '../services/bulletinHistoryService';
 import { getSnapshot } from '../services/analysisSnapshotService';
-import { getCouponForBulletin } from '../services/couponService';
+import { humanArchiveError } from '../services/archiveClient';
 
 // Geçmiş Bültenler Ekranı için: tüm bültenler + (varsa) kullanıcının o bültene
 // ait kupon özet bilgisi (liste kartında "kaç doğru" gösterebilmek için).
@@ -16,15 +16,10 @@ export function useBulletinHistory() {
     setError(null);
     try {
       const list = await listBulletins();
-      const withCoupons = await Promise.all(
-        list.map(async (b) => {
-          const coupon = await getCouponForBulletin(b.id).catch(() => null);
-          return { ...b, myCoupon: coupon };
-        })
-      );
-      setBulletins(withCoupons);
+      // Eski kupon servisi kaldırıldı — kuponlar artık Kupon Merkezi'nde (coupon/store).
+      setBulletins(list.map((b) => ({ ...b, myCoupon: null })));
     } catch (e) {
-      setError(e.message || 'Bülten geçmişi alınamadı.');
+      setError(humanArchiveError(e) || 'Bülten geçmişi alınamadı.');
     } finally {
       setLoading(false);
     }
@@ -46,12 +41,12 @@ export function useBulletinDetail(bulletinId) {
       const [bulletin, snapshot, coupon] = await Promise.all([
         getBulletinById(bulletinId),
         getSnapshot(bulletinId),
-        getCouponForBulletin(bulletinId).catch(() => null),
+        Promise.resolve(null), // eski kupon servisi kaldırıldı (Kupon Merkezi ayrı)
       ]);
       if (!bulletin) throw new Error('Bülten bulunamadı.');
       setState({ bulletin, snapshot, coupon, loading: false, error: null });
     } catch (e) {
-      setState((s) => ({ ...s, loading: false, error: e.message || 'Bülten detayı alınamadı.' }));
+      setState((s) => ({ ...s, loading: false, error: humanArchiveError(e) || 'Bülten detayı alınamadı.' }));
     }
   }, [bulletinId]);
 

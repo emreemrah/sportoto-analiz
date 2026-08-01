@@ -49,6 +49,9 @@ function topErrorTag(list) {
 const avg = (nums) => (nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : 0);
 
 export async function getAnalysisPerformanceDashboard() {
+  // ⚠️ PROVENANCE: tamamen mock veri — üretimde gerçek karne yerine GÖSTERİLMEZ.
+  const { demoDataAllowed } = await import('./performanceService');
+  if (!demoDataAllowed()) return null;
   const sections = mockAnalysisSectionResults;
   const signals = mockSignalResults;
 
@@ -140,6 +143,7 @@ export async function getAnalysisPerformanceDashboard() {
     // oranları kullanıcıya GERÇEK gibi gösterilmez. Gerçek pipeline eklenince
     // hasRealData=true olur ve isDemo=false döner.
     isDemo: true,
+    provenanceType: 'demo',
     hasRealData: false,
     // A
     totalMeasured: overall.total,

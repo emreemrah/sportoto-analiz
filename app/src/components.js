@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { colors, labelColors, radius } from './theme';
+import { displayLabel } from './labels';
 import { getPreset, DEFAULT_AVATAR } from './avatars';
 import { useAuth } from './auth';
 
@@ -29,12 +30,14 @@ export function CommentAvatar({ size = 28, author }) {
   return <AvatarView size={size} type={author?.avatarType} avatarKey={author?.avatarKey} avatarUrl={author?.avatarUrl} />;
 }
 
-// Sürpriz etiketi (BANKO / DİKKAT / SÜRPRİZE AÇIK / VERİ YOK)
+// Sürpriz etiketi (GÜÇLÜ ADAY / DİKKAT / SÜRPRİZE AÇIK / VERİ YOK)
+// Veri anahtarı 'BANKO' olabilir; kullanıcıya ASLA öyle gösterilmez —
+// displayLabel() sözlüğünden geçer (src/labels.js).
 export function SurpriseBadge({ label, labelColor, small }) {
   const c = labelColors[labelColor] || colors.gray;
   return (
     <View style={[styles.badge, { backgroundColor: c + '22', borderColor: c }, small && styles.badgeSmall]}>
-      <Text style={[styles.badgeText, { color: c }, small && { fontSize: 10 }]}>{label}</Text>
+      <Text style={[styles.badgeText, { color: c }, small && { fontSize: 10 }]}>{displayLabel(label)}</Text>
     </View>
   );
 }
@@ -130,6 +133,9 @@ export function StatBar({ label, home, away, suffix, lowerBetter }) {
 
 // G/B/M sayı rozetleri: 9G (yeşil) · 1B (sarı) · 0M (kırmızı)
 export function RecordBadges({ wins = 0, draws = 0, losses = 0, played, align }) {
+  // Sezon başı: hiç maç yoksa sıfır dolu rozet dizmek bilgi vermez, "bozuk"
+  // görünür — hiç veri yoksa rozetler tümüyle gizlenir (uydurma sayı yok).
+  if (!played && !wins && !draws && !losses) return null;
   const cell = (n, letter, c) => (
     <View style={[styles.recBadge, { backgroundColor: c }]}>
       <Text style={styles.recText}>{n}{letter}</Text>

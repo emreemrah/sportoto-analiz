@@ -2,54 +2,21 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  Image,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  Dimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 import { api } from '../api';
+import { BRAND_LINE_1, BRAND_LINE_2 } from '../brand';
 import { colors, spacing, radius, shadows } from '../theme';
 import { EmptyState, SkeletonCard, Logo } from '../ui';
 import { ProfileAvatar } from '../components';
+import { crestOf } from '../utils';
 import BulletinHeroVisual, { BulletinHeroBackdrop } from '../components/BulletinHeroVisual';
+import { loadNotifications } from '../services/notificationsService';
 
-
-const QUICK = [
-  {
-    key: 'bulletin',
-    icon: require('../../assets/icons/current-bulletin.png'),
-    label: 'Güncel\nBülten',
-    tab: 'BulletinTab',
-  },
-  {
-    key: 'history',
-    icon: require('../../assets/icons/history-results.png'),
-    label: 'Geçmiş\nSonuçlar',
-    tab: 'BulletinTab',
-  },
-  {
-    key: 'analysis',
-    icon: require('../../assets/icons/analysis-center.png'),
-    label: 'Analiz\nMerkezi',
-    tab: 'AnalizTab',
-  },
-  {
-    key: 'community',
-    icon: require('../../assets/icons/community.png'),
-    label: 'Topluluk',
-    tab: 'ForumTab',
-  },
-  {
-    key: 'profile',
-    icon: require('../../assets/icons/profile.png'),
-    label: 'Profil',
-    tab: 'ProfileTab',
-  },
-];
 
 function shortTeam(name) {
   return String(name || '')
@@ -65,18 +32,41 @@ function matchTime(iso) {
   return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 }
 
-function Header({ data, navigation }) {
+function Header({ data, navigation, unread = 0 }) {
   return (
     <View style={styles.header}>
       <View style={{ flex: 1 }}>
         <Text style={styles.brand}>
-          Spor Toto <Text style={styles.brandAccent}>Analiz</Text>
+          {BRAND_LINE_1} <Text style={styles.brandAccent}>{BRAND_LINE_2}</Text>
         </Text>
       </View>
 
-      <TouchableOpacity style={styles.topIconBtn} activeOpacity={0.85}>
-        <Text style={styles.bellIcon}>⌕</Text>
-        <View style={styles.notificationDot} />
+      {/* Yayın Stüdyosu: 15 maçlık bülteni canlı yayında maç maç işleyen,
+          koyu, sekmesiz mod. Eski sunum ekranına stüdyonun içindeki
+          "Sunum" düğmesinden geçilir. */}
+      <TouchableOpacity
+        style={styles.topIconBtn}
+        activeOpacity={0.85}
+        onPress={() => navigation.navigate('StudioBulletin')}
+        accessibilityLabel="Yayın stüdyosu"
+      >
+        <Text style={styles.broadcastIcon}>📺</Text>
+      </TouchableOpacity>
+
+      {/* Zil GERÇEK çalışır: bildirim merkezini açar. Kırmızı sayı YALNIZ
+          okunmamış GERÇEK bildirim varsa görünür — süs rozeti yoktur. */}
+      <TouchableOpacity
+        style={styles.topIconBtn}
+        activeOpacity={0.85}
+        onPress={() => navigation.navigate('Notifications')}
+        accessibilityLabel={unread > 0 ? `Bildirimler, ${unread} okunmamış` : 'Bildirimler'}
+      >
+        <Text style={styles.bellIcon}>🔔</Text>
+        {unread > 0 ? (
+          <View style={styles.notificationDot}>
+            <Text style={styles.notificationDotTxt}>{unread > 9 ? '9+' : unread}</Text>
+          </View>
+        ) : null}
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -90,7 +80,7 @@ function Header({ data, navigation }) {
   );
 }
 
-function HeroCard({ data, loading, onPress }) {
+function HeroCard({ data, loading, onPress, onSummary, onRecap }) {
   const matches = data?.matches || [];
   // Sayılar YALNIZ güncel bültenin GERÇEK analizinden. "Maç Analizi" = analizi
   // olan (kapsanan) maç sayısı; kapsam dışı maç varsa şişirmez, yanıltmaz.
@@ -98,6 +88,7 @@ function HeroCard({ data, loading, onPress }) {
   const total = analyzed.length;
   const featured = analyzed.filter((m) => Number(m.analysis.surpriseScore) >= 45).length;
   const surprise = analyzed.filter((m) => Number(m.analysis.surpriseScore) >= 65).length;
+  const leagues = new Set(matches.map((m) => m.league).filter(Boolean)).size;
   const v = (n) => (loading || !data ? '–' : n);
 
   return (
@@ -119,50 +110,52 @@ function HeroCard({ data, loading, onPress }) {
         <BulletinHeroVisual width={128} height={92} />
       </View>
 
+      {/* Sayaçlar ve düğmeler AYRI satırlarda. Aynı satırda olduklarında telefon
+          genişliğinde sütunlar eziliyor ve "Öne Çıkan Analiz" etiketi harf harf
+          alt alta düşüyordu — yayında bozuk görünen gerçek bir kusurdu. */}
       <View style={styles.heroBottomRow}>
         <View style={styles.heroStats}>
           <View style={styles.heroStatItem}>
             <Text style={styles.heroStatValue}>{v(total)}</Text>
-            <Text style={styles.heroStatLabel}>Maç Analizi</Text>
+            <Text style={styles.heroStatLabel} numberOfLines={2}>Maç Analizi</Text>
           </View>
           <View style={styles.heroDivider} />
           <View style={styles.heroStatItem}>
             <Text style={styles.heroStatValue}>{v(featured)}</Text>
-            <Text style={styles.heroStatLabel}>Öne Çıkan Analiz</Text>
+            <Text style={styles.heroStatLabel} numberOfLines={2}>Öne Çıkan</Text>
           </View>
           <View style={styles.heroDivider} />
           <View style={styles.heroStatItem}>
             <Text style={styles.heroStatValue}>{v(surprise)}</Text>
-            <Text style={styles.heroStatLabel}>Sürpriz Maç</Text>
+            <Text style={styles.heroStatLabel} numberOfLines={2}>Sürpriz Maç</Text>
+          </View>
+          <View style={styles.heroDivider} />
+          <View style={styles.heroStatItem}>
+            <Text style={styles.heroStatValue}>{v(leagues)}</Text>
+            <Text style={styles.heroStatLabel} numberOfLines={2}>Lig</Text>
           </View>
         </View>
+      </View>
 
+      <View style={styles.heroCtaRow}>
         <TouchableOpacity style={styles.heroButton} onPress={onPress} activeOpacity={0.88}>
           <Text style={styles.heroButtonText}>Bülteni Aç</Text>
           <Text style={styles.heroButtonArrow}>›</Text>
         </TouchableOpacity>
+
+        {/* Yayın açılış segmenti: güçlü adaylar + sürprizler + zorluk tek kartta */}
+        <TouchableOpacity style={styles.heroSummaryBtn} onPress={onSummary} activeOpacity={0.88}>
+          <Text style={styles.heroSummaryTxt} numberOfLines={1}>📺 Haftanın Özeti</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Yayın kapanış segmenti: geçen haftanın RESMÎ sonuçlarıyla sen vs sistem
+          karnesi. Sonuç gelmemişse ekran sayı üretmez, bunu açıkça söyler. */}
+      <TouchableOpacity style={styles.heroRecapBtn} onPress={onRecap} activeOpacity={0.88}>
+        <Text style={styles.heroRecapTxt}>🏁 Geçen Haftanın Kapanışı</Text>
+        <Text style={styles.heroRecapArrow}>›</Text>
+      </TouchableOpacity>
     </View>
-  );
-}
-
-function QuickCard({ item, navigation }) {
-  return (
-    <TouchableOpacity
-      style={styles.quickCard}
-      activeOpacity={0.86}
-      onPress={() => navigation.navigate(item.tab)}
-    >
-      <View style={styles.quickIconWrap}>
-        <Image
-          source={item.icon}
-          style={styles.quickIconImage}
-          resizeMode="contain"
-        />
-      </View>
-
-      <Text style={styles.quickLabel}>{item.label}</Text>
-    </TouchableOpacity>
   );
 }
 
@@ -192,13 +185,13 @@ function AnalysisCard({ match, tag, color, navigation }) {
 
       <View style={styles.analysisTeams}>
         <View style={styles.teamBlock}>
-          <Logo uri={match.stats?.home?.logo} name={match.home?.name} size={42} />
+          <Logo uri={crestOf(match, 'home')} name={match.home?.name} size={42} />
         </View>
 
         <Text style={styles.vsText}>VS</Text>
 
         <View style={styles.teamBlock}>
-          <Logo uri={match.stats?.away?.logo} name={match.away?.name} size={42} />
+          <Logo uri={crestOf(match, 'away')} name={match.away?.name} size={42} />
         </View>
       </View>
 
@@ -222,9 +215,13 @@ function AnalysisCard({ match, tag, color, navigation }) {
   );
 }
 
-function SurpriseCard({ match, level, navigation }) {
+function SurpriseCard({ match, navigation }) {
+  // Seviye ve yüzde GERÇEK sürpriz puanından — sıraya göre etiket uydurulmaz.
   const score = Number(match.analysis?.surpriseScore || 0);
-  const color = level === 'YÜKSEK' ? colors.gold : colors.field;
+  const level = score >= 65 ? 'YÜKSEK' : score >= 45 ? 'ORTA' : 'DÜŞÜK';
+  const color = score >= 65 ? colors.gold : score >= 45 ? colors.field : colors.gray;
+  // İzleyici armadan takımı tanımaz — kısaltılmış ad her zaman görünür.
+  const shortName = (t) => t?.mediumName || t?.shortName || (t?.name || '').slice(0, 10) || '—';
 
   return (
     <TouchableOpacity
@@ -233,49 +230,50 @@ function SurpriseCard({ match, level, navigation }) {
       onPress={() => navigation.navigate('MatchDetail', { no: match.no })}
     >
       <View style={styles.surpriseLogos}>
-        <Logo uri={match.stats?.home?.logo} name={match.home?.name} size={30} />
+        <Logo uri={crestOf(match, 'home')} name={match.home?.name} size={30} />
         <Text style={styles.surpriseVs}>VS</Text>
-        <Logo uri={match.stats?.away?.logo} name={match.away?.name} size={30} />
+        <Logo uri={crestOf(match, 'away')} name={match.away?.name} size={30} />
+      </View>
+      <View style={styles.surpriseNames}>
+        <Text style={styles.surpriseName} numberOfLines={1}>{shortName(match.home)}</Text>
+        <Text style={[styles.surpriseName, styles.surpriseNameR]} numberOfLines={1}>{shortName(match.away)}</Text>
       </View>
 
       <View style={styles.surpriseBottom}>
         <View style={[styles.surpriseLevel, { backgroundColor: color + '33' }]}>
           <Text style={[styles.surpriseLevelTxt, { color }]}>{level}</Text>
         </View>
-        <Text style={styles.surprisePct}>İhtimal: %{score || 31}</Text>
+        <Text style={styles.surprisePct}>{score > 0 ? `İhtimal: %${score}` : 'Veri bekleniyor'}</Text>
       </View>
     </TouchableOpacity>
   );
 }
 
-function CommunityCard({ name, initials, text, likes, comments }) {
+// Yaklaşan maç kartı — gerçek bülten verisi: gün + saat + takımlar + lig.
+function KickoffCard({ match, navigation }) {
+  const d = match.date ? new Date(match.date) : null;
+  const ok = d && !Number.isNaN(d.getTime());
+  const day = ok ? d.toLocaleDateString('tr-TR', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
   return (
-    <View style={styles.communityCard}>
-      <View style={styles.communityHead}>
-        <View style={styles.communityAvatar}>
-          <Text style={styles.communityAvatarTxt}>{initials}</Text>
-        </View>
-
-        <View style={{ flex: 1 }}>
-          <View style={styles.communityNameRow}>
-            <Text style={styles.communityName}>{name}</Text>
-            <View style={styles.checkBadge}>
-              <Text style={styles.checkTxt}>✓</Text>
-            </View>
-          </View>
-          <Text style={styles.communityTime}>2 saat önce</Text>
-        </View>
-
-        <Text style={styles.moreDots}>•••</Text>
+    <TouchableOpacity
+      style={styles.kickCard}
+      activeOpacity={0.86}
+      onPress={() => navigation.navigate('MatchDetail', { no: match.no })}
+    >
+      <View style={styles.kickTimeRow}>
+        <Text style={styles.kickDay} numberOfLines={1}>{day}</Text>
+        <Text style={styles.kickTime}>{ok ? matchTime(match.date) : '—'}</Text>
       </View>
-
-      <Text style={styles.communityText} numberOfLines={3}>{text}</Text>
-
-      <View style={styles.communityMeta}>
-        <Text style={styles.communityMetaTxt}>♡ {likes}</Text>
-        <Text style={styles.communityMetaTxt}>☵ {comments}</Text>
+      <View style={styles.kickTeamRow}>
+        <Logo uri={crestOf(match, 'home')} name={match.home?.name} size={22} />
+        <Text style={styles.kickTeam} numberOfLines={1}>{shortTeam(match.home?.name)}</Text>
       </View>
-    </View>
+      <View style={styles.kickTeamRow}>
+        <Logo uri={crestOf(match, 'away')} name={match.away?.name} size={22} />
+        <Text style={styles.kickTeam} numberOfLines={1}>{shortTeam(match.away?.name)}</Text>
+      </View>
+      <Text style={styles.kickLeague} numberOfLines={1}>{match.league || ''}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -295,6 +293,7 @@ export default function HomeScreen({ navigation }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [unread, setUnread] = useState(0);
 
   const load = useCallback(async () => {
     try {
@@ -309,6 +308,20 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Zil rozeti: gerçek okunmamış bildirim sayısı. Hata olursa rozet yok
+  // (sayı uydurulmaz), ekran akışı da etkilenmez.
+  useEffect(() => {
+    let iptal = false;
+    const say = () => {
+      loadNotifications({ now: Date.now() })
+        .then((r) => { if (!iptal) setUnread(r?.unread || 0); })
+        .catch(() => { if (!iptal) setUnread(0); });
+    };
+    say();
+    const durdur = navigation.addListener?.('focus', say);
+    return () => { iptal = true; if (typeof durdur === 'function') durdur(); };
+  }, [navigation]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -336,6 +349,14 @@ export default function HomeScreen({ navigation }) {
   const displayAnalysis = topAnalysis.length ? topAnalysis : fallbackAnalysis;
   const displaySurprise = surpriseMatches.length ? surpriseMatches : matches.slice(0, 3);
 
+  // Yaklaşan maçlar — gerçek bülten tarihlerinden, en yakın önce.
+  const upcoming = useMemo(() => {
+    return [...matches]
+      .filter((m) => m.status !== 'finished' && m.date && !Number.isNaN(new Date(m.date).getTime()))
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .slice(0, 6);
+  }, [matches]);
+
   return (
     <ScrollView
       style={styles.container}
@@ -348,24 +369,18 @@ export default function HomeScreen({ navigation }) {
         />
       }
     >
-      <Header data={data} navigation={navigation} />
+      <Header data={data} navigation={navigation} unread={unread} />
 
       <HeroCard
         data={data}
         loading={!data && !error}
         onPress={() => navigation.navigate('BulletinTab')}
+        onSummary={() => navigation.navigate('WeekSummary')}
+        onRecap={() => navigation.navigate('WeekRecap')}
       />
 
-      {/* Hızlı Erişim — deneme amaçlı gizlendi. Beğenilmezse bu blok geri açılır.
-      <SectionHead title="Hızlı Erişim" />
-
-      <View style={styles.quickGrid}>
-        {QUICK.map((item) => (
-          <QuickCard key={item.key} item={item} navigation={navigation} />
-        ))}
-      </View>
-      */}
-
+      {/* Hızlı Erişim kullanıcı kararıyla KALDIRILDI ("hızlı erişim olmasın") —
+          alt sekme çubuğu aynı sayfalara zaten götürüyor. */}
       <SectionHead
         title="Öne Çıkan Analizler"
         right="Tümünü Gör ›"
@@ -380,15 +395,22 @@ export default function HomeScreen({ navigation }) {
         <EmptyDashboard error={error} />
       ) : (
         <View style={styles.analysisGrid}>
-          {displayAnalysis.map((m, index) => (
-            <AnalysisCard
-              key={m.no}
-              match={m}
-              tag={index === 0 ? 'FORMDA' : 'DENGELİ'}
-              color={index === 0 ? colors.field : colors.gold}
-              navigation={navigation}
-            />
-          ))}
+          {displayAnalysis.map((m) => {
+            // Etiket GERÇEK sürpriz puanından — karta göre sabit etiket uydurulmaz.
+            const sc = Number(m.analysis?.surpriseScore || 0);
+            const t = sc >= 65 ? { tag: 'SÜRPRİZ ADAYI', color: colors.gold }
+              : sc >= 45 ? { tag: 'AÇIK MAÇ', color: colors.accent }
+                : { tag: 'DENGELİ', color: colors.field };
+            return (
+              <AnalysisCard
+                key={m.no}
+                match={m}
+                tag={t.tag}
+                color={t.color}
+                navigation={navigation}
+              />
+            );
+          })}
         </View>
       )}
 
@@ -404,13 +426,8 @@ export default function HomeScreen({ navigation }) {
         contentContainerStyle={styles.surpriseScroll}
       >
         {displaySurprise.length ? (
-          displaySurprise.map((m, index) => (
-            <SurpriseCard
-              key={m.no}
-              match={m}
-              level={index < 2 ? 'YÜKSEK' : 'ORTA'}
-              navigation={navigation}
-            />
+          displaySurprise.map((m) => (
+            <SurpriseCard key={m.no} match={m} navigation={navigation} />
           ))
         ) : (
           <View style={styles.emptySmallCard}>
@@ -419,28 +436,27 @@ export default function HomeScreen({ navigation }) {
         )}
       </ScrollView>
 
-      <SectionHead
-        title="Toplulukta Gündem"
-        right="Tümünü Gör ›"
-        onPress={() => navigation.navigate('Forum')}
-      />
-
-      <View style={styles.communityGrid}>
-        <CommunityCard
-          initials="AO"
-          name="Analiz Adam"
-          likes="124"
-          comments="28"
-          text="Sirius - Mjällby karşılaşmasında kanat hücumları öne çıkabilir. Özellikle Sirius'un sağ kanadı etkili."
-        />
-        <CommunityCard
-          initials="TG"
-          name="Veri Takımı"
-          likes="98"
-          comments="19"
-          text="Degerfors - Malmö maçında topa sahip olma yüzdesi %50 bandında gerçekleşebilir. Temkinli bir oyun bekliyoruz."
-        />
-      </View>
+      {/* Yaklaşan Maçlar — GERÇEK bülten verisinden (gün + saat + takımlar).
+          Toplulukta Gündem kaldırıldı (kullanıcı isteği; içeriği sahte örnekti —
+          sahte veri yok kuralıyla da uyumlu). */}
+      {upcoming.length > 0 && (
+        <>
+          <SectionHead
+            title="Yaklaşan Maçlar"
+            right="Tümünü Gör ›"
+            onPress={() => navigation.navigate('BulletinTab')}
+          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.surpriseScroll}
+          >
+            {upcoming.map((m) => (
+              <KickoffCard key={m.no} match={m} navigation={navigation} />
+            ))}
+          </ScrollView>
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -513,15 +529,23 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '-18deg' }],
   },
 
+  broadcastIcon: {
+    fontSize: 20,
+  },
+
   notificationDot: {
     position: 'absolute',
-    right: 8,
-    top: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    right: 2,
+    top: 2,
+    minWidth: 17,
+    height: 17,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.accent,
   },
+  notificationDotTxt: { color: '#fff', fontSize: 10, fontWeight: '900' },
 
   avatarBtn: {
     width: 42,
@@ -554,53 +578,6 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 13.5,
     fontWeight: '900',
-  },
-
-  quickGrid: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.md,
-    gap: 10,
-  },
-
-  quickCard: {
-    flex: 1,
-    minHeight: 118,
-    backgroundColor: colors.card,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-    ...shadows.soft,
-  },
-
-  quickIconWrap: {
-    width: 54,
-    height: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-    shadowOpacity: 0,
-    elevation: 0,
-    overflow: 'visible',
-    marginBottom: 8,
-  },
-
-  quickIconImage: {
-    width: 42,
-    height: 42,
-    backgroundColor: 'transparent',
-  },
-
-  quickLabel: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '900',
-    textAlign: 'center',
-    lineHeight: 15,
   },
 
   analysisGrid: {
@@ -743,6 +720,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
 
+  surpriseNames: { flexDirection: 'row', justifyContent: 'space-between', gap: 6, marginTop: 4 },
+  surpriseName: { flex: 1, color: colors.textSoft, fontSize: 10.5, fontWeight: '800' },
+  surpriseNameR: { textAlign: 'right' },
   surpriseBottom: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -780,102 +760,58 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 
-  communityGrid: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-  },
-
-  communityCard: {
-    flex: 1,
+  /* ===== Yaklaşan maç kartları (gerçek bülten verisi) ===== */
+  kickCard: {
+    width: 170,
     backgroundColor: colors.card,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.md,
-    minHeight: 170,
+    padding: spacing.sm,
     ...shadows.soft,
   },
 
-  communityHead: {
+  kickTimeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
+    marginBottom: 6,
   },
 
-  communityAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#9a783c',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  communityAvatarTxt: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-
-  communityNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-
-  communityName: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '900',
-  },
-
-  checkBadge: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: colors.field,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  checkTxt: {
-    color: colors.bg,
-    fontSize: 9,
-    fontWeight: '900',
-  },
-
-  communityTime: {
+  kickDay: {
     color: colors.textMuted,
     fontSize: 11,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-
-  moreDots: {
-    color: colors.textMuted,
-    fontSize: 16,
     fontWeight: '900',
+    textTransform: 'capitalize',
+    flexShrink: 1,
   },
 
-  communityText: {
+  kickTime: {
+    color: colors.accent,
+    fontSize: 15,
+    fontWeight: '900',
+    marginLeft: 6,
+  },
+
+  kickTeamRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginTop: 4,
+  },
+
+  kickTeam: {
     color: colors.text,
     fontSize: 12.5,
-    lineHeight: 17,
-    marginTop: 14,
-  },
-
-  communityMeta: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 'auto',
-    paddingTop: 12,
-  },
-
-  communityMetaTxt: {
-    color: colors.textMuted,
-    fontSize: 12,
     fontWeight: '800',
+    flex: 1,
+  },
+
+  kickLeague: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 8,
   },
 
   /* ===== Hero kart (component + gerçek istatistik) ===== */
@@ -916,6 +852,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 16,
   },
+  heroCtaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+  },
   heroTextBlock: {
     flex: 1,
     paddingRight: 10,
@@ -938,6 +879,8 @@ const styles = StyleSheet.create({
   },
   heroStatItem: {
     flex: 1,
+    minWidth: 0,
+    paddingRight: 4,
   },
   heroStatIcon: {
     color: '#ffffff',
@@ -973,14 +916,59 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   heroButton: {
+    flex: 1,
     height: 44,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     borderRadius: 14,
     backgroundColor: '#ff7a00',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    // Gösterişli dokunuş: turuncu parlama (gölge) — veri değil, saf görsel.
+    shadowColor: '#ff7a00',
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 5,
+  },
+  heroSummaryBtn: {
+    flex: 1,
+    height: 44,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginLeft: 10,
+  },
+  heroSummaryTxt: {
+    color: '#ffffff',
+    fontSize: 12.5,
+    fontWeight: '900',
+  },
+  heroRecapBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.28)',
+    marginTop: 10,
+  },
+  heroRecapTxt: {
+    color: '#ffffff',
+    fontSize: 12.5,
+    fontWeight: '900',
+  },
+  heroRecapArrow: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '900',
+    marginLeft: 6,
   },
   heroButtonText: {
     color: '#ffffff',

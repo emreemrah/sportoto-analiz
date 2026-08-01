@@ -8,6 +8,16 @@ import { mockAnalysisSnapshots } from '../data/mockAnalysisSnapshots';
 import { mockCoupons, MOCK_USER_ID } from '../data/mockCoupons';
 import { COUPON_STATUS } from '../types/coupon';
 import { CONFIDENCE_HIGH_THRESHOLD, SURPRISE_HIGH_THRESHOLD } from '../types/dashboard';
+import { demoDataAllowed } from '../demoGate';
+
+// ⚠️ PROVENANCE: Bu servis TAMAMEN mock/demo veriden hesap yapar.
+// Üretimde GERÇEK karne yerine ASLA gösterilemez. Yalnız açık DEMO_MODE=true
+// veya geliştirme (__DEV__) senaryosunda veri döner; aksi halde null döner ve
+// ekran "demo kapalı" durumunu gösterir. Backend kapalı diye mock başarı
+// gösterilmez. Dönen her nesne isDemo:true + provenanceType:'demo' taşır.
+// Kapının kendisi src/demoGate.js'tedir (RN'siz saf modül). Buradan yeniden
+// dışa aktarılır — mevcut çağıranlar (analysisPerformanceService) değişmesin.
+export { demoDataAllowed };
 
 function acc(correct, total) {
   return { total, correct, rate: total ? Math.round((correct / total) * 100) : 0 };
@@ -59,6 +69,7 @@ function leagueBreakdown(resolvedSelections) {
 // KULLANICI BAŞARI DASHBOARD
 // ------------------------------------------------------------------
 export async function getUserDashboard(userId = MOCK_USER_ID) {
+  if (!demoDataAllowed()) return null;                 // üretimde mock başarı YOK
   const userCoupons = mockCoupons.filter((c) => c.userId === userId);
   const latest = latestPerBulletin(userCoupons);
   const fullyChecked = latest.filter(isFullyChecked);
@@ -106,6 +117,7 @@ export async function getUserDashboard(userId = MOCK_USER_ID) {
     });
 
   return {
+    isDemo: true, provenanceType: 'demo', hasRealData: false,
     totalCoupons: latest.length,
     checkedCoupons: fullyChecked.length,
     averageCorrect,
@@ -130,6 +142,7 @@ export async function getUserDashboard(userId = MOCK_USER_ID) {
 // SİSTEM ANALİZ BAŞARI DASHBOARD
 // ------------------------------------------------------------------
 export async function getSystemDashboard() {
+  if (!demoDataAllowed()) return null;                 // üretimde mock başarı YOK
   const allAnalysis = mockAnalysisSnapshots.flatMap((s) => s.matchesAnalysis);
   const resolved = allAnalysis.filter((m) => m.resultInfo && m.resultInfo.systemCorrect !== null);
 
@@ -169,6 +182,7 @@ export async function getSystemDashboard() {
     : 0;
 
   return {
+    isDemo: true, provenanceType: 'demo', hasRealData: false,
     totalAnalyzed: resolved.length,
     correct,
     wrong,

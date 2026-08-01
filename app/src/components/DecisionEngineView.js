@@ -1,4 +1,4 @@
-// SPOR TOTO KARAR MOTORU — Analiz sekmesi görünümü.
+// KARAR MOTORU — Analiz sekmesi görünümü.
 // Üstte her zaman kısa/net Karar Paneli. Normal mod sade, Uzman mod detaylı
 // (akordiyonlar). Kesin/garanti dil YOK; veri yoksa "Bilinmiyor". Kupon seçimi
 // sekmelerin üstündeki CouponPickBlock'tan yapılır (bu görünüm karar destekler).
@@ -7,6 +7,10 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, spacing, radius, shadow } from '../theme';
 import { Accordion } from '../ui';
 import { buildDecision, joinCoupon } from '../decisionEngine';
+// Son güvenlik ağı: motorun ürettiği SERBEST METİN doğrudan basılmaz. Metinler
+// bugün temiz ama tek bir kelime değişikliği kuralı deler; ağ bunu ekrana
+// düşmeden yakalar. (Aynı ağ MasterAnalysisView'de de kullanılıyor.)
+import { humanizeVerdictText as insanDili } from '../labels';
 
 const bankoColor = (s) => (s === 'Evet' ? colors.success : s === 'Şartlı' ? colors.warning : colors.danger);
 const riskColor = (r) => (r === 'Düşük' ? colors.success : r === 'Orta' ? colors.warning : r === 'Yüksek' ? '#ea580c' : colors.danger);
@@ -56,9 +60,9 @@ function OutcomeBlock({ o, keep }) {
         {o.percent != null ? <Text style={st.outcPct}>%{o.percent}</Text> : null}
         {keep ? <Text style={st.keepBadge}>silinmez</Text> : null}
       </View>
-      <Text style={st.outcLine}><Text style={st.outcLbl}>Sebep: </Text>{o.whyCanHappen}</Text>
-      <Text style={st.outcLine}><Text style={st.outcLbl}>Risk: </Text>{o.whyMayFail}</Text>
-      <Text style={st.outcLine}><Text style={st.outcLbl}>Kupon etkisi: </Text>{o.couponEffect}</Text>
+      <Text style={st.outcLine}><Text style={st.outcLbl}>Sebep: </Text>{insanDili(o.whyCanHappen)}</Text>
+      <Text style={st.outcLine}><Text style={st.outcLbl}>Risk: </Text>{insanDili(o.whyMayFail)}</Text>
+      <Text style={st.outcLine}><Text style={st.outcLbl}>Kupon etkisi: </Text>{insanDili(o.couponEffect)}</Text>
     </View>
   );
 }
@@ -134,7 +138,7 @@ export default function DecisionEngineView({ m }) {
       {/* ——— ÜST KARAR PANELİ ——— */}
       <View style={st.panel}>
         <View style={st.panelHead}>
-          <Text style={st.panelTitle}>⚙️ SPOR TOTO KARARI</Text>
+          <Text style={st.panelTitle}>⚙️ MASTER KARAR</Text>
           <Text style={st.panelSub}>Tahmin değil, kupon karar desteği</Text>
         </View>
 
@@ -144,7 +148,7 @@ export default function DecisionEngineView({ m }) {
           </PanelRow>
           <PanelRow k="Dar Kupon"><Coupon arr={d.narrowCoupon} /></PanelRow>
           <PanelRow k="Güvenli Kupon"><Coupon arr={d.safeCoupon} /></PanelRow>
-          <PanelRow k="Banko Uygunluğu"><Text style={[st.pStrong, { color: bankoColor(d.bankoStatus) }]}>{d.bankoStatus}</Text></PanelRow>
+          <PanelRow k="Güçlü Aday Uygunluğu"><Text style={[st.pStrong, { color: bankoColor(d.bankoStatus) }]}>{d.bankoStatus}</Text></PanelRow>
           <PanelRow k="Risk Seviyesi"><Text style={[st.pStrong, { color: riskColor(d.riskLevel) }]}>{d.riskLevel}</Text></PanelRow>
           <PanelRow k="Veri Güvenliği"><Text style={[st.pStrong, { color: dataColor(d.dataConfidence) }]}>{d.dataConfidence}</Text></PanelRow>
         </View>
@@ -162,7 +166,7 @@ export default function DecisionEngineView({ m }) {
       {/* Kısa risk yorumu */}
       <View style={st.commentCard}>
         <Text style={st.commentKicker}>KISA RİSK YORUMU</Text>
-        <Text style={st.commentTxt}>{d.shortComment}</Text>
+        <Text style={st.commentTxt}>{insanDili(d.shortComment)}</Text>
       </View>
 
       {/* Risk & tuzak etiketleri */}
@@ -170,7 +174,7 @@ export default function DecisionEngineView({ m }) {
         <View style={st.tagsWrap}>
           {d.tags.map((t, i) => (
             <View key={i} style={[st.tag, { borderColor: tagColor(t.weight) }]}>
-              <Text style={[st.tagName, { color: tagColor(t.weight) }]}>{t.name}</Text>
+              <Text style={[st.tagName, { color: tagColor(t.weight) }]}>{insanDili(t.name)}</Text>
               <Text style={[st.tagW, { backgroundColor: tagColor(t.weight) }]}>{t.weight}</Text>
             </View>
           ))}
@@ -181,7 +185,7 @@ export default function DecisionEngineView({ m }) {
       {d.contradictionWarnings.length > 0 && (
         <View style={st.warnCard}>
           <Text style={st.warnKicker}>⚠ ÇELİŞKİ KONTROLÜ</Text>
-          {d.contradictionWarnings.map((w, i) => <Text key={i} style={st.warnTxt}>• {w}</Text>)}
+          {d.contradictionWarnings.map((w, i) => <Text key={i} style={st.warnTxt}>• {insanDili(w)}</Text>)}
         </View>
       )}
 
@@ -193,11 +197,11 @@ export default function DecisionEngineView({ m }) {
               {d.tags.map((t, i) => (
                 <View key={i} style={st.tagDetail}>
                   <View style={st.tagDetailHead}>
-                    <Text style={[st.tagDetailName, { color: tagColor(t.weight) }]}>{t.name}</Text>
+                    <Text style={[st.tagDetailName, { color: tagColor(t.weight) }]}>{insanDili(t.name)}</Text>
                     <Text style={st.tagDetailW}>{t.weight}/100</Text>
                   </View>
-                  <Text style={st.tagDetailLine}><Text style={st.outcLbl}>Sebep: </Text>{t.reason}</Text>
-                  <Text style={st.tagDetailLine}><Text style={st.outcLbl}>Kupon etkisi: </Text>{t.couponEffect}</Text>
+                  <Text style={st.tagDetailLine}><Text style={st.outcLbl}>Sebep: </Text>{insanDili(t.reason)}</Text>
+                  <Text style={st.tagDetailLine}><Text style={st.outcLbl}>Kupon etkisi: </Text>{insanDili(t.couponEffect)}</Text>
                 </View>
               ))}
             </Accordion>
@@ -227,16 +231,16 @@ export default function DecisionEngineView({ m }) {
           </Accordion>
 
           {d.bankoChecklist.length > 0 && (
-            <Accordion title="Banko Kontrol Listesi" icon="✅">
+            <Accordion title="Güçlü Aday Kontrol Listesi" icon="✅">
               <View style={[st.warnCard, { marginBottom: 8 }]}>
-                <Text style={st.warnKicker}>Banko Uygunluğu: <Text style={{ color: bankoColor(d.bankoStatus) }}>{d.bankoStatus}</Text></Text>
-                {d.bankoReasons.map((r, i) => <Text key={i} style={st.warnTxt}>• {r}</Text>)}
+                <Text style={st.warnKicker}>Güçlü Aday Uygunluğu: <Text style={{ color: bankoColor(d.bankoStatus) }}>{d.bankoStatus}</Text></Text>
+                {d.bankoReasons.map((r, i) => <Text key={i} style={st.warnTxt}>• {insanDili(r)}</Text>)}
               </View>
               {d.bankoChecklist.map((c, i) => (
                 <View key={i} style={st.chkRow}>
                   <Text style={st.chkMark}>{c.ok === true ? '✅' : c.ok === false ? '❌' : '❓'}</Text>
-                  <Text style={st.chkLabel}>{c.label}</Text>
-                  {c.note ? <Text style={st.chkNote}>{c.note}</Text> : null}
+                  <Text style={st.chkLabel}>{insanDili(c.label)}</Text>
+                  {c.note ? <Text style={st.chkNote}>{insanDili(c.note)}</Text> : null}
                 </View>
               ))}
             </Accordion>
@@ -272,7 +276,7 @@ export default function DecisionEngineView({ m }) {
           <Accordion title="Veri Güvenliği ve Bilinmeyenler" icon="🛡️">
             <KV k="Veri Güvenliği" v={d.dataConfidence} />
             {d.unknownData.map((u, i) => <Text key={i} style={st.unknownLine}>• {u}</Text>)}
-            <Text style={st.note}>Eksik veri uydurulmaz; kritik veri eksikliği riski artırır ve bankoyu frenler.</Text>
+            <Text style={st.note}>Eksik veri uydurulmaz; kritik veri eksikliği riski artırır ve güçlü aday değerlendirmesini frenler.</Text>
           </Accordion>
         </View>
       )}

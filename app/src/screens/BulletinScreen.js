@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, FlatList, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator, Image, Platform } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator, Image, Platform } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { api } from '../api';
 import { colors, spacing, radius, shadow } from '../theme';
 import { matchDate } from '../utils';
 import { getPref, setPref } from '../prefs';
 import { pickHits } from '../liveLogic';
-import { getRankedCoupon, finalVersion } from '../couponStore';
+import { getRankedCoupon, finalVersion } from '../coupon/store';
 import { toOfficial } from '../couponConfig';
-import { RecordBadges } from '../components';
+import { RecordBadges, SurpriseBadge, FormStrip } from '../components';
 import ScoreLegend from '../components/ScoreLegend';
+import SnapshotSealBanner from '../components/SnapshotSealBanner';
 import LiveBulletinView from '../components/LiveBulletinView';
 import BultenBackdrop from '../components/BultenBackdrop';
 import BultenEmptyState from '../components/BultenEmptyState';
@@ -66,9 +67,8 @@ export default function BulletinScreen({ navigation }) {
   const [histUpdateMsg, setHistUpdateMsg] = useState(null);      // null | 'updated' | 'noNew'
   const [corrections, setCorrections] = useState([]);           // oturum-içi resmi sonuç DÜZELTMELERİ
   const [prizeView, setPrizeView] = useState(getPref('prizeView'));       // list|table|card
-  const [histFilter, setHistFilter] = useState('all');                    // all|live|risk|coupon|done
-  const [histRiskSubs, setHistRiskSubs] = useState({ coupon: true, system: true });
-  const [histBoost, setHistBoost] = useState(false);                      // "Başlamadı" → üste taşı
+  // Geçmiş hafta üst sayaç kutuları + filtre çipleri KALDIRILDI (kullanıcı isteği);
+  // liste bülten sırasında (veya kayıtlı sıralama tercihinde) akar.
   const [histSort, setHistSort] = useState(getPref('histSort'));          // bulletin|resolvedTop|waitingBottom
   const [toast, setToast] = useState(null);
   const [refreshSheet, setRefreshSheet] = useState(null);       // null | { no } → 🔄 seçenek kutusu
@@ -164,11 +164,17 @@ export default function BulletinScreen({ navigation }) {
 
   // Geçmiş hafta seçilince: KAYITLI veriyi hemen göster, sonra resmi sonuçları
   // arka planda kontrol et (spec: açılış davranışı).
+  //
+  // ÇÖKME DÜZELTMESİ: burada eskiden setHistFilter('all') ve setHistBoost(false)
+  // da çağrılıyordu. O iki durum (geçmiş bülten filtresi/vurgusu) ekrandan
+  // kaldırılmış ama ÇAĞRILARI kalmıştı; tanımsız işlev olduğu için bu etki her
+  // çalıştığında ReferenceError atıyor ve Bülten sekmesi beyaz ekrana düşüyordu.
+  // Ekranın ilk mount'unda effectiveId null olduğu için hata KESİNLİKLE oluşuyordu.
   useEffect(() => {
-    if (viewingCurrent || effectiveId == null) { setHist(null); setHistError(null); setHistUpdateMsg(null); setCorrections([]); setHistFilter('all'); setHistBoost(false); return; }
+    if (viewingCurrent || effectiveId == null) { setHist(null); setHistError(null); setHistUpdateMsg(null); setCorrections([]); return; }
     if (hist && hist.roundId === effectiveId) return;
     let alive = true;
-    setHistLoading(true); setHistError(null); setHistUpdateMsg(null); setCorrections([]); setHistFilter('all'); setHistBoost(false);
+    setHistLoading(true); setHistError(null); setHistUpdateMsg(null); setCorrections([]);
     api.history(effectiveId)
       .then((h) => { if (alive) { setHist({ ...h, roundId: effectiveId }); checkOfficial(effectiveId); } })
       .catch((e) => { if (alive) setHistError(e.message); })
@@ -220,26 +226,11 @@ export default function BulletinScreen({ navigation }) {
   const fullyResolved = totalM > 0 && resolvedCount === totalM;   // 15/15 resmi sonuç
   const allAnnounced = fullyResolved && hasPrize;                 // + ikramiye
 
-  // Geçmiş bülten üst özet + filtre/sıralama (Canlı Bülten yapısı, resmi-sonuç uyarlaması)
-  const histCounts = { live: 0, notStarted: 0, finished: 0, couponRisk: 0, systemRisk: 0 };
-  for (const m of histMatches) {
-    const st = pastStatus(m);
-    if (st === 'live') histCounts.live += 1;
-    else if (st === 'notStarted') histCounts.notStarted += 1;
-    else if (st === 'finished') histCounts.finished += 1;
-    if (st === 'live' && pickHits(m.prediction?.symbol, pastResult(m)) === false) histCounts.systemRisk += 1;
-    // couponRisk: gerçek kupon yok → 0
-  }
+  // Geçmiş bülten sıralaması (filtre yok — 15 maç olduğu gibi listelenir).
   const histSorted = (() => {
-    let list = histMatches;
-    if (histFilter === 'live') list = list.filter((m) => pastStatus(m) === 'live');
-    else if (histFilter === 'done') list = list.filter((m) => pastStatus(m) === 'finished');
-    else if (histFilter === 'coupon') list = []; // kupon yok
-    else if (histFilter === 'risk') list = list.filter((m) => pastStatus(m) === 'live' && histRiskSubs.system && pickHits(m.prediction?.symbol, pastResult(m)) === false);
     const byNo = (a, b) => a.no - b.no;
-    const arr = [...list];
-    if (histBoost && histFilter === 'all') arr.sort((a, b) => { const an = pastStatus(a) === 'notStarted' ? 0 : 1; const bn = pastStatus(b) === 'notStarted' ? 0 : 1; return an - bn || byNo(a, b); });
-    else if (histSort === 'resolvedTop') { const w = (m) => (histCategory(m) === 'official' ? 0 : histCategory(m) === 'provisional' ? 1 : 2); arr.sort((a, b) => w(a) - w(b) || byNo(a, b)); }
+    const arr = [...histMatches];
+    if (histSort === 'resolvedTop') { const w = (m) => (histCategory(m) === 'official' ? 0 : histCategory(m) === 'provisional' ? 1 : 2); arr.sort((a, b) => w(a) - w(b) || byNo(a, b)); }
     else if (histSort === 'waitingBottom') { const w = (m) => (histCategory(m) === 'waiting' ? 1 : 0); arr.sort((a, b) => w(a) - w(b) || byNo(a, b)); }
     else arr.sort(byNo);
     return arr;
@@ -276,7 +267,7 @@ export default function BulletinScreen({ navigation }) {
         </TouchableOpacity>
         <View style={styles.weekMid}>
           {roundYear ? <Text style={styles.weekYear}>{roundYear}</Text> : null}
-          <Text style={styles.title}>Spor Toto · {roundName}</Text>
+          <Text style={styles.title}>Haftalık Bülten · {roundName}</Text>
           <Text style={styles.muted}>{subtitle}</Text>
           {verifiedNow && (
             <View style={styles.verifiedBadge}>
@@ -298,17 +289,20 @@ export default function BulletinScreen({ navigation }) {
       {/* Kupon giriş noktaları */}
       <View style={styles.couponRow}>
         {viewingCurrent && !data?.pending && data?.verification?.status === 'confirmed' ? (
-          <TouchableOpacity onPress={() => navigation.navigate('CouponBuilder', { roundId: data.roundId })} style={styles.couponBtnMain}>
+          <TouchableOpacity onPress={() => navigation.navigate('CouponEditor', { roundId: data.roundId })} style={styles.couponBtnMain}>
             <Text style={styles.couponBtnMainTxt}>🎟️ Kupon Oluştur</Text>
           </TouchableOpacity>
         ) : null}
-        <TouchableOpacity onPress={() => navigation.navigate('Coupons')} style={styles.couponBtn}>
+        <TouchableOpacity onPress={() => navigation.navigate('CouponCenter')} style={styles.couponBtn}>
           <Text style={styles.couponBtnTxt}>Kuponlarım</Text>
         </TouchableOpacity>
       </View>
       <TouchableOpacity onPress={() => navigation.navigate('BulletinHistory')} style={styles.historyLink}>
         <Text style={styles.historyLinkTxt}>📜 Bülten Geçmişi · Kilitli Analiz ›</Text>
       </TouchableOpacity>
+      {/* MÜHÜR DURUMU — kilit geri sayımı / "Mühürlü Analiz" + doğrulama hash'i.
+          Veri kalıcı arşivden (data.archive); arşiv yoksa şerit çizilmez. */}
+      {viewingCurrent && !data?.pending ? <SnapshotSealBanner archive={data?.archive} /> : null}
       {/* Bülten Zorluk Skoru — analizden türetilir, veri yoksa gösterilmez */}
       {viewingCurrent && !data?.pending && data?.difficulty ? (
         <View style={[styles.diffBanner, {
@@ -387,6 +381,29 @@ export default function BulletinScreen({ navigation }) {
           </View>
         </View>
 
+        {/* ANALİZ ÖZETİ — yalnız başlamamış maçta: bir bakışta sürpriz etiketi,
+            favori yüzdesi ve (veri varsa) son maç formları. Radar ile tutarlı. */}
+        {notStarted && item.analysis && (item.analysis.label || item.analysis.favorite) ? (
+          <View style={styles.mAnalysisRow}>
+            {item.analysis.label ? <SurpriseBadge label={item.analysis.label} labelColor={item.analysis.labelColor} small /> : null}
+            {item.analysis.favorite ? (
+              <Text style={styles.mFavTxt}>
+                Favori <Text style={styles.mFavStrong}>{String(item.analysis.favorite.symbol).replace('0', 'X')}</Text> · %{item.analysis.favorite.percent}{item.analysis.estimated ? ' ≈' : ''}
+              </Text>
+            ) : null}
+            {item.analysis.surpriseScore != null ? (
+              <Text style={styles.mSurTxt}>Sürpriz {item.analysis.surpriseScore}</Text>
+            ) : null}
+          </View>
+        ) : null}
+        {notStarted && (item.home?.form?.length || item.away?.form?.length) ? (
+          <View style={styles.mFormRow}>
+            <FormStrip form={item.home.form} size={15} />
+            <Text style={styles.mFormMid}>son maçlar</Text>
+            <FormStrip form={item.away.form} size={15} />
+          </View>
+        ) : null}
+
         <View style={styles.mDivider} />
 
         <View style={styles.mFoot}>
@@ -405,7 +422,7 @@ export default function BulletinScreen({ navigation }) {
             <Text style={styles.mPicks} numberOfLines={1}>
               <Text style={styles.mPickLabel}>Sen </Text><Text style={styles.mPickVal}>Kupon yok</Text>
               <Text style={styles.mPickDot}>    ·    </Text>
-              <Text style={styles.mPickLabel}>Sistem </Text><Text style={styles.mPickValStrong}>{sysSym || '—'}</Text>{sysMark !== 'none' ? <Text> {MARK[sysMark]}</Text> : null}
+              <Text style={styles.mPickLabel}>Sistem </Text><Text style={styles.mPickValStrong}>{sysSym ? sysSym.split('').map((c) => (c === '0' ? 'X' : c)).join('-') : '—'}</Text>{sysMark !== 'none' ? <Text> {MARK[sysMark]}</Text> : null}
             </Text>
           </View>
 
@@ -487,7 +504,7 @@ export default function BulletinScreen({ navigation }) {
       body = (
         <Center>
           <Text style={styles.errEmoji}>⚠️</Text>
-          <Text style={styles.errText}>Güncel başlamamış Spor Toto programı alınamadı.</Text>
+          <Text style={styles.errText}>Güncel başlamamış haftalık program alınamadı.</Text>
           <Text style={styles.muted}>{error}</Text>
           <TouchableOpacity style={styles.retry} onPress={load}><Text style={styles.retryText}>Tekrar Dene</Text></TouchableOpacity>
         </Center>
@@ -516,7 +533,6 @@ export default function BulletinScreen({ navigation }) {
         <LiveBulletinView
           matches={currentMatches}
           userPicks={rankedPicks}
-          hasCoupon={Object.keys(rankedPicks).length > 0}
           subtitle={subtitle}
           onCardPress={(no) => {
             const m = currentMatches.find((x) => x.no === no);
@@ -538,72 +554,10 @@ export default function BulletinScreen({ navigation }) {
       </Center>
     );
   } else if (hist) {
-    // Güncel bültenle BİREBİR AYNI özet + filtreler.
-    const HIST_SUMMARY = [
-      { key: 'live', label: 'Canlı', n: histCounts.live, color: colors.accent },
-      { key: 'notStarted', label: 'Başlamadı', n: histCounts.notStarted, color: colors.muted },
-      { key: 'finished', label: 'Biten', n: histCounts.finished, color: colors.success },
-      { key: 'couponRisk', label: 'Kupon Riskte', n: histCounts.couponRisk, color: colors.warning },
-      { key: 'systemRisk', label: 'Sistem Riskte', n: histCounts.systemRisk, color: colors.red },
-    ];
-    const HIST_FILTERS = [
-      { key: 'all', label: 'Tümü' },
-      { key: 'live', label: 'Canlı' },
-      { key: 'risk', label: 'Riskte' },
-      { key: 'coupon', label: 'Kuponum' },
-      { key: 'done', label: 'Biten' },
-    ];
-    const pickHistFilter = (key) => {
-      if (key === 'coupon') { showToast('Henüz kupon oluşturmadın.'); return; }
-      setHistBoost(false);
-      if (key === 'risk') setHistRiskSubs({ coupon: true, system: true });
-      setHistFilter(key);
-    };
-    const onHistSummary = (key) => {
-      if (key === 'live') pickHistFilter('live');
-      else if (key === 'finished') pickHistFilter('done');
-      else if (key === 'notStarted') { setHistBoost(true); setHistFilter('all'); }
-      else if (key === 'couponRisk') { setHistBoost(false); setHistRiskSubs({ coupon: true, system: false }); setHistFilter('risk'); }
-      else if (key === 'systemRisk') { setHistBoost(false); setHistRiskSubs({ coupon: false, system: true }); setHistFilter('risk'); }
-    };
+    // Güncel bültenle BİREBİR AYNI sade başlık: yalnız skor renk açıklaması.
     const HistHeader = (
       <View>
         <ScoreLegend />
-        {/* Üst özet kutuları — yatay kaydırmalı (Bülten ile aynı) */}
-        <View style={styles.hSummaryWrap}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hSummaryRow}>
-            {HIST_SUMMARY.map((b) => (
-              <TouchableOpacity key={b.key} style={styles.hSumBox} activeOpacity={0.8} onPress={() => onHistSummary(b.key)}>
-                <Text style={[styles.hSumN, { color: b.color }]}>{b.n}</Text>
-                <Text style={styles.hSumLabel} numberOfLines={1}>{b.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Filtreler */}
-        <View style={styles.hFilterRow}>
-          {HIST_FILTERS.map((f) => {
-            const on = histFilter === f.key && !(histBoost && f.key === 'all');
-            return (
-              <TouchableOpacity key={f.key} style={[styles.chip, on && styles.chipOn]} onPress={() => pickHistFilter(f.key)}>
-                <Text style={[styles.chipTxt, on && styles.chipTxtOn]}>{f.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Riskte alt filtreleri */}
-        {histFilter === 'risk' && (
-          <View style={styles.hSubRow}>
-            {[{ k: 'coupon', l: 'Kupon Riskte' }, { k: 'system', l: 'Sistem Riskte' }].map((sf) => (
-              <TouchableOpacity key={sf.k} style={[styles.subChip, histRiskSubs[sf.k] && styles.subChipOn]}
-                onPress={() => setHistRiskSubs((r) => ({ ...r, [sf.k]: !r[sf.k] }))}>
-                <Text style={[styles.subTxt, histRiskSubs[sf.k] && styles.subTxtOn]}>{histRiskSubs[sf.k] ? '✓ ' : ''}{sf.l}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
 
         {histChecking && (
           <View style={styles.checkBar}><ActivityIndicator size="small" color={colors.primary} /><Text style={styles.checkTxt}>Resmi sonuçlar kontrol ediliyor…</Text></View>
@@ -624,7 +578,7 @@ export default function BulletinScreen({ navigation }) {
         contentContainerStyle={styles.listPad}
         ListHeaderComponent={HistHeader}
         ListFooterComponent={PrizeSection}
-        ListEmptyComponent={<Text style={styles.hEmpty}>Bu filtrede maç yok.</Text>}
+        ListEmptyComponent={<Text style={styles.hEmpty}>Bu haftanın maç listesi bulunamadı.</Text>}
         refreshControl={<RefreshControl refreshing={histChecking} onRefresh={() => checkOfficial(effectiveId)} tintColor={colors.primary} />}
       />
     );
@@ -741,23 +695,7 @@ const styles = StyleSheet.create({
   modeTxt: { color: colors.textSoft, fontSize: 11.5, fontWeight: '800' },
   modeTxtOn: { color: colors.white },
 
-  // Geçmiş: üst özet kutuları + filtre + sıralama (Canlı Bülten yapısı)
-  hSummaryWrap: { marginBottom: spacing.sm },
-  hSummaryRow: { gap: 8, paddingRight: spacing.md },
-  hSumBox: { minWidth: 84, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: 8, paddingHorizontal: 12, alignItems: 'center' },
-  hSumN: { fontSize: 18, fontWeight: '900' },
-  hSumLabel: { color: colors.textSoft, fontSize: 10.5, fontWeight: '800', marginTop: 1 },
-  hFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.sm },
-  hSortRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm, flexWrap: 'wrap' },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border },
-  chipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
-  chipTxt: { color: colors.textSoft, fontSize: 12.5, fontWeight: '800' },
-  chipTxtOn: { color: colors.white },
-  hSubRow: { flexDirection: 'row', gap: 8, marginBottom: spacing.sm },
-  subChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
-  subChipOn: { borderColor: colors.warning, backgroundColor: colors.warningSoft },
-  subTxt: { color: colors.textMuted, fontSize: 11.5, fontWeight: '800' },
-  subTxtOn: { color: '#7a4a00' },
+  // Geçmiş hafta listesi (üst sayaç kutuları + filtre çipleri kaldırıldı)
   hEmpty: { color: colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: 24 },
 
   // ——— Modern maç kartı ———
@@ -779,6 +717,12 @@ const styles = StyleSheet.create({
   mDay: { color: colors.muted, fontSize: 10, fontWeight: '700' },
   tempPill: { backgroundColor: colors.warningSoft, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   tempTxt: { color: '#8a5a00', fontSize: 8.5, fontWeight: '900', letterSpacing: 0.5 },
+  mAnalysisRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' },
+  mFavTxt: { color: colors.textMuted, fontSize: 11.5, fontWeight: '700' },
+  mFavStrong: { color: colors.text, fontWeight: '900' },
+  mSurTxt: { color: colors.textMuted, fontSize: 11.5, fontWeight: '700' },
+  mFormRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 7 },
+  mFormMid: { color: colors.textMuted, fontSize: 10, fontWeight: '700' },
   mDivider: { height: 1, backgroundColor: colors.border, marginTop: 12, marginBottom: 9 },
   mFoot: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   mFootLeft: { flex: 1, gap: 3 },

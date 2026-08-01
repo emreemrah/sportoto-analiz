@@ -17,7 +17,8 @@ import {
 
 import theme from './theme';
 import { RecordBadges } from './components';
-import { matchDate } from './utils';
+import { matchDate, crestOf } from './utils';
+import { APP_NAME, APP_NAME_UPPER } from './brand';
 
 const { colors, spacing, radius, font } = theme;
 // shadow/shadows uyumsuzluğuna karşı güvenli fallback
@@ -27,7 +28,7 @@ const shadows = safeShadow;
 
 /* ==================== YENİ TASARIM SİSTEMİ ==================== */
 
-export function Screen({ children, scroll = true, style, contentStyle }) {
+export function Screen({ children, scroll = true, style, contentStyle, refreshControl }) {
   const Wrapper = scroll ? ScrollView : View;
 
   return (
@@ -37,6 +38,7 @@ export function Screen({ children, scroll = true, style, contentStyle }) {
         style={styles.wrapper}
         contentContainerStyle={scroll ? [styles.content, contentStyle] : contentStyle}
         showsVerticalScrollIndicator={false}
+        {...(scroll && refreshControl ? { refreshControl } : {})}
       >
         {children}
       </Wrapper>
@@ -161,15 +163,16 @@ export function ProgressBar({ value = 0, tone = 'primary' }) {
   );
 }
 
-// Marka logosu — kırmızı "ST" yuvarlağı + isim + slogan (text-logo)
+// Marka logosu — ÖZGÜN metin-logo: "SM" monogramı + isim + slogan.
+// Hiçbir kurumun amblemi, logosu veya rengi taklit edilmez.
 export function BrandLogo({ subtitle = true, size = 42 }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', ...shadow.soft }}>
-        <Text style={{ color: colors.white, fontSize: size * 0.4, fontWeight: '900', letterSpacing: 0.5 }}>ST</Text>
+        <Text style={{ color: colors.white, fontSize: size * 0.36, fontWeight: '900', letterSpacing: 0.5 }}>SM</Text>
       </View>
       <View style={{ marginLeft: 10 }}>
-        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Spor Toto Analiz</Text>
+        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>{APP_NAME}</Text>
         {subtitle ? (
           <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '700', marginTop: 1 }}>
             Bülten • Analiz • Tahmin
@@ -384,7 +387,7 @@ export function MatchCard({ match, onPress }) {
       </View>
       <View style={s.mcMain}>
         <View style={s.mcHome}>
-          <Logo uri={match.stats?.home?.logo} name={match.home.name} size={30} />
+          <Logo uri={crestOf(match, 'home')} name={match.home.name} size={30} />
           <Text style={s.mcTeam} numberOfLines={1}>{match.home.name}</Text>
         </View>
         {sc
@@ -392,7 +395,7 @@ export function MatchCard({ match, onPress }) {
           : <Text style={s.mcVs}>VS</Text>}
         <View style={s.mcAway}>
           <Text style={[s.mcTeam, { textAlign: 'right' }]} numberOfLines={1}>{match.away.name}</Text>
-          <Logo uri={match.stats?.away?.logo} name={match.away.name} size={30} />
+          <Logo uri={crestOf(match, 'away')} name={match.away.name} size={30} />
         </View>
       </View>
       {(hs || as) && (
@@ -412,8 +415,8 @@ export function MatchHeader({ home, away, homeLogo, awayLogo, league, dateLabel,
       <View style={s.mhBar}>
         <TouchableOpacity onPress={onBack} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Text style={s.mhIcon}>‹</Text></TouchableOpacity>
         <View style={{ alignItems: 'center' }}>
-          <Text style={s.brandName}>⚽ SPOR TOTO</Text>
-          <Text style={s.brandSub}>ANALİZ & YORUM PLATFORMU</Text>
+          <Text style={s.brandName}>⚽ {APP_NAME_UPPER}</Text>
+          <Text style={s.brandSub}>BAĞIMSIZ ANALİZ UYGULAMASI</Text>
         </View>
         <TouchableOpacity onPress={onShare} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Text style={s.mhIconSm}>☆</Text></TouchableOpacity>
       </View>

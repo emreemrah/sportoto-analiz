@@ -21,7 +21,17 @@ export default function SystemDashboardScreen() {
 
   if (loading && !data) return <LoadingState message="Sistem karnesi hazırlanıyor…" />;
   if (error) return <ErrorState message={error} onRetry={reload} />;
-  if (!data || data.totalAnalyzed === 0) {
+  if (!data) {
+    // DEMO KAPALI (üretim): mock başarı ASLA gerçek karne yerine gösterilmez.
+    return (
+      <EmptyState
+        icon="🧪"
+        title="Demo karne kapalı"
+        message="Bu ekran yalnız demo/geliştirme verisi gösterir ve üretimde kapalıdır. Gerçek başarı için Sistem Karnesi ekranını kullanın — orada yalnız maç öncesi mühürlendiği doğrulanan tahminler sayılır."
+      />
+    );
+  }
+  if (data.totalAnalyzed === 0) {
     return (
       <EmptyState
         icon="📊"
@@ -44,10 +54,10 @@ export default function SystemDashboardScreen() {
       <Text style={styles.title}>Sistem Analiz Karnesi</Text>
       <Text style={styles.sub}>{data.totalAnalyzed} maç analiz edildi</Text>
 
-      {/* GÜVEN UYARISI: karne şu an mock/demo veriye dayanıyor; gerçekmiş gibi sunulmaz. */}
+      {/* KALICI DEMO ETİKETİ: mock veri hiçbir koşulda gerçek başarı gibi sunulmaz. */}
       <Text style={styles.demoBanner}>
-        🧪 Bu karne şu an DEMO veri üzerinden gösteriliyor. Gerçek başarı, gerçek
-        bülten sonuçları biriktikçe hesaplanacak.
+        🧪 DEMO VERİ — GERÇEK BAŞARI DEĞİLDİR. Bu ekran örnek (mock) veriyle çalışır;
+        resmî ileri-test karnesi Sistem Karnesi ekranındadır.
       </Text>
 
       <Row style={styles.statsRow}>

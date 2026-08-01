@@ -8,6 +8,9 @@ import { api } from '../api';
 import { colors, spacing, radius } from '../theme';
 import { getPref, setPref } from '../prefs';
 import { deriveStatus, resultFromScore, pickHits } from '../liveLogic';
+import { pressureIndex, sortStats, goalProgression } from '../liveEvents';
+import LiveTimeline from '../components/LiveTimeline';
+import { getWeekCoupons, finalVersion } from '../coupon/store';
 
 const REFRESH_MS = 15000;
 const TABS = ['İstatistik', 'Olaylar', 'Kupon/Sistem', 'Özet'];
@@ -105,6 +108,31 @@ export default function LiveMatchDetailScreen({ route, navigation }) {
   const scored = st === 'live' || st === 'finished';
   const flashBg = flash.interpolate({ inputRange: [0, 1], outputRange: ['rgba(0,0,0,0)', colors.accentSoft] });
 
+  // KULLANICININ GERÇEK KUPONLARI — bu haftanın kayıtlı kuponlarında bu maça
+  // yapılmış seçim. Kupon yoksa liste boş kalır (uydurma kupon gösterilmez).
+  const myPicks = (d.roundId != null ? getWeekCoupons(d.roundId) : [])
+    .map((c) => {
+      const v = finalVersion(c);
+      const sel = v?.selections?.find((s) => Number(s.no) === Number(d.no));
+      const outcomes = sel?.selectedOutcomes || [];
+      if (!outcomes.length) return null;
+      return {
+        id: c.id,
+        couponNo: c.couponNo,
+        ranked: !!c.isRankedCoupon,
+        outcomes,
+        label: outcomes.join('-'),
+        hit: actual ? outcomes.includes(actual) : null,
+      };
+    })
+    .filter(Boolean);
+  const rankedPick = myPicks.find((p) => p.ranked) || null;
+  // "Kupon riskte": CANLI maçta dereceli kuponun seçimi şu an tutmuyor (geçici).
+  const couponAtRisk = st === 'live' && rankedPick ? rankedPick.hit === false : null;
+  const pressure = pressureIndex(d.stats);
+  const statRows = sortStats(d.stats);
+  const goals = goalProgression(d.events);
+
   return (
     <Wrap onBack={() => navigation.goBack()}>
       {/* skor başlığı */}
@@ -129,9 +157,30 @@ export default function LiveMatchDetailScreen({ route, navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={s.body}>
+        {/* OLAY ŞERİDİ — her sekmede görünür; yayında maçın akışı tek bakışta. */}
+        <LiveTimeline events={d.events} minute={st === 'live' ? d.minute : null} homeName={d.home} awayName={d.away} />
+
         {tab === 'İstatistik' && (
           !d.stats?.length ? <Empty text="Canlı istatistik bilgisi henüz yok." /> : (
             <>
+              {/* BASKI GÖSTERGESİ — yalnız gerçek istatistiklerden; tahmin değil. */}
+              {pressure ? (
+                <View style={s.prCard}>
+                  <View style={s.prHead}>
+                    <Text style={[s.prVal, { color: colors.info }]}>%{pressure.home}</Text>
+                    <Text style={s.prTitle}>BASKI GÖSTERGESİ</Text>
+                    <Text style={[s.prVal, { color: colors.accent, textAlign: 'right' }]}>%{pressure.away}</Text>
+                  </View>
+                  <View style={s.prBar}>
+                    <View style={{ flex: pressure.home || 1, backgroundColor: colors.info, height: 10 }} />
+                    <View style={{ flex: pressure.away || 1, backgroundColor: colors.accent, height: 10 }} />
+                  </View>
+                  <Text style={s.prNote}>
+                    {pressure.basis.join(' · ')} verilerinin payı. Sonuç tahmini değildir.
+                  </Text>
+                </View>
+              ) : null}
+
               <View style={s.viewToggle}>
                 {['table', 'graph'].map((v) => (
                   <TouchableOpacity key={v} onPress={() => { setStatView(v); setPref('liveStatView', v); }} style={[s.vtChip, statView === v && s.vtChipOn]}>
@@ -139,7 +188,7 @@ export default function LiveMatchDetailScreen({ route, navigation }) {
                   </TouchableOpacity>
                 ))}
               </View>
-              {d.stats.map((row, i) => (
+              {statRows.map((row, i) => (
                 statView === 'table'
                   ? <StatTableRow key={i} label={statLabel(row.type)} home={row.home} away={row.away} />
                   : <StatGraphRow key={i} label={statLabel(row.type)} home={row.home} away={row.away} />
@@ -150,7 +199,21 @@ export default function LiveMatchDetailScreen({ route, navigation }) {
 
         {tab === 'Olaylar' && (
           !d.events?.length ? <Empty text="Canlı olay bilgisi henüz yok." /> : (
-            d.events.map((e, i) => (
+            <>
+            {/* GOL AKIŞI — her golden sonraki koşan skor. */}
+            {goals.length ? (
+              <View style={s.golWrap}>
+                {goals.map((g, i) => (
+                  <View key={i} style={s.golChip}>
+                    <Text style={s.golMin}>{g.minute}{g.extra ? `+${g.extra}` : ''}'</Text>
+                    <Text style={s.golScore}>{g.home}-{g.away}</Text>
+                    {g.penalty ? <Text style={s.golTag}>P</Text> : null}
+                    {g.ownGoal ? <Text style={s.golTag}>KK</Text> : null}
+                  </View>
+                ))}
+              </View>
+            ) : null}
+            {d.events.map((e, i) => (
               <View key={i} style={s.evRow}>
                 <Text style={s.evMin}>{e.minute != null ? `${e.minute}${e.extra ? '+' + e.extra : ''}'` : ''}</Text>
                 <Text style={s.evIcon}>{EVENT_ICON(e)}</Text>
@@ -159,16 +222,43 @@ export default function LiveMatchDetailScreen({ route, navigation }) {
                   {e.player ? <Text style={s.evPlayer}>{e.player}{e.assist ? ` (asist: ${e.assist})` : ''}</Text> : null}
                 </View>
               </View>
-            ))
+            ))}
+            </>
           )
         )}
 
         {tab === 'Kupon/Sistem' && (
           <View>
+            {/* SENİN KUPONUN — bu haftanın GERÇEK kayıtlı kuponlarındaki seçim.
+                Kupon yoksa dürüstçe "kupon yok" der; sahte seçim gösterilmez. */}
             <View style={s.ksCard}>
               <Text style={s.ksTitle}>Senin Kuponun</Text>
-              <Text style={s.ksNo}>Kupon yok</Text>
-              <Text style={s.ksNote}>Bu güncel bülten için kaydedilmiş gerçek kuponun bulunmuyor.</Text>
+              {!myPicks.length ? (
+                <>
+                  <Text style={s.ksNo}>Kupon yok</Text>
+                  <Text style={s.ksNote}>Bu bülten için bu maça yapılmış kayıtlı seçimin yok.</Text>
+                  {d.roundId != null ? (
+                    <TouchableOpacity style={s.ksBtn} onPress={() => navigation.navigate('CouponEditor', { roundId: d.roundId })}>
+                      <Text style={s.ksBtnTxt}>Kupon Oluştur</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </>
+              ) : (
+                myPicks.map((p) => (
+                  <View key={p.id} style={s.mpRow}>
+                    <Text style={s.mpName} numberOfLines={1}>
+                      Kupon {p.couponNo}{p.ranked ? <Text style={s.mpRanked}>  ⭐ dereceli</Text> : null}
+                    </Text>
+                    <Text style={s.mpPick}>{p.label}</Text>
+                    <Text style={[s.mpMark, { color: !scored || p.hit == null ? colors.textMuted : p.hit ? colors.success : colors.danger }]}>
+                      {!scored || p.hit == null ? '⏳' : p.hit ? (st === 'finished' ? '✅ doğru' : '✅ anlık') : (st === 'finished' ? '❌ yanlış' : '❌ anlık')}
+                    </Text>
+                  </View>
+                ))
+              )}
+              {myPicks.length && st !== 'finished' ? (
+                <Text style={s.ksNote}>Anlık işaretler geçicidir — kesin sonuç yalnız resmî Spor Toto sonucuyla belirlenir.</Text>
+              ) : null}
             </View>
             <View style={s.ksCard}>
               <Text style={s.ksTitle}>Sistem Tahmini</Text>
@@ -182,7 +272,9 @@ export default function LiveMatchDetailScreen({ route, navigation }) {
             </View>
             <View style={s.riskCard}>
               <Text style={s.ksTitle}>Risk</Text>
-              <Text style={s.riskLine}>Kupon Riskte: <Text style={s.riskVal}>—</Text> (kupon yok)</Text>
+              <Text style={s.riskLine}>Kupon Riskte: {rankedPick ? (
+                <Text style={[s.riskVal, { color: couponAtRisk ? colors.danger : colors.success }]}>{couponAtRisk ? 'EVET (anlık)' : 'hayır'}</Text>
+              ) : <><Text style={s.riskVal}>—</Text> (kupon yok)</>}</Text>
               <Text style={s.riskLine}>Sistem Riskte: <Text style={[s.riskVal, { color: (st === 'live' && pickHits(sysSym, actual) === false) ? colors.danger : colors.success }]}>
                 {st === 'live' && pickHits(sysSym, actual) === false ? 'EVET (anlık)' : 'hayır'}</Text></Text>
               {(st === 'suspended' || st === 'cancelled' || st === 'postponed') && <Text style={s.ksNote}>Resmi karar bekleniyor — kupon/sistem sonucu kesinleşmedi.</Text>}
@@ -281,6 +373,27 @@ const s = StyleSheet.create({
   evIcon: { fontSize: 16 },
   evLabel: { color: colors.text, fontSize: 13, fontWeight: '700' },
   evPlayer: { color: colors.textMuted, fontSize: 11.5, fontWeight: '600', marginTop: 1 },
+
+  prCard: { backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.md },
+  prHead: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  prVal: { flex: 1, fontSize: 15, fontWeight: '900' },
+  prTitle: { color: colors.textMuted, fontSize: 9.5, fontWeight: '900', letterSpacing: 1 },
+  prBar: { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: colors.surfaceSoft },
+  prNote: { color: colors.textMuted, fontSize: 10, fontStyle: 'italic', marginTop: 6, lineHeight: 14 },
+
+  golWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.md },
+  golChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.surfaceSoft, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 4 },
+  golMin: { color: colors.textMuted, fontSize: 10.5, fontWeight: '900' },
+  golScore: { color: colors.text, fontSize: 12.5, fontWeight: '900' },
+  golTag: { color: colors.accent, fontSize: 9, fontWeight: '900' },
+
+  mpRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: colors.border },
+  mpName: { flex: 1, color: colors.text, fontSize: 12.5, fontWeight: '800' },
+  mpRanked: { color: colors.warning, fontSize: 10.5, fontWeight: '900' },
+  mpPick: { color: colors.text, fontSize: 15, fontWeight: '900', letterSpacing: 1 },
+  mpMark: { fontSize: 11.5, fontWeight: '800', width: 70, textAlign: 'right' },
+  ksBtn: { marginTop: 10, alignSelf: 'flex-start', backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: radius.sm },
+  ksBtnTxt: { color: colors.white, fontSize: 12.5, fontWeight: '800' },
 
   ksCard: { backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm },
   riskCard: { backgroundColor: colors.warningSoft, borderRadius: radius.md, borderWidth: 1, borderColor: colors.warning, padding: spacing.md, marginBottom: spacing.sm },

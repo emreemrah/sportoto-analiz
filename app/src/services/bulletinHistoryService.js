@@ -1,23 +1,57 @@
 // app/src/services/bulletinHistoryService.js
-// Bülten geçmişi servis katmanı. Şimdilik mock data üzerinde çalışır; backend'e
-// /api/bulletin-history gibi bir uç eklendiğinde bu dosyanın SADECE içi
-// değişir — çağıran hook/ekranlar (Promise<Bulletin[]> / Promise<Bulletin>)
-// aynı kalır.
+// Bülten geçmişi servis katmanı — GERÇEK backend arşivine bağlıdır.
+// Veri kaynağı: /api/bulletins (kalıcı arşiv + değişmez snapshot motoru).
+// Mock veriler YALNIZ demo/geliştirme içindir. Production veri kaynağı ASLA
+// mock değildir ve ÜRETİMDE mock'a DÜŞÜLMEZ (aşağıdaki nota bak).
 //
-// Kural: bülten ilk maçı başlayana kadar 'active', başladığı an 'locked' olur;
-// tüm maçları sonuçlanınca 'completed' olur. Bu geçiş burada "lazy" olarak,
-// her okumada zaman damgasına bakılarak uygulanır (gerçek backend'de bu muhtemelen
-// bir cron/worker olurdu).
+// Sözleşme korunmuştur: listBulletins(): Promise<Bulletin[]>,
+// getBulletinById(id): Promise<Bulletin> — çağıran hook/ekranlar değişmez.
+//
+// ÜRETİMDE MOCK'A DÜŞME YASAĞI (dürüstlük kuralı):
+// Arşive ulaşılamamak NORMAL bir üretim olayıdır (backend yeniden başlar,
+// kullanıcı çevrimdışıdır). Eskiden bu durumda örnek bültenler dönüyordu ve
+// bunların resultSummary'si UYDURMA bir systemAccuracy (% başarı oranı)
+// taşıyordu. "Demo, rastgele veya uydurma kupon, maliyet, başarı oranı ve
+// sonuç üretilmemeli" kuralı bunu yasaklar; DEMO bandı basmak da yetmez,
+// çünkü kural sayıyı ETİKETLEMEYİ değil ÜRETMEYİ yasaklıyor. Doğru davranış
+// projenin kendi ilkesidir: "Veri yoksa 'Bu veri bulunamadı' yaz." Ekranda
+// zaten dürüst hata + "Tekrar dene" durumu var; artık o görünür.
+// Kapının tek kaynağı src/demoGate.js'tir; burada yeniden tanımlanmadı.
 
 import { mockBulletins } from '../data/mockBulletins';
 import { mockAnalysisSnapshots } from '../data/mockAnalysisSnapshots';
 import { isBulletinFullyResolved } from '../data/mockResults';
 import { BULLETIN_STATUS, MATCH_STATUS, isPastFirstMatch } from '../types/bulletin';
+import { archiveGet } from './archiveClient';
+import { mapBulletinSummary, mapBulletinDetail } from './archiveMappers';
+import { demoDataAllowed } from '../demoGate';
 
 // Basit derin kopya (mock store'u dışarıya referansla sızdırmamak için).
 const clone = (x) => JSON.parse(JSON.stringify(x));
 
 let store = mockBulletins.map(clone);
+
+// Gerçek arşiv id'leri sayısaldır (roundId); mock id'ler 'b27' gibidir.
+const isArchiveId = (id) => /^\d+$/.test(String(id));
+
+/* ------------------------------------------------------------------ */
+/* GERÇEK VERİ YOLU (backend arşivi)                                   */
+/* ------------------------------------------------------------------ */
+
+async function listBulletinsFromApi() {
+  const res = await archiveGet('/api/bulletins');
+  const items = (res?.bulletins || []).map(mapBulletinSummary);
+  return items.sort((a, b) => (b.roundId || 0) - (a.roundId || 0));
+}
+
+async function getBulletinFromApi(id) {
+  const res = await archiveGet(`/api/bulletins/${id}`);
+  return mapBulletinDetail(res);
+}
+
+/* ------------------------------------------------------------------ */
+/* DEMO / FALLBACK YOLU (mock — yalnız backend'e ulaşılamadığında)     */
+/* ------------------------------------------------------------------ */
 
 function deriveStatus(bulletin) {
   const b = { ...bulletin };
@@ -58,45 +92,69 @@ function finishedCount(bulletin) {
   return bulletin.matches.filter((m) => m.status === MATCH_STATUS.FINISHED).length;
 }
 
-// Tüm geçmiş: en güncel tarih en üstte.
-export async function listBulletins() {
+function listBulletinsMock() {
   store = store.map(deriveStatus);
   return store
     .map(attachResultSummary)
-    .map((b) => ({ ...b, _finishedCount: finishedCount(b) }))
+    .map((b) => ({ ...b, _finishedCount: finishedCount(b), _demo: true, _source: 'mock' }))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-export async function getBulletinById(id) {
+function getBulletinMock(id) {
   store = store.map(deriveStatus);
   const found = store.find((b) => b.id === id);
   if (!found) return null;
-  return { ...attachResultSummary(found), _finishedCount: finishedCount(found) };
+  return { ...attachResultSummary(found), _finishedCount: finishedCount(found), _demo: true, _source: 'mock' };
 }
 
-// Bir maçın (tek) canlı/güncel durumunu bültenden bağımsız sorgulamak için.
+/* ------------------------------------------------------------------ */
+/* DIŞA AÇIK API — önce gerçek arşiv, ulaşılamazsa açıkça DEMO         */
+/* ------------------------------------------------------------------ */
+
+// Tüm geçmiş: en güncel en üstte. Backend arşivi esastır; arşiv BOŞSA boş
+// liste döner (mock ile doldurulmaz). Arşive ULAŞILAMAZSA: üretimde hata
+// yukarı verilir (ekran "Tekrar dene" gösterir), yalnız demo/geliştirmede
+// örnek liste döner — her öğe _demo=true taşır ve ekran DEMO bandı basar.
+export async function listBulletins() {
+  try {
+    return await listBulletinsFromApi();
+  } catch (e) {
+    if (!demoDataAllowed()) {
+      // Üretim: uydurma bülten/başarı oranı ÜRETİLMEZ, hata dürüstçe taşınır.
+      throw e;
+    }
+    console.warn('[bulletinHistory] arşiv API alınamadı, DEMO veriye düşüldü:', e?.message);
+    return listBulletinsMock();
+  }
+}
+
+export async function getBulletinById(id) {
+  if (!isArchiveId(id)) {
+    // 'b27' gibi id'ler YALNIZ demo veridir. Üretimde böyle bir id'ye
+    // (eski kısayol, derin bağlantı, kalıntı durum) hiç ulaşılmamalı; ulaşılırsa
+    // örnek bülten uydurmak yerine dürüstçe "bulunamadı" denir.
+    if (!demoDataAllowed()) {
+      throw new Error('Bu bülten arşivde bulunamadı.');
+    }
+    return getBulletinMock(id);
+  }
+  return getBulletinFromApi(id);                       // gerçek arşiv — hata dürüstçe ekrana taşınır
+}
+
+// Bir maçın (tek) durumunu bültenden bağımsız sorgulamak için.
 export async function getMatchById(bulletinId, matchId) {
   const bulletin = await getBulletinById(bulletinId);
   return bulletin?.matches.find((m) => m.id === matchId) || null;
 }
 
-// ----------------------------------------------------------------------
-// KİLİTLİ BÜLTEN KORUMASI
-//
-// Bir bültenin ilk maçı başladığı andan itibaren (status: locked/completed/
-// cancelled) o bültenin maç listesi TARİHSEL bir kayıttır: kimlik alanları
-// (orderNo, code, homeTeam, awayTeam, league, startTime) bir daha değişmez,
-// maç eklenmez/çıkarılmaz. Sadece maçın SONUÇ alanları (status,
-// halfTimeScore, fullTimeScore, result1x2) güncellenebilir — örn. canlı bir
-// maçın skoru ilerledikçe veya maç bitip resmi sonuç geldiğinde.
-//
-// Bugün için canlı bir dış kaynak/API entegrasyonu YOK (mock veri statik).
-// Ama ileride bülteni gerçek veriyle senkronize edecek her kodun, bu
-// fonksiyon DIŞINDA asla `bulletin.matches = ...` şeklinde doğrudan atama
-// yapmaması gerekir — aksi halde kilitli bir haftanın maç listesi sessizce
-// ezilebilir. Bu yüzden bu tek giriş noktası, henüz hiçbir çağıranı olmasa
-// bile, kuralı kod seviyesinde zorunlu kılmak için burada.
-// ------------------------------------------------------------------------
+/* ------------------------------------------------------------------ */
+/* KİLİTLİ BÜLTEN KORUMASI (mock/demo yolu için korunan eski davranış) */
+/*                                                                     */
+/* GERÇEK sistemde bu koruma artık BACKEND'dedir: kilitli snapshot     */
+/* update/delete edilemez (DB trigger + servis katmanı), maç kimlikleri */
+/* değişemez, reddedilen denemeler snapshot_audit_log'a yazılır.        */
+/* Aşağıdaki fonksiyonlar demo verisi ve eski çağıranlar için durur.    */
+/* ------------------------------------------------------------------ */
 
 const RESULT_ONLY_FIELDS = ['status', 'halfTimeScore', 'fullTimeScore', 'result1x2'];
 const IDENTITY_FIELDS = ['orderNo', 'code', 'league', 'startTime'];
@@ -105,13 +163,6 @@ const IDENTITY_FIELDS = ['orderNo', 'code', 'league', 'startTime'];
 // dış-kaynak güncelleme denemesi burada saklanır (sessizce yok sayılmaz).
 let correctionLogs = {};
 
-// Bir bülten SADECE status alanına göre değil, ilk maçın gerçek zamanına göre
-// de kilitli sayılmalı: status henüz 'active'/'draft' olsa bile
-// firstMatchStartAt geçmişteyse maç listesi yine donmuş kabul edilir. Bu
-// kontrol, applyIncomingMatchUpdate içindeki `store.map(deriveStatus)`
-// ön-adımının çağrılmış olmasına bağımlı DEĞİLDİR — çağrı sırası değişse,
-// unutulsa veya bu fonksiyon başka bir yerden bağımsız çağrılsa bile aynı
-// doğru sonucu verir (savunmacı/kendi kendine yeten kontrol).
 export function isLockedForMatches(bulletin, now = Date.now()) {
   if (
     bulletin.status === BULLETIN_STATUS.LOCKED ||
@@ -132,9 +183,7 @@ function teamNameChanged(incoming, existing, key) {
   return incoming[key] && existing[key] && incoming[key].name !== existing[key].name;
 }
 
-// Dış kaynaktan (gelecekteki gerçek API) gelen maç verisini bültene UYGULAMANIN
-// TEK güvenli yolu. incomingMatches: Match[] (mevcut Match şekliyle aynı).
-// Döner: { applied: string[] matchId, ignored: string[] insan-okunur sebep }
+// (Demo/mock deposu için) dış kaynak güncellemesini güvenle uygulayan tek yol.
 export async function applyIncomingMatchUpdate(bulletinId, incomingMatches) {
   store = store.map(deriveStatus);
   const idx = store.findIndex((b) => b.id === bulletinId);
@@ -144,15 +193,10 @@ export async function applyIncomingMatchUpdate(bulletinId, incomingMatches) {
   const current = store[idx];
 
   if (!isLockedForMatches(current)) {
-    // İlk maç henüz başlamadı (draft/active): tam güncelleme serbest.
     store[idx] = { ...current, matches: clone(incomingMatches) };
     return { applied: incomingMatches.map((m) => m.id), ignored: [] };
   }
 
-  // Kilitli / tamamlanmış / iptal: maç listesi donmuş. Sadece eşleşen
-  // maçların sonuç alanları güncellenir; kimlik değişikliği veya yeni maç
-  // eklenmesi reddedilip correctionLog'a yazılır. Liste uzunluğu, sırası ve
-  // hiçbir maçın kimliği asla değişmez.
   const applied = [];
   const ignored = [];
   const existingById = new Map(current.matches.map((m) => [m.id, m]));
@@ -183,8 +227,6 @@ export async function applyIncomingMatchUpdate(bulletinId, incomingMatches) {
     }
   });
 
-  // current.matches referansı hiç değişmedi (eklenmedi/çıkarılmadı/yer
-  // değiştirmedi) — sadece eşleşen öğeler yerinde güncellendi.
   store[idx] = { ...current };
   return { applied, ignored };
 }

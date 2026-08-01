@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { Text, View, Image, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Text, View, Image, StyleSheet, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
-import Svg, { Circle, Line } from 'react-native-svg';
+import Svg, { Circle, Line, Path } from 'react-native-svg';
+
+import { APP_NAME, BRAND_LINE_1, BRAND_LINE_2 } from './src/brand';
 
 import HomeScreen from './src/screens/HomeScreen';
 import BulletinScreen from './src/screens/BulletinScreen';
@@ -19,19 +21,52 @@ import LeaderboardScreen from './src/screens/LeaderboardScreen';
 import { LoginScreen, RegisterScreen, ForgotPasswordScreen } from './src/screens/AuthScreens';
 import BulletinHistoryScreen from './src/screens/BulletinHistoryScreen';
 import BulletinDetailScreen from './src/screens/BulletinDetailScreen';
-import CouponCreateScreen from './src/screens/CouponCreateScreen';
 import CouponResultScreen from './src/screens/CouponResultScreen';
-import CouponBuilderScreen from './src/screens/CouponBuilderScreen';
-import CouponsScreen from './src/screens/CouponsScreen';
+import CouponEditorScreen from './src/screens/CouponEditorScreen';
+import CouponShareScreen from './src/screens/CouponShareScreen';
+import CouponCenterScreen from './src/screens/CouponCenterScreen';
 import UserDashboardScreen from './src/screens/UserDashboardScreen';
 import SystemDashboardScreen from './src/screens/SystemDashboardScreen';
 import SystemScorecardScreen from './src/screens/SystemScorecardScreen';
 import AnalysisSettingsScreen from './src/screens/AnalysisSettingsScreen';
-import { initAuth } from './src/auth';
+import AboutScreen from './src/screens/AboutScreen';
+import DeleteAccountScreen from './src/screens/DeleteAccountScreen';
+import SecuritySettingsScreen from './src/screens/SecuritySettingsScreen';
+import BlockedUsersScreen from './src/screens/BlockedUsersScreen';
+import ModerationScreen from './src/screens/ModerationScreen';
+import DevicesScreen from './src/screens/DevicesScreen';
+import WeekSummaryScreen from './src/screens/WeekSummaryScreen';
+import WeekRecapScreen from './src/screens/WeekRecapScreen';
+import NotificationsScreen from './src/screens/NotificationsScreen';
+import BroadcastScreen, { BROADCAST_CONTENT_STYLE } from './src/screens/BroadcastScreen';
+// YAYIN STÜDYOSU — yayıncının canlı yayında ilerlediği üç ekran: tablo, maç
+// detayı, geçmiş hafta karnesi. (Dördüncü bir "Final Kupon" ekranı vardı;
+// kaydetme tabloya taşındığı için kaldırıldı.)
+import StudioBulletinScreen from './src/screens/StudioBulletinScreen';
+import StudioMatchScreen from './src/screens/StudioMatchScreen';
+import StudioKarneScreen from './src/screens/StudioKarneScreen';
+// UYARI/ONAY PENCERESİ: React Native'in Alert'i web'de boş taslaktır (hiç
+// çizmez). Onay isteyen düğmeler web'de sessiz kalmasın diye pencereyi çizen
+// host uygulama kökünde BİR KEZ bağlanır.
+import { UyariHost } from './src/components/Uyari';
+import { STUDIO_CONTENT_STYLE, FULLSCREEN_ROUTES } from './src/studioTheme';
+import { useStudioFontLoader } from './src/studioFonts';
+import { initAuth, getToken } from './src/auth';
+import { needsLockOnLaunch } from './src/security/biometricLock';
+import {
+  initPush, addResponseListener, syncMatchReminders, getPushPrefs, isDesteklenir,
+  sonYanitVerisi, sonYanitiTemizle,
+} from './src/services/pushService';
+import { loadPushInputs } from './src/services/notificationsService';
+import { rotaKuyrugu, rotayiUygula, maclariBildir } from './src/pushRoute';
+import BiometricLockScreen from './src/screens/BiometricLockScreen';
 import { colors } from './src/theme';
 import AnimatedLogo from './src/components/AnimatedLogo';
 import { FanWoman, KickingMan, AnalystMan, AnalystWoman, AnalysisCard } from './src/components/SplashCharacters';
 import SplashTacticalScreen from './src/components/SplashTacticalScreen';
+
+// Yayın derlemesinde geliştirici/demo ekranları kayda alınmaz.
+const IS_DEV_BUILD = typeof __DEV__ !== 'undefined' ? __DEV__ : false;
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -52,6 +87,12 @@ const header = {
   headerStyle: { backgroundColor: colors.card },
   headerTintColor: colors.text,
   headerTitleStyle: { fontWeight: '800' },
+  // YAYIN GÖRSELLİĞİ (yalnız web): geniş ekranda içerik uçtan uca yayılmaz;
+  // ~1140px'te ortalanır — 1080p yayında "boş uygulama" izlenimi biter.
+  // Mobilde hiçbir etkisi yoktur.
+  ...(Platform.OS === 'web'
+    ? { contentStyle: { width: '100%', maxWidth: 1140, alignSelf: 'center', backgroundColor: colors.bg } }
+    : {}),
 };
 
 // Maç detayı kendi premium başlığını kullanır, native header gizli
@@ -72,10 +113,53 @@ const analysisSettingsScreen = (
   />
 );
 
+// Alt sekme çubuğu stili TEK yerde durur. Yayın Modu'nda çubuk gizlenirken
+// stilin "undefined" ile ezilmesi (React Navigation seçenekleri yayılarak
+// birleştirir) diğer ekranlarda çubuğu bozardı; bu yüzden iki sabit tutulur.
+const TAB_BAR_STYLE = {
+  backgroundColor: colors.bgAlt,
+  borderTopColor: colors.border,
+  height: 64,
+  paddingBottom: 8,
+  paddingTop: 7,
+};
+const TAB_BAR_HIDDEN = { display: 'none' };
+
 function HomeStack() {
   return (
     <Stack.Navigator screenOptions={header}>
       <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="WeekSummary" component={WeekSummaryScreen} options={{ title: 'Haftanın Özeti' }} />
+      <Stack.Screen name="WeekRecap" component={WeekRecapScreen} options={{ title: 'Hafta Kapanışı' }} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Bildirimler' }} />
+      {/* YAYIN MODU: OBS kadrajı için tam ekran. Başlık çubuğu YOK; alt sekme
+          çubuğu da aşağıdaki tabBarStyle kuralıyla gizlenir. */}
+      <Stack.Screen
+        name="Broadcast"
+        component={BroadcastScreen}
+        options={{ headerShown: false, contentStyle: BROADCAST_CONTENT_STYLE }}
+      />
+      {/* YAYIN STÜDYOSU: 15 maçlık bülteni canlı yayında maç maç işleyen mod.
+          Üçü de tam ekran; başlık çubuğu yok, alt sekme çubuğu gizli
+          (FULLSCREEN_ROUTES). Eski "Sunum" ekranı (Broadcast) korunur. */}
+      <Stack.Screen
+        name="StudioBulletin"
+        component={StudioBulletinScreen}
+        options={{ headerShown: false, contentStyle: STUDIO_CONTENT_STYLE }}
+      />
+      <Stack.Screen
+        name="StudioMatch"
+        component={StudioMatchScreen}
+        options={{ headerShown: false, contentStyle: STUDIO_CONTENT_STYLE }}
+      />
+      {/* KARNE: geçmiş haftanın "ne oldu, kaç tuttu" ekranı. Yayıncı bir sonraki
+          hafta yayına çıkarken buraya bakar; seçimler cihazda kayıtlı kaldığı
+          için hafta hafta karşılaştırma yapılabilir. */}
+      <Stack.Screen
+        name="StudioKarne"
+        component={StudioKarneScreen}
+        options={{ headerShown: false, contentStyle: STUDIO_CONTENT_STYLE }}
+      />
       {detailScreen}
       {/* Topluluk (eski "Stadyum" sekmesi) — alt menüden kaldırıldı, Ana Sayfa
           "Toplulukta Gündem" bölümünden erişilir. */}
@@ -93,12 +177,12 @@ function BulletinStack() {
       {detailScreen}
       {/* Canlı maç detayı (istatistik/olaylar) — "Canlı" sekmesi Bülten'e taşındı. */}
       <Stack.Screen name="LiveMatchDetail" component={LiveMatchDetailScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="CouponBuilder" component={CouponBuilderScreen} options={{ title: 'Kupon Oluştur' }} />
-      <Stack.Screen name="Coupons" component={CouponsScreen} options={{ title: 'Kuponlarım' }} />
+      <Stack.Screen name="CouponEditor" component={CouponEditorScreen} options={{ title: 'Kupon Hazırla' }} />
+      <Stack.Screen name="CouponCenter" component={CouponCenterScreen} options={{ headerShown: false }} />
       <Stack.Screen name="BulletinHistory" component={BulletinHistoryScreen} options={{ title: 'Bülten Geçmişi' }} />
       <Stack.Screen name="BulletinDetail" component={BulletinDetailScreen} options={{ title: 'Bülten Detayı' }} />
-      <Stack.Screen name="CouponCreate" component={CouponCreateScreen} options={{ title: 'Kupon Oluştur' }} />
       <Stack.Screen name="CouponResult" component={CouponResultScreen} options={{ title: 'Kupon Sonucu' }} />
+      <Stack.Screen name="CouponShare" component={CouponShareScreen} options={{ title: 'Kuponu Paylaş' }} />
       {analysisSettingsScreen}
     </Stack.Navigator>
   );
@@ -110,7 +194,27 @@ function AnalizStack() {
       <Stack.Screen name="Analiz" component={RadarScreen} options={{ headerShown: false }} />
       {detailScreen}
       <Stack.Screen name="SystemScorecard" component={SystemScorecardScreen} options={{ title: 'Sistem Karnesi' }} />
-      <Stack.Screen name="SystemDashboard" component={SystemDashboardScreen} options={{ title: 'Analiz Detayı (Demo)' }} />
+      {/* GELİŞTİRİCİ EKRANI — yalnız geliştirmede kayıtlıdır. Yayın (release)
+          derlemesinde demo/örnek veri içeren hiçbir ekran gezinmeye açılmaz. */}
+      {IS_DEV_BUILD ? (
+        <Stack.Screen name="SystemDashboard" component={SystemDashboardScreen} options={{ title: 'Analiz Detayı (Demo)' }} />
+      ) : null}
+      {analysisSettingsScreen}
+    </Stack.Navigator>
+  );
+}
+
+// KUPONLARIM sekmesi — alt bardan doğrudan erişim (kullanıcı isteği).
+// Aynı ekranlar Bülten akışında da kayıtlı; React Navigation'da farklı
+// navigator'larda aynı isim sorun değildir (MatchDetail deseniyle aynı).
+function CouponsStack() {
+  return (
+    <Stack.Navigator screenOptions={header}>
+      <Stack.Screen name="CouponCenter" component={CouponCenterScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="CouponEditor" component={CouponEditorScreen} options={{ title: 'Kupon Hazırla' }} />
+      <Stack.Screen name="CouponResult" component={CouponResultScreen} options={{ title: 'Kupon Sonucu' }} />
+      <Stack.Screen name="CouponShare" component={CouponShareScreen} options={{ title: 'Kuponu Paylaş' }} />
+      {detailScreen}
       {analysisSettingsScreen}
     </Stack.Navigator>
   );
@@ -127,6 +231,24 @@ function ProfileStack() {
       <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Giriş Yap' }} />
       <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Kayıt Ol' }} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: 'Şifremi Unuttum' }} />
+      {/* GÜVENLİK EKRANLARI — şifre/e-posta değiştirme, güvenlik olayları,
+          bağlı cihazlar ve uzaktan oturum kapatma. */}
+      <Stack.Screen name="SecuritySettings" component={SecuritySettingsScreen} options={{ title: 'Güvenlik Ayarları' }} />
+      <Stack.Screen name="Devices" component={DevicesScreen} options={{ title: 'Bağlı Cihazlar' }} />
+      {/* MODERASYON — engellenen kullanıcılar ve engeli kaldırma. Google Play,
+          engelleme sunan uygulamalarda geri almanın da uygulama içinden
+          erişilebilir olmasını bekler. */}
+      <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ title: 'Engellenen Kullanıcılar' }} />
+      {/* İNCELEME — bildirilen yorumların elle incelendiği ekran. Kayıt her
+          derlemede yapılır ama YETKİ SUNUCUDADIR: ekranın kendisi açılışta
+          /api/moderation/access sorar ve yetkisiz hesaba liste göstermez.
+          Ekranı kayıttan çıkarmak bir güvenlik önlemi OLMAZDI; uçlar zaten
+          kapalı, ekran ise yalnız bir görüntüleyicidir. */}
+      <Stack.Screen name="Moderation" component={ModerationScreen} options={{ title: 'İnceleme' }} />
+      {/* YASAL EKRANLAR — Google Play zorunluluğu: hesap silme yolu uygulama
+          içinden de erişilebilir olmalıdır. */}
+      <Stack.Screen name="About" component={AboutScreen} options={{ title: 'Hakkında' }} />
+      <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} options={{ title: 'Hesabımı Sil' }} />
     </Stack.Navigator>
   );
 }
@@ -162,6 +284,20 @@ const RadarIcon = ({ focused }) => {
   );
 };
 
+// Kuponlarım sekmesi: BİLET ikonu (kenar çentikli kupon + zımba çizgisi).
+const TicketIcon = ({ focused }) => {
+  const c = focused ? colors.accent : colors.muted;
+  return (
+    <Svg width={28} height={28} viewBox="0 0 24 24">
+      <Path
+        d="M3.5 8.2c0-1.1.9-2 2-2h13c1.1 0 2 .9 2 2v1.6a2.2 2.2 0 0 0 0 4.4v1.6c0 1.1-.9 2-2 2h-13c-1.1 0-2-.9-2-2v-1.6a2.2 2.2 0 0 0 0-4.4V8.2z"
+        stroke={c} strokeWidth="1.6" fill="none" strokeLinejoin="round"
+      />
+      <Line x1="14.6" y1="7.4" x2="14.6" y2="16.6" stroke={c} strokeWidth="1.4" strokeDasharray="2.1 2.1" />
+    </Svg>
+  );
+};
+
 // Açılış ekranı: marka animasyonu en az ~1.2sn görünür kalır ve initAuth
 // tamamlanana kadar bekler (hangisi uzun sürerse), sonra ana uygulamaya geçer.
 // Sahne: sol üstte tezahürat eden taraftar, sağ üstte topu sektirip vuran
@@ -176,8 +312,8 @@ function SplashScreen() {
         <View style={splashStyles.centerBlock}>
           <AnimatedLogo size={80} />
           <Text style={splashStyles.brand}>
-            Spor Toto{'\n'}
-            <Text style={{ color: colors.accent }}>Analiz</Text>
+            {BRAND_LINE_1}{'\n'}
+            <Text style={{ color: colors.accent }}>{BRAND_LINE_2}</Text>
           </Text>
         </View>
         <KickingMan width={82} height={178} />
@@ -230,13 +366,75 @@ const splashStyles = StyleSheet.create({
 });
 
 export default function App() {
+  // Stüdyo yazı tipi arka planda yüklenir. BEKLENMEZ: dönüş değeri kullanılmaz,
+  // uygulama fontsuz da açılır; font gelince stüdyo ekranları kendini yeniler.
+  useStudioFontLoader();
   const [ready, setReady] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const navRef = useRef(null);
+  // Dokunulan bildirimin hedefi burada BEKLER. Açılış animasyonu, oturum yükleme
+  // ve biyometrik kilit boyunca NavigationContainer HENÜZ BAĞLI DEĞİLDİR; hedef
+  // saklanmazsa dokunma sessizce düşer ve kullanıcı ana sayfada kalırdı.
+  const rotaRef = useRef(rotaKuyrugu());
+
+  // Gezinme hazır olduğu her anda (ilk bağlanma, kilit açıldıktan sonraki
+  // yeniden bağlanma, yeni dokunma) bekleyen hedef uygulanır.
+  const rotayiDene = useCallback(() => {
+    rotayiUygula(rotaRef.current, navRef.current);
+  }, []);
+
+  const rotayiKuyrukla = useCallback((data) => {
+    // Yabancı bildirim kuyruğa bile alınmaz; hedefi bildirimin serbest metni
+    // değil, tanınan `kind` belirler (pushRoute.js).
+    if (!rotaRef.current.koy(data)) return;
+    rotayiDene();
+  }, [rotayiDene]);
+
+  // TELEFON HATIRLATMASI — açılışta hazırlık.
+  // İZİN BURADA İSTENMEZ: izin yalnız kullanıcı ayardan açtığında sorulur
+  // (uygulama açılır açılmaz izin penceresi çıkarmak kaba ve gereksizdir).
+  // Kapalıysa hiçbir şey kurulmaz; açıksa zamanlama sessizce tazelenir —
+  // maç saati değişmiş ya da kupon güncellenmiş olabilir.
+  useEffect(() => {
+    if (!isDesteklenir()) return undefined;
+    let iptal = false;
+
+    (async () => {
+      await initPush();
+      const prefs = await getPushPrefs();
+      if (iptal || !prefs.enabled) return;
+      try {
+        const girdi = await loadPushInputs();
+        // Bültendeki maç NUMARALARI: bildirimdeki maç hâlâ var mı sorusunu
+        // yanıtlar (yalnız numara; tahmin/kupon/kullanıcı bilgisi tutulmaz).
+        maclariBildir(girdi?.bulletin);
+        await syncMatchReminders({ now: Date.now(), ...girdi });
+      } catch { /* hatırlatma kurulamazsa uygulama normal çalışır */ }
+    })();
+
+    // 1) Uygulama TAMAMEN KAPALIYKEN dokunulmuşsa: dokunma, bu dinleyici
+    //    kurulmadan önce yerli katmanda yakalanmıştır — oradan okunur.
+    const acilisVerisi = sonYanitVerisi();
+    if (acilisVerisi) {
+      rotayiKuyrukla(acilisVerisi);
+      // Temizlenmezse aynı dokunma sonraki açılışlarda da gezinme yaptırırdı.
+      sonYanitiTemizle();
+    }
+
+    // 2) Uygulama açıkken ya da arka plandayken dokunulursa dinleyici çalışır.
+    const birak = addResponseListener((data) => { rotayiKuyrukla(data); });
+
+    return () => { iptal = true; birak(); };
+  }, [rotayiKuyrukla]);
 
   useEffect(() => {
     let cancelled = false;
     const minDelay = new Promise((resolve) => setTimeout(resolve, 1200));
-    Promise.all([initAuth(), minDelay]).then(() => {
-      if (!cancelled) setReady(true);
+    Promise.all([initAuth(), minDelay]).then(async () => {
+      // Biyometrik kilit: yalnız kullanıcı AÇMIŞSA ve cihaz destekliyorsa.
+      // Web'de ve girişsiz durumda hiç devreye girmez.
+      const mustLock = await needsLockOnLaunch(!!getToken()).catch(() => false);
+      if (!cancelled) { setLocked(mustLock); setReady(true); }
     });
     return () => {
       cancelled = true;
@@ -251,36 +449,57 @@ export default function App() {
     );
   }
 
+  if (locked) {
+    return (
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <StatusBar style="light" />
+        <BiometricLockScreen onUnlock={() => setLocked(false)} />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-    <NavigationContainer theme={navTheme}>
+    {/* documentTitle: web'de tarayıcı sekmesi başlığı. Bu prop verilmezse
+        React Navigation, odaktaki route'un ADINI (ör. "Home", "AnalizTab")
+        document.title'a yazar ve app.json'daki web.name'i ezer. Başlık da
+        merkezî marka kaynağından beslenir. */}
+    <NavigationContainer
+      ref={navRef} theme={navTheme}
+      documentTitle={{ formatter: () => APP_NAME }}
+      onReady={rotayiDene}
+    >
       <StatusBar style="light" />
 
       <Tab.Navigator
         screenOptions={{
           headerShown: false,
-          tabBarStyle: {
-            backgroundColor: colors.bgAlt,
-            borderTopColor: colors.border,
-            height: 64,
-            paddingBottom: 8,
-            paddingTop: 7,
-          },
+          tabBarStyle: TAB_BAR_STYLE,
           tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.textMuted,
           tabBarLabelStyle: {
             fontSize: 10.5,
             fontWeight: '800',
           },
+          // GEZİNME SIFIRLAMA: sekmeden ayrılınca yığın köke döner. Böylece
+          // "Bülteni Aç" ya da alt sekme her zaman HEDEF ekrana götürür —
+          // eski gezintiden kalan maç detayı/alt ekran karşına çıkmaz.
+          popToTopOnBlur: true,
         }}
       >
         <Tab.Screen
           name="HomeTab"
           component={HomeStack}
-          options={{
+          options={({ route }) => ({
             title: 'Ana Sayfa',
             tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} />,
-          }}
+            // Yayın ekranları tam ekrandır: alt sekme çubuğu OBS kadrajını
+            // kirletir. Liste studioTheme.js'te TEK yerde durur; rota adı iki
+            // dosyada ayrı ayrı yazılmaz.
+            tabBarStyle: FULLSCREEN_ROUTES.includes(getFocusedRouteNameFromRoute(route))
+              ? TAB_BAR_HIDDEN
+              : TAB_BAR_STYLE,
+          })}
         />
 
         <Tab.Screen
@@ -303,6 +522,15 @@ export default function App() {
         />
 
         <Tab.Screen
+          name="CouponsTab"
+          component={CouponsStack}
+          options={{
+            title: 'Kuponlarım',
+            tabBarIcon: ({ focused }) => <TicketIcon focused={focused} />,
+          }}
+        />
+
+        <Tab.Screen
           name="ProfileTab"
           component={ProfileStack}
           options={{
@@ -312,6 +540,7 @@ export default function App() {
         />
       </Tab.Navigator>
     </NavigationContainer>
+    <UyariHost />
     </SafeAreaProvider>
   );
 }

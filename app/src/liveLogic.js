@@ -62,11 +62,12 @@ export function matchPicks(m, userPick = null) {
 
 // Üst özet sayıları.
 export function summaryCounts(matches, userPicks = {}) {
-  let live = 0, notStarted = 0, finished = 0, couponRisk = 0, systemRisk = 0;
+  let live = 0, notStarted = 0, awaiting = 0, finished = 0, couponRisk = 0, systemRisk = 0;
   for (const m of matches) {
     const st = deriveStatus(m);
     if (st === 'live') live++;
     else if (st === 'notStarted') notStarted++;
+    else if (st === 'awaiting') awaiting++;   // başladı, resmi sonuç bekleniyor
     else if (st === 'finished') finished++;
     // Risk = CANLI maçta tahmin şu an İSKA (geçici).
     if (st === 'live') {
@@ -77,5 +78,5 @@ export function summaryCounts(matches, userPicks = {}) {
       if (up && pickHits(up, actual) === false) couponRisk++;
     }
   }
-  return { live, notStarted, finished, couponRisk, systemRisk };
+  return { live, notStarted, awaiting, finished, couponRisk, systemRisk };
 }

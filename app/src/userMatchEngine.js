@@ -1,4 +1,4 @@
-// SPOR TOTO KULLANICI ANALİZ MOTORU (v1) — userBasedMatchAnalysisEngine
+// KULLANICI ANALİZ MOTORU (v1) — userBasedMatchAnalysisEngine
 // Kullanıcının kendi maç okuma mantığı. YALNIZ 6 kriter çalışır (başka yok):
 //   1) Puan durumu  2) Ev formu  3) Deplasman formu  4) Eksik oyuncu
 //   5) Teknik direktör değişimi  6) Ortak rakip kıyası
@@ -7,6 +7,13 @@
 // Modüler: her kriter ayrı fonksiyon; sonradan yeni madde eklenebilir.
 
 const NA = 'Bu veri bulunamadı';
+
+// GÖZLEM ile TAHMİN'i ayrı tutan birleştirici.
+//   fact  = ölçülen gözlem      → "Hacken iç sahada fena değil (3G-2B-1M (iç saha))."
+//   lean  = bunun 1-0-2'ye etkisi → "1 ihtimali destekleniyor"
+// Yayıncı modu YALNIZ fact'i gösterir (motor orada tahmin vermez); birleşik
+// "note" ise eskisiyle harfi harfine aynı kalır, mevcut tüketiciler bozulmaz.
+const joinNote = (fact, lean) => (lean ? `${fact.replace(/\.$/, '')} — ${lean}.` : fact);
 
 function formQuality(arr) {
   if (!Array.isArray(arr) || !arr.length) return null;
@@ -38,7 +45,8 @@ function checkPoints(hs, as, homeName, awayName) {
           ? `${advTeam} ${abs} puan önde — hafif üstünlük, ama güçlü avantaj (~15 puan) seviyesinde değil.`
           : `Puanlar yakın (${abs} fark) — güven verecek puan avantajı yok (güç için ~15 puan gerekir).`)
     : 'Puanlar eşit — avantaj yok.';
-  return { available: true, homePts: hs.points, awayPts: as.points, homePos: hs.position, awayPos: as.position, gap, abs, advSide, advTeam, strong, mild, note, signal };
+  // Puan notunda 1-0-2 tahmini yok (yalnız "1-0 önde" skor mecazı) → fact = note.
+  return { available: true, homePts: hs.points, awayPts: as.points, homePos: hs.position, awayPos: as.position, gap, abs, advSide, advTeam, strong, mild, note, fact: note, signal };
 }
 
 // 2) EV SAHİBİ FORM — son form + iç saha güveni.
@@ -53,12 +61,18 @@ function checkHomeForm(h, homeName) {
   const weak = (fq != null && fq < 0.35) || (hr != null && hr < 0.3);
   let signal = strong ? 2 : good ? 1 : weak ? -1 : 0;
   const rec = homeSplit ? `${homeSplit.wins}G-${homeSplit.draws}B-${homeSplit.losses}M (iç saha)` : NA;
-  const note = weak
-    ? `${homeName} iç sahada güven vermiyor (${rec}) — puan avantajı olsa bile tek 1 riskli.`
-    : strong ? `${homeName} formda ve iç sahada güçlü (${rec}) — 1 ihtimali güçleniyor.`
-    : good ? `${homeName} iç sahada fena değil (${rec}) — 1 ihtimali destekleniyor.`
+  const fact = weak
+    ? `${homeName} iç sahada güven vermiyor (${rec}).`
+    : strong ? `${homeName} formda ve iç sahada güçlü (${rec}).`
+    : good ? `${homeName} iç sahada fena değil (${rec}).`
     : `${homeName} iç sahada ortalama (${rec}).`;
-  return { available: true, form5: Array.isArray(form5) ? form5.join('') : NA, venueRecord: rec, record: homeSplit ? { w: homeSplit.wins || 0, d: homeSplit.draws || 0, l: homeSplit.losses || 0 } : null, good, strong, weak, note, signal };
+  const lean = weak
+    ? 'puan avantajı olsa bile tek 1 riskli'
+    : strong ? '1 ihtimali güçleniyor'
+    : good ? '1 ihtimali destekleniyor'
+    : '';
+  const note = joinNote(fact, lean);
+  return { available: true, form5: Array.isArray(form5) ? form5.join('') : NA, venueRecord: rec, record: homeSplit ? { w: homeSplit.wins || 0, d: homeSplit.draws || 0, l: homeSplit.losses || 0 } : null, good, strong, weak, note, fact, lean, signal };
 }
 
 // 3) DEPLASMAN FORM — dış sahada güç + beraberlik/2 doğuşu.
@@ -77,12 +91,18 @@ function checkAwayForm(a, awayName) {
   // deplasman güçlü → home sinyali düşer, X doğar; çok zayıf → ev ciddi artar
   let signal = strong ? -2 : mid ? -1 : veryWeak ? 2 : 1;
   const drawRisk = strong || mid; // dirençli deplasman → X canlı
-  const note = strong
-    ? `${awayName} deplasmanda güçlü (${rec}) — 2 tamamen silinmez, X doğuyor.`
-    : mid ? `${awayName} deplasmanda orta seviye (${rec}) — 2 kolay verilmez, en fazla X değerlendirilir.`
-    : veryWeak ? `${awayName} deplasmanda çok zayıf (${rec}) — 2 ciddi zayıf, 1 belirgin güçleniyor.`
-    : `${awayName} deplasmanda zayıf (${rec}) — 2 ihtimali zayıf.`;
-  return { available: true, form5: Array.isArray(form5) ? form5.join('') : NA, awayRecord: rec, record: awaySplit ? { w: awaySplit.wins || 0, d: awaySplit.draws || 0, l: awaySplit.losses || 0 } : null, level, strong, mid, veryWeak, drawRisk, note, signal };
+  const fact = strong
+    ? `${awayName} deplasmanda güçlü (${rec}).`
+    : mid ? `${awayName} deplasmanda orta seviye (${rec}).`
+    : veryWeak ? `${awayName} deplasmanda çok zayıf (${rec}).`
+    : `${awayName} deplasmanda zayıf (${rec}).`;
+  const lean = strong
+    ? '2 tamamen silinmez, X doğuyor'
+    : mid ? '2 kolay verilmez, en fazla X değerlendirilir'
+    : veryWeak ? '2 ciddi zayıf, 1 belirgin güçleniyor'
+    : '2 ihtimali zayıf';
+  const note = joinNote(fact, lean);
+  return { available: true, form5: Array.isArray(form5) ? form5.join('') : NA, awayRecord: rec, record: awaySplit ? { w: awaySplit.wins || 0, d: awaySplit.draws || 0, l: awaySplit.losses || 0 } : null, level, strong, mid, veryWeak, drawRisk, note, fact, lean, signal };
 }
 
 // 4) EKSİK OYUNCU — VERİ YOK (golcü/asistçi sakatlık bilgisi gelmiyor).
@@ -149,7 +169,8 @@ function checkCommon(h, a, homeName, awayName) {
     : decisive
       ? `Ortak rakip kıyasına göre ${advTeam} ${why} (${opponents.length} ortak rakip) — bu takım analize önde başlıyor.`
       : `Ortak rakipte ${advTeam} biraz daha iyi (${why}) ama tek örnek olduğu için belirleyici değil.`;
-  return { available: true, opponents, hPts, aPts, hGD, aGD, hGF, aGF, basis, decisive, advSide, advTeam, note, signal };
+  // Ortak rakip notunda da 1-0-2 tahmini yok → fact = note.
+  return { available: true, opponents, hPts, aPts, hGD, aGD, hGF, aGF, basis, decisive, advSide, advTeam, note, fact: note, signal };
 }
 
 // EK: LİDER (GÜÇLÜ) TAKIMLARA KARŞI SONUÇLAR — takımın son maçlarından, ligin
@@ -174,7 +195,7 @@ function checkVsTop(teamStats, leagueTable, topN = 5) {
   const note = matches.length
     ? `Son maçlarda ligin ilk ${topN}'ine karşı ${matches.length} maç oynamış: ${w}G-${dr}B-${l}M.`
     : `Son 5 maçta ligin ilk ${topN}'indeki takımlara karşı maç bulunamadı.`;
-  return { available: matches.length > 0, count: matches.length, matches, record: { w, d: dr, l }, note };
+  return { available: matches.length > 0, count: matches.length, matches, record: { w, d: dr, l }, note, fact: note };
 }
 
 // EK: KARŞILIKLI MAÇLAR (H2H) — iki takımın birbirleriyle geçmişi. Elimizde
@@ -188,11 +209,14 @@ function checkH2H(m, homeName, awayName) {
   const note = advTeam
     ? `Son ${played} karşılaşmada ${advTeam} üstün: ${homeName} ${homeWins} galibiyet · ${draws} beraberlik · ${awayName} ${awayWins} galibiyet.`
     : `Son ${played} karşılaşma dengeli: ${homeName} ${homeWins} · ${draws} beraberlik · ${awayName} ${awayWins}.`;
-  return { available: true, played, homeWins, awayWins, draws, advSide, advTeam, note };
+  return { available: true, played, homeWins, awayWins, draws, advSide, advTeam, note, fact: note };
 }
 
 // ——— NİHAİ KARAR ———
-function decide({ points, homeForm, awayForm, missing, coach, common, homeName, awayName }) {
+// missing/coach artık karara girmiyor (kaynakta veri yok, sabit sonuç veriyorlar);
+// yokluklarının etkisi availCount üzerinden zaten var. İmzada tutulup sessizce
+// kullanılmamaları yanıltıcı olurdu — bu yüzden çıkarıldılar.
+function decide({ points, homeForm, awayForm, common }) {
   // net > 0 → ev lehine
   let net = 0;
   if (points.available) net += points.signal;
@@ -201,9 +225,14 @@ function decide({ points, homeForm, awayForm, missing, coach, common, homeName, 
   if (common.available) net += common.signal;
 
   const drawRisk = (awayForm.available && awayForm.drawRisk) || Math.abs(net) <= 1;
-  // Güven: kaç kriter verili? (6'dan). Eksik/hoca hep yok → v1'de max 4/6.
+  // Güven: kaç kriter verili? (6'dan). Eksik oyuncu ve teknik direktör verisi
+  // kaynakta HİÇ gelmediği için sayıma girmez — bu yüzden üst sınır 4/6'dır ve
+  // "Yüksek" asla verilmez. Yapısal olan bu sınır her maçta ayrı bir cümleyle
+  // tekrarlanmıyordu: aynı metin 15 maçta 15 kez çıkıp gerçek gerekçeyi
+  // boğuyordu (ve "tek güçlü aday yerine daha güvenli seçim" cümlesi net>=3
+  // dalında zaten DOĞRU DEĞİLDİ — orada motor tek seçim veriyor). Eksik verinin
+  // kendisi hâlâ görünür: missing/coach kriterleri "Bu veri bulunamadı" döner.
   const availCount = [points, homeForm, awayForm, common].filter((c) => c.available).length;
-  const confidencePenalty = (missing.confidencePenalty || 0) + (coach.confidencePenalty || 0);
   const dataConfidence = availCount >= 4 ? 'Orta' : availCount >= 2 ? 'Düşük' : 'Çok Düşük';
 
   // Banko şartları (v1 çok temkinli): eksik veri doğrulanamadığı için TEK "banko"
@@ -228,7 +257,8 @@ function decide({ points, homeForm, awayForm, missing, coach, common, homeName, 
   if (homeForm.available) parts.push(homeForm.note);
   if (awayForm.available && (awayForm.strong || awayForm.mid)) parts.push(awayForm.note);
   if (common.available && common.advTeam) parts.push(common.note);
-  parts.push('Eksik oyuncu ve teknik direktör verisi bulunamadığı için güven seviyesi düşürüldü ve tek banko yerine daha güvenli seçim tercih edildi.');
+  // Hiçbir kriter belirgin çıkmadıysa gerekçe BOŞ kalmasın — uydurma da yapılmaz.
+  if (!parts.length) parts.push('Eldeki puan, form ve ortak rakip verisinde belirgin bir üstünlük çıkmadı; taraflar yakın görünüyor.');
   const reason = parts.join(' ');
 
   return { main, alt, risk, net, dataConfidence, reason };
@@ -260,7 +290,7 @@ export function analyzeUserMatch(m) {
     };
   }
 
-  const verdict = decide({ points, homeForm, awayForm, missing, coach, common, homeName, awayName });
+  const verdict = decide({ points, homeForm, awayForm, common });
   return {
     ok: true,
     matchInfo: { home: homeName, away: awayName, league: m?.league || NA, date: m?.date || null },

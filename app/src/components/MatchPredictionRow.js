@@ -21,8 +21,10 @@ export default function MatchPredictionRow({ match, analysis }) {
       {analysis && (
         <>
           <View style={styles.scoreRow}>
-            <Metric label="Güven" value={`%${analysis.confidenceScore}`} color={colors.green} />
-            <Metric label="Sürpriz" value={`%${analysis.surpriseRisk}`} color={colors.orange} />
+            {/* Veri yoksa sahte yüzde basılmaz — "—" gösterilir. */}
+            <Metric label="Güven" value={analysis.confidenceScore != null ? `%${analysis.confidenceScore}` : '—'} color={colors.green} />
+            <Metric label="Sürpriz" value={analysis.surpriseRisk != null ? `%${analysis.surpriseRisk}` : '—'} color={colors.orange} />
+            {analysis.dataConfidence ? <Metric label="Veri" value={analysis.dataConfidence} color={colors.textMuted} /> : null}
           </View>
           {!!analysis.analysisComment && <Text style={styles.comment} numberOfLines={3}>{analysis.analysisComment}</Text>}
           {!!analysis.missingPlayers?.length && (

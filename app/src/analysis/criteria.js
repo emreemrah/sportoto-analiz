@@ -1,4 +1,4 @@
-// SPOR TOTO — SEÇİLEBİLİR ANALİZ KRİTERLERİ KATALOĞU
+// SEÇİLEBİLİR ANALİZ KRİTERLERİ KATALOĞU
 // Sabit/hazır analiz YOK. İstatistik ekranındaki her veri burada seçilebilir
 // bir kriter olarak tanımlıdır. Kullanıcı hangisini "Açık" yaparsa analiz motoru
 // SADECE onları çalıştırır. Veri yoksa UYDURMAZ → "veri bulunamadı" + analiz dışı.
@@ -47,11 +47,240 @@ const vGF = (sp) => { const p = vPlayed(sp); return p ? (sp.goalsFor || 0) / p :
 const vGA = (sp) => { const p = vPlayed(sp); return p ? (sp.goalsAgainst || 0) / p : null; };
 const formQ = (arr) => (Array.isArray(arr) && arr.length ? arr.reduce((s, r) => s + (r === 'G' ? 1 : r === 'B' ? 0.5 : 0), 0) / arr.length : null);
 
+// ——— GENEL FİLTRELER (rakip gücü) — backend kataloğuyla parite ———
+// Rakip sınıfı ALTIN KURAL ile: GERÇEK puan farkı (ppg farkı × ort. oynanan)
+// ≥ 10 → güçlü/zayıf, altı orta; ppg verisi yoksa sıra dilimi YEDEĞİ.
+// Takım eşleşmesi logo kimliği + tekil içerme ile ("TPS" ↔ "Turun Palloseura").
+const CLASS_POINTS_GAP = 10;
+const MIN_FILTER_SAMPLE = 2;
+const TIER_LABELS = { strong: 'Güçlü', mid: 'Orta', weak: 'Zayıf' };
+const logoSlugOf = (u) => { const mm = String(u || '').match(/\/([a-z0-9-]+)\.(png|jpg|jpeg|svg|webp)(\?|$)/i); return mm ? mm[1].toLowerCase() : null; };
+const normTeam = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9çğıöşü]/g, '');
+function tableRowOf(leagueTable, name, logo) {
+  const overall = leagueTable?.overall;
+  if (!Array.isArray(overall) || !overall.length) return null;
+  const out = (row) => {
+    if (!row) return null;
+    const pts = num(row.points), pl = num(row.played);
+    const ppg = okNum(pts) && okNum(pl) && pl >= 3 ? pts / pl : null;
+    return { position: row.position, teamCount: overall.length, ppg, played: okNum(pl) ? pl : null };
+  };
+  const slug = logoSlugOf(logo);
+  if (slug) { const r = overall.find((x) => logoSlugOf(x.logo) === slug); if (r) return out(r); }
+  const key = normTeam(name);
+  if (!key) return null;
+  const exact = overall.find((x) => normTeam(x.name) === key);
+  if (exact) return out(exact);
+  if (key.length >= 4) {
+    const part = overall.filter((x) => { const k = normTeam(x.name); return k.length >= 4 && (k.includes(key) || key.includes(k)); });
+    if (part.length === 1) return out(part[0]);      // belirsiz içerme reddedilir
+  }
+  return null;
+}
+function oppTierOfApp(oppName, oppLogo, leagueTable, ownPpg, ownPlayed) {
+  const row = tableRowOf(leagueTable, oppName, oppLogo);
+  if (!row) return null;
+  if (row.ppg != null && ownPpg != null) {
+    const gap = (row.ppg - ownPpg) * (((ownPlayed || row.played || 0) + (row.played || ownPlayed || 0)) / 2);
+    return gap >= CLASS_POINTS_GAP ? 'strong' : gap <= -CLASS_POINTS_GAP ? 'weak' : 'mid';
+  }
+  const rel = row.position / row.teamCount;            // ppg yoksa dürüst yedek
+  return rel <= 0.33 ? 'strong' : rel <= 0.67 ? 'mid' : 'weak';
+}
+function filteredDetail(team, tier, leagueTable) {
+  const pl = num(team?.standing?.played);
+  const ownPpg = okNum(num(team?.standing?.ppg)) && okNum(pl) && pl >= 3 ? num(team.standing.ppg) : null;
+  const rows = (team?.last5detail || []).filter((x) => x && x.result);
+  const kept = tier === 'all' ? rows
+    : rows.filter((x) => oppTierOfApp(x.oppName, x.oppLogo, leagueTable, ownPpg, okNum(pl) ? pl : null) === tier);
+  const agg = { n: kept.length, pts: 0, form: [] };
+  for (const x of kept) { agg.form.push(x.result); agg.pts += x.result === 'G' ? 3 : x.result === 'B' ? 1 : 0; }
+  return agg;
+}
+const fltNote = (tier, nh, na) => ` [Filtre: ${TIER_LABELS[tier] || tier} rakipler — n=${nh}/${na}]`;
+const fltInsufficient = (label, n) => ({ available: false, note: `${label}: seçili filtre için yeterli geçmiş maç yok (n=${n} < ${MIN_FILTER_SAMPLE}) — analiz dışı bırakıldı (uydurma hesap yapılmaz).` });
+
+// ——— SEZON MAÇ LOGU FİLTRE MOTORU (merkezî — backend paritesi) ———
+// enrich her takıma matchLog iliştirir: [{result,gf,ga,isHome,oppName,oppTier}]
+// (oppTier = maç anındaki altın kural sınıfı). Filtre açıkken aşağıdaki 15
+// kriter bu logdan hesaplanır; log yoksa (eski cache) motor eski yola düşer ve
+// satır dürüstçe "genel değer kullanıldı" diye işaretlenir.
+export const LOG_FILTERABLE_KEYS = [
+  'wins', 'losses', 'draws', 'goalsFor', 'goalsAgainst', 'goalDiff',
+  'over25', 'btts', 'cleanSheet', 'failedToScore',
+  'venuePerformance', 'venuePpg', 'venueGoalsFor', 'venueGoalsAgainst', 'awayResilience',
+];
+const VENUE_FIXED_KEYS = { venuePerformance: 1, venuePpg: 1, venueGoalsFor: 1, venueGoalsAgainst: 1 };
+function logAggApp(rows) {
+  const v = { n: rows.length, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0, over: 0, btts: 0, cs: 0, fts: 0 };
+  for (const x of rows) {
+    if (x.result === 'G') { v.w += 1; v.pts += 3; } else if (x.result === 'B') { v.d += 1; v.pts += 1; } else v.l += 1;
+    v.gf += x.gf || 0; v.ga += x.ga || 0;
+    if ((x.gf || 0) + (x.ga || 0) >= 3) v.over += 1;
+    if ((x.gf || 0) > 0 && (x.ga || 0) > 0) v.btts += 1;
+    if ((x.ga || 0) === 0) v.cs += 1;
+    if ((x.gf || 0) === 0) v.fts += 1;
+  }
+  return v;
+}
+const PERIOD_SLICE = { last5: 5, last10: 10, last15: 15 };
+function logRowsApp(team, f, venue) {
+  let rows = Array.isArray(team?.matchLog) ? team.matchLog : null;
+  if (!rows) return null;
+  const cut = PERIOD_SLICE[f.period];
+  if (cut) rows = rows.slice(0, cut);                 // Son 5/10/15 maçın İÇİNDEN filtrelenir
+  if (venue === 'home') rows = rows.filter((x) => x.isHome);
+  else if (venue === 'away') rows = rows.filter((x) => !x.isHome);
+  if (f.opponentStrength && f.opponentStrength !== 'all') rows = rows.filter((x) => x.oppTier === f.opponentStrength);
+  return rows;
+}
+function logFNoteApp(f, nh, na) {
+  const seg = [];
+  if (f.opponentStrength && f.opponentStrength !== 'all') seg.push(`${TIER_LABELS[f.opponentStrength] || f.opponentStrength} rakipler`);
+  if (f.venueScope === 'split') seg.push('Ev içi/Dep dışı');
+  if (f.period === 'last5') seg.push('Son 5');
+  return ` [Filtre: ${seg.join(' · ') || 'maç logu'} — n=${nh}${na != null ? `/${na}` : ''}]`;
+}
+// Filtreli 0—0 GERÇEK veridir (n maç oynandı) → "veri yok" denmez; eşitlik yön üretmez.
+function cmpFlt(hv, av, dir, label, unit, names) {
+  if (Math.abs(hv) < 1e-9 && Math.abs(av) < 1e-9) {
+    return { available: true, side: null, strength: 0, note: `${label}: filtrelenen maçlarda iki takım eşit (0 — 0) — yön sinyali yok.` };
+  }
+  return cmp(hv, av, dir, label, unit, names);
+}
+// İSTATİSTİK sekmesi FİLTRELİ KARNE görünümü: takımın maç logundan seçilen
+// kesite (dönem/saha/rakip gücü) göre gerçek istatistikler. Log yoksa null.
+export function statsFromLog(team, f, side /* 'home' | 'away' */) {
+  // Saha: 'split' → ev takımı içeride / dep dışarıda; 'home'/'away' → iki takım
+  // için de aynı saha kesiti; 'overall' → tümü.
+  const venue = f.venueScope === 'split' ? side
+    : (f.venueScope === 'home' || f.venueScope === 'away') ? f.venueScope : null;
+  const rows = logRowsApp(team, f, venue);
+  if (rows == null) return null;
+  const v = logAggApp(rows);
+  const r1x = (x) => Math.round(x * 100) / 100;
+  const pc = (x) => Math.round((x / v.n) * 100);
+  return v.n === 0 ? { n: 0 } : {
+    n: v.n, w: v.w, d: v.d, l: v.l,
+    gfPg: r1x(v.gf / v.n), gaPg: r1x(v.ga / v.n), ppg: r1x(v.pts / v.n),
+    csPct: pc(v.cs), bttsPct: pc(v.btts), overPct: pc(v.over), ftsPct: pc(v.fts),
+  };
+}
+
+// ÜRETİLMİŞ GÖSTERGELER — ham kaynak istatistiklerinden ŞEFFAF formüllerle
+// türetilir; hiçbiri ham verinin kopyası değildir (mükerrer sıfır kuralı).
+// Veri yoksa ilgili alan null döner — uydurma hesap yapılmaz:
+//   finishing   = Gol ÷ xG            (1 üstü: beklenenden verimli hücum)
+//   defEff      = Yediği ÷ xG Karşı   (1 altı: beklenenden sağlam savunma)
+//   shotAcc     = İsabetli ÷ Toplam şut (%)
+//   goalsPerShot= Gol ÷ Toplam şut
+//   momentum    = son 5 ppg − sezon(log) ppg (log ≥ 6 maç ister)
+//   venueGap    = içerideki ppg − dışarıdaki ppg (her sahada ≥ 3 maç ister)
+//   weightedLast5 = son 5 puanı × rakip katsayısı (altın kural: güçlü 1.5 ·
+//                   denk 1 · zayıf 0.5; sınıfı bilinen ≥ 3 maç ister)
+//   *Run seriler = maç anına kadar kesintisiz sayım (yenilmezlik/galibiyet/
+//                  gol atma/temiz kale/KG)
+export function derivedStats(team) {
+  const se = team?.season || null;
+  const r2 = (x) => Math.round(x * 100) / 100;
+  const out = {
+    finishing: null, defEff: null, shotAcc: null, goalsPerShot: null,
+    momentum: null, venueGap: null, weightedLast5: null,
+    unbeatenRun: null, winRun: null, scoringRun: null, csRun: null, bttsRun: null,
+  };
+  // xG/şut tabanlı (kaynak sezon ort.; 0/boş = veri yok → null, sıfır uydurulmaz)
+  const gf = se?.goalsPerGame, xg = se?.xgFor, ga = se?.concededPerGame, xga = se?.xgAgainst;
+  if (gf > 0 && xg > 0) out.finishing = r2(gf / xg);
+  if (ga > 0 && xga > 0) out.defEff = r2(ga / xga);
+  const sh = se?.avg?.shots, sot = se?.avg?.shotsOnTarget;
+  if (sh > 0 && sot > 0) out.shotAcc = Math.round((sot / sh) * 100);
+  if (sh > 0 && gf > 0) out.goalsPerShot = r2(gf / sh);
+  // Maç logu tabanlı (gerçek maç kesiti; log yoksa null kalır)
+  const log = Array.isArray(team?.matchLog) ? team.matchLog : null;
+  if (log && log.length > 0) {
+    const pts = (x) => (x.result === 'G' ? 3 : x.result === 'B' ? 1 : 0);
+    const ppgOf = (rows) => rows.reduce((a, x) => a + pts(x), 0) / rows.length;
+    if (log.length >= 6) out.momentum = r2(ppgOf(log.slice(0, 5)) - ppgOf(log));
+    const home = log.filter((x) => x.isHome), away = log.filter((x) => !x.isHome);
+    if (home.length >= 3 && away.length >= 3) out.venueGap = r2(ppgOf(home) - ppgOf(away));
+    const W = { strong: 1.5, mid: 1, weak: 0.5 };
+    const l5 = log.slice(0, 5).filter((x) => W[x.oppTier] != null);
+    if (l5.length >= 3) out.weightedLast5 = r2(l5.reduce((a, x) => a + pts(x) * W[x.oppTier], 0));
+    const run = (ok) => { let n = 0; for (const x of log) { if (ok(x)) n += 1; else break; } return n; };
+    out.unbeatenRun = run((x) => x.result !== 'M');
+    out.winRun = run((x) => x.result === 'G');
+    out.scoringRun = run((x) => (x.gf || 0) > 0);
+    out.csRun = run((x) => (x.ga || 0) === 0);
+    out.bttsRun = run((x) => (x.gf || 0) > 0 && (x.ga || 0) > 0);
+  }
+  return out;
+}
+
+export function logFilteredEvalApp(key, h, a, names, f) {
+  if (!LOG_FILTERABLE_KEYS.includes(key)) return null;
+  const gv = (f.venueScope === 'home' || f.venueScope === 'away') ? f.venueScope : null;
+  const venueH = VENUE_FIXED_KEYS[key] ? 'home' : key === 'awayResilience' ? null : (f.venueScope === 'split' ? 'home' : gv);
+  const venueA = VENUE_FIXED_KEYS[key] ? 'away' : key === 'awayResilience' ? 'away' : (f.venueScope === 'split' ? 'away' : gv);
+  const rowsH = key === 'awayResilience' ? [] : logRowsApp(h, f, venueH);
+  const rowsA = logRowsApp(a, f, venueA);
+  if ((key !== 'awayResilience' && rowsH == null) || rowsA == null) return null;
+  const vh = logAggApp(rowsH || []), va = logAggApp(rowsA);
+  const MINN = key === 'draws' ? 4 : key === 'awayResilience' ? 3 : 2;
+  const nOk = key === 'awayResilience' ? va.n >= MINN : (vh.n >= MINN && va.n >= MINN);
+  if (!nOk) {
+    return { available: false, filterApplied: true, note: `${key === 'awayResilience' ? 'Deplasmanda direnç' : 'Bu kriter'}: seçili filtre için yeterli maç yok (n=${key === 'awayResilience' ? va.n : Math.min(vh.n, va.n)} < ${MINN}) — analiz dışı bırakıldı (uydurma hesap yapılmaz).` };
+  }
+  const done = (out, nh = vh.n, na = va.n) => {
+    if (out && out.note != null) { out.note += logFNoteApp(f, nh, na); out.filterApplied = true; }
+    return out;
+  };
+  const pct100 = (x, n2) => Math.round((x / n2) * 100);
+  switch (key) {
+    case 'wins': return done(cmpFlt(vh.w / vh.n, va.w / va.n, 'higher', 'Galibiyet oranı', '', names));
+    case 'losses': return done(cmpFlt(vh.l / vh.n, va.l / va.n, 'lower', 'Mağlubiyet oranı', '', names));
+    case 'goalsFor': return done(cmpFlt(vh.gf / vh.n, va.gf / va.n, 'higher', 'Gol ort.', '', names));
+    case 'goalsAgainst': return done(cmpFlt(vh.ga / vh.n, va.ga / va.n, 'lower', 'Yediği gol ort.', '', names));
+    case 'goalDiff': return done(cmpFlt((vh.gf - vh.ga) / vh.n, (va.gf - va.ga) / va.n, 'higher', 'Averaj/maç', '', names));
+    case 'cleanSheet': return done(cmpFlt(pct100(vh.cs, vh.n), pct100(va.cs, va.n), 'higher', 'Temiz kale %', '%', names));
+    case 'failedToScore': return done(cmpFlt(pct100(vh.fts, vh.n), pct100(va.fts, va.n), 'lower', 'Gol atamadı %', '%', names));
+    case 'venuePerformance': return done(cmpFlt(vh.w / vh.n, va.w / va.n, 'higher', 'İç/dış galibiyet oranı', '', names));
+    case 'venuePpg': return done(cmpFlt(vh.pts / vh.n, va.pts / va.n, 'higher', 'İç/dış PPG', '', names));
+    case 'venueGoalsFor': return done(cmpFlt(vh.gf / vh.n, va.gf / va.n, 'higher', 'İç/dış gol ort.', '', names));
+    case 'venueGoalsAgainst': return done(cmpFlt(vh.ga / vh.n, va.ga / va.n, 'lower', 'İç/dış yediği gol ort.', '', names));
+    case 'over25': {
+      const hv = pct100(vh.over, vh.n), av2 = pct100(va.over, va.n);
+      return done({ available: true, side: null, strength: 0, note: `2.5 Üst: ${names.home} %${hv} · ${names.away} %${av2}. Gol beklentisi göstergesi (skor yönünü tek başına belirlemez).` });
+    }
+    case 'draws': {
+      const hr = vh.d / vh.n, ar = va.d / va.n, comb = (hr + ar) / 2;
+      return done({ available: true, side: comb >= 0.28 ? 'draw' : null, strength: clamp01(comb), note: `Beraberlik eğilimi: ${names.home} %${Math.round(hr * 100)} · ${names.away} %${Math.round(ar * 100)} berabere.${comb >= 0.28 ? ' Yüksek → X / çift ihtimal riski artıyor.' : ' Düşük → beraberlik baskısı zayıf.'}` });
+    }
+    case 'btts': {
+      const hv = vh.btts / vh.n, av2 = va.btts / va.n, comb = (hv + av2) / 2;
+      return done({ available: true, side: comb >= 0.55 ? 'draw' : null, strength: clamp01(comb), note: `KG Var: ${names.home} %${Math.round(hv * 100)} · ${names.away} %${Math.round(av2 * 100)}.${comb >= 0.55 ? ' Yüksek → iki takım da gol buluyor, çift ihtimal / X riski artıyor.' : ' Orta-düşük seviye.'}` });
+    }
+    case 'awayResilience': {
+      const wr = va.w / va.n, dr = va.d / va.n;
+      if (wr >= 0.45) return done({ available: true, side: 'away', strength: clamp01(wr), note: `Deplasmanda direnç: ${names.away} dış sahada güçlü (galibiyet %${Math.round(wr * 100)}) → 2 ihtimali güçleniyor.` }, va.n, null);
+      if (dr >= 0.35) return done({ available: true, side: 'draw', strength: clamp01(dr), note: `Deplasmanda direnç: ${names.away} dışarıda çok berabere kalıyor (%${Math.round(dr * 100)}) → X / çift ihtimal riski.` }, va.n, null);
+      return done({ available: true, side: 'home', strength: clamp01(0.5 - wr), note: `Deplasmanda direnç: ${names.away} dış sahada zayıf (galibiyet %${Math.round(wr * 100)}) → 1 ihtimali lehine.` }, va.n, null);
+    }
+    default: return null;
+  }
+}
+
 // Genel sayısal kıyas. dir: 'higher' → büyük olan avantajlı; 'lower' → küçük.
+// EŞİTLİK ≠ BERABERLİK: iki değerin eşit olması X kanıtı DEĞİLDİR — yön yoktur
+// (side:null → hiçbir tarafa puan akmaz). Sezon başında herkes 0'da "eşit"
+// göründüğü için eski hali 9 kriteri birden X'e sayıyor ve sahte "X açık ara
+// önde · Güven Yüksek" üretiyordu. Ayrıca 0—0 kıyas VERİ DEĞİLDİR → analiz dışı.
 function cmp(hv, av, dir, label, unit, names, extra) {
   hv = num(hv); av = num(av);
   if (!okNum(hv) || !okNum(av)) return { available: false, note: `${label}: ${NA} — bu kriter analiz dışı bırakıldı.` };
-  if (Math.abs(hv - av) < 1e-9) return { available: true, side: 'draw', strength: 0, note: `${label}: iki takım eşit (${fmt(hv, unit)} — ${fmt(av, unit)}).` };
+  if (Math.abs(hv) < 1e-9 && Math.abs(av) < 1e-9) {
+    return { available: false, note: `${label}: iki değer de 0 — veri henüz oluşmamış (sezon başı olabilir); bu kriter analiz dışı bırakıldı.` };
+  }
+  if (Math.abs(hv - av) < 1e-9) return { available: true, side: null, strength: 0, note: `${label}: iki takım eşit (${fmt(hv, unit)} — ${fmt(av, unit)}) — yön sinyali yok (eşitlik beraberlik kanıtı değildir).` };
   const homeBetter = dir === 'lower' ? hv < av : hv > av;
   const side = homeBetter ? 'home' : 'away';
   const team = homeBetter ? names.home : names.away;
@@ -65,7 +294,10 @@ function cmp(hv, av, dir, label, unit, names, extra) {
 function venueCmp(hv, av, dir, label, unit, names) {
   hv = num(hv); av = num(av);
   if (!okNum(hv) || !okNum(av)) return { available: false, note: `${label}: ${NA} — bu kriter analiz dışı bırakıldı.` };
-  if (Math.abs(hv - av) < 1e-9) return { available: true, side: 'draw', strength: 0, note: `${label}: ev sahibi (iç saha) ile deplasman (dış saha) eşit (${fmt(hv, unit)} — ${fmt(av, unit)}).` };
+  if (Math.abs(hv) < 1e-9 && Math.abs(av) < 1e-9) {
+    return { available: false, note: `${label}: iki değer de 0 — veri henüz oluşmamış (sezon başı olabilir); bu kriter analiz dışı bırakıldı.` };
+  }
+  if (Math.abs(hv - av) < 1e-9) return { available: true, side: null, strength: 0, note: `${label}: ev sahibi (iç saha) ile deplasman (dış saha) eşit (${fmt(hv, unit)} — ${fmt(av, unit)}) — yön sinyali yok.` };
   const homeBetter = dir === 'lower' ? hv < av : hv > av;
   const side = homeBetter ? 'home' : 'away';
   const denom = Math.max(Math.abs(hv), Math.abs(av), 1e-6);
@@ -106,7 +338,7 @@ function commonOpponents(home, away, names) {
   if (hPts !== aPts) { diff = hPts - aPts; basis = 'sonuç'; }
   else if (hGD !== aGD) { diff = hGD - aGD; basis = 'averaj'; }
   else if (hGF !== aGF) { diff = hGF - aGF; basis = 'attığı gol'; }
-  if (!diff) return { available: true, side: 'draw', strength: 0, note: `Ortak rakip: ${n} ortak rakibe karşı iki takım eşit — avantaj yok.` };
+  if (!diff) return { available: true, side: null, strength: 0, note: `Ortak rakip: ${n} ortak rakibe karşı iki takım eşit — avantaj yok (yön sinyali yok).` };
   const side = diff > 0 ? 'home' : 'away';
   const team = side === 'home' ? names.home : names.away;
   // Averaj/gol yalnız tie-break → tek örnekte belirleyici değil.
@@ -125,7 +357,20 @@ export const CRITERIA = [
   { key: 'position', label: 'Lig Sırası', desc: 'Takımların ligdeki güncel sıralaması dikkate alınır (üst sıra avantaj).', cat: 'ozet', defaultImpact: 'high',
     evaluate: (h, a, m, n) => cmp(st(h)?.position, st(a)?.position, 'lower', 'Lig sırası', '.', n) },
   { key: 'formGeneral', label: 'Son Maç Formu', desc: 'Son maçlardaki genel form (G/B/M) kıyaslanır.', cat: 'ozet', defaultImpact: 'high',
-    evaluate: (h, a, m, n) => cmp(formQ(h?.last5), formQ(a?.last5), 'higher', 'Son form', '', n) },
+    evaluate: (h, a, m, n, ctx) => {
+      // GENEL FİLTRE (rakip gücü): açıkça seçildiyse form yalnız o sınıftaki
+      // rakiplere karşı maçlardan hesaplanır; yeterli maç yoksa dürüst "analiz dışı".
+      const tier = ctx?.filtersExplicit ? (ctx.filters?.opponentStrength || 'all') : 'all';
+      if (tier !== 'all') {
+        const lt = m?.stats?.leagueTable;
+        const vh = filteredDetail(h, tier, lt), va = filteredDetail(a, tier, lt);
+        if (vh.n < MIN_FILTER_SAMPLE || va.n < MIN_FILTER_SAMPLE) return fltInsufficient('Son form', Math.min(vh.n, va.n));
+        const out = cmp(formQ(vh.form), formQ(va.form), 'higher', 'Son form', '', n);
+        if (out.available) { out.note += fltNote(tier, vh.n, va.n); out.filterApplied = true; }
+        return out;
+      }
+      return cmp(formQ(h?.last5), formQ(a?.last5), 'higher', 'Son form', '', n);
+    } },
   { key: 'powerCompare', label: 'Takım Güç Kıyaslaması', desc: 'Puan ve averajın birleşimiyle genel güç kıyaslanır.', cat: 'ozet', defaultImpact: 'mid',
     evaluate: (h, a, m, n) => {
       const hp = st(h)?.points, ap = st(a)?.points, hg = st(h)?.goalDiff, ag = st(a)?.goalDiff;
@@ -138,7 +383,18 @@ export const CRITERIA = [
   { key: 'points', label: 'Puan / Puan Farkı', desc: 'Ligdeki toplam puan ve iki takım arası puan farkı.', cat: 'sezon', defaultImpact: 'high',
     evaluate: (h, a, m, n) => cmp(st(h)?.points, st(a)?.points, 'higher', 'Puan', '', n) },
   { key: 'ppg', label: 'PPG (Maç Başı Puan)', desc: 'Maç başına düşen ortalama puan.', cat: 'sezon', defaultImpact: 'mid',
-    evaluate: (h, a, m, n) => cmp(st(h)?.ppg ?? sn(h)?.recentPpg, st(a)?.ppg ?? sn(a)?.recentPpg, 'higher', 'PPG', '', n) },
+    evaluate: (h, a, m, n, ctx) => {
+      const tier = ctx?.filtersExplicit ? (ctx.filters?.opponentStrength || 'all') : 'all';
+      if (tier !== 'all') {
+        const lt = m?.stats?.leagueTable;
+        const vh = filteredDetail(h, tier, lt), va = filteredDetail(a, tier, lt);
+        if (vh.n < MIN_FILTER_SAMPLE || va.n < MIN_FILTER_SAMPLE) return fltInsufficient('PPG', Math.min(vh.n, va.n));
+        const out = cmp(vh.pts / vh.n, va.pts / va.n, 'higher', 'PPG', '', n);
+        if (out.available) { out.note += fltNote(tier, vh.n, va.n); out.filterApplied = true; }
+        return out;
+      }
+      return cmp(st(h)?.ppg ?? sn(h)?.recentPpg, st(a)?.ppg ?? sn(a)?.recentPpg, 'higher', 'PPG', '', n);
+    } },
   { key: 'wins', label: 'Galibiyet Sayısı', desc: 'Sezon boyunca alınan galibiyet sayısı.', cat: 'sezon', defaultImpact: 'mid',
     evaluate: (h, a, m, n) => cmp(st(h)?.wins, st(a)?.wins, 'higher', 'Galibiyet', '', n) },
   { key: 'losses', label: 'Mağlubiyet Sayısı', desc: 'Az mağlubiyet alan takım daha istikrarlı kabul edilir.', cat: 'sezon', defaultImpact: 'mid',

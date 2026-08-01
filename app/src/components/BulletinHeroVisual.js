@@ -8,10 +8,15 @@
 
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, Easing, StyleSheet } from 'react-native';
-import Svg, { G, Rect, Line, Circle, Path, Polygon } from 'react-native-svg';
+import Svg, { Rect, Line, Circle, Path, Polygon } from 'react-native-svg';
 import { colors } from '../theme';
 
-const AnimatedG = Animated.createAnimatedComponent(G);
+// NOT: SVG <G> için Animated.createAnimatedComponent KULLANILMAZ — react-native-svg'nin
+// web tarafında G animated prop güncellemesini (setNativeProps) desteklememesi
+// Metro'da "BulletinHeroVisual" render hatasına yol açıyordu. Grup animasyonları
+// (tahta solması + kalem konumu) style tabanlı Animated.View katmanlarıyla yapılır;
+// çizim animasyonları (strokeDashoffset/opacity) tekil SVG öğelerinde kalır —
+// bunlar hem native hem web'de setNativeProps destekler.
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -27,7 +32,13 @@ const PITCH_LINE = 'rgba(255,255,255,0.9)';
 export function BulletinHeroBackdrop() {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Svg width="100%" height="100%" viewBox="0 0 340 170" preserveAspectRatio="xMidYMid slice">
+      {/* Hizalama xMin: "slice" dar ekranda genişliği taşırır. xMid ile ortalanınca
+          sağdaki tebeşir X işareti kartın ORTASINA, düğmelerin üstüne düşüyor ve
+          arka plan dokusu gibi değil, yanlışlıkla konmuş bir kapatma simgesi gibi
+          görünüyordu (360px telefonda görüldü). xMin ile taşma sağdan kırpılır:
+          solda kalan orta saha yayı zemin olarak kalır, X kadraj dışına çıkar.
+          Geniş ekranda ölçek genişlikten sürüldüğü için hiçbir şey değişmez. */}
+      <Svg width="100%" height="100%" viewBox="0 0 340 170" preserveAspectRatio="xMinYMid slice">
         <Circle cx="0" cy="85" r="70" fill="none" stroke={CHALK} strokeWidth="2" />
         <Circle cx="0" cy="85" r="3" fill={CHALK} />
         <Rect x="250" y="-40" width="130" height="90" fill="none" stroke={CHALK_SOFT} strokeWidth="2" />
@@ -72,17 +83,24 @@ export default function BulletinHeroVisual({ width = 132, height = 97, animated 
   const appear = (a, b) =>
     progress.interpolate({ inputRange: [0, a, b, 1], outputRange: [0, 0, 1, 1] });
 
-  const px = progress.interpolate({ inputRange: P_IN, outputRange: P_X });
-  const py = progress.interpolate({ inputRange: P_IN, outputRange: P_Y });
+  // Kalem konumu: viewBox birimi (150×110) → PİKSELE ölçeklenmiş style transform.
+  // (SVG G'ye animated x/y vermek web'de kırılıyordu; Animated.View translate her
+  //  iki platformda da güvenli.)
+  const sx = width / 150, sy = height / 110;
+  // Kalem kutusu 30×30 viewBox ("-2 -27 30 30"): uç (0,0) kutu içinde (2,27)
+  // ofsetindedir; translate bu ofseti düşerek ucu tam (P_X,P_Y) noktasına koyar.
+  const penX = progress.interpolate({ inputRange: P_IN, outputRange: P_X.map((v) => (v - 2) * sx) });
+  const penY = progress.interpolate({ inputRange: P_IN, outputRange: P_Y.map((v) => (v - 27) * sy) });
   const fillOpacity = progress.interpolate({ inputRange: [0, 0.012, 0.06, 1], outputRange: [0, 0.2, 1, 1] });
   // Silme: tahta 0.88–0.985 arasında solar (kalem zigzag "silerken")
   const boardOpacity = progress.interpolate({ inputRange: [0, 0.88, 0.985, 1], outputRange: [1, 1, 0, 0] });
+  const dotsOpacity = appear(0.54, 0.555);
 
   return (
     <View style={{ width, height }} pointerEvents="none">
-      <Svg width="100%" height="100%" viewBox="0 0 150 110">
-        {/* TAHTA — silme fazında topluca solar */}
-        <AnimatedG opacity={boardOpacity}>
+      {/* TAHTA KATMANI — silme fazında style-opacity ile topluca solar */}
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: boardOpacity }]}>
+        <Svg width="100%" height="100%" viewBox="0 0 150 110">
           <AnimatedRect x="10" y="15" width="130" height="80" rx="6" fill={colors.success} opacity={fillOpacity} />
           <AnimatedRect
             x="15" y="20" width="120" height="70" fill="none"
@@ -107,11 +125,10 @@ export default function BulletinHeroVisual({ width = 132, height = 97, animated 
             stroke={PITCH_LINE} strokeWidth="2" strokeLinecap="round"
             strokeDasharray={`${BOX_LEN}`} strokeDashoffset={dash(BOX_LEN, 0.445, 0.54)}
           />
-          <AnimatedG opacity={appear(0.54, 0.555)}>
-            <Circle cx="75" cy="55" r="1.8" fill={PITCH_LINE} />
-            <Circle cx="28" cy="55" r="1.5" fill={PITCH_LINE} />
-            <Circle cx="122" cy="55" r="1.5" fill={PITCH_LINE} />
-          </AnimatedG>
+          {/* Orta/penaltı noktaları — grup yerine tekil animated daireler */}
+          <AnimatedCircle cx="75" cy="55" r="1.8" fill={PITCH_LINE} opacity={dotsOpacity} />
+          <AnimatedCircle cx="28" cy="55" r="1.5" fill={PITCH_LINE} opacity={dotsOpacity} />
+          <AnimatedCircle cx="122" cy="55" r="1.5" fill={PITCH_LINE} opacity={dotsOpacity} />
 
           {/* X — iki hamlede (beyaz) */}
           <AnimatedLine
@@ -143,16 +160,25 @@ export default function BulletinHeroVisual({ width = 132, height = 97, animated 
             strokeDasharray={`${AR2_LEN}`} strokeDashoffset={dash(AR2_LEN, 0.77, 0.83)}
           />
           <AnimatedPath d="M 126 44 l -8 3 l 1 -9 Z" fill={colors.primary} opacity={appear(0.82, 0.835)} />
-        </AnimatedG>
+        </Svg>
+      </Animated.View>
 
-        {/* KALEM — çizer, yazar, ok atar, sonra zigzagla siler (ucu 0,0) */}
-        <AnimatedG x={px} y={py}>
+      {/* KALEM KATMANI — çizer, yazar, ok atar, sonra zigzagla siler (ucu 0,0).
+          Konum: style transform (piksel) — kalem çizimi kendi küçük Svg'sinde,
+          ucu (0,0) noktasına gelecek şekilde 24×24 viewBox ofsetiyle durur. */}
+      <Animated.View
+        style={{
+          position: 'absolute', left: 0, top: 0, width: 30 * sx, height: 30 * sy,
+          transform: [{ translateX: penX }, { translateY: penY }],
+        }}
+      >
+        <Svg width="100%" height="100%" viewBox="-2 -27 30 30">
           <Polygon points="0,0 7,-2.5 2.5,-7" fill={colors.muted || '#98A2B3'} />
           <Path d="M 4.8 -4.8 L 19 -19" stroke={colors.accent} strokeWidth="6" strokeLinecap="butt" />
           <Path d="M 19 -19 L 22 -22" stroke="#FFFFFF" strokeWidth="6" strokeLinecap="round" />
           <Path d="M 0 0 L 2.2 -2.2" stroke={colors.primaryDark || '#071329'} strokeWidth="1.8" strokeLinecap="round" />
-        </AnimatedG>
-      </Svg>
+        </Svg>
+      </Animated.View>
     </View>
   );
 }

@@ -4,10 +4,12 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, StyleSheet } from 'react-native';
 import { colors, spacing, radius, shadow } from '../theme';
-import { matchDate } from '../utils';
+import { matchDate, crestOf } from '../utils';
 import { matchPicks } from '../liveLogic';
 import { Logo } from '../ui';
-import { RecordBadges } from '../components';
+import { RecordBadges, SurpriseBadge, FormStrip } from '../components';
+import { favoriteSide } from '../favoriteTeam';
+import { useAuth } from '../auth';
 
 const MARK = { correct: '✅', wrong: '❌', pending: '⏳', none: '' };
 
@@ -23,7 +25,7 @@ function statusMeta(st, m) {
   }
 }
 
-export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'important', userPick = null }) {
+export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'important', userPick = null, community = null }) {
   const p = matchPicks(match, userPick);
   const st = p.status;
   const meta = statusMeta(st, match);
@@ -46,6 +48,9 @@ export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'impor
 
   const homeName = match.home?.mediumName || match.home?.name || '';
   const awayName = match.away?.mediumName || match.away?.name || '';
+  // FAVORİ TAKIM VURGUSU — profildeki favori takımın maçı ⭐ ile işaretlenir.
+  const { user } = useAuth();
+  const favSide = favoriteSide(match, user?.favorite_team);
   const hRec = match.stats?.home?.standing || null;
   const aRec = match.stats?.away?.standing || null;
   const rec = (r, align) => (r ? <RecordBadges wins={r.wins} draws={r.draws} losses={r.losses} played={r.played} align={align} /> : null);
@@ -59,8 +64,8 @@ export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'impor
 
         <View style={s.team}>
           <View style={s.teamLine}>
-            <Logo uri={match.stats?.home?.logo || ''} name={homeName} size={20} />
-            <Text style={s.name} numberOfLines={1}>{homeName}</Text>
+            <Logo uri={crestOf(match, 'home')} name={homeName} size={20} />
+            <Text style={s.name} numberOfLines={1}>{favSide === 'home' ? '⭐ ' : ''}{homeName}</Text>
           </View>
           {rec(hRec)}
         </View>
@@ -83,12 +88,42 @@ export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'impor
 
         <View style={[s.team, s.teamR]}>
           <View style={[s.teamLine, s.teamLineR]}>
-            <Text style={[s.name, s.nameR]} numberOfLines={1}>{awayName}</Text>
-            <Logo uri={match.stats?.away?.logo || ''} name={awayName} size={20} />
+            <Text style={[s.name, s.nameR]} numberOfLines={1}>{awayName}{favSide === 'away' ? ' ⭐' : ''}</Text>
+            <Logo uri={crestOf(match, 'away')} name={awayName} size={20} />
           </View>
           {rec(aRec, 'right')}
         </View>
       </View>
+
+      {/* ANALİZ ÖZETİ — başlamamış maçta bir bakışta: sürpriz etiketi + favori
+          yüzdesi (Radar ile aynı veri, aynı dil). Veri yoksa satır hiç çıkmaz. */}
+      {st === 'notStarted' && match.analysis && (match.analysis.label || match.analysis.favorite) ? (
+        <View style={s.analysisRow}>
+          {match.analysis.label ? <SurpriseBadge label={match.analysis.label} labelColor={match.analysis.labelColor} small /> : null}
+          {match.analysis.favorite ? (
+            <Text style={s.favTxt}>
+              Favori <Text style={s.favStrong}>{String(match.analysis.favorite.symbol).replace('0', 'X')}</Text> · %{match.analysis.favorite.percent}{match.analysis.estimated ? ' ≈' : ''}
+            </Text>
+          ) : null}
+          {match.analysis.surpriseScore != null ? <Text style={s.favTxt}>Sürpriz {match.analysis.surpriseScore}</Text> : null}
+          {(() => {
+            // TOPLULUK: en az 5 oy varsa gösterilir (küçük örneklem yanıltıcı olur).
+            if (!community || (community.total || 0) < 5) return null;
+            const opts = [['1', community.home || 0], ['X', community.draw || 0], ['2', community.away || 0]];
+            opts.sort((a, b) => b[1] - a[1]);
+            const [sym, cnt] = opts[0];
+            const pct = Math.round((cnt / community.total) * 100);
+            return <Text style={s.favTxt}>Topluluk %{pct} → <Text style={s.favStrong}>{sym}</Text> ({community.total} oy)</Text>;
+          })()}
+        </View>
+      ) : null}
+      {st === 'notStarted' && (match.stats?.home?.last5?.length || match.stats?.away?.last5?.length) ? (
+        <View style={s.formRow}>
+          <FormStrip form={match.stats?.home?.last5} size={14} />
+          <Text style={s.formMid}>son maçlar</Text>
+          <FormStrip form={match.stats?.away?.last5} size={14} />
+        </View>
+      ) : null}
 
       <View style={s.divider} />
 
@@ -100,7 +135,7 @@ export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'impor
             <Text style={s.picks} numberOfLines={1}>
               <Text style={s.pickLabel}>Sen </Text><Text style={s.pickVal}>{p.user.sym || 'Kupon yok'}</Text>{MARK[uMark] ? <Text> {MARK[uMark]}</Text> : null}
               <Text style={s.pickDot}>    ·    </Text>
-              <Text style={s.pickLabel}>Sistem </Text><Text style={s.pickValStrong}>{p.system.sym || '—'}</Text>{MARK[sMark] ? <Text> {MARK[sMark]}</Text> : null}
+              <Text style={s.pickLabel}>Sistem </Text><Text style={s.pickValStrong}>{p.system.sym ? String(p.system.sym).split('').map((c) => (c === '0' ? 'X' : c)).join('-') : '—'}</Text>{MARK[sMark] ? <Text> {MARK[sMark]}</Text> : null}
               {st === 'postponed' ? <Text style={s.await}>   · Ertelendi</Text> : null}
             </Text>
           )}
@@ -134,6 +169,11 @@ const s = StyleSheet.create({
   badgeTxt: { fontSize: 9.5, fontWeight: '900' },
   time: { color: colors.text, fontSize: 14, fontWeight: '800' },
   day: { color: colors.muted, fontSize: 10, fontWeight: '700' },
+  analysisRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 7, flexWrap: 'wrap' },
+  favTxt: { color: colors.textMuted, fontSize: 11.5, fontWeight: '700' },
+  favStrong: { color: colors.text, fontWeight: '900' },
+  formRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
+  formMid: { color: colors.textMuted, fontSize: 10, fontWeight: '700' },
   divider: { height: 1, backgroundColor: colors.border, marginTop: 12, marginBottom: 9 },
   foot: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   footLeft: { flex: 1 },

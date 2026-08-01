@@ -45,3 +45,15 @@ export function matchDate(iso) {
   const p = (n) => String(n).padStart(2, '0');
   return { day: `${d.getDate()} ${AYLAR[d.getMonth()]}`, time: `${p(d.getHours())}:${p(d.getMinutes())}` };
 }
+
+// KULÜP ARMASI — bir maçın verilen tarafı için arma adresi.
+// İki kaynak vardır ve sıralaması önemlidir:
+//   1) match.stats[side].logo — maç kaynak fikstürüyle eşleştiğinde gelir (en kesin).
+//   2) match[side].logo       — arma kayıt defterinden gelir; maç eşleşmese bile
+//                               kulübün arması biliniyorsa dolu olur.
+// İkisi de yoksa null döner ve çağıran nötr ⚽ çizer. Başka kulübün arması veya
+// "benzeri" bir görsel ASLA konmaz — bu karar backend'de verilir, burada sadece
+// okunur.
+export function crestOf(match, side) {
+  return match?.stats?.[side]?.logo || match?.[side]?.logo || null;
+}

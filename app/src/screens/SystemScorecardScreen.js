@@ -1,204 +1,260 @@
-// SİSTEM ANALİZ KARNESİ — GERÇEK veri. Sistemin maç-öncesi 1/X/2 tahminleri,
-// RESMİ Spor Toto sonuçlarıyla karşılaştırılır. Canlı/geçici skor SAYILMAZ.
-// Görünüm: Sade / Detaylı / Teknik · Filtre: Tüm / Son 5 / Son 10 hafta.
-import React, { useState, useCallback, useMemo } from 'react';
+// SİSTEM MASTER ANALİZ KARNESİ — yalnız DOĞRULANMIŞ resmî ileri-test verisi.
+// * Ana kart: TEKLİ ana tahmin (1/X/2) isabeti — kapalı tercihler (1X/X2/12/1X2)
+//   ana başarıya GİRMEZ; onlar AYRI "Kapsama Başarısı" bölümündedir.
+// * YENİ BAŞLANGIÇ: eski/backfill/retrospektif kayıtlar KULLANICIYA HİÇBİR
+//   ekranda gösterilmez (Retrospektif sekmesi kaldırıldı); teknikte yalnız
+//   "resmî başarıdan ayrılmıştır" notu vardır. Karneler sıfırdan başlar.
+// * Resmî veri yoksa dürüst boş durum gösterilir — sahte yüzde üretilmez.
+import React, { useState, useCallback } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api';
 import { colors, spacing, radius, shadow } from '../theme';
-import { getPref, setPref } from '../prefs';
 import { matchDate } from '../utils';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
-import { DashboardHero, DashboardMetric, DashboardSection, ViewModeToggle, FilterBar, MetricBar, DashboardEmpty } from '../components/DashboardUI';
+import { DashboardHero, DashboardSection, FilterBar, MetricBar, DashboardEmpty } from '../components/DashboardUI';
+import {
+  hasOfficialData, officialHeadline, weekRecordLabel,
+  COVERAGE_NOTE, OFFICIAL_EMPTY_TITLE, OFFICIAL_EMPTY_MESSAGE, LEGACY_SEPARATION_NOTE, USER_SECTIONS,
+} from '../scorecardLogic';
 
-const rate = (c, t) => (t ? Math.round((c / t) * 100) : 0);
+// SEKMELER: yalnız resmî bölümler — Retrospektif sekmesi KULLANICIYA YOKTUR.
+// Eski %69/%64/%73 tarzı legacy başarılar bu ekranın hiçbir yerinde görünmez.
+const SECTIONS = USER_SECTIONS;
+
 const rateColor = (r) => (r >= 60 ? colors.success : r >= 45 ? colors.warning : colors.danger);
-
-function aggregate(weeks) {
-  let total = 0, correct = 0, wrong = 0, single = 0, singleCorrect = 0;
-  const br = { '1': { t: 0, c: 0 }, X: { t: 0, c: 0 }, '2': { t: 0, c: 0 } };
-  for (const w of weeks) {
-    total += w.total; correct += w.correct; wrong += w.wrong; single += w.single || 0; singleCorrect += w.singleCorrect || 0;
-    for (const k of ['1', 'X', '2']) { br[k].t += w.byResult?.[k]?.t || 0; br[k].c += w.byResult?.[k]?.c || 0; }
-  }
-  return {
-    total, correct, wrong, accuracy: rate(correct, total),
-    single, singleCorrect, singleAccuracy: rate(singleCorrect, single),
-    byResult: { '1': { ...br['1'], rate: rate(br['1'].c, br['1'].t) }, X: { ...br.X, rate: rate(br.X.c, br.X.t) }, '2': { ...br['2'], rate: rate(br['2'].c, br['2'].t) } },
-  };
-}
-
-const RANGES = [{ key: 'all', label: 'Tüm Haftalar' }, { key: 'last5', label: 'Son 5 Hafta' }, { key: 'last10', label: 'Son 10 Hafta' }];
+const fmtT = (iso) => (iso ? `${matchDate(iso).day} ${matchDate(iso).time}` : '—');
 
 export default function SystemScorecardScreen({ navigation }) {
-  const [data, setData] = useState(null);
+  const [sc, setSc] = useState(null);          // sistem (resmî + kapsama + provenance)
+  const [radar, setRadar] = useState(null);    // resmî radar karnesi
+  const [crit, setCrit] = useState(null);      // resmî kriter karnesi
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState(getPref('sysDashView'));
-  const [range, setRange] = useState(getPref('sysDashRange'));
+  const [section, setSection] = useState('official');
 
   const load = useCallback(async () => {
-    try { setError(null); setData(await api.systemScorecard()); }
-    catch (e) { setError(e.message); }
+    try {
+      setError(null);
+      const s = await api.scorecardsSystem();
+      setSc(s);
+      // Yan karneler ayrı ayrı — biri düşerse diğerleri görünmeye devam eder.
+      // (Retrospektif uç ÇAĞRILMAZ — legacy başarılar kullanıcıya gösterilmez.)
+      api.scorecardsRadar().then(setRadar).catch(() => {});
+      api.scorecardsCriteria().then(setCrit).catch(() => {});
+    } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const filtered = useMemo(() => {
-    if (!data?.weeks) return null;
-    const n = range === 'last5' ? 5 : range === 'last10' ? 10 : data.weeks.length;
-    const weeks = data.weeks.slice(0, n);
-    const ids = new Set(weeks.map((w) => w.roundId));
-    const agg = aggregate(weeks);
-    const errors = (data.errors || []).filter((e) => ids.has(e.roundId));
-    return { weeks, agg, errors };
-  }, [data, range]);
-
-  if (loading && !data) return <LoadingState message="Sistem karnesi hesaplanıyor…" />;
+  if (loading && !sc) return <LoadingState message="Sistem karnesi doğrulanıyor…" />;
   if (error) return <ErrorState message={error} onRetry={load} />;
-  if (!data || !data.hasData) {
-    return (
-      <View style={styles.container}>
-        <DashboardEmpty
-          icon="📊"
-          title="Karne için resmi sonuç bekleniyor"
-          message="Henüz resmi olarak sonuçlanmış maç yok. Resmi Spor Toto sonuçları geldikçe sistemin doğru/yanlış analiz karnesi burada oluşacak."
-          actionLabel="Bültenleri Gör"
-          onAction={() => navigation.navigate('BulletinTab')}
-        />
-      </View>
-    );
-  }
 
-  const detailed = view !== 'simple';
-  const technical = view === 'technical';
-  const a = filtered.agg;
+  const official = hasOfficialData(sc);
+  const head = officialHeadline(sc);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.pad}>
       <DashboardHero
-        kicker="Analiz Merkezi"
-        title="Sistem Analiz Karnesi"
-        subtitle={`${filtered.weeks.length} hafta · ${a.total} resmi sonuçlanan maç üzerinden`}
-        metrics={[
-          { value: a.correct, label: 'Doğru', tone: 'success' },
-          { value: a.wrong, label: 'Yanlış', tone: 'danger' },
-          { value: `%${a.accuracy}`, label: 'İsabet' },
+        kicker="Analiz Merkezi · yalnız doğrulanmış ileri-test"
+        title="Sistem Master Analiz Karnesi"
+        subtitle={official
+          ? `${head.weeks} resmî hafta · ${head.total} resmî maç · tekli ana tahmin (1/X/2)`
+          : 'Resmî ileri-test verisi bekleniyor'}
+        metrics={official ? [
+          { value: head.correct, label: 'Doğru', tone: 'success' },
+          { value: head.wrong, label: 'Yanlış', tone: 'danger' },
+          { value: `%${head.accuracy}`, label: 'Tekli İsabet' },
+        ] : [
+          { value: '—', label: 'Doğru' }, { value: '—', label: 'Yanlış' }, { value: '—', label: 'İsabet' },
         ]}
       />
 
-      <View style={styles.controls}>
-        <ViewModeToggle value={view} onChange={(v) => { setView(v); setPref('sysDashView', v); }} />
-      </View>
-      <FilterBar options={RANGES} value={range} onChange={(r) => { setRange(r); setPref('sysDashRange', r); }} />
+      <FilterBar options={SECTIONS} value={section} onChange={setSection} />
 
-      {/* Genel isabet */}
-      <View style={styles.card}>
-        <MetricBar label="Genel isabet" value={a.accuracy} suffix="%" />
-        <Text style={styles.note}>
-          Net (tek) tahmin isabeti: <Text style={styles.noteStrong}>%{a.singleAccuracy}</Text> ({a.singleCorrect}/{a.single}) · çift/üçlü tahminler daha güvenli sayılır.
-        </Text>
-      </View>
-
-      {detailed && (
+      {/* 1) RESMÎ KARNE */}
+      {section === 'official' && (official ? (
         <>
-          <DashboardSection title="1 / X / 2 İsabeti" />
           <View style={styles.card}>
-            <MetricBar label="1 · Ev sahibi" value={a.byResult['1'].rate} total={a.byResult['1'].t} color={colors.primary} />
-            <MetricBar label="X · Beraberlik" value={a.byResult.X.rate} total={a.byResult.X.t} color={colors.gray} />
-            <MetricBar label="2 · Deplasman" value={a.byResult['2'].rate} total={a.byResult['2'].t} color={colors.warning} />
+            <Text style={styles.cardTitle}>{head.title}</Text>
+            <MetricBar label="Tekli ana tahmin isabeti" value={head.accuracy} suffix="%" />
+            <Row k="Resmî ileri-test haftası" v={`${head.weeks}${sc.pendingWeeks ? ` (+${sc.pendingWeeks} sonuç bekliyor)` : ''}`} />
+            <Row k="Toplam resmî maç" v={String(head.total)} />
+            <Row k="Tekli ana tahmin doğru" v={String(head.correct)} />
+            <Row k="Tekli ana tahmin yanlış" v={String(head.wrong)} />
+            <Row k="Son 5 hafta" v={head.last5?.total ? `${head.last5.correct}/${head.last5.total} · %${head.last5.accuracy}` : '—'} />
+            <Row k="En iyi resmî hafta" v={head.bestWeek ? `${head.bestWeek.round || head.bestWeek.roundId} · ${head.bestWeek.record} (%${head.bestWeek.accuracy})` : '—'} />
+            <Row k="Metodoloji" v={head.methodologyVersions.join(', ') || '—'} last />
           </View>
+          <Text style={styles.honestNote}>{sc.note}</Text>
+        </>
+      ) : (
+        <DashboardEmpty
+          icon="🔏"
+          title={OFFICIAL_EMPTY_TITLE}
+          message={OFFICIAL_EMPTY_MESSAGE}
+          actionLabel="Bültenleri Gör"
+          onAction={() => navigation.navigate('BulletinTab')}
+        />
+      ))}
 
-          <DashboardSection title="Hafta Hafta" />
-          <View style={styles.card}>
-            {filtered.weeks.map((w, i) => (
-              <View key={w.roundId} style={[styles.weekRow, i === filtered.weeks.length - 1 && { borderBottomWidth: 0 }]}>
-                <Text style={styles.weekName} numberOfLines={1}>{w.round}</Text>
-                <Text style={styles.weekRec}>
-                  <Text style={{ color: colors.success, fontWeight: '900' }}>{w.correct}✓</Text>
-                  <Text style={styles.weekSep}> · </Text>
-                  <Text style={{ color: colors.danger, fontWeight: '900' }}>{w.wrong}✗</Text>
+      {/* 2) HAFTA HAFTA */}
+      {section === 'weeks' && (official && sc.weeks?.length ? (
+        <>
+          <DashboardSection title="Resmî Hafta Performansı" sub="Yalnız mühürlü ileri-test haftaları. Kısmi haftalar açıkça işaretlenir; sonuçlanmamış hafta başarıya yazılmaz." />
+          {sc.weeks.map((w) => (
+            <View key={w.roundId} style={styles.weekCard}>
+              <View style={styles.weekHead}>
+                <Text style={styles.weekName}>{w.round || `#${w.roundId}`}</Text>
+                <Text style={[styles.weekStatus, w.status === 'complete' ? styles.stOk : w.status === 'partial' ? styles.stWarn : styles.stMuted]}>
+                  {w.status === 'complete' ? 'tam' : w.status === 'partial' ? 'kısmi' : 'sonuç bekleniyor'}
                 </Text>
-                <View style={styles.weekBarTrack}><View style={[styles.weekBarFill, { width: `${w.accuracy}%`, backgroundColor: rateColor(w.accuracy) }]} /></View>
-                <Text style={[styles.weekPct, { color: rateColor(w.accuracy) }]}>%{w.accuracy}</Text>
+                <Text style={[styles.weekPct, { color: w.status === 'pending' ? colors.textMuted : rateColor(w.accuracy) }]}>
+                  {w.status === 'pending' ? '—' : `${weekRecordLabel(w)} · %${w.accuracy}`}
+                </Text>
               </View>
-            ))}
-          </View>
-
-          <DashboardSection title="Sistemin Hataları" count={filtered.errors.length} danger sub="Sistemin yanlış bildiği maçlar — hiçbir şey saklanmaz." />
-          {filtered.errors.length === 0 ? (
-            <View style={styles.card}><Text style={styles.noErr}>Bu aralıkta hatalı tahmin yok.</Text></View>
-          ) : filtered.errors.map((e, i) => (
-            <View key={i} style={styles.errRow}>
-              <View style={styles.errMain}>
-                <Text style={styles.errMatch} numberOfLines={1}>{e.home} - {e.away}</Text>
-                <Text style={styles.errMeta}>{e.round} · #{e.no}</Text>
-              </View>
-              <View style={styles.errRight}>
-                <Text style={styles.errLine}>Sistem <Text style={styles.errSys}>{e.system}</Text></Text>
-                <Text style={styles.errLine}>Sonuç <Text style={styles.errRes}>{e.result}</Text> <Text style={styles.errScore}>{e.score}</Text></Text>
-              </View>
+              <Text style={styles.weekMeta}>
+                Tahminli {w.predicted}/{w.matchCount} · resmî sonuç {w.resolved}/{w.matchCount} · kapsama {w.coverage.covered}/{w.coverage.total}
+              </Text>
+              <Text style={styles.weekMeta}>
+                Mühür {fmtT(w.snapshotAt)} · donma {fmtT(w.freezeAt)} · #{w.verificationHashShort || '—'} · {w.methodologyVersion || '—'}
+              </Text>
             </View>
           ))}
         </>
+      ) : <EmptyLine text="Resmî hafta kaydı yok." />)}
+
+      {/* 3) 1/X/2 */}
+      {section === 'byResult' && (official ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Resmî sonuca göre tekli isabet</Text>
+          <MetricBar label={`1 · Ev sahibi (n=${sc.byResult['1'].t})`} value={sc.byResult['1'].rate} color={colors.primary} />
+          <MetricBar label={`X · Beraberlik (n=${sc.byResult.X.t})`} value={sc.byResult.X.rate} color={colors.gray} />
+          <MetricBar label={`2 · Deplasman (n=${sc.byResult['2'].t})`} value={sc.byResult['2'].rate} color={colors.warning} />
+          {sc.errors?.length ? (
+            <>
+              <Text style={[styles.cardTitle, { marginTop: 10 }]}>Sistemin yanlışları ({sc.errors.length})</Text>
+              {sc.errors.slice(0, 15).map((e, i) => (
+                <Text key={i} style={styles.errLine}>
+                  {e.round || e.roundId} #{e.no} · {e.home} - {e.away} → sistem <Text style={styles.errSys}>{e.system}</Text>, sonuç <Text style={styles.errRes}>{e.result}</Text>{e.score ? ` (${e.score})` : ''}
+                </Text>
+              ))}
+            </>
+          ) : null}
+        </View>
+      ) : <EmptyLine text="Resmî 1/X/2 verisi yok." />)}
+
+      {/* 4) KAPSAMA — ana başarı DEĞİL */}
+      {section === 'coverage' && (
+        <>
+          <DashboardSection title="Kapsama Başarısı" sub="Mühürlü kupon tercihlerinin (tek/çift/üçlü) resmî sonucu kapsama oranı." />
+          {sc?.coverage?.hasData ? (
+            <View style={styles.card}>
+              <MetricBar label={`Genel kapsama (n=${sc.coverage.total})`} value={sc.coverage.rate} suffix="%" />
+              <MetricBar label={`Tekli tercihler (n=${sc.coverage.single.total})`} value={sc.coverage.single.rate} color={colors.primary} />
+              <MetricBar label={`Çoklu tercihler 1X/X2/12/1X2 (n=${sc.coverage.multi.total})`} value={sc.coverage.multi.rate} color={colors.warning} />
+            </View>
+          ) : <EmptyLine text="Resmî kapsama verisi yok." />}
+          <Text style={styles.warnNote}>{COVERAGE_NOTE}</Text>
+        </>
       )}
 
-      {technical && (
-        <>
-          <DashboardSection title="Teknik" />
-          <View style={styles.card}>
-            <TechRow k="Kaynak" v={data.source || 'Resmi Spor Toto'} />
-            <TechRow k="Örneklem" v={`${a.total} resmi maç · ${filtered.weeks.length} hafta`} />
-            <TechRow k="Hesaplama zamanı" v={data.generatedAt ? `${matchDate(data.generatedAt).day} ${matchDate(data.generatedAt).time}` : '—'} />
-            <TechRow k="Aralık" v={RANGES.find((r) => r.key === range)?.label} />
-            <TechRow k="Haftalar (roundId)" v={filtered.weeks.map((w) => w.roundId).join(', ') || '—'} last />
-          </View>
-          <Text style={styles.techNote}>Yalnız RESMİ Spor Toto sonucu gelen maçlar sayılır. Canlı/geçici skor karneye yazılmaz; resmi sonuç düzeltilirse karne yeniden hesaplanır.</Text>
-        </>
+      {/* 5) RADAR KARNESİ (resmî) */}
+      {section === 'radar' && (radar?.hasData ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Resmî Radar Karnesi (mühürlü ileri-test)</Text>
+          <MetricBar label={`Ana tahmin (n=${radar.master.allTime.mainAccuracy.total})`} value={radar.master.allTime.mainAccuracy.rate ?? 0} suffix="%" />
+          <MetricBar label={`Güçlü aday (n=${radar.master.allTime.strongCandidate.total})`} value={radar.master.allTime.strongCandidate.rate ?? 0} color={colors.success} />
+          <MetricBar label={`Sürpriz yakalama (n=${radar.master.allTime.surpriseCandidate.total})`} value={radar.master.allTime.surpriseCandidate.catchRate ?? 0} color={colors.danger} />
+          <MetricBar label={`Kesin sürpriz yönü (n=${radar.master.allTime.surpriseCandidate.total})`} value={radar.master.allTime.surpriseCandidate.exactRate ?? 0} color={colors.warning} />
+          <Row k="Hafta / hariç tutulan" v={`${radar.includedCount ?? radar.roundsCounted} / ${radar.excludedCount ?? 0}`} />
+          <Row k="Metodoloji" v={(radar.methodologyVersions || []).join(', ') || '—'} last />
+          {radar.note ? <Text style={styles.honestNote}>{radar.note}</Text> : null}
+        </View>
+      ) : (
+        <EmptyLine text={radar?.note || 'Henüz resmî Radar ileri-test verisi yok. Gerçek bültenler mühürlenip sonuçlandıkça karne oluşacaktır.'} />
+      ))}
+
+      {/* 6) KRİTER KARNESİ (resmî) */}
+      {section === 'criteria' && (crit?.hasData ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Resmî Kriter Karnesi (mühürlü değerlendirme × resmî sonuç)</Text>
+          {crit.criteria.filter((c) => !c.informational && c.signals > 0).slice(0, 12).map((c) => (
+            <View key={c.key} style={styles.critRow}>
+              <Text style={styles.critName} numberOfLines={1}>{c.label}</Text>
+              <Text style={styles.critVal}>%{c.accuracy ?? 0} · n={c.signals}{c.sample?.usable ? '' : ' · az örnek'}</Text>
+            </View>
+          ))}
+          {crit.note ? <Text style={styles.honestNote}>{crit.note}</Text> : null}
+        </View>
+      ) : (
+        <EmptyLine text={crit?.note || 'Henüz resmî kriter verisi yok — rozetler gerçek bültenler mühürlenip sonuçlandıkça dolacaktır.'} />
+      ))}
+
+      {/* 7) TEKNİK / KAYNAK ŞEFFAFLIĞI — eski başarı yüzdeleri YOKTUR. */}
+      {section === 'tech' && sc && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Kaynak Şeffaflığı</Text>
+          <Row k="Tahmin kaynağı" v={sc.predictionSource} />
+          <Row k="Tahmin türü" v="Tekli ana tahmin (1/X/2) — mühürlü" />
+          <Row k="Sonuç kaynağı" v={sc.resultSource} />
+          <Row k="Dahil edilen kayıt" v={String(sc.includedCount ?? 0)} />
+          <Row k="Hariç tutulan kayıt" v={String(sc.excludedCount ?? 0)} />
+          <Row k="Metodoloji sürümleri" v={(sc.methodologyVersions || []).join(', ') || '—'} />
+          <Row k="Resmî profil sürümleri" v={(sc.officialProfileVersions || []).join(', ') || '—'} />
+          <Row k="Hesaplama zamanı" v={fmtT(sc.generatedAt)} last />
+          <Text style={styles.honestNote}>{sc.legacySeparationNote || LEGACY_SEPARATION_NOTE}</Text>
+          <Text style={styles.honestNote}>
+            Sonuçlar resmî Spor Toto kaynağından alınmıştır. Ancak yalnız maç öncesi mühürlendiği doğrulanan tahminler Resmî Karneye dahil edilmiştir.
+          </Text>
+        </View>
       )}
     </ScrollView>
   );
 }
 
-function TechRow({ k, v, last }) {
+function Row({ k, v, last }) {
   return (
-    <View style={[styles.techRow, last && { borderBottomWidth: 0 }]}>
-      <Text style={styles.techK}>{k}</Text>
-      <Text style={styles.techV} numberOfLines={2}>{v}</Text>
+    <View style={[styles.row, last && { borderBottomWidth: 0 }]}>
+      <Text style={styles.rowK}>{k}</Text>
+      <Text style={styles.rowV} numberOfLines={2}>{v ?? '—'}</Text>
     </View>
   );
+}
+
+function EmptyLine({ text }) {
+  return <View style={styles.card}><Text style={styles.emptyTxt}>{text}</Text></View>;
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   pad: { padding: spacing.lg, paddingBottom: spacing.xxxl },
-  controls: { marginTop: spacing.lg, marginBottom: spacing.sm, alignSelf: 'flex-start' },
   card: { backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.sm, ...shadow.soft },
-  note: { color: colors.textMuted, fontSize: 11, fontWeight: '600', marginTop: 4, lineHeight: 15 },
-  noteStrong: { color: colors.text, fontWeight: '900' },
+  cardTitle: { color: colors.text, fontSize: 13.5, fontWeight: '900', marginBottom: 6 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: colors.border },
+  rowK: { color: colors.textMuted, fontSize: 12, fontWeight: '700', flexShrink: 0 },
+  rowV: { flex: 1, color: colors.text, fontSize: 12, fontWeight: '800', textAlign: 'right' },
+  honestNote: { color: colors.textMuted, fontSize: 10.5, fontWeight: '600', marginTop: 8, lineHeight: 15 },
+  warnNote: { color: colors.warning, fontSize: 11, fontWeight: '800', marginTop: 8, lineHeight: 15 },
+  emptyTxt: { color: colors.textMuted, fontSize: 12.5, fontWeight: '700', lineHeight: 18 },
 
-  weekRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.border },
-  weekName: { width: 72, color: colors.text, fontSize: 12.5, fontWeight: '800' },
-  weekRec: { width: 66, fontSize: 12 },
-  weekSep: { color: colors.border },
-  weekBarTrack: { flex: 1, height: 7, borderRadius: 4, backgroundColor: colors.bgAlt, overflow: 'hidden' },
-  weekBarFill: { height: 7, borderRadius: 4 },
-  weekPct: { width: 42, textAlign: 'right', fontSize: 12.5, fontWeight: '900' },
+  weekCard: { backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.sm, ...shadow.soft },
+  weekHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  weekName: { color: colors.text, fontSize: 13, fontWeight: '900', flex: 1 },
+  weekStatus: { fontSize: 10.5, fontWeight: '900', paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.pill, overflow: 'hidden' },
+  stOk: { backgroundColor: 'rgba(46,160,90,0.12)', color: colors.success },
+  stWarn: { backgroundColor: 'rgba(240,160,40,0.14)', color: colors.warning },
+  stMuted: { backgroundColor: colors.bgAlt, color: colors.textMuted },
+  weekPct: { fontSize: 12.5, fontWeight: '900' },
+  weekMeta: { color: colors.textMuted, fontSize: 10.5, fontWeight: '600', marginTop: 4 },
 
-  noErr: { color: colors.success, fontSize: 13, fontWeight: '700' },
-  errRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, borderLeftWidth: 3, borderLeftColor: colors.danger, padding: spacing.md, marginTop: spacing.sm, gap: 8, ...shadow.soft },
-  errMain: { flex: 1, minWidth: 0 },
-  errMatch: { color: colors.text, fontSize: 13.5, fontWeight: '800' },
-  errMeta: { color: colors.textMuted, fontSize: 10.5, fontWeight: '700', marginTop: 2 },
-  errRight: { alignItems: 'flex-end' },
-  errLine: { color: colors.textSoft, fontSize: 12, fontWeight: '700' },
+  errLine: { color: colors.textSoft, fontSize: 11.5, fontWeight: '600', marginTop: 4, lineHeight: 16 },
   errSys: { color: colors.danger, fontWeight: '900' },
   errRes: { color: colors.success, fontWeight: '900' },
-  errScore: { color: colors.textMuted, fontWeight: '700' },
 
-  techRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
-  techK: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
-  techV: { flex: 1, color: colors.text, fontSize: 12, fontWeight: '800', textAlign: 'right' },
-  techNote: { color: colors.textMuted, fontSize: 10.5, fontWeight: '600', marginTop: 10, lineHeight: 15 },
+  critRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border },
+  critName: { flex: 1, color: colors.text, fontSize: 12.5, fontWeight: '700' },
+  critVal: { color: colors.textSoft, fontSize: 12, fontWeight: '900' },
+
 });

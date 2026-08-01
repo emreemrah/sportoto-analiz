@@ -6,6 +6,7 @@ import { View, Text, Animated, Easing, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import TacticalPitchBackground from './TacticalPitchBackground';
 import { colors, spacing, radius, font } from '../theme';
+import { BRAND_LINE_1, BRAND_LINE_2 } from '../brand';
 
 const MESSAGES = [
   'Bülten ve maç verileri hazırlanıyor...',
@@ -78,9 +79,9 @@ export default function SplashTacticalScreen() {
         <Animated.View style={[styles.card, cardStyle]}>
           <View style={styles.brandRow}>
             <View style={styles.accentBar} />
-            <Text style={styles.brandTop}>SPOR TOTO</Text>
+            <Text style={styles.brandTop}>{BRAND_LINE_1.toLocaleUpperCase('tr-TR')}</Text>
           </View>
-          <Text style={styles.brandMain}>ANALİZ</Text>
+          <Text style={styles.brandMain}>{BRAND_LINE_2.toLocaleUpperCase('tr-TR')}</Text>
 
           {/* İnce ilerleme çubuğu */}
           <View style={styles.track}>

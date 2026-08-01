@@ -1,4 +1,4 @@
-// SPOR TOTO — KULLANICI SEÇİMLİ ANALİZ GÖRÜNÜMÜ
+// KULLANICI SEÇİMLİ ANALİZ GÖRÜNÜMÜ
 // Sabit analiz YOK. Aktif analiz profili okunur; SADECE kullanıcının açtığı
 // kriterlerle sonuç üretilir. Profil yoksa/boşsa uyarı + "kriter seç" yönlendirmesi.
 // Veri yoksa "veri bulunamadı" açıkça gösterilir (uydurma yok).
@@ -9,7 +9,7 @@ import { matchDate } from '../utils';
 import { api } from '../api';
 import { getPref, setPref } from '../prefs';
 import { userSelectedAnalysisEngine } from '../analysis/engine';
-import { getActiveProfile, subscribeProfile, countOn } from '../analysisProfile';
+import { getActiveProfile, subscribeProfile, countOn, ensureDefaultProfile } from '../analysisProfile';
 import VenueMark from './VenueMark';
 
 // Kriter karnesi (resmi sonuçlara göre gerçek isabet) — modül içi basit cache:
@@ -67,6 +67,10 @@ export default function UserAnalysisView({ m, navigation }) {
   const r = useMemo(() => userSelectedAnalysisEngine(m, profile), [m, profile]);
   const goSettings = () => navigation?.navigate('AnalysisSettings');
 
+  // Hiç profil yoksa ÖNERİLEN varsayılan set kurulur — analiz ilk saniyede
+  // çalışır (kullanıcı bilerek tüm kriterleri kapattıysa dokunulmaz).
+  useEffect(() => { if (!profile) ensureDefaultProfile(); }, [profile]);
+
   // — Profil yok / hiç kriter yok —
   if (r.empty || !profile || countOn(profile) === 0) {
     return (
@@ -117,7 +121,7 @@ export default function UserAnalysisView({ m, navigation }) {
 
       {/* Nihai yorum */}
       <View style={st.verdict}>
-        <Text style={st.vKicker}>🧩 SPOR TOTO YORUMU · seçili kriterlere göre</Text>
+        <Text style={st.vKicker}>🧩 MASTER YORUM · seçili kriterlere göre</Text>
         <View style={st.vRow}>
           <View style={st.vBox}><Text style={st.vLbl}>Ana Seçim</Text><Pills value={v.main} /></View>
           <View style={st.vBox}><Text style={st.vLbl}>Alternatif</Text><Pills value={v.alt} /></View>

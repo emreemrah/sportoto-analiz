@@ -13,14 +13,20 @@ import { EmptyState } from '../ui';
 export default function BulletinHistoryScreen({ navigation }) {
   const { bulletins, loading, error, reload } = useBulletinHistory();
 
+  // Liste artık KALICI ARŞİVDEN gelir. Demo bandı yalnız backend'e
+  // ulaşılamayıp örnek veriye düşüldüğünde görünür (_demo işaretli).
+  const isDemo = !!bulletins?.length && bulletins.every((b) => b._demo);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Bülten Geçmişi</Text>
-        <Text style={styles.muted}>Her bültenin maç öncesi analiz hali ve sonuçları</Text>
+        <Text style={styles.muted}>Her bültenin maç öncesi MÜHÜRLÜ analizi ve resmî sonuçları</Text>
       </View>
 
-      <DemoDataBanner note="Bülten Geçmişi henüz gerçek Spor Toto verisine bağlı değil — buradaki bültenler ÖRNEKTİR." />
+      {isDemo && (
+        <DemoDataBanner note="Arşiv sunucusuna ulaşılamadı — aşağıdaki bültenler ÖRNEKTİR, gerçek arşiv verisi değildir." />
+      )}
 
       {loading && !bulletins ? (
         <LoadingState message="Bülten geçmişi yükleniyor…" />
