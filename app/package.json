@@ -35,8 +35,15 @@
     "start:cache": "expo start",
     "web:cache": "expo start --web",
     "test": "node --import ./test/register-hooks.mjs --test",
+    "test:ui": "jest --config jest.config.js",
     "verify:screen": "node scripts/verify-brand-screen.mjs",
     "verify:render": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node scripts/render-studio.mjs"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@testing-library/react-native": "^13.3.3",
+    "jest": "~29.7.0",
+    "jest-expo": "~56.0.5",
+    "react-test-renderer": "^19.2.3"
+  }
 }
