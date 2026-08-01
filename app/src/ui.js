@@ -19,6 +19,8 @@ import theme from './theme';
 import { RecordBadges } from './components';
 import { matchDate, crestOf } from './utils';
 import { APP_NAME, APP_NAME_UPPER } from './brand';
+import { crestUrlOf } from './crestUrl';
+import { API_BASE } from './config';
 
 const { colors, spacing, radius, font } = theme;
 // shadow/shadows uyumsuzluğuna karşı güvenli fallback
@@ -255,11 +257,21 @@ const styles = StyleSheet.create({
 
 /* ==================== MEVCUT BİLEŞENLER (korunuyor) ==================== */
 
-// Kulüp arması / nötr top
+// Kulüp arması / nötr top.
+//
+// ADRES VEKİLDEN GEÇER (/api/crest). Gerekçe GİZLİLİK: doğrudan dış adrese
+// giden her görsel isteği kullanıcının IP'sini ve hangi ekranı açtığını
+// üçüncü tarafa bildirir. Bu bileşen Ana Sayfa, Maç Detayı ve canlı kartlarda
+// kullanılıyor — düzeltme tek yerde yapılınca hepsi kapsanıyor.
+//
+// crestUrlOf BOZMAMA kuralıyla yazılmıştır: taban adres bilinmiyorsa ya da
+// adres zaten yerelse dokunmaz; bugün çizilen bir arma kaybolmaz. Vekilin
+// izinli konak listesi tek yerde (backend/src/crestProxy.js, varsayılan-ret).
 export function Logo({ uri, name, size = 40 }) {
   const [err, setErr] = useState(false);
-  if (uri && !err) {
-    return <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size * 0.22, backgroundColor: colors.cardAlt }} resizeMode="contain" onError={() => setErr(true)} accessibilityLabel={name} />;
+  const adres = crestUrlOf(uri, API_BASE);
+  if (adres && !err) {
+    return <Image source={{ uri: adres }} style={{ width: size, height: size, borderRadius: size * 0.22, backgroundColor: colors.cardAlt }} resizeMode="contain" onError={() => setErr(true)} accessibilityLabel={name} />;
   }
   return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.cardAlt, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: size * 0.5 }}>⚽</Text></View>;
 }

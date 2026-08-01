@@ -14,6 +14,8 @@ import { statsFromLog, derivedStats } from '../analysis/criteria';
 import MasterAnalysisView from '../components/MasterAnalysisView';
 import CompareBars, { signalsFromStats } from '../components/CompareBars';
 import TeamCompareRadar from '../components/TeamCompareRadar';
+import { crestUrlOf } from '../crestUrl';
+import { API_BASE } from '../config';
 
 // Karşılaştırma ayrı sekme DEĞİL: içeriği İstatistik sekmesinin altında (kullanıcı kararı).
 const TABS = ['Özet', 'Analiz', 'İstatistik', 'Yorumlar'];
@@ -879,10 +881,13 @@ function SquadSection({ title, squad, open, onToggle }) {
 
 // Tam lig tablosu — Genel / İç Saha / Dış Saha sekmeli, yatay kaydırmalı
 // Lig tablosu satır logosu — gerçek arma varsa onu, yoksa nötr küçük placeholder.
+// Adres vekilden geçer (gerekçe: BulletinScreen'deki TeamLogo notu — gizlilik).
+// Lig tablosu tek ekranda 18-20 arma çizer; en yoğun sızıntı noktası burasıdır.
 function TableLogo({ logo }) {
   const [err, setErr] = useState(false);
-  if (logo && !err) {
-    return <Image source={{ uri: logo }} style={styles.tlImg} resizeMode="contain" onError={() => setErr(true)} />;
+  const adres = crestUrlOf(logo, API_BASE);
+  if (adres && !err) {
+    return <Image source={{ uri: adres }} style={styles.tlImg} resizeMode="contain" onError={() => setErr(true)} />;
   }
   return <View style={styles.tlPh} />;
 }

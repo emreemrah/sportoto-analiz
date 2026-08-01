@@ -10,6 +10,8 @@ import { getRankedCoupon, finalVersion } from '../coupon/store';
 import { toOfficial } from '../couponConfig';
 import { RecordBadges, SurpriseBadge, FormStrip } from '../components';
 import { LEGAL_FOOTER } from '../brand';
+import { crestUrlOf } from '../crestUrl';
+import { API_BASE } from '../config';
 import ScoreLegend from '../components/ScoreLegend';
 import SnapshotSealBanner from '../components/SnapshotSealBanner';
 import LiveBulletinView from '../components/LiveBulletinView';
@@ -641,11 +643,22 @@ function ResultBadge({ symbol }) {
   return <View style={[styles.resBadge, { backgroundColor: c }]}><Text style={styles.resTxt}>{symbol}</Text></View>;
 }
 
-// Takım logosu — gerçek kulüp arması (FootyStats CDN). Logo yoksa/alınamazsa nötr ⚽.
+// Takım logosu — gerçek kulüp arması. Logo yoksa/alınamazsa nötr ⚽.
+//
+// ADRES VEKİLDEN GEÇER (/api/crest). Buradaki gerekçe paylaşım karesi değil
+// GİZLİLİK: doğrudan dış adrese giden her görsel isteği kullanıcının IP'sini
+// ve hangi bülteni açtığını üçüncü tarafa bildirir — bülten her açıldığında
+// 15 maç × 2 arma. Vekil zaten vardı ve izinli konak listesi tek yerde
+// (backend/src/crestProxy.js, varsayılan-ret).
+//
+// crestUrlOf BOZMAMA kuralıyla yazılmıştır: taban adres bilinmiyorsa ya da
+// adres zaten yerelse dokunmaz — bugün çizilen bir arma bu değişiklik
+// yüzünden kaybolmaz.
 function TeamLogo({ logo, name }) {
   const [err, setErr] = useState(false);
-  if (logo && !err) {
-    return <Image source={{ uri: logo }} style={styles.logo} resizeMode="contain" onError={() => setErr(true)} accessibilityLabel={name} />;
+  const adres = crestUrlOf(logo, API_BASE);
+  if (adres && !err) {
+    return <Image source={{ uri: adres }} style={styles.logo} resizeMode="contain" onError={() => setErr(true)} accessibilityLabel={name} />;
   }
   return <View style={styles.logoFallback}><Text style={styles.logoBall}>⚽</Text></View>;
 }
