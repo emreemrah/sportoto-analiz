@@ -8,7 +8,7 @@
 //
 // Sürüm notu için bkz. ekranlar.test.jsx (RNTL 13.x kullanılır, 14.x DEĞİL).
 import React from 'react';
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react-native';
+import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react-native';
 
 import RadarScreen from '../src/screens/RadarScreen';
 
@@ -209,6 +209,109 @@ describe('Radar Merkezi ekranı', () => {
     expect(screen.getByText(/Resmî geçmiş arşiv birikiyor/)).toBeTruthy();
     // Veri yokken uydurma yüzde çipe yazılmaz.
     expect(screen.queryByText(/Tüm Haftalar · %/)).toBeNull();
+  });
+
+  // DOLU VERİYLE SATIRLAR — 2. aşama bölmenin emniyet ağı.
+  // Yukarıdaki panel testleri BOŞ veriyle çalışıyor; satır çizicileri
+  // (renderMarketRow / renderPublicRow) ancak veri varken çalışır. Bu iki test
+  // olmadan o kod taşınırken hiçbir şey onu korumaz.
+  const GUN = { date: '2026-08-01', weekday: 'Cuma', label: 'Cuma 01.08', isMatchDay: true, withData: 1 };
+  const ONCEKI_GUN = { date: '2026-07-31', weekday: 'Perşembe', label: 'Perşembe 31.07', isMatchDay: false, withData: 1 };
+
+  test('Radar 4 satırı: oran ve önceki güne göre kıyas çiziliyor', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      '/api/radar/daily-odds': {
+        roundId: 1600, days: [ONCEKI_GUN, GUN], counts: { total: 3 },
+        matches: [
+          { no: 1, cells: { '2026-07-31': { odds: { '1': 1.70, X: 3.30, '2': 4.50 } }, '2026-08-01': { odds: { '1': 1.61, X: 3.20, '2': 4.25 } } } },
+          // 2 ve 3 numarada kayıt YOK → sebep satırı.
+          { no: 2, cells: {}, notes: { '2026-08-01': { text: 'Bu maç seçili liglerde değil' } } },
+        ],
+      },
+    });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Oran Takibi'));
+
+    // Oran gösteriliyor ve önceki günle kıyaslandığı SÖYLENİYOR.
+    expect(await screen.findByText('Bir önceki güne göre değişim')).toBeTruthy();
+    // Kayıt olmayan maçta oran UYDURULMUYOR, sebebi yazılıyor.
+    expect(screen.getByText('Bu maç seçili liglerde değil.')).toBeTruthy();
+    // Sayaç arka uçtaki gerçek sayıyı veriyor.
+    expect(screen.getByText(/3 maçın 1'inde oran var/)).toBeTruthy();
+  });
+
+  test('Radar 3 satırı: yüzde kaynağıyla birlikte, kaynak yoksa uydurulmuyor', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      '/api/radar/daily-played': {
+        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['nesine', 'misli'],
+        matches: [
+          {
+            no: 1,
+            cells: {
+              '2026-07-31': { bySource: { nesine: { percentages: { '1': 58, X: 24, '2': 18 } } } },
+              '2026-08-01': { bySource: { nesine: { percentages: { '1': 62, X: 21, '2': 17 } }, misli: { percentages: { '1': 60, X: 22, '2': 18 } } } },
+            },
+          },
+        ],
+      },
+    });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Oynanma DNA'));
+
+    // Aktif kaynaklar açıkça yazılır (hangi siteden geldiği gizlenmez).
+    expect(await screen.findByText(/Aktif kaynak: Nesine · Misli/)).toBeTruthy();
+    // Kaynak adı satırda da görünür — iki site karıştırılmaz.
+    expect(screen.getAllByText('Nesine').length).toBeGreaterThan(0);
+    // Yüzde GERÇEKTEN çiziliyor (yalnız kaynak etiketi değil).
+    expect(screen.getAllByText(/1 %62/).length).toBeGreaterThan(0);
+  });
+
+  test('Oynanma DNA paneli: kaynak satırına dokununca açılıyor', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      '/api/radar/daily-played': {
+        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['nesine'],
+        matches: [{
+          no: 1,
+          cells: { '2026-08-01': { bySource: { nesine: { percentages: { '1': 62, X: 21, '2': 17 } } } } },
+        }],
+      },
+      '/api/radar/played-dna': {
+        hasData: true, position: 1, weekday: 5, settledMatches: 240,
+        current: { '1': 62, X: 21, '2': 17 },
+        distribution: {
+          hasData: true,
+          overall: { text: '18 kayıtta 8 kez 1, 5 kez X, 5 kez 2' },
+          byDay: { selected: { text: '6 kayıtta 3 kez 1' }, others: { text: '12 kayıtta 5 kez 1' } },
+          byPosition: { own: { text: '4 kayıtta 2 kez 1' }, rest: { text: '14 kayıtta 6 kez 1' } },
+          samples: [],
+        },
+        movement: { words: 'ev sahibine kayış', hasData: false },
+      },
+    });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Oynanma DNA'));
+    const kaynak = await screen.findAllByText('Nesine');
+    fireEvent.press(kaynak[0]);
+
+    // Yakınlık seçimi KULLANICIYA aittir — otomatik genişleme yok.
+    expect(await screen.findByText('Birebir aynı')).toBeTruthy();
+    expect(screen.getByText('Tüm Maçlar')).toBeTruthy();
+    // Örneklem "kaç kayıtta" olarak şeffaf. Güven seviyesi/olasılık iddiası
+    // PANELDE yoktur (ekranın başlığındaki "Tahmin güveni…" cümlesiyle
+    // karışmasın diye kontrol panelle SINIRLANDIRILIR).
+    expect(screen.getByText('18 kayıtta 8 kez 1, 5 kez X, 5 kez 2')).toBeTruthy();
+    const panel = within(screen.getByTestId('oynanma-dna-1-nesine'));
+    expect(panel.queryByText(/güven|olasılık|ihtimal/i)).toBeNull();
+    // Kapsam en sonda ve soluk.
+    expect(screen.getByText(/arşivde 240 sonuçlanmış maç/)).toBeTruthy();
+    // Hareket verisi yoksa uydurulmuyor.
+    expect(screen.getByText('Bu harekete yakın geçmiş sonuç yok')).toBeTruthy();
   });
 
   // SONSUZ İSTEK DÖNGÜSÜ KORUMASI.
