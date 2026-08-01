@@ -4,9 +4,10 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, spacing, radius, shadow } from '../theme';
-import { setDraftPick } from '../couponStore';
+import { setDraftPick } from '../coupon/store';
+import { isMatchLocked } from '../couponConfig';
 import { userSelectedAnalysisEngine } from '../analysis/engine';
-import { getActiveProfile, countOn } from '../analysisProfile';
+import { getActiveProfile, countOn, ensureDefaultProfile } from '../analysisProfile';
 
 const OUT = ['1', 'X', '2'];
 
@@ -14,7 +15,12 @@ export default function CouponPickBlock({ m, navigation }) {
   // Otomatik gelmez — kullanıcı 1/X/2 seçer veya "Sistemden al"a basar.
   const [pick, setPick] = useState([]);
   if (!m || m.verificationStatus !== 'confirmed' || m.roundId == null) return null;
-  const locked = m.closeDate && Date.now() >= new Date(m.closeDate).getTime();
+  // KİLİT MAÇ BAZINDA: yalnız BU maç başladıysa seçim donar; bülten mühürlense
+  // bile başlamamış maça hafta boyunca seçim yapılabilir. Maç saati yoksa
+  // (belirsizlik) eski bülten kapanışına düşülür — asla habersiz açık kalmaz.
+  const locked = m.date
+    ? isMatchLocked(m)
+    : (m.closeDate && Date.now() >= new Date(m.closeDate).getTime());
 
   const write = (arr) => { setPick(arr); setDraftPick(m.roundId, m.no, arr); };
   const toggle = (o) => { if (locked) return; const set = new Set(pick); set.has(o) ? set.delete(o) : set.add(o); write(OUT.filter((x) => set.has(x))); };
@@ -22,7 +28,8 @@ export default function CouponPickBlock({ m, navigation }) {
   // Profil yoksa/boşsa analiz üretilmez → kullanıcıyı kriter seçimine yönlendir.
   const fromSystem = () => {
     if (locked) return;
-    const profile = getActiveProfile();
+    let profile = getActiveProfile();
+    if (!profile) profile = ensureDefaultProfile();   // kurulum istemeden çalışır
     if (!profile || countOn(profile) === 0) { navigation.navigate('AnalysisSettings'); return; }
     const main = userSelectedAnalysisEngine(m, profile)?.verdict?.main || '';
     write(OUT.filter((o) => main.includes(o)));
@@ -33,7 +40,7 @@ export default function CouponPickBlock({ m, navigation }) {
       <Text style={s.title}>🎟️ KUPONA İŞLE</Text>
       <Text style={s.sub}>Analizi gördün — seçimini yap. Kupon taslağına işlenir, Kupon Oluştur'dan kaydedersin.</Text>
       {locked ? (
-        <Text style={s.locked}>🔒 Bülten kilitlendi — bu maç için seçim değiştirilemez.</Text>
+        <Text style={s.locked}>🔒 Maç başladı — bu maç için seçim değiştirilemez.</Text>
       ) : (
         <>
           <View style={s.row}>
@@ -52,7 +59,7 @@ export default function CouponPickBlock({ m, navigation }) {
                 {pick.map((o) => <View key={o} style={s.pickedPill}><Text style={s.pickedPillTxt}>{o}</Text></View>)}
               </View>
             ) : <Text style={s.noneTxt}>Henüz seçim yok — 1/X/2 seç ya da “Sistemden al”</Text>}
-            <TouchableOpacity onPress={() => navigation.navigate('CouponBuilder', { roundId: m.roundId, focusNo: m.no })} style={s.goBtn}><Text style={s.goTxt}>Kupon Oluştur ›</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('CouponEditor', { roundId: m.roundId })} style={s.goBtn}><Text style={s.goTxt}>Kupon Oluştur ›</Text></TouchableOpacity>
           </View>
         </>
       )}

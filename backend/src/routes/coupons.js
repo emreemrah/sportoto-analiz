@@ -1,27 +1,38 @@
 // Kullanıcının kuponları — hesaba bağlı KALICI saklama (tarayıcı/tünel adresi
-// değişse de kaybolmaz). Basit dosya deposu: backend/data/coupons.json içinde
-// { [userId]: coupons[] }. İstemci tüm listeyi gönderir (kaynak app'tir), sunucu
-// hesap bazında saklar. Kupon MANTIĞI app'te; burası sadece kalıcı depo.
+// değişse de kaybolmaz). Depo: src/couponStore.js (backend/data/coupons.json,
+// { [userId]: coupons[] }). İstemci tüm listeyi gönderir (kaynak app'tir),
+// sunucu hesap bazında saklar. Kupon MANTIĞI app'te; burası sadece kalıcı depo.
 import { Router } from 'express';
-import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { requireAuth } from '../mw.js';
-
-const here = dirname(fileURLToPath(import.meta.url));
-const dataDir = join(here, '..', '..', 'data'); // backend/data
-mkdirSync(dataDir, { recursive: true });
-const FILE = join(dataDir, 'coupons.json');
-
-function readMap() {
-  if (!existsSync(FILE)) return {};
-  try { return JSON.parse(readFileSync(FILE, 'utf8')); } catch { return {}; }
-}
-function writeMap(m) {
-  try { writeFileSync(FILE, JSON.stringify(m)); } catch (e) { console.warn('[coupons] yazılamadı:', e.message); }
-}
+import { readMap, writeMap } from '../couponStore.js';
+import { sbAdmin, supabaseEnabled } from '../supabase.js';
+import { uyelikKapisi } from '../security/supabaseGuard.js';
+import { award } from '../gamification/service.js';
+import { POINT_RULES } from '../gamification/catalog.js';
 
 const router = Router();
+router.use(uyelikKapisi(supabaseEnabled));
+
+// Kupon kaydı puanı: kupon başına BİR KEZ (unique kısıt), ömür boyu en fazla
+// 10 kupon puanlanır — "kupon çoğaltarak puan kasma" bu sınırla anlamsızlaşır.
+const COUPON_AWARD_LIFETIME_MAX = 10;
+async function awardNewCoupons(userId, list) {
+  try {
+    const { count } = await sbAdmin.from('points_history')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('kind', 'coupon_saved');
+    let room = COUPON_AWARD_LIFETIME_MAX - (count || 0);
+    for (const c of list) {
+      if (room <= 0) break;
+      const id = c && (c.id || c.couponId);
+      if (!id) continue;
+      const ok = await award(sbAdmin, {
+        userId, kind: 'coupon_saved', refId: String(id), points: POINT_RULES.coupon_saved,
+      });
+      if (ok) room -= 1;
+    }
+  } catch { /* puanlama fırsatçıdır; kupon kaydını asla engellemez */ }
+}
 
 // Kullanıcının kuponları
 router.get('/', requireAuth, (req, res) => {
@@ -37,6 +48,7 @@ router.put('/', requireAuth, (req, res) => {
   const map = readMap();
   map[req.user.id] = list;
   writeMap(map);
+  awardNewCoupons(req.user.id, list); // ateşle-unut; yanıtı bloklamaz
   res.json({ ok: true, count: list.length });
 });
 
