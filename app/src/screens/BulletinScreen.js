@@ -303,6 +303,12 @@ export default function BulletinScreen({ navigation }) {
       <TouchableOpacity onPress={() => navigation.navigate('BulletinHistory')} style={styles.historyLink}>
         <Text style={styles.historyLinkTxt}>📜 Bülten Geçmişi · Kilitli Analiz ›</Text>
       </TouchableOpacity>
+      {/* RESMÎ LİSTE: haftanın bülteni resmî sitedeki düzenle — bu ekrandaki
+          analiz/tahmin katmanı olmadan, yalnız ham liste ve açıklanan
+          sonuçlar. "Resmî sitede ne yazıyor?" sorusunun doğrudan cevabı. */}
+      <TouchableOpacity onPress={() => navigation.navigate('ResmiListe')} style={styles.historyLink}>
+        <Text style={styles.historyLinkTxt}>📋 Resmî Liste · Skor ve Açıklanan Sonuçlar ›</Text>
+      </TouchableOpacity>
       {/* MÜHÜR DURUMU — kilit geri sayımı / "Mühürlü Analiz" + doğrulama hash'i.
           Veri kalıcı arşivden (data.archive); arşiv yoksa şerit çizilmez. */}
       {viewingCurrent && !data?.pending ? <SnapshotSealBanner archive={data?.archive} /> : null}
