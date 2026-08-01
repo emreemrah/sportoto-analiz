@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, FlatList, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator, Image, Platform } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator, Image, Platform } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { api } from '../api';
 import { colors, spacing, radius, shadow } from '../theme';
@@ -15,8 +15,6 @@ import { API_BASE } from '../config';
 import ScoreLegend from '../components/ScoreLegend';
 import SnapshotSealBanner from '../components/SnapshotSealBanner';
 import LiveBulletinView from '../components/LiveBulletinView';
-import ResmiListeTablosu, { AciklananSonuclar } from '../components/ResmiListeTablosu';
-import { haftaSecenekleri, sezonMetni } from '../resmiListe';
 import BultenBackdrop from '../components/BultenBackdrop';
 import BultenEmptyState from '../components/BultenEmptyState';
 
@@ -71,12 +69,6 @@ export default function BulletinScreen({ navigation }) {
   const [histChecking, setHistChecking] = useState(false);      // "Resmi sonuçlar kontrol ediliyor"
   const [histUpdateMsg, setHistUpdateMsg] = useState(null);      // null | 'updated' | 'noNew'
   const [corrections, setCorrections] = useState([]);           // oturum-içi resmi sonuç DÜZELTMELERİ
-  // GÖRÜNÜM: 'resmi' (resmî sitedeki tablo) | 'analiz' (mevcut analiz kartları).
-  // Varsayılan resmî liste; tercih cihazda saklanır.
-  const [gorunum, setGorunum] = useState(getPref('bultenGorunum') || 'resmi');
-  // Resmî görünümdeki sezon/hafta açılır seçicileri: 'sezon' | 'hafta' | null
-  const [acikSecici, setAcikSecici] = useState(null);
-  const [seciliSezon, setSeciliSezon] = useState(null);
   const [prizeView, setPrizeView] = useState(getPref('prizeView'));       // list|table|card
   // Geçmiş hafta üst sayaç kutuları + filtre çipleri KALDIRILDI (kullanıcı isteği);
   // liste bülten sırasında (veya kayıtlı sıralama tercihinde) akar.
@@ -170,10 +162,6 @@ export default function BulletinScreen({ navigation }) {
   const navRounds = curIdx >= 0 ? allRounds.slice(0, curIdx + 1) : allRounds;
   const selIdx = navRounds.findIndex((r) => r.id === effectiveId);
   const selMeta = navRounds[selIdx] || null;
-  // Sezon/hafta seçimi resmiListe.js'ten türer (Resmî Liste ekranıyla AYNI
-  // mantık). navRounds kullanılır: yayımlanmamış gelecek haftalar girmez.
-  const sezonSecimi = haftaSecenekleri({ rounds: navRounds }, seciliSezon);
-
   const canPrev = selIdx > 0;                       // daha eski hafta var
   const canNext = selIdx >= 0 && selIdx < navRounds.length - 1; // daha yeni hafta var
 
@@ -315,90 +303,13 @@ export default function BulletinScreen({ navigation }) {
       <TouchableOpacity onPress={() => navigation.navigate('BulletinHistory')} style={styles.historyLink}>
         <Text style={styles.historyLinkTxt}>📜 Bülten Geçmişi · Kilitli Analiz ›</Text>
       </TouchableOpacity>
-      {/* RESMÎ LİSTE ARŞİVİ — sezon ve hafta SEÇİCİLERİYLE geçmiş haftalar.
-          Bu ekrandaki ‹ › okları tek tek ilerler; arşivde gezinmek için
-          resmî sitedeki gibi açılır seçim gerekiyor.
-          (Bağlantı bir ara kaldırılmıştı ve ekran erişilemez kalmıştı —
-          kayıtlı ama açılamayan bir rota, ölü koddan da kötüdür.) */}
+      {/* RESMÎ LİSTE ARŞİVİ — resmî sitedeki düzen, sezon/hafta seçicileriyle.
+          AYRI ekrandır ve öyle kalmalı: BU ekran analiz gösterir, orası ham
+          resmî listeyi. Bir ara resmî görünüm Bülten'in kendisine taşınmıştı
+          (analiz kartlarının yerine); beğenilmedi, geri alındı. */}
       <TouchableOpacity onPress={() => navigation.navigate('ResmiListe')} style={styles.historyLink}>
         <Text style={styles.historyLinkTxt}>🗂️ Resmî Liste Arşivi · Sezon ve Hafta Seçimi ›</Text>
       </TouchableOpacity>
-      {/* GÖRÜNÜM ANAHTARI — liste artık BU ekranda. Varsayılan resmî tablo;
-          analiz kartları silinmedi, tek dokunuşla geri geliyor. */}
-      {viewingCurrent ? (
-        <View style={styles.gorunumSatir}>
-          {[{ k: 'resmi', ad: '📋 Resmî Liste' }, { k: 'analiz', ad: '📊 Analiz' }].map((g) => {
-            const acik = gorunum === g.k;
-            return (
-              <TouchableOpacity
-                key={g.k}
-                onPress={() => { setGorunum(g.k); setPref('bultenGorunum', g.k); }}
-                style={[styles.gorunumDugme, acik && styles.gorunumDugmeAcik]}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityState={{ selected: acik }}
-              >
-                <Text style={[styles.gorunumYazi, acik && styles.gorunumYaziAcik]}>{g.ad}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      ) : null}
-
-      {/* SEZON / HAFTA SEÇİCİLERİ — resmî listedeki gibi açılır seçim.
-          ‹ › okları tek adım ilerler; arşivde gezinmek için seçim gerekir.
-          Yalnız resmî görünümde çizilir: analiz görünümünün kendi akışı var. */}
-      {gorunum === 'resmi' ? (
-        <View style={styles.arsivSaridi}>
-          <View style={styles.arsivSatir}>
-            <TouchableOpacity
-              style={styles.arsivSecici}
-              onPress={() => setAcikSecici(acikSecici === 'sezon' ? null : 'sezon')}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-            >
-              <Text style={styles.arsivSeciciTxt} numberOfLines={1}>{sezonMetni(sezonSecimi.seciliSezon)}</Text>
-              <Text style={styles.arsivOk}>{acikSecici === 'sezon' ? '▴' : '▾'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.arsivSecici}
-              onPress={() => setAcikSecici(acikSecici === 'hafta' ? null : 'hafta')}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-            >
-              <Text style={styles.arsivSeciciTxt} numberOfLines={1}>{selMeta?.name || '—'}</Text>
-              <Text style={styles.arsivOk}>{acikSecici === 'hafta' ? '▴' : '▾'}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {acikSecici ? (
-            <ScrollView style={styles.arsivListe} nestedScrollEnabled>
-              {(acikSecici === 'sezon'
-                ? sezonSecimi.sezonlar.map((y) => ({ id: y, ad: sezonMetni(y) }))
-                : sezonSecimi.haftalar.map((h) => ({ id: h.id, ad: h.name }))
-              ).map((o) => {
-                const acik = acikSecici === 'sezon'
-                  ? o.id === sezonSecimi.seciliSezon
-                  : Number(o.id) === Number(effectiveId);
-                return (
-                  <TouchableOpacity
-                    key={String(o.id)}
-                    style={[styles.arsivOge, acik && styles.arsivOgeAcik]}
-                    onPress={() => {
-                      if (acikSecici === 'sezon') setSeciliSezon(o.id);
-                      else setSelectedId(Number(o.id));
-                      setAcikSecici(null);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.arsivOgeTxt, acik && styles.arsivOgeTxtAcik]}>{o.ad}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          ) : null}
-        </View>
-      ) : null}
       {/* MÜHÜR DURUMU — kilit geri sayımı / "Mühürlü Analiz" + doğrulama hash'i.
           Veri kalıcı arşivden (data.archive); arşiv yoksa şerit çizilmez. */}
       {viewingCurrent && !data?.pending ? <SnapshotSealBanner archive={data?.archive} /> : null}
@@ -628,26 +539,7 @@ export default function BulletinScreen({ navigation }) {
         const rv = rc ? finalVersion(rc) : null;
         if (rv) for (const sc of rv.selections) if (sc.selectedOutcomes?.length) rankedPicks[sc.no] = sc.selectedOutcomes.map(toOfficial).join('');
       }
-      // GÖRÜNÜM ANAHTARI: varsayılan RESMÎ LİSTE (resmî sitedeki tablo).
-      // Analiz kartları SİLİNMEDİ — "Analiz" görünümünde duruyor. Ana ekrandan
-      // 15 analiz kartını tamamen kaldırmak geri dönüşü zor bir karardır;
-      // anahtar sayesinde ikisi de tek dokunuş uzakta.
-      body = gorunum === 'resmi' ? (
-        <ScrollView contentContainerStyle={styles.resmiPad} refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary} />
-        }>
-          <ResmiListeTablosu
-            maclar={currentMatches}
-            bosNot="Bu haftanın maç listesi bulunamadı."
-            onSatirPress={(no) => {
-              const m = currentMatches.find((x) => x.no === no);
-              const started = !!(m && (m.started || m.live || m.finalized || (m.date && new Date(m.date).getTime() <= Date.now())));
-              navigation.navigate(started ? 'LiveMatchDetail' : 'MatchDetail', { no });
-            }}
-          />
-          <AciklananSonuclar prize={data?.prize} closeDate={data?.closeDate} />
-        </ScrollView>
-      ) : (
+      body = (
         <LiveBulletinView
           matches={currentMatches}
           userPicks={rankedPicks}
@@ -661,22 +553,6 @@ export default function BulletinScreen({ navigation }) {
         />
       );
     }
-  } else if (gorunum === 'resmi' && hist) {
-    // GEÇMİŞ HAFTA — resmî görünüm. Aynı tablo, dolu skor/sonuç ve
-    // açıklanan ikramiye satırlarıyla. Analiz görünümüne geçilirse aşağıdaki
-    // eski geçmiş listesi (mühürlü tahmin + düzeltme akışı) çizilir.
-    body = (
-      <ScrollView contentContainerStyle={styles.resmiPad} refreshControl={
-        <RefreshControl refreshing={histChecking} onRefresh={() => checkOfficial(effectiveId)} tintColor={colors.primary} />
-      }>
-        <ResmiListeTablosu
-          maclar={hist.matches || []}
-          bosNot="Bu haftanın maç listesi bulunamadı."
-          onSatirPress={(no) => navigation.navigate('MatchDetail', { no })}
-        />
-        <AciklananSonuclar prize={hist.prize} closeDate={selMeta?.closeDate} />
-      </ScrollView>
-    );
   } else if (histLoading) {
     body = <Center><ActivityIndicator size="large" color={colors.primary} /><Text style={styles.muted}>Geçmiş bülten yükleniyor…</Text></Center>;
   } else if (histError) {
@@ -795,33 +671,6 @@ function TeamLogo({ logo, name }) {
 }
 
 const styles = StyleSheet.create({
-  // Görünüm anahtarı (Resmî Liste / Analiz)
-  gorunumSatir: { flexDirection: 'row', gap: 8, marginTop: 8, paddingHorizontal: spacing.md },
-  gorunumDugme: {
-    flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: radius.sm,
-    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card,
-  },
-  gorunumDugmeAcik: { backgroundColor: colors.primary, borderColor: colors.primary },
-  gorunumYazi: { color: colors.textSoft, fontSize: 12.5, fontWeight: '800' },
-  gorunumYaziAcik: { color: '#fff' },
-  resmiPad: { paddingBottom: 24 },
-  // Arşiv seçicileri (sezon / hafta)
-  arsivSaridi: { paddingHorizontal: spacing.md, marginTop: 8 },
-  arsivSatir: { flexDirection: 'row', gap: 10 },
-  arsivSecici: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 7,
-  },
-  arsivSeciciTxt: { flex: 1, color: colors.textSoft, fontSize: 12.5, fontWeight: '700' },
-  arsivOk: { color: colors.muted, fontSize: 10 },
-  arsivListe: {
-    maxHeight: 220, marginTop: 6, borderWidth: 1, borderColor: colors.border,
-    borderRadius: radius.sm, backgroundColor: colors.card,
-  },
-  arsivOge: { paddingVertical: 10, paddingHorizontal: spacing.md },
-  arsivOgeAcik: { backgroundColor: colors.primarySoft },
-  arsivOgeTxt: { color: colors.textSoft, fontSize: 12.5, fontWeight: '700' },
-  arsivOgeTxtAcik: { color: colors.primary, fontWeight: '900' },
   container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, padding: 24 },
   listPad: { padding: spacing.md, paddingBottom: spacing.xl },
