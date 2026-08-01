@@ -15,7 +15,9 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { api } from '../api';
-import { colors, spacing, radius } from '../theme';
+import { spacing } from '../theme';
+// Bu ekranın paleti AYRIDIR (resmî listenin görünümü) — bkz. resmiListeTema.js
+import { RL, RLO } from '../resmiListeTema';
 import { Logo } from '../ui';
 import { crestOf } from '../utils';
 import { INDEPENDENCE_NOTICE } from '../brand';
@@ -82,8 +84,11 @@ export default function ResmiListeScreen({ navigation }) {
     <ScrollView
       style={st.kok}
       contentContainerStyle={st.govde}
-      refreshControl={<RefreshControl refreshing={yenileniyor} onRefresh={yenile} tintColor={colors.primary} />}
+      refreshControl={<RefreshControl refreshing={yenileniyor} onRefresh={yenile} tintColor={RL.bant} />}
     >
+      {/* Resmî sitedeki gibi en üstte koyu kırmızı ince şerit. */}
+      <View style={st.ustCizgi} />
+
       {/* ÜST ŞERİT — "Liste 1 Haftalıktır" + sezon/hafta seçicileri */}
       <View style={st.ustSerit}>
         <Text style={st.ustNot}>Liste 1 Haftalıktır</Text>
@@ -119,20 +124,26 @@ export default function ResmiListeScreen({ navigation }) {
       {/* TABLO BAŞLIĞI */}
       <View style={[st.satir, st.baslikSatiri]}>
         <Text style={[st.hSira, st.baslikYazi]}>Sıra</Text>
+        <View style={st.ayrac} />
         <Text style={[st.hMac, st.baslikYazi]}>Maç</Text>
+        <View style={st.ayrac} />
         <Text style={[st.hGun, st.baslikYazi]}>Maç Günü</Text>
+        <View style={st.ayrac} />
         <Text style={[st.hSaat, st.baslikYazi]}>Maç Saati</Text>
+        <View style={st.ayrac} />
         <Text style={[st.hSkor, st.baslikYazi]}>Skor</Text>
+        <View style={st.ayrac} />
         <Text style={[st.hSonuc, st.baslikYazi]}>Sonuç</Text>
       </View>
 
       {yukleniyor && !maclar.length ? (
-        <View style={st.orta}><ActivityIndicator color={colors.primary} /></View>
+        <View style={st.orta}><ActivityIndicator color={RL.bant} /></View>
       ) : !maclar.length ? (
         <Text style={st.bosNot}>Bu hafta için resmî liste bulunamadı.</Text>
       ) : maclar.map((m, i) => (
         <View key={m.no ?? i} style={[st.satir, i % 2 === 1 && st.zebra]} testID={`resmi-satir-${m.no}`}>
           <Text style={st.hSira}>{m.no}</Text>
+          <View style={st.ayrac} />
           <View style={[st.hMac, st.macHucre]}>
             <Logo uri={crestOf(m, 'home')} name={m.home?.name} size={22} />
             <Text style={st.macYazi} numberOfLines={1}>
@@ -140,9 +151,13 @@ export default function ResmiListeScreen({ navigation }) {
             </Text>
             <Logo uri={crestOf(m, 'away')} name={m.away?.name} size={22} />
           </View>
+          <View style={st.ayrac} />
           <Text style={st.hGun}>{macGunu(m.date)}</Text>
+          <View style={st.ayrac} />
           <Text style={st.hSaat}>{macSaati(m.date)}</Text>
+          <View style={st.ayrac} />
           <Text style={st.hSkor}>{skorMetni(m)}</Text>
+          <View style={st.ayrac} />
           <Text style={st.hSonuc}>{sonucMetni(m)}</Text>
         </View>
       ))}
@@ -198,62 +213,84 @@ function SeciciListe({ ogeler, seciliId, onSec }) {
   );
 }
 
+// ——— STİL — resmî listenin görünümü. Renkler resmiListeTema.js'te; burada
+// tek bir renk sabiti YOKTUR (ince ayar tek dosyadan yapılsın diye). ———
 const st = StyleSheet.create({
-  kok: { flex: 1, backgroundColor: colors.bg },
-  govde: { padding: spacing.md, paddingBottom: spacing.xxl },
+  kok: { flex: 1, backgroundColor: RL.sayfa },
+  govde: { paddingBottom: spacing.xxl },
   orta: { paddingVertical: spacing.xl, alignItems: 'center' },
 
-  ustSerit: { marginBottom: spacing.sm },
-  ustNot: { color: colors.textSoft, fontSize: 12.5, fontWeight: '700' },
-  seciciSatir: { flexDirection: 'row', gap: 8, marginTop: 6, flexWrap: 'wrap' },
+  // Sayfanın en üstündeki koyu kırmızı şerit (resmî sitedeki gibi).
+  ustCizgi: { height: 4, backgroundColor: RL.ustCizgi },
+
+  ustSerit: { paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm },
+  ustNot: { color: RL.metin, fontSize: RLO.yaziBoyu, fontWeight: '600' },
+  seciciSatir: { flexDirection: 'row', gap: 14, marginTop: 8, flexWrap: 'wrap' },
   secici: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-    paddingVertical: 5, paddingHorizontal: 4, minWidth: 130,
+    borderBottomWidth: 1, borderBottomColor: RL.cizgi,
+    paddingVertical: 6, minWidth: 140,
   },
-  seciciYazi: { color: colors.text, fontSize: 12.5, fontWeight: '700', flex: 1 },
-  seciciOk: { color: colors.textMuted, fontSize: 11 },
+  seciciYazi: { color: RL.metin, fontSize: RLO.yaziBoyu, fontWeight: '600', flex: 1 },
+  seciciOk: { color: RL.soluk, fontSize: 10 },
   seciciListe: {
-    backgroundColor: colors.card, borderRadius: radius.md,
-    borderWidth: 1, borderColor: colors.border, marginBottom: spacing.sm, overflow: 'hidden',
+    backgroundColor: RL.sayfa, borderWidth: 1, borderColor: RL.cizgi,
+    borderRadius: RLO.koseYaricapi, marginHorizontal: spacing.md,
+    marginBottom: spacing.sm, overflow: 'hidden',
   },
-  seciciOge: { paddingVertical: 9, paddingHorizontal: spacing.md },
-  seciciOgeSecili: { backgroundColor: colors.bgAlt },
-  seciciOgeYazi: { color: colors.textSoft, fontSize: 12.5, fontWeight: '700' },
-  seciciOgeYaziSecili: { color: colors.primary, fontWeight: '900' },
+  seciciOge: { paddingVertical: 10, paddingHorizontal: spacing.md },
+  seciciOgeSecili: { backgroundColor: RL.satirAlt },
+  seciciOgeYazi: { color: RL.metin, fontSize: RLO.yaziBoyu, fontWeight: '600' },
+  seciciOgeYaziSecili: { color: RL.guclu, fontWeight: '800' },
 
+  // TABLO — düz, sıkı; uygulamanın genel yuvarlaklığı burada yok.
   satir: {
     flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 10, paddingHorizontal: 6, borderRadius: radius.sm,
+    minHeight: RLO.satirYuksekligi,
+    paddingHorizontal: spacing.md,
+    backgroundColor: RL.satir,
   },
-  zebra: { backgroundColor: colors.bgAlt },
-  baslikSatiri: { borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 8 },
-  baslikYazi: { color: colors.textMuted, fontSize: 11, fontWeight: '900' },
+  zebra: { backgroundColor: RL.satirAlt },
+  baslikSatiri: { minHeight: 34, backgroundColor: RL.sayfa },
+  baslikYazi: { color: RL.baslik, fontSize: RLO.baslikBoyu, fontWeight: '600' },
 
-  hSira: { width: 34, textAlign: 'center', color: colors.textSoft, fontSize: 12, fontWeight: '800' },
-  hMac: { flex: 1, minWidth: 120 },
-  hGun: { width: 118, textAlign: 'center', color: colors.textSoft, fontSize: 11.5 },
-  hSaat: { width: 54, textAlign: 'center', color: colors.textSoft, fontSize: 11.5 },
-  hSkor: { width: 44, textAlign: 'center', color: colors.text, fontSize: 12, fontWeight: '800' },
-  hSonuc: { width: 44, textAlign: 'center', color: colors.text, fontSize: 12, fontWeight: '900' },
+  hSira: { width: 38, textAlign: 'center', color: RL.metin, fontSize: RLO.yaziBoyu },
+  hMac: { flex: 1, minWidth: 130 },
+  hGun: { width: 120, textAlign: 'center', color: RL.metin, fontSize: RLO.yaziBoyu },
+  hSaat: { width: 60, textAlign: 'center', color: RL.metin, fontSize: RLO.yaziBoyu },
+  hSkor: { width: 46, textAlign: 'center', color: RL.metin, fontSize: RLO.yaziBoyu },
+  hSonuc: { width: 48, textAlign: 'center', color: RL.metin, fontSize: RLO.yaziBoyu },
 
-  macHucre: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  macYazi: { flex: 1, color: colors.text, fontSize: 12.5, fontWeight: '700', textAlign: 'center' },
+  // Sütunlar arası ince dikey ayraç (resmî listedeki "|" çizgileri).
+  ayrac: { width: 1, alignSelf: 'stretch', backgroundColor: RL.cizgi, marginVertical: 10 },
+
+  macHucre: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8 },
+  macYazi: { flex: 1, color: RL.metin, fontSize: RLO.yaziBoyu, textAlign: 'center' },
 
   kirmiziBant: {
-    backgroundColor: colors.danger, borderRadius: radius.sm,
-    paddingVertical: 9, alignItems: 'center', marginTop: spacing.lg, marginBottom: spacing.sm,
+    backgroundColor: RL.bant, borderRadius: RLO.bantYaricapi,
+    paddingVertical: 11, alignItems: 'center',
+    marginTop: spacing.lg, marginBottom: spacing.sm, marginHorizontal: spacing.md,
   },
-  kirmiziBantYazi: { color: '#fff', fontSize: 13, fontWeight: '900' },
+  kirmiziBantYazi: { color: RL.bantYazi, fontSize: 13, fontWeight: '700' },
 
-  altSatir: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 11, paddingHorizontal: spacing.md, borderRadius: radius.sm,
+  // ALT BİLGİ — solda etiket kutusu, sağda değer kutusu (resmî listedeki gibi).
+  altSatir: { flexDirection: 'row', alignItems: 'stretch', marginHorizontal: spacing.md, marginBottom: 6 },
+  altEtiket: {
+    width: 132, backgroundColor: RL.etiketZemin, color: RL.etiketYazi,
+    fontSize: RLO.yaziBoyu, paddingVertical: 12, paddingHorizontal: 12,
+    borderRadius: RLO.koseYaricapi,
   },
-  altEtiket: { width: 120, color: colors.textSoft, fontSize: 12.5, fontWeight: '700' },
-  altDeger: { flex: 1, color: colors.text, fontSize: 12.5, fontWeight: '700' },
+  altDeger: {
+    flex: 1, backgroundColor: RL.degerZemin, color: RL.degerYazi,
+    fontSize: RLO.yaziBoyu, paddingVertical: 12, paddingHorizontal: 12,
+    borderRadius: RLO.koseYaricapi, marginLeft: 6,
+  },
 
-  kaynak: { color: colors.textMuted, fontSize: 10.5, fontWeight: '700', marginTop: spacing.md },
-  bagimsizlik: { color: colors.textMuted, fontSize: 10, lineHeight: 14, marginTop: 4 },
-  bosNot: { color: colors.textMuted, fontSize: 12.5, fontStyle: 'italic', paddingVertical: spacing.lg, textAlign: 'center' },
+  kaynak: { color: RL.soluk, fontSize: 10.5, marginTop: spacing.md, paddingHorizontal: spacing.md },
+  bagimsizlik: { color: RL.soluk, fontSize: 10, lineHeight: 14, marginTop: 4, paddingHorizontal: spacing.md },
+  bosNot: {
+    color: RL.soluk, fontSize: RLO.yaziBoyu, fontStyle: 'italic',
+    paddingVertical: spacing.lg, textAlign: 'center',
+  },
 });

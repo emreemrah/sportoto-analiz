@@ -132,3 +132,59 @@ test('boş hafta listesi ÇÖKMEZ', () => {
   assert.deepEqual(sezonlar, []);
   assert.deepEqual(haftalar, []);
 });
+
+// ---------------------------------------------------------------------------
+// PALET İZOLASYONU — iki tema karışmasın.
+// Resmî Liste ekranı resmî listenin GÖRÜNÜMÜNÜ yansıtır; uygulamanın geri
+// kalanı kendi paletini kullanır. Karışırlarsa aynı uygulamada iki farklı
+// gri, iki farklı kırmızı çıkar ve hangisinin doğru olduğu belirsizleşir.
+// ---------------------------------------------------------------------------
+
+test('Resmî Liste ekranı GENEL temadan renk ALMAZ', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { dirname, join } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const kok = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const ekran = readFileSync(join(kok, 'src', 'screens', 'ResmiListeScreen.js'), 'utf8');
+
+  // theme.js'ten YALNIZ ölçü (spacing) alınır, renk alınmaz.
+  assert.ok(!/colors\./.test(ekran), 'genel temadan renk kullanılıyor');
+  assert.match(ekran, /from '\.\.\/resmiListeTema'/, 'kendi paletini kullanmıyor');
+});
+
+test('resmî palet uygulamanın geri kalanına SIZMAZ', async () => {
+  const { readFileSync, readdirSync, statSync } = await import('node:fs');
+  const { dirname, join } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const kok = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
+
+  const dosyalar = [];
+  (function tara(d) {
+    for (const ad of readdirSync(d)) {
+      const p = join(d, ad);
+      if (statSync(p).isDirectory()) tara(p);
+      else if (ad.endsWith('.js')) dosyalar.push(p);
+    }
+  }(kok));
+
+  const izinli = ['resmiListeTema.js', 'ResmiListeScreen.js'];
+  for (const p of dosyalar) {
+    if (izinli.some((a) => p.endsWith(a))) continue;
+    const s = readFileSync(p, 'utf8');
+    assert.ok(!/resmiListeTema/.test(s),
+      `${p.split('src')[1]} resmî paleti kullanıyor — palet ekranla sınırlı kalmalı`);
+  }
+});
+
+test('ekranda BAĞIMSIZLIK beyanı ve kaynak satırı KALDIRILMAMIŞ', async () => {
+  // Görünüm resmî siteye yaklaştıkça bu iki satır daha da gerekli hâle gelir:
+  // ekran resmî listeyi YANSITIR ama resmî bir kaynak DEĞİLDİR.
+  const { readFileSync } = await import('node:fs');
+  const { dirname, join } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const kok = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const ekran = readFileSync(join(kok, 'src', 'screens', 'ResmiListeScreen.js'), 'utf8');
+
+  assert.match(ekran, /INDEPENDENCE_NOTICE/, 'bağımsızlık beyanı kaldırılmış');
+  assert.match(ekran, /Kaynak: /, 'kaynak satırı kaldırılmış');
+});
