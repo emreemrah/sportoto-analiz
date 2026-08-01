@@ -81,53 +81,61 @@ export const sezonKisa = (y) => {
 };
 
 /**
- * HAFTA ŞERİDİ VERİSİ — resmî sitedeki gibi: güncel hafta + SEZON + GEÇMİŞ
- * açılır listeleri. Geçmiş haftaları yan yana çip dizmek 20+ haftada
- * okunmaz oluyordu; resmî listedeki kalıp (sezon seç → hafta seç) kullanılır.
+ * HAFTA ŞERİDİ VERİSİ — resmî Spor Toto listesindeki gezinti kalıbı:
+ * iki açılır liste, [SEZON 2025/2026 ▼] [HAFTA 53. Hafta ▼].
  *
- * weeks: normalizeWeeks çıktısı. isCurrentWeek ölçütü radarScreenLogic ile
- * AYNI (backend current:true alanı esas) — iki ayrı "güncel" tanımı olmaz.
+ * HAFTA listesi seçili sezonun BÜTÜN haftalarını içerir — güncel hafta da
+ * dahil, en üstte. (Önce "güncel çipi + geçmiş listesi" denendi; resmî sitede
+ * tek liste var ve güncel de onun içinde. İki ayrı kontrol, aynı işi yapan
+ * iki yol demekti.)
+ *
+ * weeks: normalizeWeeks çıktısı. "Güncel" ölçütü radarScreenLogic.isCurrentWeek
+ * ile AYNI (backend current:true alanı esas) — iki ayrı güncel tanımı olmaz.
  */
 export function haftaSeridiVerisi(weeks, { curId = null, selectedId = null, navSezon = null } = {}) {
-  const hepsi = weeks || [];
   const guncelMi = (w) => w?.current === true
     || (w?.roundId != null && curId != null && Number(w.roundId) === Number(curId));
-  const guncel = hepsi.find(guncelMi) || null;
 
-  // Geçmiş haftalar YENİDEN ESKİYE (kullanıcı önce son haftayı arar).
-  const gecmis = hepsi.filter((w) => !guncelMi(w))
+  // Tüm haftalar YENİDEN ESKİYE — resmî listedeki sıra (53, 52, 51…).
+  const hepsi = (weeks || [])
     .map((w) => ({
       roundId: Number(w.roundId),
       ad: w.round || `#${w.roundId}`,
       kilitli: !!(w.locked || w.sealed),
+      guncel: guncelMi(w),
       yil: w.year ?? null,
     }))
     .sort((a, b) => b.roundId - a.roundId);
 
-  // Sezonlar geçmiş haftalardan türer (yalnız yılı bilinenler), yeniden eskiye.
-  const sezonlar = [...new Set(gecmis.map((w) => w.yil).filter((y) => y != null))]
+  const guncel = hepsi.find((w) => w.guncel) || null;
+
+  // Sezonlar haftalardan türer (yalnız yılı bilinenler), yeniden eskiye.
+  const sezonlar = [...new Set(hepsi.map((w) => w.yil).filter((y) => y != null))]
     .sort((a, b) => Number(b) - Number(a))
     .map((y) => ({ y, ad: sezonKisa(y) }));
 
-  // Seçili sezon: kullanıcının seçimi → bakılan geçmiş haftanın sezonu → en yeni.
-  const bakilan = gecmis.find((w) => selectedId != null && w.roundId === Number(selectedId)) || null;
+  // Bakılan hafta: seçili → yoksa güncel. Düğmede yazan değer budur.
+  const bakilan = hepsi.find((w) => selectedId != null && w.roundId === Number(selectedId))
+    || guncel || null;
+
+  // Seçili sezon: kullanıcının seçimi → bakılan haftanın sezonu → en yeni.
   const seciliSezon = (navSezon != null && sezonlar.some((s) => String(s.y) === String(navSezon)))
     ? navSezon
     : (bakilan?.yil ?? sezonlar[0]?.y ?? null);
 
-  // SEZON filtresi yalnız BİRDEN ÇOK sezon varken anlamlı; tek sezonda liste
+  // SEZON süzgeci yalnız BİRDEN ÇOK sezon varken uygulanır; tek sezonda liste
   // süzülmez (yılı bilinmeyen hafta da kaybolmaz).
   const liste = sezonlar.length > 1 && seciliSezon != null
-    ? gecmis.filter((w) => String(w.yil) === String(seciliSezon))
-    : gecmis;
+    ? hepsi.filter((w) => String(w.yil) === String(seciliSezon))
+    : hepsi;
 
   return {
     guncel,
-    gecmis,
-    sezonlar,               // [{y, ad}] — 2'den azsa SEZON düğmesi çizilmez
+    sezonlar,                          // [{y, ad}] — 2'den azsa SEZON düğmesi çizilmez
     seciliSezon,
-    liste,                  // GEÇMİŞ açılır listesinin içeriği
-    gecmisDeger: bakilan?.ad ?? null,   // düğmede yazan değer ("Seç" yerine)
+    liste,                             // HAFTA açılır listesinin içeriği
+    haftaDeger: bakilan?.ad ?? null,   // düğmede yazan hafta adı
+    haftaGuncelMi: !!bakilan?.guncel,  // düğmede "· Güncel" yazılsın mı
   };
 }
 

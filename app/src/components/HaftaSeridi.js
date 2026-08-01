@@ -1,83 +1,75 @@
 // HAFTA ŞERİDİ — Radar Merkezi'nin üstündeki hafta gezintisi.
 //
 // ESKİ HÂLİ: tüm haftalar yan yana çipti ("53 · Güncel | 52 🔏 | 51 🔏 | 49 🔏").
-// Arşiv büyüdükçe (sezonda 52 hafta) şerit okunmaz oluyordu. YENİ KALIP resmî
-// Spor Toto listesindeki gezintiyle aynıdır: sezon seç → hafta seç.
+// Arşiv tamamlanıp sezonda 52 hafta birikince şerit okunmaz oluyordu.
 //
-//   [53. Hafta · Güncel]  [SEZON 2025/2026 ▼]  [GEÇMİŞ 52. Hafta ▼]
+// YENİ KALIP resmî Spor Toto listesindeki gezintiyle aynıdır — İKİ açılır liste:
+//
+//   [SEZON 2025/2026 ▼]   [HAFTA 53. Hafta · Güncel ▼]
+//
+// HAFTA listesi seçili sezonun BÜTÜN haftalarını taşır, güncel dahil, en üstte.
+// (Arada "güncel çipi + GEÇMİŞ listesi" denendi; resmî sitede tek liste var ve
+// güncel de onun içinde — iki ayrı kontrol aynı işi yapan iki yol demekti.)
 //
 // Bu bileşen DURUM TUTMAZ (RadarTabHeaders ile aynı ilke): açık/kapalı ve
 // seçimler RadarScreen'de yaşar; burada yalnız çizilir.
 //
-// Görünüm, Radar 5 filtre satırındaki SEZON seçicisiyle AYNI kalıptır
-// (etiket + değer + ok çipi ve altında liste) — aynı işi yapan iki farklı
+// Görünüm, Radar 5 filtre satırındaki ve Bülten'deki sezon seçicisiyle AYNI
+// kalıptır (etiket + değer + ok çipi, altında liste) — aynı işi yapan üç farklı
 // görünüm kullanıcıyı yanıltır.
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, radius } from '../theme';
 import { haftaSeridiVerisi, sezonKisa } from '../radarScreenData';
 
+// Açılır liste en çok bu kadar uzar, sonrası kaydırılır. 52 haftalık bir sezon
+// tek ekrana sığmaz; resmî listede de kaydırma vardır.
+const LISTE_MAX_YUKSEKLIK = 300;
+
 export default function HaftaSeridi({
   weeks, curId, selectedId,
-  acik = null,                 // null | 'sezon' | 'gecmis' — tek seferde tek liste açık
+  acik = null,                 // null | 'sezon' | 'hafta' — tek seferde tek liste açık
   onToggle = () => {},
   navSezon = null, onSelectSezon = () => {},
   onSelectWeek = () => {},
 }) {
   const v = haftaSeridiVerisi(weeks, { curId, selectedId, navSezon });
-  if (!v.guncel && !v.gecmis.length) return null;
-
-  const cipler = (
-    <View style={styles.satir}>
-      {v.guncel ? (
-        <TouchableOpacity
-          onPress={() => onSelectWeek(v.guncel.roundId)}
-          style={[styles.guncelCip, Number(selectedId) === Number(v.guncel.roundId) && styles.guncelCipOn]}
-          activeOpacity={0.85}
-        >
-          <Text style={[styles.guncelTxt, Number(selectedId) === Number(v.guncel.roundId) && styles.guncelTxtOn]}>
-            {v.guncel.round || `#${v.guncel.roundId}`} · Güncel
-          </Text>
-        </TouchableOpacity>
-      ) : null}
-
-      {/* SEZON — yalnız birden çok sezon birikince çizilir; tek seçenekli
-          açılır liste, dokunup hiçbir şeyin değişmemesi demektir. */}
-      {v.sezonlar.length > 1 ? (
-        <TouchableOpacity
-          onPress={() => onToggle('sezon')}
-          activeOpacity={0.75}
-          accessibilityRole="button"
-          accessibilityLabel={`Sezon seç, şu an ${sezonKisa(v.seciliSezon)}`}
-          style={[styles.secChip, acik === 'sezon' && styles.secChipAcik]}
-        >
-          <Text style={styles.secEtiket}>SEZON</Text>
-          <Text style={styles.secTxt}>{sezonKisa(v.seciliSezon)}</Text>
-          <Text testID="hafta-sezon-ok" style={styles.secOk}>{acik === 'sezon' ? '▲' : '▼'}</Text>
-        </TouchableOpacity>
-      ) : null}
-
-      {/* GEÇMİŞ — geçmiş hafta varsa HER ZAMAN çizilir: tek geçmiş hafta bile
-          olsa oraya gitmenin başka yolu yok (filtre değil, gezinti). */}
-      {v.gecmis.length ? (
-        <TouchableOpacity
-          onPress={() => onToggle('gecmis')}
-          activeOpacity={0.75}
-          accessibilityRole="button"
-          accessibilityLabel={`Geçmiş hafta seç${v.gecmisDeger ? `, şu an ${v.gecmisDeger}` : ''}`}
-          style={[styles.secChip, acik === 'gecmis' && styles.secChipAcik]}
-        >
-          <Text style={styles.secEtiket}>GEÇMİŞ</Text>
-          <Text style={styles.secTxt}>{v.gecmisDeger || 'Seç'}</Text>
-          <Text testID="hafta-gecmis-ok" style={styles.secOk}>{acik === 'gecmis' ? '▲' : '▼'}</Text>
-        </TouchableOpacity>
-      ) : null}
-    </View>
-  );
+  if (!v.liste.length) return null;
 
   return (
     <View>
-      {cipler}
+      <View style={styles.satir}>
+        {/* SEZON — yalnız birden çok sezon birikince çizilir; tek seçenekli
+            açılır liste, dokunup hiçbir şeyin değişmemesi demektir. */}
+        {v.sezonlar.length > 1 ? (
+          <TouchableOpacity
+            onPress={() => onToggle('sezon')}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel={`Sezon seç, şu an ${sezonKisa(v.seciliSezon)}`}
+            style={[styles.secChip, acik === 'sezon' && styles.secChipAcik]}
+          >
+            <Text style={styles.secEtiket}>SEZON</Text>
+            <Text style={styles.secTxt}>{sezonKisa(v.seciliSezon)}</Text>
+            <Text testID="hafta-sezon-ok" style={styles.secOk}>{acik === 'sezon' ? '▲' : '▼'}</Text>
+          </TouchableOpacity>
+        ) : null}
+
+        <TouchableOpacity
+          onPress={() => onToggle('hafta')}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel={`Hafta seç, şu an ${v.haftaDeger || 'seçili değil'}`}
+          style={[styles.secChip, acik === 'hafta' && styles.secChipAcik]}
+        >
+          <Text style={styles.secEtiket}>HAFTA</Text>
+          <Text style={styles.secTxt}>
+            {v.haftaDeger || 'Seç'}{v.haftaGuncelMi ? ' · Güncel' : ''}
+          </Text>
+          <Text testID="hafta-ok" style={styles.secOk}>{acik === 'hafta' ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
+      </View>
+
       {acik === 'sezon' && v.sezonlar.length > 1 ? (
         <View style={styles.liste}>
           {v.sezonlar.map((s) => {
@@ -95,27 +87,29 @@ export default function HaftaSeridi({
           })}
         </View>
       ) : null}
-      {acik === 'gecmis' && v.liste.length ? (
-        <View style={styles.liste}>
-          {v.liste.map((w) => {
-            const secili = Number(w.roundId) === Number(selectedId);
-            return (
-              <TouchableOpacity
-                key={w.roundId}
-                style={[styles.oge, secili && styles.ogeSecili]}
-                onPress={() => onSelectWeek(w.roundId)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.ogeTxt, secili && styles.ogeTxtSecili]}>
-                  {w.ad}{w.kilitli ? ' 🔏' : ''}
-                </Text>
-                {/* Sezon eki yalnız birden çok sezon varken — tek sezonda gürültü. */}
-                {v.sezonlar.length > 1 && w.yil != null ? (
-                  <Text style={styles.ogeMeta}>{sezonKisa(w.yil)}</Text>
-                ) : null}
-              </TouchableOpacity>
-            );
-          })}
+
+      {acik === 'hafta' ? (
+        <View style={[styles.liste, styles.listeKaydirmali]}>
+          <ScrollView nestedScrollEnabled showsVerticalScrollIndicator>
+            {v.liste.map((w) => {
+              const secili = Number(w.roundId) === Number(selectedId);
+              return (
+                <TouchableOpacity
+                  key={w.roundId}
+                  style={[styles.oge, secili && styles.ogeSecili]}
+                  onPress={() => onSelectWeek(w.roundId)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.ogeTxt, secili && styles.ogeTxtSecili]}>{w.ad}</Text>
+                  {/* Sağdaki işaret: güncel hafta mı, mühürlü mü. Mühür
+                      "sonradan değişmez" güvencesidir, gizlenmez. */}
+                  <Text style={styles.ogeMeta}>
+                    {w.guncel ? 'Güncel' : w.kilitli ? '🔏' : ''}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
       ) : null}
     </View>
@@ -124,12 +118,6 @@ export default function HaftaSeridi({
 
 const styles = StyleSheet.create({
   satir: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' },
-  // Güncel çipi eski hafta çipiyle aynı görünümde (davranış değişmedi).
-  guncelCip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border },
-  guncelCipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-  guncelTxt: { color: colors.textSoft, fontSize: 12, fontWeight: '800' },
-  guncelTxtOn: { color: '#fff' },
-  // SEZON/GEÇMİŞ — Radar 5 ve Bülten'deki seçici kalıbıyla aynı.
   secChip: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
     borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill,
@@ -143,6 +131,7 @@ const styles = StyleSheet.create({
     marginTop: 6, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,
     backgroundColor: colors.card, overflow: 'hidden', alignSelf: 'flex-start', minWidth: 200,
   },
+  listeKaydirmali: { maxHeight: LISTE_MAX_YUKSEKLIK },
   oge: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12,
     paddingVertical: 11, paddingHorizontal: 16,

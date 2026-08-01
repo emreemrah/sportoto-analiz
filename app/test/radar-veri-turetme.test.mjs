@@ -263,7 +263,7 @@ test('sezon yoksa liste eskisi gibi 4 sabit dönem', async () => {
 // ---------------------------------------------------------------------------
 const HAFTA = (roundId, round, year, ekstra = {}) => ({ roundId, round, year, ...ekstra });
 
-test('hafta şeridi: güncel ayrılır, geçmiş yeniden eskiye sıralanır', async () => {
+test('hafta listesi TÜM haftaları taşır (güncel dahil), yeniden eskiye', async () => {
   const { haftaSeridiVerisi } = await import('../src/radarScreenData.js');
   const v = haftaSeridiVerisi([
     HAFTA(1521, '49. Hafta', 2026, { sealed: true }),
@@ -271,14 +271,25 @@ test('hafta şeridi: güncel ayrılır, geçmiş yeniden eskiye sıralanır', as
     HAFTA(1525, '51. Hafta', 2026, { locked: true }),
     HAFTA(1526, '52. Hafta', 2026, { sealed: true }),
   ], { curId: 1527, selectedId: 1527 });
-  assert.equal(v.guncel.roundId, 1527);
-  assert.deepEqual(v.gecmis.map((w) => w.ad), ['52. Hafta', '51. Hafta', '49. Hafta']);
-  assert.ok(v.gecmis.every((w) => w.kilitli), 'mühür/kilit işareti taşınmalı');
+  // Resmî listedeki sıra: 53, 52, 51, 49 — güncel EN ÜSTTE, listenin içinde.
+  assert.deepEqual(v.liste.map((w) => w.ad), ['53. Hafta', '52. Hafta', '51. Hafta', '49. Hafta']);
+  assert.equal(v.liste[0].guncel, true);
+  assert.ok(v.liste.slice(1).every((w) => w.kilitli), 'mühür/kilit işareti taşınmalı');
   // Tek sezon → SEZON düğmesi çizilmez, liste süzülmez.
   assert.equal(v.sezonlar.length, 1);
-  assert.equal(v.liste.length, 3);
-  // Güncel haftaya bakılıyor → GEÇMİŞ düğmesi "Seç" der (değer yok).
-  assert.equal(v.gecmisDeger, null);
+  // Düğme bakılan haftayı yazar; güncele bakılıyorsa "· Güncel" eki de.
+  assert.equal(v.haftaDeger, '53. Hafta');
+  assert.equal(v.haftaGuncelMi, true);
+});
+
+test('hafta şeridi: geçmiş haftaya bakılırken düğme onu yazar, "Güncel" eki düşer', async () => {
+  const { haftaSeridiVerisi } = await import('../src/radarScreenData.js');
+  const v = haftaSeridiVerisi([
+    HAFTA(1527, '53. Hafta', 2026, { current: true }),
+    HAFTA(1526, '52. Hafta', 2026, { sealed: true }),
+  ], { curId: 1527, selectedId: 1526 });
+  assert.equal(v.haftaDeger, '52. Hafta');
+  assert.equal(v.haftaGuncelMi, false);
 });
 
 test('hafta şeridi: iki sezon varsa SEZON süzer, seçili sezon bakılan haftadan gelir', async () => {
@@ -289,18 +300,25 @@ test('hafta şeridi: iki sezon varsa SEZON süzer, seçili sezon bakılan haftad
     HAFTA(1470, '50. Hafta', 2025, { sealed: true }),
     HAFTA(1469, '49. Hafta', 2025, { sealed: true }),
   ];
-  // Güncele bakarken varsayılan sezon EN YENİ geçmiş sezondur.
+  // Güncele bakarken sezon onun sezonudur; liste o sezonun TÜM haftaları.
   const a = haftaSeridiVerisi(haftalar, { curId: 1527, selectedId: 1527 });
   assert.equal(a.sezonlar.length, 2);
   assert.equal(a.seciliSezon, 2026);
-  assert.deepEqual(a.liste.map((w) => w.ad), ['52. Hafta']);
+  assert.deepEqual(a.liste.map((w) => w.ad), ['53. Hafta', '52. Hafta']);
   // Eski sezona geçince liste o sezonun haftalarını gösterir.
   const b = haftaSeridiVerisi(haftalar, { curId: 1527, selectedId: 1527, navSezon: 2025 });
   assert.deepEqual(b.liste.map((w) => w.ad), ['50. Hafta', '49. Hafta']);
-  // Geçmiş bir haftaya bakılıyorsa düğme onun adını yazar, sezon ona uyar.
+  // Geçmiş bir haftaya bakılıyorsa sezon ona uyar (elle seçim gerekmez).
   const c = haftaSeridiVerisi(haftalar, { curId: 1527, selectedId: 1470 });
-  assert.equal(c.gecmisDeger, '50. Hafta');
+  assert.equal(c.haftaDeger, '50. Hafta');
   assert.equal(c.seciliSezon, 2025);
+});
+
+test('hafta şeridi: hafta yoksa liste boş (ekran çizmez)', async () => {
+  const { haftaSeridiVerisi } = await import('../src/radarScreenData.js');
+  assert.deepEqual(haftaSeridiVerisi([], {}).liste, []);
+  assert.deepEqual(haftaSeridiVerisi(null, {}).liste, []);
+  assert.equal(haftaSeridiVerisi(null, {}).haftaDeger, null);
 });
 
 test('sezonKisa: 2026 → "2025/2026"; boş değer uydurmaz', async () => {

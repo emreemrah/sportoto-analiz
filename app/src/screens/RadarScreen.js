@@ -602,9 +602,9 @@ export default function RadarScreen({ navigation }) {
         ) : null}
       </AnalysisHeader>
 
-      {/* HAFTA ŞERİDİ — resmî listedeki gezinti kalıbı: güncel çipi + SEZON +
-          GEÇMİŞ açılır listeleri. Eskiden tüm haftalar yan yana çipti; arşiv
-          büyüdükçe (sezonda 52 hafta) şerit okunmaz oluyordu. */}
+      {/* HAFTA ŞERİDİ — resmî listedeki gezinti kalıbı: SEZON + HAFTA açılır
+          listeleri. Eskiden tüm haftalar yan yana çipti; arşiv tamamlanıp
+          sezonda 52 hafta birikince şerit okunmaz oluyordu. */}
       {weeks.length > 0 && (
         <View style={styles.weekBarWrap}>
           <HaftaSeridi
@@ -612,9 +612,9 @@ export default function RadarScreen({ navigation }) {
             acik={haftaListe}
             onToggle={(k) => setHaftaListe((v) => (v === k ? null : k))}
             navSezon={haftaNavSezon}
-            // Sezon seçilince GEÇMİŞ listesi açılır: sıradaki doğal adım hafta
+            // Sezon seçilince HAFTA listesi açılır: sıradaki doğal adım hafta
             // seçmektir (resmî sitedeki akışla aynı).
-            onSelectSezon={(y) => { setHaftaNavSezon(y); setHaftaListe('gecmis'); }}
+            onSelectSezon={(y) => { setHaftaNavSezon(y); setHaftaListe('hafta'); }}
             onSelectWeek={(rid) => { setHaftaListe(null); selectWeek(rid); }}
           />
         </View>
