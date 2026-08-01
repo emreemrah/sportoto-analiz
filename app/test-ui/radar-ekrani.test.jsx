@@ -84,13 +84,42 @@ describe('Radar Merkezi ekranı', () => {
     expect(screen.getAllByText(/Ev Takımı/).length).toBe(3);
   });
 
-  test('veri yeterliliği yüzdesi ham sayı olarak DEĞİL, bağlamıyla gösteriliyor', async () => {
+  // TEKNİK BAŞLIK BLOĞU KALDIRILDI (kullanıcı kararı 2026-08-01): veri
+  // yeterliliği, radar karnesi, kriter karnesi, Sistem Karnesi ve Metodoloji
+  // bağlantıları kullanıcı ekranından çıkarıldı; yönetici tarafına taşınacak.
+  test('teknik başlık bloğu kullanıcı ekranında GÖSTERİLMEZ', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      // Karne verisi GELSE BİLE çizilmemeli (uç hâlâ ayakta).
+      '/api/radar/scorecard': {
+        hasData: true,
+        master: { allTime: {
+          mainAccuracy: { rate: 48, total: 45 },
+          strongCandidate: { rate: 61, total: 18 },
+          surpriseCandidate: { catchRate: 33, total: 9 },
+        } },
+      },
+    });
+    render(<RadarScreen navigation={nav} />);
+    // Olumlu karşılık: ekran çiziliyor ve maçlar duruyor…
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    // …ama teknik satırların hiçbiri yok.
+    expect(screen.queryByText(/Veri yeterliliği/)).toBeNull();
+    expect(screen.queryByText(/Radar Karnesi/)).toBeNull();
+    expect(screen.queryByText(/Kriter Karnesi/)).toBeNull();
+    expect(screen.queryByText(/Sistem Karnesi/)).toBeNull();
+    expect(screen.queryByText(/Metodoloji/)).toBeNull();
+  });
+
+  test('kaldırılan bloklar için SUNUCUYA istek atılmaz (ölü çağrı yok)', async () => {
     mockUclar(VARSAYILAN);
     render(<RadarScreen navigation={nav} />);
-    // Yüzde tek başına değil, aktif radar sayısıyla birlikte ve "tahmin güveni
-    // her kartta ayrı" notuyla veriliyor — tek bir rakama indirgenmiyor.
-    await waitFor(() => expect(screen.getByText(/Veri yeterliliği: %78/)).toBeTruthy());
-    expect(screen.getByText(/Tahmin güveni her kartta ayrı/)).toBeTruthy();
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    const urls = global.fetch.mock.calls.map((c) => String(c[0]));
+    expect(urls.some((u) => u.includes('/api/radar/scorecard'))).toBe(false);
+    expect(urls.some((u) => u.includes('/api/radar/methodology'))).toBe(false);
+    // Olumlu karşılık: asıl veri yine çekiliyor.
+    expect(urls.some((u) => u.includes('/api/radar/current'))).toBe(true);
   });
 
   test('mühürlü haftada "değişmez" güvencesi kullanıcıya ULAŞIYOR', async () => {
@@ -115,35 +144,6 @@ describe('Radar Merkezi ekranı', () => {
     await waitFor(() => expect(screen.getByText(/Radar Merkezi/)).toBeTruthy());
     // Uydurma maç/yüzde yok.
     expect(screen.queryByText(/Ev Takımı/)).toBeNull();
-  });
-
-  test('radar karnesi YOKKEN başarı yüzdesi gösterilmez', async () => {
-    mockUclar(VARSAYILAN);          // /api/radar/scorecard 404 döner
-    render(<RadarScreen navigation={nav} />);
-    await waitFor(() => expect(screen.getByText(/Radar Merkezi/)).toBeTruthy());
-    expect(screen.queryByText(/Radar Karnesi:/)).toBeNull();
-  });
-
-  test('radar karnesi VARSA her oran n ile birlikte gösterilir', async () => {
-    mockUclar({
-      ...VARSAYILAN,
-      '/api/radar/scorecard': {
-        hasData: true,
-        master: {
-          allTime: {
-            mainAccuracy: { rate: 48, total: 45 },
-            strongCandidate: { rate: 61, total: 18 },
-            surpriseCandidate: { catchRate: 33, total: 9 },
-          },
-        },
-        note: 'az örneklem',
-      },
-    });
-    render(<RadarScreen navigation={nav} />);
-    await waitFor(() => expect(screen.getByText(/Radar Karnesi/)).toBeTruthy());
-    // Yüzde tek başına asla yok: yanında n=… var.
-    expect(screen.getByText(/%48 \(n=45\)/)).toBeTruthy();
-    expect(screen.getByText(/az örneklem/)).toBeTruthy();
   });
 
   test('API anahtarları kullanıcıya HAM gösterilmez, insan dili kullanılır', async () => {
@@ -536,4 +536,29 @@ test('Radar 4 sekmesinde başlık YAPIŞIK DEĞİL', async () => {
   // …ama yapışık değil.
   const { FlatList } = require('react-native');
   expect(UNSAFE_getByType(FlatList).props.stickyHeaderIndices).toBeUndefined();
+});
+
+// SADE BAŞLIK — yeşil saha paneli ve alt başlık kaldırıldı (kullanıcı kararı).
+test('başlıkta yalnız hangi haftaya bakıldığı yazar', async () => {
+  mockUclar(VARSAYILAN);
+  render(<RadarScreen navigation={nav} />);
+  await waitFor(() => expect(screen.getByText('1. Hafta · Radar Merkezi')).toBeTruthy());
+  // Alt başlık kaldırıldı.
+  expect(screen.queryByText(/açıklanabilir karar desteği/)).toBeNull();
+  expect(screen.queryByText(/Sürpriz radarı arşivi/)).toBeNull();
+});
+
+test('mühür güvencesi başlığın altında KALIYOR', async () => {
+  // Teknik bloklar kalktı ama bu bir teknik gösterge değil: geçmiş haftaya
+  // bakan kullanıcıya "sonradan değişmez" sözü verilir.
+  mockUclar({
+    ...VARSAYILAN,
+    '/api/radar/current': {
+      ...GUNCEL, current: false, sealed: true,
+      sealedAt: '2026-08-02T16:55:00Z', verificationHash: 'abcdef0123456789',
+    },
+  });
+  render(<RadarScreen navigation={nav} />);
+  await waitFor(() => expect(screen.getByText(/Mühürlü analiz/)).toBeTruthy());
+  expect(screen.getByText(/sonuçlar gelse de bu görüntü değişmez/)).toBeTruthy();
 });

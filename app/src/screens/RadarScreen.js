@@ -13,7 +13,6 @@ import { SurpriseBadge, FormStrip } from '../components';
 import VenueMark from '../components/VenueMark';
 import NoInternetScreen, { isNetworkError } from '../components/NoInternetScreen';
 import ScreenBackdrop from '../components/ScreenBackdrop';
-import AnalysisHeader from '../components/AnalysisHeader';
 import { MasterMatchCard, RadarTabCard, RADAR_TAB_DEFS } from '../components/RadarCenterCards';
 import RadarTabHeader, { providerLabel } from '../components/RadarTabHeaders';
 import { MarketRow, PublicRow } from '../components/RadarDayRows';
@@ -27,7 +26,7 @@ import {
 // radarScreenData.js. Ekran yalnız ÇİZER; ne göstereceğine orası karar verir.
 import {
   DNA_PERIODS, MASTER_FILTERS, roundPct100, ord, wdl, num1, fmtClock, birOndalik,
-  classCountsOf, filterMaster, sortMaster, freezeMinutes,
+  classCountsOf, filterMaster, sortMaster,
   legacyCountsOf, legacyFiltered, radar5PeriodSuccess, radar5PeriodTrend, rowTrend,
   DONEM_MAC_SAYISI, DNA_PERIOD_LABELS,
 } from '../radarScreenData';
@@ -55,13 +54,6 @@ export default function RadarScreen({ navigation }) {
   const [sortMode, setSortMode] = useState('order'); // order | risk — varsayılan: Spor Toto sırası (no 1→15)
   const [expandedNo, setExpandedNo] = useState(null);
   const [picks, setPicks] = useState({});
-  const [rsc, setRsc] = useState(null);              // Radar Merkezi karnesi (yalnız resmî ileri-test)
-  const [showCriteria, setShowCriteria] = useState(false); // Kriter Karnesi (lig kırılımlı) aç/kapa
-  // (Eski radar karnesi TAMAMEN kaldırıldı — legacy Banko/Sürpriz yüzdeleri
-  //  yeni başlangıç kararıyla hiçbir görünümde gösterilmez.)
-  const [methodology, setMethodology] = useState(null);
-  const [showMeth, setShowMeth] = useState(false);
-  const [now, setNow] = useState(Date.now());
   const [positionDna, setPositionDna] = useState(null); // Bülten DNA (Radar 5 detayı)
   const [dnaPeriod, setDnaPeriod] = useState('allTime'); // dönem filtresi (Tüm/5/10/15)
   const [acikSira, setAcikSira] = useState(null);        // Radar 5'te açık satır (sıra no)
@@ -209,13 +201,6 @@ export default function RadarScreen({ navigation }) {
 
   useEffect(() => { load(); }, [load]);
 
-  useEffect(() => {
-    // Yalnız RESMÎ Radar Karnesi (mühürlü official_forward) çekilir — eski
-    // /api/radar-scorecard (legacy arşiv) ARTIK ÇAĞRILMAZ.
-    api.radarCenterScorecard().then((d) => { if (d?.hasData) setRsc(d); }).catch(() => {});
-    const t = setInterval(() => setNow(Date.now()), 30000);
-    return () => clearInterval(t);
-  }, []);
 
   // Bülten DNA — GÖRÜNTÜLENEN haftaya göre çekilir. Her haftanın tarihsel
   // kesimi ayrıdır (51. hafta 51 öncesini, 52. hafta 51 dâhil olanı görür),
@@ -293,12 +278,6 @@ export default function RadarScreen({ navigation }) {
   }, [tab, selectedId, view, meta, fetchDailyPlayed]);
 
 
-  const toggleMethodology = () => {
-    if (!showMeth && !methodology) {
-      api.radarMethodology().then(setMethodology).catch(() => {});
-    }
-    setShowMeth((v) => !v);
-  };
 
   // Karttan kupona işle (yalnız güncel hafta) — mevcut akış korunur; kullanıcı
   // onayı olmadan mevcut kupon EZİLMEZ (yalnız paylaşılan taslağa yazar).
@@ -357,7 +336,6 @@ export default function RadarScreen({ navigation }) {
   const sortedMaster = sortMaster(filterMaster(masterMatches, filter), sortMode);
 
   // Donma geri sayımı
-  const freezeMin = freezeMinutes(meta, now);
 
   // ---- Legacy kart (Radar Merkezi öncesi haftalar) — eski görünüm AYNEN ----
   const legacyCounts = legacyCountsOf(legacyRadar);
@@ -564,10 +542,16 @@ export default function RadarScreen({ navigation }) {
   return (
     <ScreenBackdrop>
     <View style={[styles.container, { backgroundColor: 'transparent' }]}>
-      <AnalysisHeader
-        title={meta?.round ? `${meta.round} · Radar Merkezi` : 'Radar Merkezi'}
-        subtitle={legacyMode ? 'Sürpriz radarı arşivi (eski sistem görünümü)' : 'Master Radar + 5 radar · açıklanabilir karar desteği'}
-      >
+      {/* SADE BAŞLIK — yeşil saha paneli (AnalysisHeader) ve alt başlık
+          kaldırıldı; geriye yalnız hangi haftaya bakıldığı kalıyor.
+          Teknik bloklar (veri yeterliliği, karne, metodoloji) ve mühürlenme
+          sayacı da çıkarıldı; yönetici tarafına taşınacak. */}
+      <View style={styles.ekranBasligi}>
+        <Text style={styles.ekranBasligiTxt}>
+          {meta?.round ? `${meta.round} · Radar Merkezi` : 'Radar Merkezi'}
+        </Text>
+        {/* MÜHÜR ROZETİ KALIYOR — teknik gösterge değil, GEÇMİŞ bir haftaya
+            bakan kullanıcıya verilen sözdür: "sonuçlar gelse de değişmez". */}
         {meta?.sealed || meta?.frozenAt ? (
           <View style={styles.frozenBadge}>
             <Text style={styles.frozenTxt}>
@@ -575,104 +559,8 @@ export default function RadarScreen({ navigation }) {
               {meta.shortHash ? ` · Doğrulama #${meta.shortHash}` : ''}
             </Text>
           </View>
-        ) : freezeMin != null ? (
-          <View style={styles.frozenBadge}>
-            <Text style={styles.frozenTxt}>⏳ Radar {freezeMin} dk sonra (ilk maçtan 5 dk önce) mühürlenecek — sonrasında değişmez</Text>
-          </View>
         ) : null}
-        {centerMode && meta?.avgDq != null ? (
-          <View style={styles.dqBadge}>
-            <Text style={styles.dqTxt}>
-              📡 Veri yeterliliği: %{meta.avgDq} · Aktif radar: {masterMatches[0] ? `${masterMatches[0].master?.activeRadarCount ?? '—'}/5` : '—'}
-              {' · Tahmin güveni her kartta ayrı gösterilir'}
-            </Text>
-          </View>
-        ) : null}
-        {rsc ? (
-          <View style={styles.rscBadge}>
-            <Text style={styles.rscTxt}>
-              🎯 Radar Karnesi: Ana tahmin %{rsc.master.allTime.mainAccuracy.rate ?? '—'} (n={rsc.master.allTime.mainAccuracy.total})
-              · Güçlü aday %{rsc.master.allTime.strongCandidate.rate ?? '—'} (n={rsc.master.allTime.strongCandidate.total})
-              · Sürpriz yakalama %{rsc.master.allTime.surpriseCandidate.catchRate ?? '—'} (n={rsc.master.allTime.surpriseCandidate.total})
-              {rsc.note ? ' · az örneklem' : ''}
-            </Text>
-            {/* KRİTER KARNESİ (lig kırılımlı): her sinyalin ve güç dengesi
-                kuralının GERÇEK başarısı maçlar sonuçlandıkça burada birikir —
-                "form X liginde işliyor mu?" sorusunun veri cevabı. */}
-            {rsc.criteria ? (
-              <TouchableOpacity onPress={() => setShowCriteria((v) => !v)} activeOpacity={0.85}>
-                <Text style={[styles.rscTxt, { marginTop: 4 }]}>
-                  🧪 Kriter Karnesi (lig kırılımlı) {showCriteria ? '▾' : '›'}
-                </Text>
-                {showCriteria ? (
-                  <View>
-                    {rsc.criteria.strengthRule?.evaluated ? (
-                      <Text style={styles.rscTxt}>
-                        ⚖️ {rsc.criteria.strengthRule.label} — {['homeStrong', 'awayStrong', 'even'].map((k) => {
-                          const t = rsc.criteria.strengthRule.tiers?.[k];
-                          if (!t?.total) return null;
-                          return t.expectedRate != null
-                            ? `${t.label}: beklenen taraf %${t.expectedRate} (n${t.total})`
-                            : `${t.label}: 1/X/2 → ${t.results['1']}/${t.results.X}/${t.results['2']} (n${t.total})`;
-                        }).filter(Boolean).join(' · ')}
-                      </Text>
-                    ) : null}
-                    {rsc.criteria.masterByBalance ? (() => {
-                      const mb = rsc.criteria.masterByBalance;
-                      const seg = ['even', 'homeStrong', 'awayStrong']
-                        .map((k) => (mb[k]?.mainAccuracy?.total ? `${mb[k].label}: %${mb[k].mainAccuracy.rate ?? '—'} (n${mb[k].mainAccuracy.total})` : null))
-                        .filter(Boolean);
-                      return seg.length ? (
-                        <Text style={styles.rscTxt}>🎚️ Maç tipine göre ana tahmin — {seg.join(' · ')}</Text>
-                      ) : null;
-                    })() : null}
-                    {(rsc.criteria.signals || []).slice(0, 6).map((s) => {
-                      const tierSeg = ['strong', 'even', 'weak']
-                        .map((k) => (s.byOpponentTier?.[k]?.total ? `${s.byOpponentTier[k].label} %${s.byOpponentTier[k].rate ?? '—'} (n${s.byOpponentTier[k].total})` : null))
-                        .filter(Boolean);
-                      return (
-                        <Text key={s.key} style={styles.rscTxt}>
-                          • {s.label}: %{s.overall.rate ?? '—'} (n{s.overall.total})
-                          {s.byLeague?.length ? ` — ${s.byLeague.slice(0, 3).map((l) => `${l.league} %${l.rate ?? '—'} (n${l.total})`).join(' · ')}` : ''}
-                          {tierSeg.length ? ` — ${tierSeg.join(' · ')}` : ''}
-                        </Text>
-                      );
-                    })}
-                    <Text style={styles.rscMuted}>{rsc.criteria.note}</Text>
-                  </View>
-                ) : null}
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        ) : (
-          // YENİ BAŞLANGIÇ: eski Banko/Sürpriz yüzdeleri hiçbir koşulda
-          // gösterilmez — karne yalnız resmî mühürlü haftalarla dolar.
-          <View style={styles.rscBadge}>
-            <Text style={styles.rscTxt}>🎯 Radar Karnesi ilk resmî mühürlü hafta sonuçlandığında oluşacaktır. Geçmişe dönük başarı üretilmez.</Text>
-          </View>
-        )}
-        <View style={styles.headLinks}>
-          <TouchableOpacity onPress={() => navigation.navigate('SystemScorecard')}>
-            <Text style={[styles.headLinkTxt, { color: '#9FC4B0' }]}>📊 Sistem Karnesi ›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={toggleMethodology}>
-            <Text style={[styles.headLinkTxt, { color: '#A8C4E8' }]}>{showMeth ? '📖 Metodolojiyi gizle' : '📖 Metodoloji'}</Text>
-          </TouchableOpacity>
-        </View>
-        {showMeth ? (
-          <View style={styles.methBox}>
-            {(methodology?.notes || [
-              'Yalnız resmî 90 dakika 1/X/2 sonucu kullanılır.',
-            ]).map((t, i) => <Text key={i} style={styles.methLine}>• {t}</Text>)}
-            {methodology ? (
-              <Text style={styles.methLine}>
-                • Ağırlıklar: Rakip Gücü %{methodology.weights.base.performance} · xG %{methodology.weights.base.expectation} · Oynanma DNA %{methodology.weights.base.publicBetting} · Oran Takibi %{methodology.weights.base.market} · Bülten DNA %{methodology.weights.base.bulletinMemory} — verisi olmayan radar sıfırlanır, kalanlar 100'e normalize edilir.
-              </Text>
-            ) : null}
-            <Text style={styles.methLine}>• Sürüm: {meta?.methodologyVersion || methodology?.methodologyVersion || '—'}</Text>
-          </View>
-        ) : null}
-      </AnalysisHeader>
+      </View>
 
       {/* HAFTA ÇUBUKLARI */}
       {weeks.length > 0 && (
@@ -828,17 +716,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, padding: 24 },
   muted: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
-  frozenBadge: { marginTop: 8, backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 6 },
-  frozenTxt: { color: '#E8D9A8', fontSize: 11, fontWeight: '700', lineHeight: 15 },
-  dqBadge: { marginTop: 6, backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 6 },
-  dqTxt: { color: '#CFE3F7', fontSize: 11, fontWeight: '800', lineHeight: 15 },
-  rscBadge: { marginTop: 6, backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 6 },
-  rscTxt: { color: '#B9E3C6', fontSize: 11, fontWeight: '800', lineHeight: 15 },
-  rscMuted: { color: 'rgba(185,227,198,0.65)', fontSize: 10, fontWeight: '700', lineHeight: 13, marginTop: 3 },
-  headLinks: { flexDirection: 'row', gap: 16, marginTop: 8 },
-  headLinkTxt: { fontSize: 12, fontWeight: '700' },
-  methBox: { marginTop: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: radius.sm, padding: 10 },
-  methLine: { color: '#D7E3F4', fontSize: 10.5, lineHeight: 15 },
+  // SADE BAŞLIK — yeşil panel kaldırıldıktan sonra ekranın kendi açık zemini.
+  ekranBasligi: { paddingHorizontal: spacing.md, paddingTop: 12, paddingBottom: 10 },
+  ekranBasligiTxt: { color: colors.text, fontSize: 20, fontWeight: '900' },
+  // Mühür rozeti artık AÇIK zemin üzerinde: koyu panel için seçilmiş
+  // saydam beyaz/krem renkler okunmuyordu.
+  frozenBadge: { marginTop: 8, backgroundColor: colors.warningSoft || '#FDF3DC', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 6, alignSelf: 'flex-start' },
+  frozenTxt: { color: colors.text, fontSize: 11, fontWeight: '700', lineHeight: 15 },
 
   weekBarWrap: { backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
   weekBar: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, paddingVertical: 8 },
