@@ -1,9 +1,18 @@
-// RADAR 4 EKRANI — EKSİK ORANIN SEBEBİ (kaynak metni testleri).
-// node --test JSX'i import edemez; ekran kaynağı METİN olarak okunup denetlenir.
+// RADAR 4 — EKSİK ORANIN SEBEBİ (kaynak metni testleri).
 //
-// Korunan davranış: oranı olmayan satır artık TEK jenerik cümle yazmıyor,
-// arka uçtan gelen KENDİ sebebini yazıyor. Sebep arka uçta üretilir — ekran
-// sebep UYDURMAZ, oran da üretmez.
+// Korunan davranış: oranı olmayan satır TEK jenerik cümle yazmaz, arka uçtan
+// gelen KENDİ sebebini yazar. Sebep arka uçta üretilir — ekran sebep
+// UYDURMAZ, oran da üretmez.
+//
+// ⚠ BU DOSYA KAYNAK METNİ TARAR ve tam bu yüzden KIRILGANDIR: kod başka bir
+// dosyaya taşındığında davranış bozulmadığı hâlde "blok bulunamadı" diye
+// kırılır (Radar bölme çalışmasında iki kez oldu). Bu yüzden:
+//   * Aranan bloklar tek bir yerde (KAYNAKLAR) tanımlıdır; taşıma olduğunda
+//     yalnız burası güncellenir.
+//   * Aynı davranışın GERÇEK render testi test-ui/radar-ekrani.test.jsx
+//     içindedir ("Radar 4 satırı: oran ve önceki güne göre kıyas çiziliyor").
+//     Yeni denetimler oraya yazılmalı; buraya yalnız render ile ölçülemeyen
+//     yapısal kurallar (ör. "sebep ekranda üretilmez") eklenmeli.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -13,16 +22,16 @@ import { fileURLToPath } from 'node:url';
 const kok = join(dirname(fileURLToPath(import.meta.url)), '..');
 const oku = (...p) => readFileSync(join(kok, ...p), 'utf8');
 const kodu = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-const RADAR = kodu(oku('src', 'screens', 'RadarScreen.js'));
-// Sekme üst panelleri (Radar 3/4/5 başlıkları, gün çipleri, sayaç) ekrandan
-// ayrılıp components/RadarTabHeaders.js'e taşındı. Kaynak taraması artık iki
-// dosyaya bakar; taşınan blok için DOĞRU dosya okunmalı, yoksa test 'blok
-// bulunamadı' diye kırılır — davranış bozulmadığı hâlde.
-const BASLIKLAR = kodu(oku('src', 'components', 'RadarTabHeaders.js'));
 
-// Bir bileşen/blokun kaynağını SINIRLARIYLA al. Sabit uzunlukta dilim almak
-// komşu bloğa taşar ve testi yanlış yerden geçirir/düşürür.
-const blokAl = (bas, son, kaynak = RADAR) => {
+// Hangi blok hangi dosyada — taşıma olursa YALNIZ burası değişir.
+const KAYNAKLAR = {
+  satirlar: kodu(oku('src', 'components', 'RadarDayRows.js')),
+  basliklar: kodu(oku('src', 'components', 'RadarTabHeaders.js')),
+};
+
+// Bir bloğun kaynağını SINIRLARIYLA al. Sabit uzunlukta dilim almak komşu
+// bloğa taşar ve testi yanlış yerden geçirir/düşürür.
+const blokAl = (kaynak, bas, son) => {
   const i = kaynak.indexOf(bas);
   assert.ok(i > 0, `${bas} bulunamadı`);
   const j = kaynak.indexOf(son, i);
@@ -30,19 +39,22 @@ const blokAl = (bas, son, kaynak = RADAR) => {
   return kaynak.slice(i, j);
 };
 
-// Radar 4 satır çizicisi — sebep burada yazılır.
-const marketRow = () => blokAl('const renderMarketRow', 'const playedDays');
-const oddsCounter = () => blokAl('export function OddsCounter', 'export default function', BASLIKLAR);
+const marketRow = () => blokAl(KAYNAKLAR.satirlar, 'export function MarketRow', 'const PROVIDER_ORDER');
+const oddsCounter = () => blokAl(KAYNAKLAR.basliklar, 'export function OddsCounter', 'export default function');
 
 test('satır, arka uçtan gelen KENDİ sebebini yazar (notes → why.text)', () => {
   const blok = marketRow();
-  assert.match(blok, /oddsNotesByNo/, 'sebep haritası satıra bağlanmamış');
+  assert.match(blok, /notes\[day\]/, 'sebep haritası satıra bağlanmamış');
   assert.match(blok, /why\?\.text/, 'satır kendi sebebini yazmıyor');
 });
 
-test('sebep haritası arka uç yanıtından kurulur — ekranda ÜRETİLMEZ', () => {
-  assert.match(RADAR, /oddsNotesByNo\s*=\s*new Map\(\(dailyOdds\?\.matches \|\| \[\]\)\.map\(\(m\) => \[m\.no, m\.notes \|\| \{\}\]\)\)/,
-    'notes doğrudan /daily-odds yanıtından okunmalı (yerel sebep üretimi yasak)');
+test('sebep arka uç yanıtından OKUNUR — ekranda üretilmez', () => {
+  const blok = marketRow();
+  // notes doğrudan /daily-odds yanıtındaki maç kaydından gelmeli.
+  assert.match(blok, /\.notes \|\| \{\}/, 'notes doğrudan yanıttan okunmalı');
+  // Yerel sebep üretimi yasak: satırda sebep metni ÜRETEN bir dal olmamalı.
+  assert.ok(!/kapsam dışı|yayınlanmadı|mühür alınamadı/i.test(blok),
+    'sebep metni ekranda üretiliyor — arka uçtan gelmeli');
 });
 
 test('REGRESYON: tek jenerik cümle TEK yol olamaz — yalnız yedek olarak kalır', () => {
@@ -58,7 +70,7 @@ test('REGRESYON: tek jenerik cümle TEK yol olamaz — yalnız yedek olarak kal�
 test('ekran ORAN UYDURMAZ: eksik satırda sayı basılmaz, sebep basılır', () => {
   const blok = marketRow();
   const bosDal = blok.slice(blok.indexOf(') : ('));
-  assert.ok(!/fmtOdd|oddsArrow|prevOddsCell/.test(bosDal),
+  assert.ok(!/fmtOdd|yonOku|OddsTriple/.test(bosDal),
     'oranı olmayan satırda oran biçimlendirme/kıyas çağrısı var — uydurma riski');
 });
 
@@ -70,9 +82,9 @@ test('sayaç arka uçtaki gerçek sayıyı gösterir (withData / counts.total)',
 });
 
 test('sayaç Radar 4 başlığında gerçekten çiziliyor', () => {
-  const i = BASLIKLAR.indexOf("if (tab === 'market')");
+  const i = KAYNAKLAR.basliklar.indexOf("if (tab === 'market')");
   assert.ok(i > 0, 'Radar 4 başlık dalı bulunamadı');
-  const blok = BASLIKLAR.slice(i, BASLIKLAR.indexOf("if (tab === 'publicBetting')", i));
+  const blok = KAYNAKLAR.basliklar.slice(i, KAYNAKLAR.basliklar.indexOf("if (tab === 'publicBetting')", i));
   assert.match(blok, /<OddsCounter/, 'sayaç başlığa eklenmemiş');
 });
 

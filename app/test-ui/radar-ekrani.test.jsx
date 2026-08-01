@@ -314,6 +314,40 @@ describe('Radar Merkezi ekranı', () => {
     expect(screen.getByText('Bu harekete yakın geçmiş sonuç yok')).toBeTruthy();
   });
 
+  // LEGACY GÖRÜNÜM — Radar Merkezi ÖNCESİ haftalar.
+  // Bu kod donmuş durumda: eski haftaların görüntüsü değişmemeli. Hiç testi
+  // yoktu; kendi dosyasına taşınmadan önce yazıldı.
+  test('eski hafta: legacy sürpriz radarı çiziliyor, yeni sistem karışmıyor', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      '/api/radar/current': {
+        hasData: false, legacyOnly: true, roundId: 1400, round: '40. Hafta', year: 2026,
+        radar: [
+          {
+            no: 1, home: 'Eski Ev', away: 'Eski Dep', surpriseScore: 62,
+            label: 'SÜRPRİZE AÇIK', labelColor: 'red',
+            favorite: { symbol: '1', percent: 48 }, estimated: true,
+            probabilities: { '1': 48, X: 28, '2': 24 },
+            signals: { position: { home: 3, away: 11 } },
+            factors: [{ label: 'Deplasman formda', points: 8 }],
+            comment: 'Ev sahibi favori ama fark az.',
+          },
+        ],
+      },
+    });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getByText('Eski Ev')).toBeTruthy());
+    expect(screen.getByText('Eski Dep')).toBeTruthy();
+    expect(screen.getByText('62')).toBeTruthy();
+    // Sıra bilgisi eski biçimde ("Sıra 3. – 11.").
+    expect(screen.getByText(/Sıra 3\. – 11\./)).toBeTruthy();
+    // Oran YOKSA favori yüzdesi "≈" ile işaretlenir — tahmini olduğu gizlenmez.
+    expect(screen.getByText(/Favori 1 · %48 ≈/)).toBeTruthy();
+    // Yeni sistemin sekmeleri eski haftada GÖRÜNMEZ (iki sistem karışmaz).
+    expect(screen.queryByText('Oynanma DNA')).toBeNull();
+    expect(screen.queryByText('Bülten DNA')).toBeNull();
+  });
+
   // SONSUZ İSTEK DÖNGÜSÜ KORUMASI.
   //
   // Eski kodda her sekme effect'i KENDİ doldurduğu state'e bağımlıydı ve döngüyü

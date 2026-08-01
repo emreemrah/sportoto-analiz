@@ -16,7 +16,8 @@ import ScreenBackdrop from '../components/ScreenBackdrop';
 import AnalysisHeader from '../components/AnalysisHeader';
 import { MasterMatchCard, RadarTabCard, RADAR_TAB_DEFS } from '../components/RadarCenterCards';
 import RadarTabHeader, { providerLabel } from '../components/RadarTabHeaders';
-import PlayedDnaPanel from '../components/PlayedDnaPanel';
+import { MarketRow, PublicRow } from '../components/RadarDayRows';
+import LegacyRadarCard from '../components/LegacyRadarCard';
 import { getDraft, setDraftPick } from '../coupon/store';
 import { OUTCOMES } from '../couponConfig';
 import {
@@ -333,100 +334,16 @@ export default function RadarScreen({ navigation }) {
   const legacyCounts = legacyCountsOf(legacyRadar);
   const legacyShown = legacyFiltered(legacyRadar, legacyFilter);
 
-  const renderLegacyItem = ({ item, index }) => {
-    const c = labelColors[item.labelColor] || colors.gray;
-    const p = item.probabilities || null;
-    const sig = item.signals || null;
-    const factors = item.factors || [];
-    const expanded = expandedNo === item.no;
-    const bits = [];
-    if (sig?.position) bits.push(`Sıra ${ord(sig.position.home)} – ${ord(sig.position.away)}`);
-    if (sig?.venue && (sig.venue.home || sig.venue.away)) bits.push(`İç/Dış ${wdl(sig.venue.home) || '—'} · ${wdl(sig.venue.away) || '—'}`);
-    if (sig?.xg) {
-      const xh = num1(sig.xg.homeVenue ?? sig.xg.home), xa = num1(sig.xg.awayVenue ?? sig.xg.away);
-      if (xh != null && xa != null) bits.push(`xG ${xh} – ${xa}`);
-    }
-    if (sig?.goals) {
-      const gh = num1(sig.goals.home?.for), ga = num1(sig.goals.away?.for);
-      if (gh != null && ga != null) bits.push(`Gol/maç ${gh} – ${ga}`);
-    }
-    return (
-      <TouchableOpacity style={[styles.row, expanded && styles.rowExpanded]} activeOpacity={0.8} onPress={() => setExpandedNo(expanded ? null : item.no)}>
-        <View style={styles.topRow}>
-          <Text style={styles.rank}>{index + 1}</Text>
-          <View style={{ flex: 1 }}>
-            <View style={styles.teamsRow}>
-              <VenueMark side="home" size={14} />
-              <Text style={[styles.teams, styles.teamName]} numberOfLines={1}>{item.home}</Text>
-              <Text style={styles.teamsVs}>–</Text>
-              <VenueMark side="away" size={14} />
-              <Text style={[styles.teams, styles.teamName]} numberOfLines={1}>{item.away}</Text>
-            </View>
-            <View style={styles.scoreBar}>
-              <View style={{ width: `${item.surpriseScore}%`, height: 6, backgroundColor: c, borderRadius: 3 }} />
-            </View>
-          </View>
-          <View style={styles.right}>
-            <Text style={[styles.scoreNum, { color: c }]}>{item.surpriseScore}</Text>
-            <SurpriseBadge label={item.label} labelColor={item.labelColor} small />
-          </View>
-        </View>
-        {item.result && item.score ? (
-          <View style={styles.resultRow}>
-            <Text style={styles.resultTxt}>Sonuç: <Text style={styles.resultStrong}>{item.result}</Text> · {item.score.home}-{item.score.away}</Text>
-            {item.favHit != null ? (
-              <View style={[styles.hitPill, { backgroundColor: item.favHit ? colors.success : colors.danger }]}>
-                <Text style={styles.hitPillTxt}>{item.favHit ? '✓ Favori tuttu' : '✗ Sürpriz oldu'}</Text>
-              </View>
-            ) : null}
-          </View>
-        ) : null}
-        {legacyView === 'r1' ? (
-          <>
-            {(item.favorite || p) && (
-              <View style={styles.favRow}>
-                {item.favorite ? (
-                  <View style={styles.favPill}>
-                    <Text style={styles.favPillTxt}>Favori {item.favorite.symbol} · %{item.favorite.percent}{item.estimated ? ' ≈' : ''}</Text>
-                  </View>
-                ) : null}
-                {p ? <Text style={styles.probs}>1 %{p['1']} · X %{p['X']} · 2 %{p['2']}</Text> : null}
-              </View>
-            )}
-            {bits.length > 0 && <Text style={styles.signals} numberOfLines={expanded ? 2 : 1}>{bits.join('   ·   ')}</Text>}
-            {sig?.form && (sig.form.home?.length || sig.form.away?.length) ? (
-              <View style={styles.formRow}>
-                <Text style={styles.formLbl}>Form</Text>
-                <FormStrip form={sig.form.home} size={16} />
-                <Text style={styles.formSep}>—</Text>
-                <FormStrip form={sig.form.away} size={16} />
-              </View>
-            ) : null}
-            {factors.length > 0 && (
-              <View style={styles.factors}>
-                {(expanded ? factors : factors.slice(0, 3)).map((f, i) => (
-                  <Text key={i} style={styles.factorTxt} numberOfLines={1}>• {f.label} <Text style={styles.factorPts}>+{f.points}</Text></Text>
-                ))}
-              </View>
-            )}
-            {item.comment ? <Text style={styles.comment} numberOfLines={expanded ? 0 : 2}>{item.comment}</Text> : null}
-          </>
-        ) : (
-          <>
-            {bits.length > 0 ? (
-              <Text style={styles.signals} numberOfLines={2}>{bits.join('   ·   ')}</Text>
-            ) : <Text style={styles.signals}>İstatistik verisi bulunamadı.</Text>}
-          </>
-        )}
-        <View style={styles.actionRow}>
-          <View style={{ flex: 1 }} />
-          <TouchableOpacity onPress={() => navigation.navigate('MatchDetail', { no: item.no })} style={styles.detailBtn} activeOpacity={0.85}>
-            <Text style={styles.detailBtnTxt}>Analiz ›</Text>
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  // Legacy kart components/LegacyRadarCard.js'te. O kod DONMUŞTUR: eski
+  // haftalar o hafta göründüğü gibi kalmalı, yeni sistemin dili karışmamalı.
+  const renderLegacyItem = ({ item, index }) => (
+    <LegacyRadarCard
+      item={item} index={index} legacyView={legacyView}
+      expanded={expandedNo === item.no}
+      onToggle={() => setExpandedNo(expandedNo === item.no ? null : item.no)}
+      onDetail={() => navigation.navigate('MatchDetail', { no: item.no })}
+    />
+  );
 
   // ---- Radar sekmesi içerikleri ----
   // Sekme üst panelleri components/RadarTabHeaders.js'e taşındı (durum tutmayan
@@ -530,174 +447,21 @@ export default function RadarScreen({ navigation }) {
     );
   };
 
-  // Radar 4 (Oran Takibi): seçili günün mühürlü oranı + önceki güne göre yön.
-  // Satır omurgası masterMatches (15, Spor Toto sırası); günlük hücreler maç
-  // NO'suna göre eşlenir (endpoint az maç dönse bile 15 satır korunur).
-  const oddsDays = dailyOdds?.days || [];
-  const oddsCellsByNo = new Map((dailyOdds?.matches || []).map((m) => [m.no, m.cells || {}]));
-  // EKSİK ORANIN SEBEBİ: boş hücrenin arkasında yapısal olarak farklı sebepler
-  // var (kapsam dışı / henüz yayınlanmadı / mühür alınamadı / gün gelmedi).
-  // Hepsine aynı cümleyi yazmak kullanıcıyı yanıltıyordu; her satır artık
-  // KENDİ sebebini söyler. Sebep arka uçta ÜRETİLİR — burada uydurulmaz.
-  const oddsNotesByNo = new Map((dailyOdds?.matches || []).map((m) => [m.no, m.notes || {}]));
-  const oddsSelIdx = oddsDays.findIndex((d) => d.date === oddsDay);
-  const prevOddsCell = (cells) => {
-    for (let i = oddsSelIdx - 1; i >= 0; i--) {
-      const dd = oddsDays[i];
-      if (cells?.[dd.date]) return cells[dd.date];
-    }
-    return null;
-  };
-  // TEK ORAN KAYNAĞI (27 Temmuz 2026 — kullanıcı kararı): denenen ikinci kaynak
-  // kaldırıldı, Radar 4 yalnız BİRİNCİL kaynağı gösterir. Ekranda kaynak başlığı
-  // ya da ikinci oran satırı yoktur; rakam doğrudan kendi hücresinde durur.
-  const fmtOdd = (v) => (v == null ? '—' : Number(v).toFixed(2));
-  const oddsArrow = (cur, prev) => {
-    if (prev == null || cur == null) return null;
-    const d = cur - prev;
-    if (Math.abs(d) < 0.005) return { s: '=', c: colors.warning };                 // sabit → sarı
-    return d > 0 ? { s: '▲', c: colors.success } : { s: '▼', c: colors.danger };    // yükseliş → yeşil, düşüş → kırmızı
-  };
-  // 1/X/2 üçlüsü + aynı kaynağın önceki gününe göre yön oku.
-  const OddsTriple = ({ odds, prev }) => (
-    <View style={styles.oddsLine}>
-      {[['1', 'home'], ['X', 'draw'], ['2', 'away']].map(([lbl, key]) => {
-        const v = odds?.[key];
-        const a = oddsArrow(v, prev?.[key]);
-        return (
-          <View key={lbl} style={styles.oddsCell}>
-            <Text style={styles.oddsK}>{lbl}</Text>
-            <Text style={styles.oddsV}>{fmtOdd(v)}</Text>
-            {a ? <Text style={[styles.oddsArrow, { color: a.c }]}>{a.s}</Text> : null}
-          </View>
-        );
-      })}
-    </View>
+  // Radar 4 satırı components/RadarDayRows.js'te (MarketRow). Gün/hücre
+  // eşlemesi ve önceki-gün kıyası artık orada.
+  const renderMarketRow = ({ item }) => (
+    <MarketRow item={item} data={dailyOdds} day={oddsDay} />
   );
 
-  const renderMarketRow = ({ item }) => {
-    const cells = oddsCellsByNo.get(item.no) || {};
-    const cell = cells[oddsDay] || null;
-    // Arka uç sebebi vermiyorsa (eski sürüm) tek jenerik cümleye düşülür.
-    const why = cell ? null : (oddsNotesByNo.get(item.no)?.[oddsDay] || null);
-    const head = (
-      <View style={styles.memTop}>
-        <Text style={styles.memNo}>{item.no}</Text>
-        <Text style={styles.memTeams} numberOfLines={1}>{item.home} – {item.away}</Text>
-      </View>
-    );
-
-    // TEK KAYNAKLI GÖRÜNÜM (eski davranış aynen korunur).
-    const prev = cell ? prevOddsCell(cells) : null;
-    return (
-      <View style={styles.memRow}>
-        {head}
-        {cell ? (
-          <View style={styles.oddsWrap}>
-            <OddsTriple odds={cell.odds} prev={prev?.odds} />
-            <Text style={styles.oddsHint}>{prev ? 'Bir önceki güne göre değişim' : 'İlk kayıtlı gün (kıyas yok)'}</Text>
-          </View>
-        ) : (
-          <View>
-            <Text style={styles.memNone}>{why?.text ? `${why.text}.` : 'Bu gün için oran kaydı yok.'}</Text>
-            {why?.detail ? <Text style={styles.memWhy}>{why.detail}</Text> : null}
-          </View>
-        )}
-      </View>
-    );
-  };
-
-  // Radar 3 (Oynanma DNA): seçili günün mühürlü yüzdesi + önceki güne göre yön.
-  // Omurga yine masterMatches (15, Spor Toto sırası); yüzde hücreleri no ile eşlenir.
-  const playedDays = dailyPlayed?.days || [];
-  const playedCellsByNo = new Map((dailyPlayed?.matches || []).map((m) => [m.no, m.cells || {}]));
-  const playedSelIdx = playedDays.findIndex((d) => d.date === playedDay);
-  const PROVIDER_ORDER = ['nesine', 'misli', 'bilyoner', 'oley'];
-  // Bir sağlayıcının, seçili günden önceki en yakın günkü değeri (ok kıyası için).
-  const prevProviderCell = (cells, provider) => {
-    for (let i = playedSelIdx - 1; i >= 0; i--) {
-      const bs = cells?.[playedDays[i].date]?.bySource;
-      if (bs && bs[provider]) return bs[provider];
-    }
-    return null;
-  };
-  // Bu hafta veri veren sağlayıcılar, sabit sırayla (Nesine · Misli · Bilyoner).
-  const activeProviders = (dailyPlayed?.sources || []).slice()
-    .sort((a, b) => ((PROVIDER_ORDER.indexOf(a) + 1) || 99) - ((PROVIDER_ORDER.indexOf(b) + 1) || 99));
-  // Seçili gün henüz gelmediyse (gelecek) yüzde basılmaz.
-  const playedDayFuture = !!(playedDays.find((d) => d.date === playedDay)?.future);
-  // GEÇMİŞ OYNANMA DNA'SI PANELİ — kaynak satırına dokununca açılır.
-  // Yalnız GERÇEK arşiv kayıtları gösterilir: adet + yüzde. Bu panelde güven
-  // seviyesi, örneklem uyarısı veya olasılık iddiası YOKTUR (tasarım gereği);
-  // "kaç kayıtta" ifadesi örneklemi zaten şeffaf biçimde bildirir.
-
-  // Her maçta HER kaynağın (Nesine/Misli/Bilyoner) o günkü yüzdesi ayrı satırda.
-  const renderPublicRow = ({ item }) => {
-    if (playedDayFuture) {
-      return (
-        <View style={styles.memRow}>
-          <View style={styles.memTop}>
-            <Text style={styles.memNo}>{item.no}</Text>
-            <Text style={styles.memTeams} numberOfLines={1}>{item.home} – {item.away}</Text>
-          </View>
-          <Text style={styles.memNone}>Bu gün henüz gelmedi — yüzde o gün oluştukça dolar.</Text>
-        </View>
-      );
-    }
-    const cells = playedCellsByNo.get(item.no) || {};
-    const bySource = cells[playedDay]?.bySource || null;
-    return (
-      <View style={styles.memRow}>
-        <View style={styles.memTop}>
-          <Text style={styles.memNo}>{item.no}</Text>
-          <Text style={styles.memTeams} numberOfLines={1}>{item.home} – {item.away}</Text>
-        </View>
-        {activeProviders.length ? activeProviders.map((pv) => {
-          const c = bySource?.[pv] || null;
-          const prev = c ? prevProviderCell(cells, pv) : null;
-          const key = `${item.no}|${pv}`;
-          const acik = dnaKey === key;
-          return (
-            <View key={pv}>
-              {/* Kaynak satırı: dokununca o kaynağın GEÇMİŞ Oynanma DNA'sı açılır. */}
-              <TouchableOpacity
-                style={styles.provRow}
-                activeOpacity={c ? 0.7 : 1}
-                disabled={!c}
-                onPress={() => setDnaKey(acik ? null : key)}
-              >
-                <Text style={styles.provTag}>{providerLabel(pv)}</Text>
-                {c ? (
-                  <View style={styles.provVals}>
-                    {['1', 'X', '2'].map((k) => {
-                      const v = c.percentages?.[k];
-                      const a = oddsArrow(v, prev?.percentages?.[k]);
-                      return (
-                        <Text key={k} style={styles.provVal}>
-                          {k} %{Math.round(Number(v))}
-                          {a ? <Text style={{ color: a.c, fontWeight: '900' }}> {a.s}</Text> : null}
-                        </Text>
-                      );
-                    })}
-                    <Text style={styles.provChev}>{acik ? '⌄' : '›'}</Text>
-                  </View>
-                ) : <Text style={styles.provNone}>bu gün kayıt yok</Text>}
-              </TouchableOpacity>
-              {acik ? (
-                <PlayedDnaPanel
-                  roundId={view?.roundId ?? selectedId}
-                  no={item.no}
-                  source={pv}
-                  day={playedDay}
-                  tick={playedTick}
-                />
-              ) : null}
-            </View>
-          );
-        }) : <Text style={styles.memNone}>Bu gün için oynanma yüzdesi kaydı yok.</Text>}
-      </View>
-    );
-  };
+  // Radar 3 satırı components/RadarDayRows.js'te (PublicRow). Ekran yalnız
+  // hangi gün seçili ve hangi DNA paneli açık bilgisini veriyor.
+  const renderPublicRow = ({ item }) => (
+    <PublicRow
+      item={item} data={dailyPlayed} day={playedDay}
+      openKey={dnaKey} onToggleDna={setDnaKey}
+      roundId={view?.roundId ?? selectedId} tick={playedTick}
+    />
+  );
 
   const renderItem = centerMode
     ? (tab === 'master'
@@ -1037,61 +801,17 @@ const styles = StyleSheet.create({
   memTrend: { fontSize: 12, fontWeight: '900' },
   memNone: { color: colors.textMuted, fontSize: 12, fontStyle: 'italic', marginTop: 6, marginLeft: 34 },
   // Eksik oranın AYRINTILI gerekçesi (kapsam raporundan gelen gerçek cümle).
-  memWhy: { color: colors.textMuted, fontSize: 11, marginTop: 2, marginLeft: 34, opacity: 0.85 },
 
   // Radar 4 (Oran Takibi) — gün filtresi + günlük 1/X/2 oran satırı.
-  oddsWrap: { marginTop: 8, marginLeft: 34 },
-  oddsLine: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  oddsCell: { flexDirection: 'row', alignItems: 'baseline', gap: 4, backgroundColor: colors.surfaceSoft, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, paddingVertical: 5 },
-  oddsK: { color: colors.textMuted, fontSize: 11, fontWeight: '900' },
-  oddsV: { color: colors.text, fontSize: 14, fontWeight: '900' },
-  oddsArrow: { fontSize: 11, fontWeight: '900' },
-  oddsHint: { color: colors.textMuted, fontSize: 10, fontWeight: '700', marginTop: 5 },
   // Radar 3 — kaynak (site) bazlı satır: Nesine / Misli / Bilyoner ayrı ayrı.
-  provRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, marginLeft: 34, flexWrap: 'wrap' },
-  provTag: { color: colors.text, fontSize: 11, fontWeight: '900', minWidth: 62, backgroundColor: colors.surfaceSoft, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 7, paddingVertical: 3, textAlign: 'center' },
-  provVals: { flexDirection: 'row', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' },
-  provVal: { color: colors.textSoft, fontSize: 13, fontWeight: '800' },
-  provNone: { color: colors.textMuted, fontSize: 11, fontStyle: 'italic' },
-  provChev: { color: colors.textMuted, fontSize: 13, fontWeight: '900' },
 
   // Oynanma DNA paneli (kaynak satırına dokununca açılır)
-  dnaFoot: { color: colors.textMuted, fontSize: 9.5, marginTop: 8, opacity: 0.8 },
 
-  row: { backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm },
-  rowExpanded: { borderWidth: 1.5, borderColor: colors.primary },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  rank: { color: colors.textMuted, fontSize: 16, fontWeight: '800', width: 22, textAlign: 'center' },
-  teams: { color: colors.text, fontSize: 14, fontWeight: '700' },
-  teamsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  teamName: { flexShrink: 1 },
-  teamsVs: { color: colors.textMuted, fontSize: 13, fontWeight: '700', marginHorizontal: 1 },
-  scoreBar: { marginTop: 6, height: 6, backgroundColor: colors.cardAlt, borderRadius: 3, overflow: 'hidden' },
-  right: { alignItems: 'flex-end', gap: 4 },
-  scoreNum: { fontSize: 18, fontWeight: '900' },
 
-  resultRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  resultTxt: { color: colors.textSoft, fontSize: 12, fontWeight: '700' },
-  resultStrong: { color: colors.text, fontWeight: '900' },
-  hitPill: { borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3 },
-  hitPillTxt: { color: '#fff', fontSize: 10.5, fontWeight: '900' },
 
-  favRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' },
-  favPill: { backgroundColor: colors.cardAlt, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
-  favPillTxt: { color: colors.text, fontSize: 11.5, fontWeight: '900' },
-  probs: { color: colors.textSoft, fontSize: 11.5, fontWeight: '700' },
 
-  signals: { color: colors.textMuted, fontSize: 11, fontWeight: '700', marginTop: 7 },
-  formRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7 },
-  formLbl: { color: colors.textMuted, fontSize: 10.5, fontWeight: '800' },
-  formSep: { color: colors.textMuted, fontSize: 10 },
 
-  factors: { marginTop: 7, gap: 2 },
-  factorTxt: { color: colors.textSoft, fontSize: 11.5, fontWeight: '600', lineHeight: 16 },
-  factorPts: { color: colors.warning, fontWeight: '900' },
-  comment: { color: colors.textMuted, fontSize: 11, fontStyle: 'italic', lineHeight: 15, marginTop: 7 },
 
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border },
   // Yayında okunur seçim pilleri: büyük dokunma alanı + belirgin çerçeve.
   pickBtns: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
   pickBtn: { minWidth: 46, paddingVertical: 11, borderRadius: radius.sm, backgroundColor: colors.cardAlt, borderWidth: 2, borderColor: colors.border, alignItems: 'center' },
@@ -1099,8 +819,6 @@ const styles = StyleSheet.create({
   pickTxt: { color: colors.text, fontSize: 15, fontWeight: '900' },
   pickTxtOn: { color: '#fff' },
   pickHint: { color: colors.textMuted, fontSize: 11, fontWeight: '800', marginLeft: 4 },
-  detailBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.sm, backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.border },
-  detailBtnTxt: { color: colors.textSoft, fontSize: 11.5, fontWeight: '800' },
 
   stateBox: { alignItems: 'center', marginTop: 40, gap: 10, paddingHorizontal: spacing.lg },
   stateTitle: { color: colors.text, fontSize: 14, fontWeight: '900' },
