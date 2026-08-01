@@ -303,13 +303,6 @@ export default function BulletinScreen({ navigation }) {
       <TouchableOpacity onPress={() => navigation.navigate('BulletinHistory')} style={styles.historyLink}>
         <Text style={styles.historyLinkTxt}>📜 Bülten Geçmişi · Kilitli Analiz ›</Text>
       </TouchableOpacity>
-      {/* RESMÎ LİSTE ARŞİVİ — resmî sitedeki düzen, sezon/hafta seçicileriyle.
-          AYRI ekrandır ve öyle kalmalı: BU ekran analiz gösterir, orası ham
-          resmî listeyi. Bir ara resmî görünüm Bülten'in kendisine taşınmıştı
-          (analiz kartlarının yerine); beğenilmedi, geri alındı. */}
-      <TouchableOpacity onPress={() => navigation.navigate('ResmiListe')} style={styles.historyLink}>
-        <Text style={styles.historyLinkTxt}>🗂️ Resmî Liste Arşivi · Sezon ve Hafta Seçimi ›</Text>
-      </TouchableOpacity>
       {/* MÜHÜR DURUMU — kilit geri sayımı / "Mühürlü Analiz" + doğrulama hash'i.
           Veri kalıcı arşivden (data.archive); arşiv yoksa şerit çizilmez. */}
       {viewingCurrent && !data?.pending ? <SnapshotSealBanner archive={data?.archive} /> : null}

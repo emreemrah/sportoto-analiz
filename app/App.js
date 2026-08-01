@@ -20,7 +20,6 @@ import AvatarPickerScreen from './src/screens/AvatarPickerScreen';
 import LeaderboardScreen from './src/screens/LeaderboardScreen';
 import { LoginScreen, RegisterScreen, ForgotPasswordScreen } from './src/screens/AuthScreens';
 import BulletinHistoryScreen from './src/screens/BulletinHistoryScreen';
-import ResmiListeScreen from './src/screens/ResmiListeScreen';
 import BulletinDetailScreen from './src/screens/BulletinDetailScreen';
 import CouponResultScreen from './src/screens/CouponResultScreen';
 import CouponEditorScreen from './src/screens/CouponEditorScreen';
@@ -106,12 +105,6 @@ const detailScreen = (
   />
 );
 
-// RESMÎ LİSTE — haftanın bülteni resmî sitedeki düzenle. İki sekmeden de
-// erişilir (Ana Sayfa ve Bülten), bu yüzden TEK yerde tanımlanır.
-const resmiListeScreen = (
-  <Stack.Screen name="ResmiListe" component={ResmiListeScreen} options={{ title: 'Resmî Liste' }} />
-);
-
 // Analiz Kriterlerim — maç detayından ve profilden erişilir (aynı ekran, çok yerde kayıtlı).
 const analysisSettingsScreen = (
   <Stack.Screen
@@ -174,7 +167,6 @@ function HomeStack() {
           />
         </>
       ) : null}
-      {resmiListeScreen}
       {detailScreen}
       {/* Topluluk (eski "Stadyum" sekmesi) — alt menüden kaldırıldı, Ana Sayfa
           "Toplulukta Gündem" bölümünden erişilir. */}
@@ -194,7 +186,6 @@ function BulletinStack() {
       <Stack.Screen name="LiveMatchDetail" component={LiveMatchDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="CouponEditor" component={CouponEditorScreen} options={{ title: 'Kupon Hazırla' }} />
       <Stack.Screen name="CouponCenter" component={CouponCenterScreen} options={{ headerShown: false }} />
-      {resmiListeScreen}
       <Stack.Screen name="BulletinHistory" component={BulletinHistoryScreen} options={{ title: 'Bülten Geçmişi' }} />
       <Stack.Screen name="BulletinDetail" component={BulletinDetailScreen} options={{ title: 'Bülten Detayı' }} />
       <Stack.Screen name="CouponResult" component={CouponResultScreen} options={{ title: 'Kupon Sonucu' }} />
