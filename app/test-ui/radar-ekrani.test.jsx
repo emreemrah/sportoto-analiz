@@ -718,28 +718,33 @@ describe('Sekme koruması (yenilemede Master\'a atmaz)', () => {
     expect(screen.getByText(/Oynanma DNA · Günlük/)).toBeTruthy();
   });
 
-  test('HAFTA DEĞİŞİNCE Master\'a dönülür (yeni haftada o radar boş olabilir)', async () => {
+  test('HAFTA DEĞİŞİNCE de açık radar KORUNUR (53 → 52, Radar 5 açık kalır)', async () => {
     mockUclar({
       ...VARSAYILAN,
       '/api/radar/weeks': {
         weeks: [
-          { roundId: 1600, round: '1. Hafta', year: 2026, current: true },
+          { roundId: 1600, round: '53. Hafta', year: 2026, current: true },
           { roundId: 1599, round: '52. Hafta', year: 2026, sealed: true, locked: true },
         ],
         currentRoundId: 1600,
       },
       '/api/radar/1599': { ...GUNCEL, roundId: 1599, round: '52. Hafta', current: false },
+      '/api/radar/position-dna': {
+        hasData: true,
+        dna: { positions: [{ position: 1, windows: { allTime: { sample: 30, pct: { '1': 50, X: 30, '2': 20 } } } }] },
+      },
     });
     render(<RadarScreen navigation={nav} />);
     await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
-    fireEvent.press(screen.getByText('Oynanma DNA'));
-    expect(await screen.findByText(/Oynanma DNA · Günlük/)).toBeTruthy();
+    fireEvent.press(screen.getByText('Bülten DNA'));
+    expect(await screen.findByText(/Tüm Haftalar/)).toBeTruthy();
 
-    // Başka haftaya geç.
-    fireEvent.press(screen.getByText('1. Hafta · Güncel'));
+    // 53 → 52. haftaya geç.
+    fireEvent.press(screen.getByText('53. Hafta · Güncel'));
     fireEvent.press(await screen.findByText('52. Hafta'));
-    // Master listesine dönüldü: Radar 3 paneli yok, maç kartları var.
-    await waitFor(() => expect(screen.queryByText(/Oynanma DNA · Günlük/)).toBeNull());
-    expect(screen.getAllByText(/Ev Takımı/).length).toBe(3);
+
+    // Radar 5 AÇIK KALDI — Master listesine dönmedi.
+    await waitFor(() => expect(screen.getByText(/Tüm Haftalar/)).toBeTruthy());
+    expect(screen.getByText('52. Hafta')).toBeTruthy();
   });
 });
