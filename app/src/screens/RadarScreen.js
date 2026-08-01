@@ -18,6 +18,7 @@ import { MasterMatchCard, RadarTabCard, RADAR_TAB_DEFS } from '../components/Rad
 import RadarTabHeader, { providerLabel } from '../components/RadarTabHeaders';
 import { MarketRow, PublicRow } from '../components/RadarDayRows';
 import LegacyRadarCard from '../components/LegacyRadarCard';
+import HaftaSeridi from '../components/HaftaSeridi';
 import { getDraft, setDraftPick } from '../coupon/store';
 import { OUTCOMES } from '../couponConfig';
 import {
@@ -64,6 +65,8 @@ export default function RadarScreen({ navigation }) {
   const [positionDna, setPositionDna] = useState(null); // Bülten DNA (Radar 5 detayı)
   const [dnaPeriod, setDnaPeriod] = useState('allTime'); // dönem filtresi (Tüm/5/10/15/sezon)
   const [sezonAcik, setSezonAcik] = useState(false);     // SEZON açılır listesi kapalı başlar
+  const [haftaListe, setHaftaListe] = useState(null);    // hafta şeridi: null|'sezon'|'gecmis'
+  const [haftaNavSezon, setHaftaNavSezon] = useState(null); // GEÇMİŞ listesinin sezon süzgeci
   const [dailyOdds, setDailyOdds] = useState(null);   // Radar 4 Oran Takibi (günlük mühürlü oran)
   const [oddsDay, setOddsDay] = useState(null);       // seçili gün (Pazar..Cuma)
   const [dailyPlayed, setDailyPlayed] = useState(null); // Radar 3 Oynanma DNA (günlük mühürlü yüzde)
@@ -599,22 +602,21 @@ export default function RadarScreen({ navigation }) {
         ) : null}
       </AnalysisHeader>
 
-      {/* HAFTA ÇUBUKLARI */}
+      {/* HAFTA ŞERİDİ — resmî listedeki gezinti kalıbı: güncel çipi + SEZON +
+          GEÇMİŞ açılır listeleri. Eskiden tüm haftalar yan yana çipti; arşiv
+          büyüdükçe (sezonda 52 hafta) şerit okunmaz oluyordu. */}
       {weeks.length > 0 && (
         <View style={styles.weekBarWrap}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekBar}>
-            {weeks.map((w) => {
-              const on = Number(w.roundId) === Number(selectedId);
-              const isCur = isCurrentWeek(w, curId); // backend current:true alanı esas
-              return (
-                <TouchableOpacity key={w.roundId} onPress={() => selectWeek(w.roundId)} style={[styles.weekChip, on && styles.weekChipOn]} activeOpacity={0.85}>
-                  <Text style={[styles.weekChipTxt, on && styles.weekChipTxtOn]}>
-                    {w.round || `#${w.roundId}`}{isCur ? ' · Güncel' : (w.locked || w.sealed) ? ' 🔏' : ''}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          <HaftaSeridi
+            weeks={weeks} curId={curId} selectedId={selectedId}
+            acik={haftaListe}
+            onToggle={(k) => setHaftaListe((v) => (v === k ? null : k))}
+            navSezon={haftaNavSezon}
+            // Sezon seçilince GEÇMİŞ listesi açılır: sıradaki doğal adım hafta
+            // seçmektir (resmî sitedeki akışla aynı).
+            onSelectSezon={(y) => { setHaftaNavSezon(y); setHaftaListe('gecmis'); }}
+            onSelectWeek={(rid) => { setHaftaListe(null); selectWeek(rid); }}
+          />
         </View>
       )}
 
@@ -689,7 +691,7 @@ export default function RadarScreen({ navigation }) {
 
       <FlatList
         data={listData}
-        extraData={[tab, legacyView, filter, legacyFilter, sortMode, expandedNo, picks, dnaPeriod, sezonAcik, positionDna, dailyOdds, oddsDay, dailyPlayed, playedDay, dnaKey]}
+        extraData={[tab, legacyView, filter, legacyFilter, sortMode, expandedNo, picks, dnaPeriod, sezonAcik, haftaListe, haftaNavSezon, positionDna, dailyOdds, oddsDay, dailyPlayed, playedDay, dnaKey]}
         keyExtractor={(r) => String(r.no)}
         // BUG DÜZELTMESİ: Web'de FlatList varsayılan ilk 10 satırı çizer
         // (initialNumToRender=10) ve filtre küçülüp "Tümü"ne dönünce
@@ -761,12 +763,11 @@ const styles = StyleSheet.create({
   methBox: { marginTop: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: radius.sm, padding: 10 },
   methLine: { color: '#D7E3F4', fontSize: 10.5, lineHeight: 15 },
 
-  weekBarWrap: { backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
-  weekBar: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, paddingVertical: 8 },
-  weekChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border },
-  weekChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-  weekChipTxt: { color: colors.textSoft, fontSize: 12, fontWeight: '800' },
-  weekChipTxtOn: { color: '#fff' },
+  // Hafta çipleri HaftaSeridi bileşenine taşındı; burada yalnız sarmalayıcı var.
+  weekBarWrap: {
+    backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border,
+    paddingHorizontal: spacing.md, paddingVertical: 8,
+  },
 
   tabsWrap: { backgroundColor: 'transparent' },
   tabsWrapRow: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xs },

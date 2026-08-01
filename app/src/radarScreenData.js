@@ -72,6 +72,65 @@ export function donemSecenekleri(positionDna) {
   return [...DNA_PERIODS, ...sezonSecenekleri(positionDna)];
 }
 
+/** "2026" ya da 2026 → "2025/2026" (kısa yazım; "Sezonu" eki yok). */
+export const sezonKisa = (y) => {
+  const s = String(y ?? '').trim();
+  if (!s) return '';
+  if (s.includes('/')) return s;
+  return Number.isFinite(Number(s)) ? `${Number(s) - 1}/${Number(s)}` : s;
+};
+
+/**
+ * HAFTA ŞERİDİ VERİSİ — resmî sitedeki gibi: güncel hafta + SEZON + GEÇMİŞ
+ * açılır listeleri. Geçmiş haftaları yan yana çip dizmek 20+ haftada
+ * okunmaz oluyordu; resmî listedeki kalıp (sezon seç → hafta seç) kullanılır.
+ *
+ * weeks: normalizeWeeks çıktısı. isCurrentWeek ölçütü radarScreenLogic ile
+ * AYNI (backend current:true alanı esas) — iki ayrı "güncel" tanımı olmaz.
+ */
+export function haftaSeridiVerisi(weeks, { curId = null, selectedId = null, navSezon = null } = {}) {
+  const hepsi = weeks || [];
+  const guncelMi = (w) => w?.current === true
+    || (w?.roundId != null && curId != null && Number(w.roundId) === Number(curId));
+  const guncel = hepsi.find(guncelMi) || null;
+
+  // Geçmiş haftalar YENİDEN ESKİYE (kullanıcı önce son haftayı arar).
+  const gecmis = hepsi.filter((w) => !guncelMi(w))
+    .map((w) => ({
+      roundId: Number(w.roundId),
+      ad: w.round || `#${w.roundId}`,
+      kilitli: !!(w.locked || w.sealed),
+      yil: w.year ?? null,
+    }))
+    .sort((a, b) => b.roundId - a.roundId);
+
+  // Sezonlar geçmiş haftalardan türer (yalnız yılı bilinenler), yeniden eskiye.
+  const sezonlar = [...new Set(gecmis.map((w) => w.yil).filter((y) => y != null))]
+    .sort((a, b) => Number(b) - Number(a))
+    .map((y) => ({ y, ad: sezonKisa(y) }));
+
+  // Seçili sezon: kullanıcının seçimi → bakılan geçmiş haftanın sezonu → en yeni.
+  const bakilan = gecmis.find((w) => selectedId != null && w.roundId === Number(selectedId)) || null;
+  const seciliSezon = (navSezon != null && sezonlar.some((s) => String(s.y) === String(navSezon)))
+    ? navSezon
+    : (bakilan?.yil ?? sezonlar[0]?.y ?? null);
+
+  // SEZON filtresi yalnız BİRDEN ÇOK sezon varken anlamlı; tek sezonda liste
+  // süzülmez (yılı bilinmeyen hafta da kaybolmaz).
+  const liste = sezonlar.length > 1 && seciliSezon != null
+    ? gecmis.filter((w) => String(w.yil) === String(seciliSezon))
+    : gecmis;
+
+  return {
+    guncel,
+    gecmis,
+    sezonlar,               // [{y, ad}] — 2'den azsa SEZON düğmesi çizilmez
+    seciliSezon,
+    liste,                  // GEÇMİŞ açılır listesinin içeriği
+    gecmisDeger: bakilan?.ad ?? null,   // düğmede yazan değer ("Seç" yerine)
+  };
+}
+
 export const MASTER_FILTERS = [
   { k: 'all', label: 'Tümü' },
   { k: 'strong', label: '🟢 Güçlü Aday' },

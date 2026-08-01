@@ -508,3 +508,102 @@ describe('Radar 5 dönem filtresi', () => {
     expect(liste.props.stickyHeaderIndices).toEqual([0]);
   });
 });
+
+// HAFTA ŞERİDİ — resmî listedeki gezinti: güncel çipi + SEZON + GEÇMİŞ.
+// Eskiden tüm haftalar yan yana çipti; arşiv büyüyünce okunmaz oluyordu.
+describe('Hafta şeridi (GEÇMİŞ/SEZON gezintisi)', () => {
+  const COK_HAFTA = {
+    weeks: [
+      { roundId: 1527, round: '53. Hafta', year: 2026, current: true, archived: false, locked: false, sealed: false },
+      { roundId: 1526, round: '52. Hafta', year: 2026, current: false, archived: true, locked: true, sealed: true },
+      { roundId: 1525, round: '51. Hafta', year: 2026, current: false, archived: true, locked: true, sealed: true },
+      { roundId: 1521, round: '49. Hafta', year: 2026, current: false, archived: true, locked: true, sealed: true },
+    ],
+    currentRoundId: 1527,
+  };
+  const GUNCEL_53 = { ...GUNCEL, roundId: 1527, round: '53. Hafta' };
+
+  test('geçmiş haftalar çip olarak DİZİLMEZ; GEÇMİŞ listesi kapalı başlar', async () => {
+    mockUclar({ ...VARSAYILAN, '/api/radar/current': GUNCEL_53, '/api/radar/weeks': COK_HAFTA });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getByText(/53\. Hafta · Güncel/)).toBeTruthy());
+    // Düğme var, değeri "Seç" (güncele bakılıyor)…
+    expect(screen.getByText('GEÇMİŞ')).toBeTruthy();
+    expect(screen.getByText('Seç')).toBeTruthy();
+    // …ama geçmiş haftalar ekranda YOK (liste kapalı).
+    expect(screen.queryByText(/52\. Hafta/)).toBeNull();
+    expect(screen.queryByText(/49\. Hafta/)).toBeNull();
+    // Tek sezon → hafta şeridinde SEZON düğmesi de yok.
+    expect(screen.queryByText('SEZON')).toBeNull();
+  });
+
+  test('GEÇMİŞ açılınca haftalar yeniden eskiye, mühür işaretiyle listelenir', async () => {
+    mockUclar({ ...VARSAYILAN, '/api/radar/current': GUNCEL_53, '/api/radar/weeks': COK_HAFTA });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getByText('GEÇMİŞ')).toBeTruthy());
+    fireEvent.press(screen.getByText('GEÇMİŞ'));
+    expect(await screen.findByText('52. Hafta 🔏')).toBeTruthy();
+    expect(screen.getByText('51. Hafta 🔏')).toBeTruthy();
+    expect(screen.getByText('49. Hafta 🔏')).toBeTruthy();
+    expect(screen.getByTestId('hafta-gecmis-ok').props.children).toBe('▲');
+  });
+
+  test('listeden hafta seçince o hafta yüklenir ve liste kapanır', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      '/api/radar/current': GUNCEL_53,
+      '/api/radar/weeks': COK_HAFTA,
+      '/api/radar/1526': {
+        ...GUNCEL, roundId: 1526, round: '52. Hafta', current: false, sealed: true,
+        sealedAt: '2026-07-28T17:00:00Z', verificationHash: 'feedbeef01',
+      },
+    });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getByText('GEÇMİŞ')).toBeTruthy());
+    fireEvent.press(screen.getByText('GEÇMİŞ'));
+    fireEvent.press(await screen.findByText('52. Hafta 🔏'));
+    // Mühürlü hafta yüklendi (değişmezlik güvencesi ekranda).
+    await waitFor(() => expect(screen.getByText(/Mühürlü analiz/)).toBeTruthy());
+    // Doğru uç çağrıldı.
+    const urls = global.fetch.mock.calls.map((c) => String(c[0]));
+    expect(urls.some((u) => u.includes('/api/radar/1526'))).toBe(true);
+    // Liste kapandı, düğme artık seçili haftayı yazıyor.
+    expect(screen.getByTestId('hafta-gecmis-ok').props.children).toBe('▼');
+    expect(screen.queryByText('49. Hafta 🔏')).toBeNull();
+    expect(screen.getByText('52. Hafta')).toBeTruthy();
+  });
+
+  test('iki sezon birikince SEZON düğmesi çıkar ve GEÇMİŞ listesini süzer', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      '/api/radar/current': GUNCEL_53,
+      '/api/radar/weeks': {
+        weeks: [
+          ...COK_HAFTA.weeks,
+          { roundId: 1470, round: '50. Hafta', year: 2025, current: false, archived: true, locked: true, sealed: true },
+        ],
+        currentRoundId: 1527,
+      },
+    });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getByText('SEZON')).toBeTruthy());
+    // Varsayılan sezon en yeni: 2025/2026.
+    expect(screen.getByText('2025/2026')).toBeTruthy();
+    // GEÇMİŞ, seçili sezonun haftalarını gösterir — eski sezonunki görünmez.
+    fireEvent.press(screen.getByText('GEÇMİŞ'));
+    expect(await screen.findByText('52. Hafta 🔏')).toBeTruthy();
+    expect(screen.queryByText('50. Hafta 🔏')).toBeNull();
+    // Sezon değiştir: liste eski sezonun haftalarına döner.
+    fireEvent.press(screen.getByText('SEZON'));
+    fireEvent.press(await screen.findByText('2024/2025'));
+    expect(await screen.findByText('50. Hafta 🔏')).toBeTruthy();
+    expect(screen.queryByText('52. Hafta 🔏')).toBeNull();
+  });
+
+  test('yalnız güncel hafta varken GEÇMİŞ düğmesi çizilmez', async () => {
+    mockUclar(VARSAYILAN);   // tek haftalık fikstür
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getByText(/Radar Merkezi/)).toBeTruthy());
+    expect(screen.queryByText('GEÇMİŞ')).toBeNull();
+  });
+});

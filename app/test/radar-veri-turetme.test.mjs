@@ -257,3 +257,56 @@ test('sezon yoksa liste eskisi gibi 4 sabit dönem', async () => {
   assert.deepEqual(donemSecenekleri(null).map((x) => x.k), DNA_PERIODS.map((x) => x.k));
   assert.deepEqual(donemSecenekleri({ dna: { positions: [] } }).length, 4);
 });
+
+// ---------------------------------------------------------------------------
+// HAFTA ŞERİDİ — resmî listedeki gezinti kalıbı (sezon seç → hafta seç).
+// ---------------------------------------------------------------------------
+const HAFTA = (roundId, round, year, ekstra = {}) => ({ roundId, round, year, ...ekstra });
+
+test('hafta şeridi: güncel ayrılır, geçmiş yeniden eskiye sıralanır', async () => {
+  const { haftaSeridiVerisi } = await import('../src/radarScreenData.js');
+  const v = haftaSeridiVerisi([
+    HAFTA(1521, '49. Hafta', 2026, { sealed: true }),
+    HAFTA(1527, '53. Hafta', 2026, { current: true }),
+    HAFTA(1525, '51. Hafta', 2026, { locked: true }),
+    HAFTA(1526, '52. Hafta', 2026, { sealed: true }),
+  ], { curId: 1527, selectedId: 1527 });
+  assert.equal(v.guncel.roundId, 1527);
+  assert.deepEqual(v.gecmis.map((w) => w.ad), ['52. Hafta', '51. Hafta', '49. Hafta']);
+  assert.ok(v.gecmis.every((w) => w.kilitli), 'mühür/kilit işareti taşınmalı');
+  // Tek sezon → SEZON düğmesi çizilmez, liste süzülmez.
+  assert.equal(v.sezonlar.length, 1);
+  assert.equal(v.liste.length, 3);
+  // Güncel haftaya bakılıyor → GEÇMİŞ düğmesi "Seç" der (değer yok).
+  assert.equal(v.gecmisDeger, null);
+});
+
+test('hafta şeridi: iki sezon varsa SEZON süzer, seçili sezon bakılan haftadan gelir', async () => {
+  const { haftaSeridiVerisi } = await import('../src/radarScreenData.js');
+  const haftalar = [
+    HAFTA(1527, '53. Hafta', 2026, { current: true }),
+    HAFTA(1526, '52. Hafta', 2026, { sealed: true }),
+    HAFTA(1470, '50. Hafta', 2025, { sealed: true }),
+    HAFTA(1469, '49. Hafta', 2025, { sealed: true }),
+  ];
+  // Güncele bakarken varsayılan sezon EN YENİ geçmiş sezondur.
+  const a = haftaSeridiVerisi(haftalar, { curId: 1527, selectedId: 1527 });
+  assert.equal(a.sezonlar.length, 2);
+  assert.equal(a.seciliSezon, 2026);
+  assert.deepEqual(a.liste.map((w) => w.ad), ['52. Hafta']);
+  // Eski sezona geçince liste o sezonun haftalarını gösterir.
+  const b = haftaSeridiVerisi(haftalar, { curId: 1527, selectedId: 1527, navSezon: 2025 });
+  assert.deepEqual(b.liste.map((w) => w.ad), ['50. Hafta', '49. Hafta']);
+  // Geçmiş bir haftaya bakılıyorsa düğme onun adını yazar, sezon ona uyar.
+  const c = haftaSeridiVerisi(haftalar, { curId: 1527, selectedId: 1470 });
+  assert.equal(c.gecmisDeger, '50. Hafta');
+  assert.equal(c.seciliSezon, 2025);
+});
+
+test('sezonKisa: 2026 → "2025/2026"; boş değer uydurmaz', async () => {
+  const { sezonKisa } = await import('../src/radarScreenData.js');
+  assert.equal(sezonKisa(2026), '2025/2026');
+  assert.equal(sezonKisa('2025/2026'), '2025/2026');
+  assert.equal(sezonKisa(null), '');
+  assert.equal(sezonKisa(''), '');
+});
