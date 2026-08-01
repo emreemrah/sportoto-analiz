@@ -7,7 +7,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
-import { load, listSnapshotRounds, listRadarRounds, CACHE_DIR } from './cache.js';
+import { load, has, listSnapshotRounds, listRadarRounds, CACHE_DIR } from './cache.js';
 import { crestTargetOf, crestFileNameOf, crestContentTypeOf, fetchCrest } from './crestProxy.js';
 import { refreshLiveScores, refreshLiveFootyScores, getLiveFixtures } from './refresh.js';
 import { refreshCurrentBulletin, startAutoRefreshScheduler } from './autoRefresh.js';
@@ -166,13 +166,19 @@ app.get('/api/crest', async (req, res) => {
 // Analizli bülten (ana ekran). Lig tablosu büyük; sadece maç detayında döner.
 let lastLiveAt = 0;
 app.get('/api/bulletin', async (req, res) => {
-  if (!load('bulletin')) return res.status(503).json({ error: 'Veri henüz hazır değil, birkaç saniye sonra tekrar dene.' });
+  // TEK OKUMA: load('bulletin') 1,2 MB JSON'u SENKRON okuyup ayrıştırır
+  // (Node'un tek thread'ini bloklar). Eskiden aynı istekte İKİ KEZ
+  // çağrılıyordu — biri yalnız "hazır mı?" kontrolü içindi. Kontrol artık
+  // has() ile dosyaya dokunmadan yapılır; asıl okuma canlı skor
+  // tazelemesinden SONRA bir kez yapılır (tazeleme dosyayı değiştirebilir).
+  if (!has('bulletin')) return res.status(503).json({ error: 'Veri henüz hazır değil, birkaç saniye sonra tekrar dene.' });
   // Canlı skorları tazele (en çok 45 sn'de bir; canlı maç yoksa erken döner, API'ye gitmez)
   if (Date.now() - lastLiveAt > 45000) {
     lastLiveAt = Date.now();
     try { await refreshLiveScores(); } catch (e) { console.warn('[live] güncelleme hatası:', e.message); }
   }
   const cached = load('bulletin');
+  if (!cached?.data) return res.status(503).json({ error: 'Veri henüz hazır değil, birkaç saniye sonra tekrar dene.' });
   const data = cached.data;
   const matches = data.matches.map((m) => {
     if (!m.stats) return m;

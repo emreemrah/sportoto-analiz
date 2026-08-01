@@ -4,6 +4,7 @@
 // Veri yoksa uydurmaz → "Bilinmiyor" der ve riski artırır. Yalnız client'ta
 // zaten gelen m.analysis / m.stats / m.prediction verisinden türetir.
 
+import { X_KEEP_PCT, AWAY_KEEP_PCT, CLOSE_GAP_PCT, FAVORITE_MIN_PCT, TAG_BASE, TAG_BASE_STRONG, AWAY_TAG_PIVOT } from './analysis/thresholds';
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const numOr = (v, d = null) => (typeof v === 'number' && !Number.isNaN(v) ? v : d);
 
@@ -73,19 +74,19 @@ export function buildDecision(m) {
   const tags = [];
   const addTag = (name, weight, reason, couponEffect) => { if (weight >= 40) tags.push({ name, weight: clamp(Math.round(weight), 0, 100), reason, couponEffect }); };
 
-  if (favSym === '1' && (h2hAwayFav || p2 >= 30 || (awayForm != null && homeForm != null && awayForm > homeForm + 0.2))) {
+  if (favSym === '1' && (h2hAwayFav || p2 >= AWAY_KEEP_PCT || (awayForm != null && homeForm != null && awayForm > homeForm + 0.2))) {
     let w = 45 + (p2 - 25) + (h2hAwayFav ? 15 : 0) + (awayForm > (homeForm ?? 0) ? 10 : 0);
     addTag('Favori Tuzağı', w, `Ev sahibi favori görünse de ${h2hAwayFav ? 'geçmiş eşleşme deplasman lehine' : 'deplasmanın son form ve gücü'} bu maçı bozabilir.`, 'Tek 1 önerilmez; dar kupon 1-2, geniş kupon 1-X-2.');
   }
-  if (pX >= 20) addTag('Beraberlik Riski', 45 + (pX - 20) * 2.2, `X ihtimali %${pX} — güç dengesi ve tempo beraberliği canlı tutuyor.`, 'X geniş kupondan silinmemeli.');
-  if (p2 >= 30 || (favSym === '1' && h2hAwayFav)) addTag('Deplasman Sürprizi', 45 + (p2 - 28) + (h2hAwayFav ? 12 : 0), `Deplasman %${p2}${h2hAwayFav ? ' + geçmiş eşleşme üstünlüğü' : ''} — gerçek risk.`, 'Favori tuzağı varsa 2 dikkate alınmalı.');
+  if (pX >= X_KEEP_PCT) addTag('Beraberlik Riski', TAG_BASE + (pX - X_KEEP_PCT) * 2.2, `X ihtimali %${pX} — güç dengesi ve tempo beraberliği canlı tutuyor.`, 'X geniş kupondan silinmemeli.');
+  if (p2 >= AWAY_KEEP_PCT || (favSym === '1' && h2hAwayFav)) addTag('Deplasman Sürprizi', TAG_BASE + (p2 - AWAY_TAG_PIVOT) + (h2hAwayFav ? 12 : 0), `Deplasman %${p2}${h2hAwayFav ? ' + geçmiş eşleşme üstünlüğü' : ''} — gerçek risk.`, 'Favori tuzağı varsa 2 dikkate alınmalı.');
   if (tacticalMismatch) addTag('Taktik Terslik', 55 + (awayAttack - homeDefense) * 20, 'Deplasmanın gol beklentisi (xG) ev savunmasına ters geliyor.', 'Deplasman sonucu silinmemeli.');
-  if (gap12 < 15) addTag('Tek Oynanmaz', 55 + (15 - gap12) * 2, `1 ve 2 farkı sadece %${gap12} — güçler yakın.`, 'Tek yerine dar (1-2) veya kapalı oyna.');
+  if (gap12 < CLOSE_GAP_PCT) addTag('Tek Oynanmaz', TAG_BASE_STRONG + (CLOSE_GAP_PCT - gap12) * 2, `1 ve 2 farkı sadece %${gap12} — güçler yakın.`, 'Tek yerine dar (1-2) veya kapalı oyna.');
   if (Math.max(p1, pX, p2) - Math.min(p1, pX, p2) <= 14) addTag('Kapama Adayı', 60, 'Üç ihtimal de birbirine çok yakın.', '15 hedefinde 1-X-2 kapalı düşünülmeli.');
   if (surprise != null && surprise >= 50) addTag('Sürpriz Değeri', 45 + (surprise - 50), `Sürpriz puanı ${surprise}/100.`, 'Güçlü aday önerilmez; kolon yakma riski var.');
-  if (favPct < 50) addTag('Güçlü Aday Freni', 60 + (50 - favPct), `Favori oranı %${favPct} — %50 altında.`, 'Bu maç güçlü aday sayılmaz.');
-  if (pX >= 20) addTag('X Silinmez', 45 + (pX - 20) * 2, `X %${pX} — tamamen silinemez.`, 'Geniş kuponda X kalmalı.');
-  if (p2 >= 30 || h2hAwayFav) addTag('2 Silinmez', 45 + (p2 - 28), 'Deplasman ciddi sürpriz adayı.', 'Geniş kuponda 2 kalmalı.');
+  if (favPct < FAVORITE_MIN_PCT) addTag('Güçlü Aday Freni', 60 + (FAVORITE_MIN_PCT - favPct), `Favori oranı %${favPct} — %50 altında.`, 'Bu maç güçlü aday sayılmaz.');
+  if (pX >= X_KEEP_PCT) addTag('X Silinmez', TAG_BASE + (pX - X_KEEP_PCT) * 2, `X %${pX} — tamamen silinemez.`, 'Geniş kuponda X kalmalı.');
+  if (p2 >= AWAY_KEEP_PCT || h2hAwayFav) addTag('2 Silinmez', TAG_BASE + (p2 - AWAY_TAG_PIVOT), 'Deplasman ciddi sürpriz adayı.', 'Geniş kuponda 2 kalmalı.');
   tags.sort((x, y) => y.weight - x.weight);
 
   const tagWeight = tags.reduce((s, t) => s + t.weight, 0);
@@ -93,11 +94,11 @@ export function buildDecision(m) {
   // ——— RİSK SEVİYESİ ———
   let riskScore = 0;
   if (surprise != null) riskScore += surprise * 0.35;
-  if (favPct < 50) riskScore += (50 - favPct) * 1.4;
-  if (pX >= 20) riskScore += (pX - 18) * 1.2;
-  if (p2 >= 30) riskScore += (p2 - 28) * 0.9;
-  if (gap12 < 15) riskScore += (15 - gap12) * 1.6;
-  if (favPct < 50 && gap12 < 15) riskScore += 12;          // favori yok + güçler yakın = bileşik risk
+  if (favPct < FAVORITE_MIN_PCT) riskScore += (FAVORITE_MIN_PCT - favPct) * 1.4;
+  if (pX >= X_KEEP_PCT) riskScore += (pX - 18) * 1.2;
+  if (p2 >= AWAY_KEEP_PCT) riskScore += (p2 - AWAY_TAG_PIVOT) * 0.9;
+  if (gap12 < CLOSE_GAP_PCT) riskScore += (CLOSE_GAP_PCT - gap12) * 1.6;
+  if (favPct < FAVORITE_MIN_PCT && gap12 < CLOSE_GAP_PCT) riskScore += 12;          // favori yok + güçler yakın = bileşik risk
   if (dataConfidence === 'Düşük') riskScore += 16; else riskScore += 6; // kritik veri hep eksik
   if (tacticalMismatch) riskScore += 10;
   riskScore = clamp(Math.round(riskScore), 0, 100);
@@ -109,12 +110,12 @@ export function buildDecision(m) {
   // eksik/cezalı HER ZAMAN bilinmiyor → asla "Evet" değil, en fazla "Şartlı".
   const bankoReasons = [];
   let bankoStatus = 'Şartlı';
-  if (favPct < 50) { bankoStatus = 'Hayır'; bankoReasons.push(`Favori oranı %${favPct} (%50 altında).`); }
+  if (favPct < FAVORITE_MIN_PCT) { bankoStatus = 'Hayır'; bankoReasons.push(`Favori oranı %${favPct} (%${FAVORITE_MIN_PCT} altında).`); }
   if (surprise != null && surprise > 50) { bankoStatus = 'Hayır'; bankoReasons.push(`Sürpriz puanı ${surprise} (>50).`); }
-  if (gap12 < 15) { bankoStatus = 'Hayır'; bankoReasons.push(`1 ve 2 farkı %${gap12} (çok yakın).`); }
+  if (gap12 < CLOSE_GAP_PCT) { bankoStatus = 'Hayır'; bankoReasons.push(`1 ve 2 farkı %${gap12} (çok yakın).`); }
   if (dataConfidence === 'Düşük') { bankoStatus = 'Hayır'; bankoReasons.push('Veri güvenliği düşük.'); }
   if (bankoStatus !== 'Hayır') {
-    if (pX >= 20) bankoReasons.push(`Beraberlik ihtimali %${pX} — tamamen silinemez.`);
+    if (pX >= X_KEEP_PCT) bankoReasons.push(`Beraberlik ihtimali %${pX} — tamamen silinemez.`);
     if (h2hAwayFav && favSym === '1') bankoReasons.push('Geçmiş eşleşme deplasman lehine.');
     bankoReasons.push('Eksik/cezalı bilgisi bilinmiyor → en fazla "Şartlı".');
     bankoStatus = 'Şartlı';
@@ -126,9 +127,9 @@ export function buildDecision(m) {
   const safeCoupon = alive.length ? ['1', 'X', '2'].filter((s) => alive.includes(s)) : ['1', 'X', '2'];
   // Geniş kuponda kalması gerekenler (silinmez): ana eğilim + canlı X + sürpriz 2.
   const mustKeep = new Set([mainTrend]);
-  if (pX >= 20) mustKeep.add('X');
-  if (p2 >= 30 || h2hAwayFav) mustKeep.add('2');
-  if (favPct >= 50) mustKeep.add(favSym);
+  if (pX >= X_KEEP_PCT) mustKeep.add('X');
+  if (p2 >= AWAY_KEEP_PCT || h2hAwayFav) mustKeep.add('2');
+  if (favPct >= FAVORITE_MIN_PCT) mustKeep.add(favSym);
   // DAR (bütçe) kupon: en düşük ihtimalliyi düşürür — ama canlı X / sürpriz 2 ise
   // riskini AÇIKÇA "Yüksek" işaretler (geniş kupondan silinmez, sadece bütçede).
   const lowest = [...outs].sort((x, y) => x.p - y.p)[0];
@@ -138,13 +139,13 @@ export function buildDecision(m) {
   if (safeCoupon.length >= 3) {
     firstRemovable = lowest.s;
     narrowCoupon = safeCoupon.filter((s) => s !== firstRemovable);
-    if ((firstRemovable === 'X' && pX >= 20) || (firstRemovable === '2' && (p2 >= 30 || h2hAwayFav))) removalRisk = 'Yüksek';
+    if ((firstRemovable === 'X' && pX >= X_KEEP_PCT) || (firstRemovable === '2' && (p2 >= AWAY_KEEP_PCT || h2hAwayFav))) removalRisk = 'Yüksek';
     else if (lowest.p >= 22) removalRisk = 'Orta';
     else removalRisk = 'Düşük';
   }
 
   // ——— HEDEF STRATEJİSİ ———
-  const keepXsafe = pX >= 20 || (surprise != null && surprise >= 50);
+  const keepXsafe = pX >= X_KEEP_PCT || (surprise != null && surprise >= 50);
   const targetStrategy = {
     target12: narrowCoupon,                                        // minimum koruma
     target13_14: keepXsafe ? safeCoupon : narrowCoupon,            // X canlıysa koru
@@ -156,14 +157,14 @@ export function buildDecision(m) {
     home: {
       label: '1', percent: p1,
       whyCanHappen: `Ev sahibi iç saha avantajı${homeForm != null && homeForm >= 0.6 ? ' ve iyi formu' : ''} ile öne çıkabilir (iç saha ${st.home?.standing?.home ? `${st.home.standing.home.wins}G-${st.home.standing.home.draws}B-${st.home.standing.home.losses}M` : 'kaydı'}).`,
-      whyMayFail: favSym === '1' && favPct < 50 ? `Favori oranı %${p1} — güçlü aday sayılmaz.` : (h2hAwayFav ? 'Geçmiş eşleşme deplasman lehine.' : `Güç farkı net değil (${p1}% ).`),
+      whyMayFail: favSym === '1' && favPct < FAVORITE_MIN_PCT ? `Favori oranı %${p1} — güçlü aday sayılmaz.` : (h2hAwayFav ? 'Geçmiş eşleşme deplasman lehine.' : `Güç farkı net değil (${p1}% ).`),
       couponEffect: mainTrend === '1' ? 'Ana eğilim — silinmemeli.' : (mustKeep.has('1') ? 'Silinmemeli.' : 'Budgede silinebilir.'),
     },
     draw: {
       label: 'X', percent: pX,
       whyCanHappen: `Güçler yakınsa (${gap12}% fark), tempo düşükse veya iki takım kontrollü oynuyorsa beraberlik canlı${h2hDrawish ? '; geçmiş eşleşmeler beraberlik eğilimli' : ''}.`,
       whyMayFail: pX < 20 ? `X ihtimali %${pX} — düşük.` : 'İki takım da kazanmak için oynarsa X zayıflar.',
-      couponEffect: pX >= 20 ? 'X %20 üzerinde — geniş kupondan silinmemeli.' : 'Dar bütçede ilk silinebilir aday olabilir.',
+      couponEffect: pX >= X_KEEP_PCT ? 'X % üzerinde — geniş kupondan silinmemeli.' : 'Dar bütçede ilk silinebilir aday olabilir.',
     },
     away: {
       label: '2', percent: p2,
@@ -232,11 +233,11 @@ export function buildDecision(m) {
   // ——— ÇELİŞKİ KONTROLÜ (kaynak veride) ———
   const contradictionWarnings = [];
   const predMeaning = (m?.prediction?.meaning || '').toLowerCase();
-  if (pX >= 20 && /beklenmez|silin/.test(predMeaning)) contradictionWarnings.push(`Kaynak tahmin "beraberlik beklenmez" diyor ama X %${pX} (≥20). Karar motoru X'i canlı sayar.`);
+  if (pX >= X_KEEP_PCT && /beklenmez|silin/.test(predMeaning)) contradictionWarnings.push(`Kaynak tahmin "beraberlik beklenmez" diyor ama X %${pX} (≥). Karar motoru X'i canlı sayar.`);
   // Aranan kökler (net favori/banko/kesin) yalnız GELEN metinde ARANIR; uyarı
   // cümlesinde tekrar edilmez — iddialı dil olumsuzlama olarak bile yazılmaz.
-  if (favPct < 50 && /net favori|banko|kesin/.test(predMeaning)) contradictionWarnings.push(`Kaynak tahmin tek bir tarafı öne çıkarıyor ama favori %${favPct} (<50). Güçlü aday verilmez.`);
-  if (gap12 < 15 && /tek/.test(predMeaning)) contradictionWarnings.push(`1-2 farkı %${gap12} (<15) — tek önerilmez.`);
+  if (favPct < FAVORITE_MIN_PCT && /net favori|banko|kesin/.test(predMeaning)) contradictionWarnings.push(`Kaynak tahmin tek bir tarafı öne çıkarıyor ama favori %${favPct} (<50). Güçlü aday verilmez.`);
+  if (gap12 < CLOSE_GAP_PCT && /tek/.test(predMeaning)) contradictionWarnings.push(`1-2 farkı %${gap12} (<15) — tek önerilmez.`);
 
   // ——— KISA RİSK YORUMU (önce risk → kanıt → karar) ———
   const shortComment = buildShortComment({ mainTrend, favSym, favPct, pX, p2, gap12, h2hAwayFav, tacticalMismatch, narrowCoupon, safeCoupon, bankoStatus, riskLevel });
@@ -278,15 +279,15 @@ function joinCoupon(arr) { return (arr || []).join('-'); }
 function buildShortComment({ mainTrend, favSym, favPct, pX, p2, gap12, h2hAwayFav, tacticalMismatch, narrowCoupon, safeCoupon, bankoStatus, riskLevel }) {
   const parts = [];
   // 1) önce risk
-  if (favPct < 50 || gap12 < 15) parts.push(`Bu maç tek ${favSym} için güvenli değil.`);
+  if (favPct < FAVORITE_MIN_PCT || gap12 < CLOSE_GAP_PCT) parts.push(`Bu maç tek ${favSym} için güvenli değil.`);
   else parts.push(`Bu maç ${favSym} yönünde eğilimli ama garanti değil.`);
   // 2) kanıt
   const ev = [];
-  ev.push(`Favori "${favSym}" %${favPct}${favPct < 50 ? ' (belirgin üstünlük yok)' : ''}.`);
+  ev.push(`Favori "${favSym}" %${favPct}${favPct < FAVORITE_MIN_PCT ? ' (belirgin üstünlük yok)' : ''}.`);
   if (h2hAwayFav) ev.push('Geçmiş eşleşme deplasman lehine.');
   if (tacticalMismatch) ev.push('Deplasmanın geçiş oyunu ev savunmasına ters gelebilir.');
-  if (p2 >= 30) ev.push(`Deplasman %${p2} ile 2 ihtimalini canlı tutuyor.`);
-  if (pX >= 20) ev.push(`X %${pX} — düşük görünse de güç dengesi nedeniyle tamamen silinmemeli.`);
+  if (p2 >= AWAY_KEEP_PCT) ev.push(`Deplasman %${p2} ile 2 ihtimalini canlı tutuyor.`);
+  if (pX >= X_KEEP_PCT) ev.push(`X %${pX} — düşük görünse de güç dengesi nedeniyle tamamen silinmemeli.`);
   parts.push(ev.join(' '));
   // 3) karar
   parts.push(`Dar kupon: ${joinCoupon(narrowCoupon)} · Geniş kupon: ${joinCoupon(safeCoupon)} · Güçlü aday: ${bankoStatus} · Risk: ${riskLevel}.`);

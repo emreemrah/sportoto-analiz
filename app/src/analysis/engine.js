@@ -7,6 +7,7 @@
 // Çıktı:  { ok, empty?, message?, matchInfo, usedCriteria[], results[],
 //           verdict:{ main, alt, confidence, risk, reason, favor } }
 import { CRITERIA_MAP, IMPACT, logFilteredEvalApp } from './criteria.js';
+import { X_KEEP_PCT, AWAY_KEEP_PCT, HOME_KEEP_PCT, CLOSE_GAP_PCT, TAG_BASE, TAG_BASE_STRONG, AWAY_TAG_PIVOT } from './thresholds';
 
 const wOf = (impKey) => (IMPACT[impKey] || IMPACT.mid).w;
 
@@ -72,9 +73,9 @@ function buildSportotoDecision(ctx) {
 
   // Silinmemesi gerekenler: ana eğilim + payı ciddi olan sonuçlar.
   const mustKeep = new Set([mainTrend]);
-  if (sX >= 20) mustKeep.add('X');
-  if (s2 >= 30) mustKeep.add('2');
-  if (s1 >= 30) mustKeep.add('1');
+  if (sX >= X_KEEP_PCT) mustKeep.add('X');
+  if (s2 >= AWAY_KEEP_PCT) mustKeep.add('2');
+  if (s1 >= HOME_KEEP_PCT) mustKeep.add('1');
 
   // Dar kuponda ilk düşen sonuç + bu silmenin riski.
   const dropped = safeCoupon.filter((o) => !narrowCoupon.includes(o));
@@ -84,7 +85,7 @@ function buildSportotoDecision(ctx) {
     : criteriaShare[firstRemovable] >= 22 ? 'Orta' : 'Düşük';
 
   // ——— HEDEF STRATEJİSİ (kaç maç tutturmayı hedefliyorsun) ———
-  const keepWide = sX >= 20 || !clear;
+  const keepWide = sX >= X_KEEP_PCT || !clear;
   const targetStrategy = {
     target12: narrowCoupon,                          // 12 hedefi → dar, kolon tasarrufu
     target13_14: keepWide ? safeCoupon : narrowCoupon, // X/2 canlıysa geniş tut
@@ -102,12 +103,12 @@ function buildSportotoDecision(ctx) {
   const bankoReasons = [];
   let bankoStatus = 'Şartlı';
   if (!clear) { bankoStatus = 'Hayır'; bankoReasons.push('Seçili kriterlerde net bir lider yok — sonuçlar birbirine yakın.'); }
-  if (gap12 < 15) { bankoStatus = 'Hayır'; bankoReasons.push(`1 ve 2 kriter payı farkı sadece %${gap12} (15 puanın altında).`); }
+  if (gap12 < CLOSE_GAP_PCT) { bankoStatus = 'Hayır'; bankoReasons.push(`1 ve 2 kriter payı farkı sadece %${gap12} (15 puanın altında).`); }
   if (decisiveCount < 3) { bankoStatus = 'Hayır'; bankoReasons.push(`Yalnız ${decisiveCount} kriter bir tarafı işaret ediyor — dayanak zayıf.`); }
   if (dataConfidence !== 'Orta') { bankoStatus = 'Hayır'; bankoReasons.push(`Veri güvenliği "${dataConfidence}" — seçili kriterlerin ${naRows.length} tanesi veri bulamadı.`); }
   if (mainTrend === 'X') { bankoStatus = 'Hayır'; bankoReasons.push('En yüksek puan beraberlikte — beraberlik güçlü aday olarak değerlendirilmez.'); }
   if (bankoStatus !== 'Hayır') {
-    if (sX >= 20) bankoReasons.push(`Beraberlik payı %${sX} — tamamen silinemez.`);
+    if (sX >= X_KEEP_PCT) bankoReasons.push(`Beraberlik payı %${sX} — tamamen silinemez.`);
     bankoReasons.push('Kadro eksiği / teknik direktör bilgisi doğrulanamadığı için en fazla "Şartlı" verilir.');
   }
 
@@ -118,9 +119,9 @@ function buildSportotoDecision(ctx) {
   };
   if (!clear) addTag('Belirgin Üstünlük Yok', 65, `Sonuç payları yakın (1: %${s1} · X: %${sX} · 2: %${s2}).`, 'Tek seçim önerilmez; çift ya da kapalı düşünülmeli.');
   if (spread <= 14) addTag('Kapama Adayı', 60 + (14 - spread), 'Üç sonucun kriter payı birbirine çok yakın.', '15 hedefinde 1-X-2 kapalı değerlendirilebilir.');
-  if (gap12 < 15) addTag('Tek Oynanmaz', 55 + (15 - gap12), `1 ve 2 arasındaki fark %${gap12} — güçler yakın.`, 'Tek yerine dar (1-2) veya kapalı oyna.');
-  if (sX >= 20) addTag('X Silinmez', 45 + (sX - 20) * 2, `Beraberlik kriter payı %${sX}.`, 'Geniş kuponda X kalmalı.');
-  if (s2 >= 30) addTag('2 Silinmez', 45 + (s2 - 28), `Deplasman kriter payı %${s2} — gerçek risk.`, 'Geniş kuponda 2 kalmalı.');
+  if (gap12 < CLOSE_GAP_PCT) addTag('Tek Oynanmaz', TAG_BASE_STRONG + (CLOSE_GAP_PCT - gap12), `1 ve 2 arasındaki fark %${gap12} — güçler yakın.`, 'Tek yerine dar (1-2) veya kapalı oyna.');
+  if (sX >= X_KEEP_PCT) addTag('X Silinmez', TAG_BASE + (sX - X_KEEP_PCT) * 2, `Beraberlik kriter payı %${sX}.`, 'Geniş kuponda X kalmalı.');
+  if (s2 >= AWAY_KEEP_PCT) addTag('2 Silinmez', TAG_BASE + (s2 - AWAY_TAG_PIVOT), `Deplasman kriter payı %${s2} — gerçek risk.`, 'Geniş kuponda 2 kalmalı.');
   if (naRows.length) addTag('Veri Eksikliği Riski', 40 + naRows.length * 6, `Seçili ${selectedCount} kriterden ${naRows.length} tanesi veri bulamadı: ${naRows.slice(0, 3).map((x) => x.label).join(', ')}.`, 'Eksik veri nedeniyle daha geniş (güvenli) seçim tercih edilmeli.');
   if (decisiveCount <= 1) addTag('Dayanak Zayıf', 70, `Yalnız ${decisiveCount} kriter bir tarafı gösteriyor.`, 'Daha çok kriter seçmeden bu maça tek oynanmamalı.');
   // Alan adları (bankoStatus/bankoReasons) İÇ İSİMDİR, değiştirilmedi; ama
@@ -140,8 +141,8 @@ function buildSportotoDecision(ctx) {
     ? `${outName(topOut)} yönünde eğilim var; yine de diğer sonuçlar tamamen elenmez.`
     : `Bu maç tek sonuç için güvenli değil — ${outName(topOut)} ile ${outName(secondOut)} arasındaki fark kapanabilir.`);
   const ev = [`Kriter payları — 1: %${s1} · X: %${sX} · 2: %${s2}.`];
-  if (sX >= 20) ev.push(`Beraberlik %${sX} ile silinemeyecek kadar canlı.`);
-  if (s2 >= 30) ev.push(`Deplasman %${s2} ile 2 ihtimalini ayakta tutuyor.`);
+  if (sX >= X_KEEP_PCT) ev.push(`Beraberlik %${sX} ile silinemeyecek kadar canlı.`);
+  if (s2 >= AWAY_KEEP_PCT) ev.push(`Deplasman %${s2} ile 2 ihtimalini ayakta tutuyor.`);
   if (naRows.length) ev.push(`${naRows.length} kriter veri bulamadığı için güven düşürüldü.`);
   parts.push(ev.join(' '));
   parts.push(`Dar kupon: ${joinCoupon(narrowCoupon)} · Geniş kupon: ${joinCoupon(safeCoupon)} · Güçlü aday uygunluğu: ${bankoStatus} · Risk: ${riskLevel}.`);

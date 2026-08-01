@@ -502,13 +502,23 @@ export async function refreshAll() {
 
   // 3a) MAÇ BİLGİ KARTI — lig haftası + stadyum/şehir (ev sahibi) + hava (Open-Meteo).
   // Veri yoksa alan atlanır (uydurma yok). Stadyum takım-başına, şehir hava-başına cache'li.
+  // PARALEL: 15 maçın stadyum+hava isteği eskiden tek tek beklenirdi (seri
+  // döngü). Ağ gecikmesi toplandığı için yenileme gereksiz uzuyordu.
+  // Önce benzersiz takımların stadyumları TEK SEFER ve paralel çekilir
+  // (venueCache aynı takımı tekrar sormayı zaten engelliyordu), sonra hava
+  // istekleri paralel yapılır. Sıra bağımlılığı yok; sonuçlar maça yazılır.
   const venueCache = new Map();
   let weatherOk = 0;
-  for (const m of analyzedMatches) {
+  const teamIds = [...new Set(
+    analyzedMatches.map((m) => m.stats?.home?.standing?.teamId).filter((id) => id != null),
+  )];
+  await Promise.all(teamIds.map(async (id) => {
+    venueCache.set(id, await fetchTeamVenue(id).catch(() => null));
+  }));
+  await Promise.all(analyzedMatches.map(async (m) => {
     const info = { leagueWeek: m.footyGameWeek || null };
     const teamId = m.stats?.home?.standing?.teamId;
     if (teamId != null) {
-      if (!venueCache.has(teamId)) venueCache.set(teamId, await fetchTeamVenue(teamId).catch(() => null));
       const v = venueCache.get(teamId);
       if (v?.stadium) info.stadium = v.stadium;
       if (v?.city) info.city = v.city;
@@ -516,11 +526,11 @@ export async function refreshAll() {
       // Hava: sadece yaklaşan maçta (tahmin penceresi) ve şehir varsa.
       if (v?.city && !m.started) {
         const w = await getWeather(v.city, m.date).catch(() => null);
-        if (w) { info.weather = w; weatherOk++; }
+        if (w) { info.weather = w; weatherOk += 1; }
       }
     }
     m.info = info;
-  }
+  }));
   console.log(`[refresh] maç bilgi kartı: stadyum ${venueCache.size ? [...venueCache.values()].filter(Boolean).length : 0} · hava ${weatherOk}`);
 
   // 3b) Claude maç yorumları (anahtar varsa)

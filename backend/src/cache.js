@@ -51,3 +51,12 @@ export function load(key) {
     return null;
   }
 }
+
+/**
+ * UCUZ VARLIK KONTROLÜ — dosyayı OKUMADAN "hazır mı?" sorusunu yanıtlar.
+ * load() 1,2 MB'lık bülteni senkron okuyup ayrıştırır (Node'un tek thread'ini
+ * bloklar); yalnız varlığı merak edildiğinde bu bedel ödenmemelidir.
+ */
+export function has(key) {
+  return existsSync(join(cacheDir, `${key}.json`));
+}
