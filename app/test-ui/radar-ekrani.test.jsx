@@ -627,7 +627,9 @@ describe('Sezon geçişi (yeni sezon 1. hafta)', () => {
     expect((await screen.findAllByText('%100.0')).length).toBeGreaterThan(0);
     // …ama neye dayandığı yazılır ve yön sinyali üretilmediği söylenir.
     expect(screen.getAllByText(/Yalnız 1 hafta — yön sinyali üretilmez/).length).toBe(3);
-    expect(screen.getAllByText(/Geçmiş 1\. sıra \(1\)/).length).toBe(1);
+    // Hafta sayısı parantezi kaldırıldı ("52/51/50 ne demek?"); satır sade.
+    expect(screen.getByText('Geçmiş 1. sıra')).toBeTruthy();
+    expect(screen.queryByText(/Geçmiş 1\. sıra \(/)).toBeNull();
   });
 
   test('örneklem yeterliyken uyarı çıkmaz (olumlu karşılık)', async () => {
@@ -646,7 +648,7 @@ describe('Sezon geçişi (yeni sezon 1. hafta)', () => {
     render(<RadarScreen navigation={nav} />);
     await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
     fireEvent.press(screen.getByText('Bülten DNA'));
-    expect(await screen.findByText(/Geçmiş 1\. sıra \(51\)/)).toBeTruthy();
+    expect(await screen.findByText('Geçmiş 1. sıra')).toBeTruthy();
     expect(screen.queryByText(/yön sinyali üretilmez/)).toBeNull();
   });
 });

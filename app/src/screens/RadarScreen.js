@@ -439,9 +439,10 @@ export default function RadarScreen({ navigation }) {
         {pct ? (
           <>
             <View style={styles.memPctRow}>
-              <Text style={styles.memPctLabel}>
-                Geçmiş {item.no}. sıra{orneklem != null ? ` (${orneklem})` : ''}
-              </Text>
+              {/* Hafta sayısı parantez içinde yazılıyordu, kullanıcı kararıyla
+                  kaldırıldı ("52/51/50 ne demek?"). Az örneklem uyarısı ALTTA
+                  duruyor — sezon başında tek maçtan gelen "%100" için gerekli. */}
+              <Text style={styles.memPctLabel}>Geçmiş {item.no}. sıra</Text>
               <View style={styles.memOutcome}><Text style={[styles.memOutcomeKey, styles.memOutcomeOneKey]}>1</Text><Text style={styles.memOutcomeValue}>%{pct['1']}</Text></View>
               <View style={styles.memOutcome}><Text style={[styles.memOutcomeKey, styles.memOutcomeDrawKey]}>X</Text><Text style={styles.memOutcomeValue}>%{pct.X}</Text></View>
               <View style={styles.memOutcome}><Text style={[styles.memOutcomeKey, styles.memOutcomeTwoKey]}>2</Text><Text style={styles.memOutcomeValue}>%{pct['2']}</Text></View>
