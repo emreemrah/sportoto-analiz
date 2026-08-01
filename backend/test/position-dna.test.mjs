@@ -189,3 +189,39 @@ test('13. Sezon filtresi: Radar 5 seçili sezon dışındaki haftaları kullanma
   assert.equal(first.windows.allTime.counts['2'], 5);
   assert.equal(first.windows.allTime.counts['1'], 0);
 });
+
+// --- SEZON PENCERELERİ -------------------------------------------------------
+// Radar 5 filtre satırında "2022/2023 Sezonu" gibi seçenekler çıkabilsin diye
+// her sezon AYRI BİR PENCERE olarak da üretilir. Anahtar biçimi arşivdekiyle
+// birebir aynıdır: seasonYear "2025/2026" yazılır, SAYI DEĞİLDİR — bir zamanlar
+// sayısal bir eleme bütün sezonları düşürmüş ve filtre boş görünmüştü.
+test('14. Her sezon ayrı bir pencere olarak üretilir (biçim: "2025/2026")', () => {
+  const ms = [
+    ...makeMatches(4, () => '1', { startRound: 1000 }).map((m) => ({ ...m, seasonYear: '2024/2025' })),
+    ...makeMatches(6, () => '2', { startRound: 2000 }).map((m) => ({ ...m, seasonYear: '2025/2026' })),
+  ];
+  const dna = computePositionDna(ms);          // sezon SÜZMESİ YOK
+  const p1 = dna.positions.find((p) => p.position === 1);
+
+  assert.ok(p1.windows['season:2024/2025'], 'eski sezon penceresi olmalı');
+  assert.ok(p1.windows['season:2025/2026'], 'yeni sezon penceresi olmalı');
+  assert.equal(p1.windows['season:2024/2025'].sample, 4);
+  assert.equal(p1.windows['season:2025/2026'].sample, 6);
+  // Her sezon KENDİ sonucunu taşır — pencereler birbirine karışmaz.
+  assert.equal(p1.windows['season:2024/2025'].counts['1'], 4);
+  assert.equal(p1.windows['season:2025/2026'].counts['2'], 6);
+  // allTime iki sezonun TOPLAMIdır.
+  assert.equal(p1.windows.allTime.sample, 10);
+});
+
+test('15. Sezonu bilinmeyen haftalar sezon penceresi ÜRETMEZ', () => {
+  const ms = makeMatches(3, () => 'X', { startRound: 1000 })
+    .map((m) => ({ ...m, seasonYear: null }));
+  const dna = computePositionDna(ms);
+  const p1 = dna.positions.find((p) => p.position === 1);
+  const sezonAnahtarlari = Object.keys(p1.windows).filter((k) => k.startsWith('season:'));
+  assert.deepEqual(sezonAnahtarlari, [],
+    '"bilinmiyor sezonu" diye bir seçenek kullanıcıya gösterilemez');
+  // Ama veri kaybolmaz: allTime hâlâ 3 haftayı sayar.
+  assert.equal(p1.windows.allTime.sample, 3);
+});

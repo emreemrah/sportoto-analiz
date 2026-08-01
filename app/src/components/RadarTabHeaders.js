@@ -167,6 +167,11 @@ export default function RadarTabHeader({
                 <View style={styles.dnaPeriodLabel}>
                   <Text style={[styles.dnaPeriodTxt, on && styles.dnaPeriodTxtOn]}>
                     {p.label}{donemGucu[p.k] != null ? ` · %${donemGucu[p.k]}` : ''}
+                    {/* SEZON ÇİPİNDE HAFTA SAYISI: arşivde 2022/2023 yalnız 6,
+                        2025/2026 ise 51 hafta. Sayıyı yazmazsak 6 haftalık bir
+                        yüzde 51 haftalıkla eşit güvenilirlikte görünür. Sabit
+                        pencerelerde (Son 5/10/15) sayı zaten etikettedir. */}
+                    {p.hafta != null ? ` (${p.hafta} hafta)` : ''}
                   </Text>
                   {donemEgilimi[p.k] ? (
                     <Text style={[

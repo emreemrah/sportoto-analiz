@@ -403,8 +403,9 @@ describe('Radar 5 dönem filtresi', () => {
         windows: {
           allTime: { sample: 30, pct: { '1': 50, X: 30, '2': 20 } },
           last5: { sample: 5, pct: { '1': 60, X: 20, '2': 20 } },
-          'season:2026': { sample: 14, pct: { '1': 55, X: 25, '2': 20 } },
-          'season:2025': { sample: 16, pct: { '1': 45, X: 35, '2': 20 } },
+          // Anahtar biçimi ARŞİVDEKİYLE aynı: "2025/2026" (sayı değil).
+          'season:2025/2026': { sample: 14, pct: { '1': 55, X: 25, '2': 20 } },
+          'season:2024/2025': { sample: 16, pct: { '1': 45, X: 35, '2': 20 } },
         },
       })),
     },
@@ -431,6 +432,19 @@ describe('Radar 5 dönem filtresi', () => {
     // 2025/2026 → %55.0 · 2024/2025 → %45.0 (uydurma değil, veriden).
     expect(await screen.findByText(/2025\/2026 Sezonu · %55\.0/)).toBeTruthy();
     expect(screen.getByText(/2024\/2025 Sezonu · %45\.0/)).toBeTruthy();
+  });
+
+  test('sezon çipi HAFTA SAYISINI da yazar (az veri gizlenmez)', async () => {
+    mockUclar({ ...VARSAYILAN, '/api/radar/position-dna': dnaVer() });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Bülten DNA'));
+    // 14 ve 16 hafta — kullanıcı yüzdenin kaç haftaya dayandığını görebilmeli.
+    expect(await screen.findByText(/2025\/2026 Sezonu · %55\.0 \(14 hafta\)/)).toBeTruthy();
+    expect(screen.getByText(/2024\/2025 Sezonu · %45\.0 \(16 hafta\)/)).toBeTruthy();
+    // Sabit pencerelerde hafta eki YOK (etikette zaten yazılı) — olumlu karşılık:
+    expect(screen.getByText(/Son 5 Hafta · %60\.0/)).toBeTruthy();
+    expect(screen.queryByText(/Son 5 Hafta.*\(\d+ hafta\)/)).toBeNull();
   });
 
   test('veride sezon YOKSA sezon çipi çıkmaz', async () => {

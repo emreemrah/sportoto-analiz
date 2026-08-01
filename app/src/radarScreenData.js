@@ -16,34 +16,47 @@ export const DNA_PERIODS = [
   { k: 'last15', label: 'Son 15 Hafta' },
 ];
 
-/** "2026" → "2025/2026 Sezonu" (bültenlerdeki yazım). */
-export const sezonEtiketi = (y) => (
-  Number.isFinite(Number(y)) ? `${Number(y) - 1}/${Number(y)} Sezonu` : String(y || '')
-);
+/**
+ * "2025/2026" → "2025/2026 Sezonu".
+ *
+ * Arşivde sezon "2025/2026" biçiminde yazılıdır; tek yıl ("2026") gelirse
+ * bültenlerdeki yazıma çevrilir. Boş değer boş etiket üretir — "-1/0 Sezonu"
+ * gibi uydurma bir sezon YAZILMAZ.
+ */
+export const sezonEtiketi = (y) => {
+  const s = String(y ?? '').trim();
+  if (!s) return '';
+  if (s.includes('/')) return `${s} Sezonu`;
+  return Number.isFinite(Number(s)) ? `${Number(s) - 1}/${Number(s)} Sezonu` : s;
+};
 
 /**
  * DÖNEM SEÇENEKLERİ — sabit pencereler + VERİDE GERÇEKTEN BULUNAN sezonlar.
  *
  * Sezonlar elle yazılmaz: arka uçtan gelen pencere anahtarlarından
- * ("season:2026") türetilir. Böylece arşivde olmayan bir sezon seçenek
+ * ("season:2025/2026") türetilir. Böylece arşivde olmayan bir sezon seçenek
  * olarak GÖRÜNMEZ — dokunulduğunda boş çıkan bir filtre, olmayan veriyi
  * varmış gibi gösterir.
  *
  * Sezonlar yeniden eskiye sıralanır (kullanıcı önce güncel sezonu arar).
+ * Sıralama METİN karşılaştırmasıyla yapılır: "2025/2026" bir sayı değildir,
+ * Number() ile NaN olur ve sıralama çökerdi.
  */
 export function donemSecenekleri(positionDna) {
   const pozisyonlar = positionDna?.dna?.positions || [];
-  const anahtarlar = new Set();
+  const hafta = new Map();     // anahtar → o sezondaki hafta sayısı
   for (const p of pozisyonlar) {
-    for (const k of Object.keys(p.windows || {})) {
-      if (k.startsWith('season:') && (p.windows[k]?.sample ?? 0) > 0) anahtarlar.add(k);
+    for (const [k, w] of Object.entries(p.windows || {})) {
+      if (!k.startsWith('season:')) continue;
+      const n = w?.sample ?? 0;
+      if (n > 0) hafta.set(k, Math.max(hafta.get(k) ?? 0, n));
     }
   }
-  const sezonlar = [...anahtarlar]
-    .map((k) => ({ k, yil: Number(k.slice('season:'.length)) }))
-    .filter((x) => Number.isFinite(x.yil))
-    .sort((a, b) => b.yil - a.yil)
-    .map((x) => ({ k: x.k, label: sezonEtiketi(x.yil) }));
+  const sezonlar = [...hafta.keys()]
+    .map((k) => ({ k, sezon: k.slice('season:'.length) }))
+    .filter((x) => x.sezon && x.sezon !== 'bilinmiyor')
+    .sort((a, b) => String(b.sezon).localeCompare(String(a.sezon)))
+    .map((x) => ({ k: x.k, label: sezonEtiketi(x.sezon), hafta: hafta.get(x.k) }));
   return [...DNA_PERIODS, ...sezonlar];
 }
 

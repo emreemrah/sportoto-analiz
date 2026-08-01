@@ -100,10 +100,12 @@ export function computePositionDna(matches, {
     // "Son 5 Hafta" ile "2025/2026 Sezonu" arasında hiçbir özel durum
     // kalmamasını sağlar — filtre tek bir listeden beslenir.
     //
-    // Anahtar: "season:2026". Sayısal olmayan ("bilinmiyor") ATLANIR:
-    // kullanıcıya "bilinmiyor sezonu" diye bir seçenek gösterilemez.
+    // Anahtar: "season:2025/2026". seasonYear arşivde "2025/2026" BİÇİMİNDE
+    // (sayı değil) tutulur; sayısal bir kontrol bütün sezonları elerdi.
+    // Yalnız "bilinmiyor" atlanır: kullanıcıya "bilinmiyor sezonu" diye bir
+    // seçenek gösterilemez.
     for (const [y, list] of Object.entries(rowsBySeason)) {
-      if (!Number.isFinite(Number(y))) continue;
+      if (!y || y === 'bilinmiyor') continue;
       windows[`season:${y}`] = countWindow(list);
     }
 

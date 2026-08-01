@@ -175,19 +175,41 @@ test('satır eğilimi dönem seçimine göre davranır', () => {
 // ---------------------------------------------------------------------------
 const dnaIle = (windows) => ({ dna: { positions: [{ windows }] } });
 
+// GERÇEK BİÇİM "2025/2026"dır — arşivdeki seasonYear alanı böyle yazılır
+// (backend/src/history/historyStore.js). Sayı değildir: Number("2025/2026")
+// NaN verir. Bu testler o biçimi kilitler; bir zamanlar sayısal varsayan bir
+// eleme yüzünden BÜTÜN sezonlar düşmüş ve filtre boş görünmüştü.
 test('sezonlar VERİDEN türüyor, yeniden eskiye sıralı', async () => {
   const { donemSecenekleri } = await import('../src/radarScreenData.js');
   const s = donemSecenekleri(dnaIle({
-    allTime: { sample: 20, pct: { '1': 50, X: 30, '2': 20 } },
-    'season:2024': { sample: 6, pct: { '1': 40, X: 30, '2': 30 } },
-    'season:2026': { sample: 12, pct: { '1': 55, X: 25, '2': 20 } },
-    'season:2025': { sample: 8, pct: { '1': 45, X: 35, '2': 20 } },
+    allTime: { sample: 150, pct: { '1': 50, X: 30, '2': 20 } },
+    'season:2023/2024': { sample: 43, pct: { '1': 40, X: 30, '2': 30 } },
+    'season:2025/2026': { sample: 51, pct: { '1': 55, X: 25, '2': 20 } },
+    'season:2024/2025': { sample: 50, pct: { '1': 45, X: 35, '2': 20 } },
+    'season:2022/2023': { sample: 6, pct: { '1': 33, X: 33, '2': 34 } },
   }));
   const anahtarlar = s.map((x) => x.k);
   // Önce sabit pencereler, sonra sezonlar (yeniden eskiye).
   assert.deepEqual(anahtarlar.slice(0, 4), ['allTime', 'last5', 'last10', 'last15']);
-  assert.deepEqual(anahtarlar.slice(4), ['season:2026', 'season:2025', 'season:2024']);
-  assert.equal(s.find((x) => x.k === 'season:2026').label, '2025/2026 Sezonu');
+  assert.deepEqual(anahtarlar.slice(4), [
+    'season:2025/2026', 'season:2024/2025', 'season:2023/2024', 'season:2022/2023',
+  ]);
+  assert.equal(s.find((x) => x.k === 'season:2025/2026').label, '2025/2026 Sezonu');
+  assert.equal(s.find((x) => x.k === 'season:2022/2023').label, '2022/2023 Sezonu');
+  // HAFTA SAYISI taşınır: 6 haftalık sezon 51 haftalıkla eşit görünmemeli.
+  assert.equal(s.find((x) => x.k === 'season:2022/2023').hafta, 6);
+  assert.equal(s.find((x) => x.k === 'season:2025/2026').hafta, 51);
+  // Sabit pencerelerde hafta sayısı YOKTUR (zaten etikette yazılı).
+  assert.equal(s.find((x) => x.k === 'last5').hafta, undefined);
+});
+
+test('sezon etiketi BOŞ değerde uydurma sezon yazmaz', async () => {
+  const { sezonEtiketi } = await import('../src/radarScreenData.js');
+  // Number(null) === 0 tuzağı: eski hâli null için "-1/0 Sezonu" üretiyordu.
+  assert.equal(sezonEtiketi(null), '');
+  assert.equal(sezonEtiketi(''), '');
+  assert.equal(sezonEtiketi('2025/2026'), '2025/2026 Sezonu');
+  assert.equal(sezonEtiketi('2026'), '2025/2026 Sezonu');   // tek yıl da desteklenir
 });
 
 test('ÖRNEKLEMİ OLMAYAN sezon seçenek olarak GÖSTERİLMEZ', async () => {
@@ -200,7 +222,7 @@ test('ÖRNEKLEMİ OLMAYAN sezon seçenek olarak GÖSTERİLMEZ', async () => {
     'boş sezon seçenek olmamalı — dokunulduğunda boş çıkar');
 });
 
-test('SAYISAL OLMAYAN sezon ("bilinmiyor") elenir', async () => {
+test('sezonu BİLİNMEYEN ("bilinmiyor") seçenek olarak gösterilmez', async () => {
   const { donemSecenekleri } = await import('../src/radarScreenData.js');
   const s = donemSecenekleri(dnaIle({
     allTime: { sample: 9, pct: { '1': 50, X: 30, '2': 20 } },
@@ -214,15 +236,15 @@ test('dönem gücü ve eğilimi SEZONLARI da kapsıyor', async () => {
   const { radar5PeriodSuccess, radar5PeriodTrend } = await import('../src/radarScreenData.js');
   const dna = dnaIle({
     allTime: { sample: 20, pct: { '1': 50, X: 30, '2': 20 } },
-    'season:2026': { sample: 12, pct: { '1': 55, X: 25, '2': 20 } },
-    'season:2025': { sample: 8, pct: { '1': 45, X: 35, '2': 20 } },
+    'season:2025/2026': { sample: 12, pct: { '1': 55, X: 25, '2': 20 } },
+    'season:2024/2025': { sample: 8, pct: { '1': 45, X: 35, '2': 20 } },
   });
   const g = radar5PeriodSuccess(dna);
-  assert.equal(g['season:2026'], '55.0');
-  assert.equal(g['season:2025'], '45.0');
+  assert.equal(g['season:2025/2026'], '55.0');
+  assert.equal(g['season:2024/2025'], '45.0');
   const t = radar5PeriodTrend(g);
-  assert.equal(t['season:2026'].key, 'up');    // 55 > 50
-  assert.equal(t['season:2025'].key, 'down');  // 45 < 50
+  assert.equal(t['season:2025/2026'].key, 'up');    // 55 > 50
+  assert.equal(t['season:2024/2025'].key, 'down');  // 45 < 50
 });
 
 test('sezon yoksa liste eskisi gibi 4 sabit dönem', async () => {

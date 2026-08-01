@@ -461,7 +461,14 @@ router.get('/position-dna', async (req, res) => {
       activeSeason = selectedRound?.seasonYear
         || eligibleRounds.sort((a, b) => String(b.roundCloseAt || '').localeCompare(String(a.roundCloseAt || '')))[0]?.seasonYear
         || null;
-      if (activeSeason != null) histMatches = histMatches.filter((m) => String(m.seasonYear) === String(activeSeason));
+      // SEZONA GÖRE SÜZME KALDIRILDI. Eskiden yalnız AKTİF sezonun maçları
+      // hesaba giriyordu; bu yüzden sezon pencereleri hiç oluşamıyor ve
+      // ekranda sezon filtresi gösterilemiyordu (oysa arşivde 4 sezon var).
+      // Artık tüm uygun sezonlar hesaba girer:
+      //   * "Tüm Haftalar" = arşivdeki tüm sezonlar (etiketin söylediği şey),
+      //   * her sezon ayrıca kendi penceresiyle seçilebilir.
+      // ÖĞRENME SINIRI DEĞİŞMEDİ: historyLearningFilter hâlâ yalnız seçilen
+      // haftadan ÖNCEKİ sonuçları geçiriyor.
     } catch { /* geçmiş arşiv yoksa yalnız ileri-test verisi kalır */ }
 
     // ARŞİVDE TAMAMLANAN HAFTALAR da sıra geçmişine girer. Statik geçmiş dosyası
@@ -474,13 +481,13 @@ router.get('/position-dna', async (req, res) => {
         beforeRoundId: cutRoundId,     // yalnız SEÇİLEN haftadan önceki turlar
         // Statik geçmişte zaten olan tur ÇİFT SAYILMAZ.
         knownRoundIds: new Set(histMatches.map((m) => String(m.roundId))),
-        seasonYear: activeSeason,
+        seasonYear: null,   // sezon süzmesi yok — sezonlar birer PENCERE olarak sunulur
       });
     } catch { /* arşiv okunamazsa yalnız statik geçmişle devam edilir */ }
 
     const dna = computePositionDna([...histMatches, ...arsivMaclari], {
       excludeRoundId: cutRoundId,
-      seasonYear: activeSeason,
+      seasonYear: null,     // aynı sebep: tüm sezonlar hesaba girsin
     });
 
     // İleri-test (official_forward) sıra istatistikleri — geçmiş arşivle birleşik özet.
