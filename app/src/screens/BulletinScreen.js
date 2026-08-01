@@ -55,6 +55,27 @@ const fmtTL = (n) => {
   return `₺${group(int)},${dec}`;
 };
 const fmtCount = (n) => (n == null ? '–' : group(n));
+// "2026" → "2025/2026 Sezonu" (resmî listedeki yazım).
+const sezonAdi = (y) => (Number.isFinite(Number(y)) ? `${Number(y) - 1}/${Number(y)} Sezonu` : String(y || ''));
+// RESMÎ yazım: tutar SONDA ₺ ile — "4.035.942,42 ₺" (uygulamanın ₺30.578,23
+// biçimi diğer görünümlerde korunur).
+const fmtTLResmi = (n) => {
+  if (n == null) return '–';
+  const [int, dec] = Number(n).toFixed(2).split('.');
+  return `${group(int)},${dec} ₺`;
+};
+// "24 Temmuz Cuma 2026 19:55" — resmî listedeki kapanış biçimi.
+// BOŞ DEĞER TUZAĞI: new Date(null) 1970 döndürür, o yüzden önce boşluk elenir.
+const AYLAR_TR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+const GUNLER_TR = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+const kapanisResmi = (iso) => {
+  if (iso == null || iso === '') return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const iki = (n) => String(n).padStart(2, '0');
+  return `${iki(d.getDate())} ${AYLAR_TR[d.getMonth()]} ${GUNLER_TR[d.getDay()]} `
+    + `${d.getFullYear()} ${iki(d.getHours())}:${iki(d.getMinutes())}`;
+};
 
 export default function BulletinScreen({ navigation }) {
   const [data, setData] = useState(null);          // güncel analizli bülten
@@ -73,6 +94,7 @@ export default function BulletinScreen({ navigation }) {
   // Geçmiş hafta üst sayaç kutuları + filtre çipleri KALDIRILDI (kullanıcı isteği);
   // liste bülten sırasında (veya kayıtlı sıralama tercihinde) akar.
   const [histSort, setHistSort] = useState(getPref('histSort'));          // bulletin|resolvedTop|waitingBottom
+  const [sezonAcik, setSezonAcik] = useState(false);
   const [toast, setToast] = useState(null);
   const [refreshSheet, setRefreshSheet] = useState(null);       // null | { no } → 🔄 seçenek kutusu
   const toastTimer = useRef(null);
@@ -241,6 +263,9 @@ export default function BulletinScreen({ navigation }) {
 
   const roundName = selMeta?.name || data?.round || '—';
   const roundYear = selMeta?.year || '';
+  // Sezon listesi navRounds'tan: yayımlanmamış gelecek haftalar girmez.
+  // Yeniden eskiye — kullanıcı önce güncel sezonu arar.
+  const sezonlar = [...new Set(navRounds.map((r) => r.year).filter((y) => y != null))].sort((a, b) => b - a);
   const subtitle = viewingCurrent
     ? (error ? 'güncel bülten alınamadı'
       : data?.pending ? 'güncel resmi bülten bekleniyor'
@@ -269,7 +294,43 @@ export default function BulletinScreen({ navigation }) {
           <Text style={styles.navArrow}>‹</Text>
         </TouchableOpacity>
         <View style={styles.weekMid}>
-          {roundYear ? <Text style={styles.weekYear}>{roundYear}</Text> : null}
+          {/* SEZON SEÇİMİ — resmî listedeki gibi açılır liste. Eskiden burası
+              düz yazıydı; ‹ › okları tek adım ilerlediği için eski sezona
+              gitmek onlarca dokunuş demekti. Sezon seçilince o sezonun EN
+              YENİ haftasına gidilir. Tek sezon varsa liste açılmaz. */}
+          {roundYear ? (
+            <TouchableOpacity
+              onPress={() => sezonlar.length > 1 && setSezonAcik((v) => !v)}
+              activeOpacity={sezonlar.length > 1 ? 0.7 : 1}
+              accessibilityRole={sezonlar.length > 1 ? 'button' : 'text'}
+            >
+              <Text style={styles.weekYear}>
+                {sezonAdi(roundYear)}{sezonlar.length > 1 ? (sezonAcik ? ' ▴' : ' ▾') : ''}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+          {sezonAcik ? (
+            <View style={styles.sezonListe}>
+              {sezonlar.map((y) => {
+                const secili = y === roundYear;
+                return (
+                  <TouchableOpacity
+                    key={String(y)}
+                    style={[styles.sezonOge, secili && styles.sezonOgeSecili]}
+                    onPress={() => {
+                      // O sezonun EN YENİ haftası (navRounds zaten güncelle sınırlı).
+                      const enYeni = [...navRounds].reverse().find((r) => r.year === y);
+                      if (enYeni) setSelectedId(enYeni.id);
+                      setSezonAcik(false);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.sezonOgeTxt, secili && styles.sezonOgeTxtSecili]}>{sezonAdi(y)}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : null}
           <Text style={styles.title}>Haftalık Bülten · {roundName}</Text>
           <Text style={styles.muted}>{subtitle}</Text>
           {verifiedNow && (
@@ -486,15 +547,31 @@ export default function BulletinScreen({ navigation }) {
               ))}
             </View>
           ) : (
+            // LİSTE görünümü RESMÎ yazımda: "9 ADET 4.035.942,42 ₺".
+            // (Tablo ve Kart görünümleri kendi düzenlerinde bırakıldı —
+            //  değiştirilen yalnız paylaşılan görüntüdeki yer.)
             hist.prize.tiers.map((t) => (
               <View key={t.hit} style={styles.prizeRow}>
                 <Text style={styles.prizeHit}>{t.hit} Bilen</Text>
-                <Text style={styles.prizeCount}>{fmtCount(t.count)} kişi</Text>
-                <Text style={[styles.prizeAmt, t.count === 0 && styles.prizeRoll]}>{t.count === 0 ? 'Devretti' : fmtTL(t.prize)}</Text>
+                <Text style={styles.prizeCount}>{fmtCount(t.count)} ADET</Text>
+                <Text style={[styles.prizeAmt, t.count === 0 && styles.prizeRoll]}>{t.count === 0 ? 'Devretti' : fmtTLResmi(t.prize)}</Text>
               </View>
             ))
           )}
-          {hist.prize.description ? <Text style={styles.prizeDesc}>{hist.prize.description}</Text> : null}
+          {/* KAPANIŞ ve AÇIKLAMALAR — resmî listede etiketli satır olarak
+              duruyor, bizde eksikti. Veri yoksa satır ÇİZİLMEZ (uydurulmaz). */}
+          {kapanisResmi(hist.prize.closeDate || selMeta?.closeDate) ? (
+            <View style={styles.prizeRow}>
+              <Text style={styles.prizeHit}>Kapanış</Text>
+              <Text style={styles.prizeMeta}>{kapanisResmi(hist.prize.closeDate || selMeta?.closeDate)}</Text>
+            </View>
+          ) : null}
+          {hist.prize.description ? (
+            <View style={styles.prizeRow}>
+              <Text style={styles.prizeHit}>Açıklamalar</Text>
+              <Text style={styles.prizeMeta}>{hist.prize.description}</Text>
+            </View>
+          ) : null}
         </>
       )}
     </View>
@@ -786,6 +863,15 @@ const styles = StyleSheet.create({
   hSep: { color: colors.border, fontSize: 12 },
 
   // İkramiye görünüm seçici + tablo/kart
+  sezonListe: {
+    marginTop: 4, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,
+    backgroundColor: colors.card, overflow: 'hidden', minWidth: 170,
+  },
+  sezonOge: { paddingVertical: 9, paddingHorizontal: 14 },
+  sezonOgeSecili: { backgroundColor: colors.primarySoft },
+  sezonOgeTxt: { color: colors.textSoft, fontSize: 12.5, fontWeight: '700' },
+  sezonOgeTxtSecili: { color: colors.primary, fontWeight: '900' },
+  prizeMeta: { flex: 1, textAlign: 'right', color: colors.textSoft, fontSize: 12, fontWeight: '700' },
   prizeViewRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },
   pvChip: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: radius.sm, backgroundColor: colors.cardAlt },
   pvChipOn: { backgroundColor: colors.primary },

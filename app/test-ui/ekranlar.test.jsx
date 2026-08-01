@@ -69,3 +69,114 @@ describe('Kullanıcıya görünen dil', () => {
     expect(APP_NAME.length).toBeGreaterThan(3);
   });
 });
+
+// ---------------------------------------------------------------------------
+// GEÇMİŞ HAFTA — resmî listeye uydurulan İKİ yer (emrah'ın paylaştığı görüntüler):
+//   1. İkramiye satırları: "9 ADET 4.035.942,42 ₺" + Kapanış + Açıklamalar
+//   2. Sezon açılır seçimi (‹ › okları tek adım ilerliyor, arşiv için yetmiyor)
+// Ekranın geri kalanı (analiz kartları, maç listesi) DEĞİŞMEDİ.
+// ---------------------------------------------------------------------------
+describe('Geçmiş hafta — resmî yazım ve sezon seçimi', () => {
+  // İkramiye görünümünün VARSAYILANI 'table' (prefs.js). Resmî yazım LİSTE
+  // görünümünde; testler kullanıcının yapacağını yapar ve "Liste"ye dokunur.
+  // (Tercihi doğrudan yazmak kırılgan: modül önbelleği testler arasında
+  // sıfırlanabiliyor.)
+  const mac = (no, over = {}) => ({
+    no,
+    home: { name: `Ev ${no}`, mediumName: `Ev ${no}` },
+    away: { name: `Dep ${no}`, mediumName: `Dep ${no}` },
+    date: '2026-07-24T19:00:00Z',
+    score: { home: 2, away: 1 }, result: '1',
+    analysis: { probabilities: { '1': 50, X: 27, '2': 23 }, favorite: { symbol: '1', percent: 52 }, surpriseScore: 30 },
+    ...over,
+  });
+  const ROUNDS = {
+    currentRoundId: 1600,
+    rounds: [
+      { id: 1400, name: '30. Hafta', year: 2024 },
+      { id: 1500, name: '40. Hafta', year: 2025 },
+      { id: 1598, name: '51. Hafta', year: 2026, closeDate: '2026-07-24T19:55:00' },
+      { id: 1600, name: '53. Hafta', year: 2026 },
+    ],
+  };
+  const GECMIS = {
+    roundId: 1598,
+    matches: Array.from({ length: 15 }, (_, i) => mac(i + 1)),
+    prize: {
+      tiers: [
+        { hit: 15, count: 9, prize: 4035942.42 },
+        { hit: 14, count: 389, prize: 31794.38 },
+        { hit: 13, count: 6759, prize: 1829.85 },
+        { hit: 12, count: 53534, prize: 288.78 },
+      ],
+      closeDate: '2026-07-24T19:55:00',
+      description: 'Tebrikler',
+    },
+  };
+  const mockUclar = () => {
+    global.fetch.mockImplementation(async (url) => {
+      const u = String(url);
+      const g = u.includes('/api/rounds') ? ROUNDS
+        : u.includes('/api/history/1598') ? GECMIS
+          : u.includes('/api/bulletin') ? { roundId: 1600, round: '53. Hafta', year: 2026, matches: [] }
+            : { hasData: false };
+      return { ok: true, status: 200, json: async () => g, text: async () => JSON.stringify(g) };
+    });
+  };
+
+  const gecmiseGit = async () => {
+    render(<BulletinScreen navigation={nav} route={route} />);
+    // ÖNCE hafta listesinin gelmesini bekle: ok her zaman çizili olduğu için
+    // hemen basılırsa navRounds boş olur ve dokunuş hiçbir şey yapmaz.
+    await screen.findByText(/Sezonu/);
+    fireEvent.press(screen.getByText('‹'));
+    // İkramiye bölümü gelince LİSTE görünümüne geç (varsayılan Tablo).
+    fireEvent.press(await screen.findByText('Liste'));
+  };
+
+  test('sezon açılır seçimi var ve resmî yazımda', async () => {
+    mockUclar();
+    render(<BulletinScreen navigation={nav} route={route} />);
+    // Başlıktaki sezon artık "2025/2026 Sezonu ▾" — düz "2026" değil.
+    expect(await screen.findByText(/2025\/2026 Sezonu/)).toBeTruthy();
+  });
+
+  test('sezon listesi açılıyor ve GEÇMİŞ sezonlar görünüyor', async () => {
+    mockUclar();
+    render(<BulletinScreen navigation={nav} route={route} />);
+    fireEvent.press(await screen.findByText(/2025\/2026 Sezonu/));
+    expect(await screen.findByText('2024/2025 Sezonu')).toBeTruthy();
+    expect(screen.getByText('2023/2024 Sezonu')).toBeTruthy();
+  });
+
+  test('geçmiş haftada ikramiye RESMÎ yazımda ve Kapanış satırı var', async () => {
+    mockUclar();
+    await gecmiseGit();
+    // "9 ADET" + "4.035.942,42 ₺" (eskiden "9 kişi" + "₺4.035.942,42" idi)
+    expect(await screen.findByText('9 ADET')).toBeTruthy();
+    expect(screen.getByText('4.035.942,42 ₺')).toBeTruthy();
+    expect(screen.getByText('53.534 ADET')).toBeTruthy();
+    // Resmî listede olup bizde EKSİK olan satırlar:
+    expect(screen.getByText('Kapanış')).toBeTruthy();
+    expect(screen.getByText('24 Temmuz Cuma 2026 19:55')).toBeTruthy();
+    expect(screen.getByText('Açıklamalar')).toBeTruthy();
+    expect(screen.getByText('Tebrikler')).toBeTruthy();
+  });
+
+  test('kapanış verisi YOKSA satır çizilmez (uydurulmaz)', async () => {
+    global.fetch.mockImplementation(async (url) => {
+      const u = String(url);
+      const g = u.includes('/api/rounds') ? { currentRoundId: 1600, rounds: [{ id: 1598, name: '51. Hafta', year: 2026 }, { id: 1600, name: '53. Hafta', year: 2026 }] }
+        : u.includes('/api/history/1598') ? { ...GECMIS, prize: { ...GECMIS.prize, closeDate: null, description: null } }
+          : u.includes('/api/bulletin') ? { roundId: 1600, round: '53. Hafta', year: 2026, matches: [] }
+            : { hasData: false };
+      return { ok: true, status: 200, json: async () => g, text: async () => JSON.stringify(g) };
+    });
+    await gecmiseGit();
+    await screen.findByText('9 ADET');
+    // 1970 ya da boş satır DEĞİL: satır hiç yok.
+    expect(screen.queryByText('Kapanış')).toBeNull();
+    expect(screen.queryByText('Açıklamalar')).toBeNull();
+    expect(screen.queryByText(/1970/)).toBeNull();
+  });
+});
