@@ -134,25 +134,51 @@ test('boş hafta listesi ÇÖKMEZ', () => {
 });
 
 // ---------------------------------------------------------------------------
-// PALET İZOLASYONU — iki tema karışmasın.
-// Resmî Liste ekranı resmî listenin GÖRÜNÜMÜNÜ yansıtır; uygulamanın geri
-// kalanı kendi paletini kullanır. Karışırlarsa aynı uygulamada iki farklı
-// gri, iki farklı kırmızı çıkar ve hangisinin doğru olduğu belirsizleşir.
+// PALET — resmî listenin DÜZENİ, uygulamanın RENKLERİ.
+//
+// Kural DEĞİŞTİ (emrah: "bizim renklere uyumlu olsun"). Önce resmî sitenin
+// renkleri kullanılıyordu ve iki palet ayrı tutuluyordu; artık palet
+// theme.js'ten TÜRETİLİYOR. Korunan şey aynı: renkler TEK yerde tanımlı ve
+// ekran/bileşen dosyalarında elle yazılmış renk YOK.
 // ---------------------------------------------------------------------------
 
-test('Resmî Liste ekranı GENEL temadan renk ALMAZ', async () => {
+const okuKaynak = async (...p) => {
   const { readFileSync } = await import('node:fs');
   const { dirname, join } = await import('node:path');
   const { fileURLToPath } = await import('node:url');
   const kok = join(dirname(fileURLToPath(import.meta.url)), '..');
-  const ekran = readFileSync(join(kok, 'src', 'screens', 'ResmiListeScreen.js'), 'utf8');
+  return readFileSync(join(kok, ...p), 'utf8');
+};
 
-  // theme.js'ten YALNIZ ölçü (spacing) alınır, renk alınmaz.
-  assert.ok(!/colors\./.test(ekran), 'genel temadan renk kullanılıyor');
-  assert.match(ekran, /from '\.\.\/resmiListeTema'/, 'kendi paletini kullanmıyor');
+test('palet theme.js\'ten TÜRETİLİYOR — elle renk yazılmamış', async () => {
+  const tema = await okuKaynak('src', 'resmiListeTema.js');
+  // Uzantı açık ya da kapalı olabilir; önemli olan TEMADAN türemesi.
+  assert.match(tema, /import \{ colors \} from '\.\/theme(\.js)?'/, 'palet temadan türemiyor');
+  // Hex renk sabiti kalmamalı: biri elle #E2172F yazarsa tema değişince
+  // liste geride kalır.
+  const hexler = tema.match(/#[0-9a-fA-F]{3,8}\b/g) || [];
+  assert.deepEqual(hexler, [], `elle yazılmış renk var: ${hexler.join(', ')}`);
 });
 
-test('resmî palet uygulamanın geri kalanına SIZMAZ', async () => {
+test('bant rengi uygulamanın ANA rengiyle aynı', async () => {
+  // Ekran görüntüsündeki sorun buydu: parlak kırmızı bant, hemen üstündeki
+  // lacivert "Kupon Oluştur" düğmesinin yanında yabancı duruyordu.
+  const { RL } = await import('../src/resmiListeTema.js');
+  const { colors } = await import('../src/theme.js');
+  assert.equal(RL.bant, colors.primary, 'bant ana renkten farklı — ekran iki parça görünür');
+  assert.equal(RL.bantYazi, colors.white);
+});
+
+test('ekran ve tablo bileşeninde ELLE YAZILMIŞ renk yok', async () => {
+  for (const yol of [['src', 'screens', 'ResmiListeScreen.js'], ['src', 'components', 'ResmiListeTablosu.js']]) {
+    const s = await okuKaynak(...yol);
+    const hexler = s.match(/#[0-9a-fA-F]{3,8}\b/g) || [];
+    assert.deepEqual(hexler, [], `${yol.join('/')} içinde elle renk: ${hexler.join(', ')}`);
+    assert.match(s, /from '\.\.\/resmiListeTema'/, `${yol.join('/')} paleti kullanmıyor`);
+  }
+});
+
+test('palet YALNIZ liste dosyalarında kullanılıyor', async () => {
   const { readFileSync, readdirSync, statSync } = await import('node:fs');
   const { dirname, join } = await import('node:path');
   const { fileURLToPath } = await import('node:url');
@@ -167,26 +193,18 @@ test('resmî palet uygulamanın geri kalanına SIZMAZ', async () => {
     }
   }(kok));
 
-  // Tablo bileşeni ve onu kullanan iki ekran paleti kullanabilir; başka
-  // hiçbir dosya kullanamaz.
   const izinli = ['resmiListeTema.js', 'ResmiListeScreen.js', 'ResmiListeTablosu.js'];
   for (const p of dosyalar) {
     if (izinli.some((a) => p.endsWith(a))) continue;
-    const s = readFileSync(p, 'utf8');
-    assert.ok(!/resmiListeTema/.test(s),
-      `${p.split('src')[1]} resmî paleti kullanıyor — palet ekranla sınırlı kalmalı`);
+    assert.ok(!/resmiListeTema/.test(readFileSync(p, 'utf8')),
+      `${p.split('src')[1]} listeye özgü paleti kullanıyor`);
   }
 });
 
 test('ekranda BAĞIMSIZLIK beyanı ve kaynak satırı KALDIRILMAMIŞ', async () => {
-  // Görünüm resmî siteye yaklaştıkça bu iki satır daha da gerekli hâle gelir:
-  // ekran resmî listeyi YANSITIR ama resmî bir kaynak DEĞİLDİR.
-  const { readFileSync } = await import('node:fs');
-  const { dirname, join } = await import('node:path');
-  const { fileURLToPath } = await import('node:url');
-  const kok = join(dirname(fileURLToPath(import.meta.url)), '..');
-  const ekran = readFileSync(join(kok, 'src', 'screens', 'ResmiListeScreen.js'), 'utf8');
-
+  // Düzen resmî listeye benzediği sürece bu iki satır gereklidir: ekran
+  // resmî listeyi YANSITIR ama resmî bir kaynak DEĞİLDİR.
+  const ekran = await okuKaynak('src', 'screens', 'ResmiListeScreen.js');
   assert.match(ekran, /INDEPENDENCE_NOTICE/, 'bağımsızlık beyanı kaldırılmış');
   assert.match(ekran, /Kaynak: /, 'kaynak satırı kaldırılmış');
 });

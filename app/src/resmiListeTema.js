@@ -1,49 +1,54 @@
-// RESMÎ LİSTE PALETİ — yalnız Resmî Liste ekranı için.
+// RESMÎ LİSTE PALETİ — resmî listenin DÜZENİ, uygulamanın RENKLERİ.
 //
-// NEDEN AYRI DOSYA: Bu ekran resmî listenin GÖRÜNÜMÜNÜ yansıtır; uygulamanın
-// geri kalanı kendi paletini (theme.js) kullanır. İki palet karışırsa aynı
-// uygulamada iki farklı gri, iki farklı kırmızı çıkar. Buradaki renkler
-// theme.js'e SIZDIRILMAZ ve theme.js'ten buraya renk alınmaz.
+// KARAR (emrah, 01.08.2026): "bizim renklere uyumlu olsun".
+// Önce resmî sitenin renkleri (mavi-gri + parlak kırmızı bant) kullanılmıştı;
+// uygulamanın lacivert paletiyle çakışıyordu — özellikle "Açıklanan Sonuçlar"
+// bandı, hemen üstündeki lacivert "Kupon Oluştur" düğmesinin yanında yabancı
+// duruyordu.
 //
-// DEĞERLER YAKLAŞIKTIR: paylaşılan ekran görüntüsünden okundu, resmî bir
-// stil kılavuzundan değil. İnce ayar gerekirse yalnız bu dosya değişir —
-// ekran dosyasında tek bir renk sabiti yoktur.
+// ÇÖZÜM: renkler artık theme.js'ten TÜRETİLİYOR, elle yazılmıyor. Yani tema
+// bir gün değişirse liste kendiliğinden uyar; ikinci bir palet bakımı yok.
+// Resmî listeden korunan şey DÜZENDİR: sıkı satırlar, düz köşeler, zebra,
+// dikey ayraçlar, tam genişlik bant.
 //
-// ⚠ MARKA NOTU: Görünümün resmî siteye yaklaşması, açık işler listesindeki
-// marka/impersonation riskini büyütür (uygulama adı kararı henüz verilmedi).
-// Bu yüzden ekranda kaynak satırı ve BAĞIMSIZLIK BEYANI kalır — kaldırılmamalı.
+// ⚠ MARKA NOTU: Ekrandaki kaynak satırı ve BAĞIMSIZLIK BEYANI kalır —
+// düzen resmî listeye benzediği sürece bu iki satır daha da gereklidir.
+// Uzantı AÇIK: node:test uzantısız çözemiyor (bkz. resmiListe.js'teki aynı not).
+import { colors } from './theme.js';
 
 export const RL = {
   // Zemin ve satırlar
-  sayfa: '#ffffff',
-  satir: '#ffffff',
-  satirAlt: '#eef4f8',        // zebra — çok açık mavi-gri
-  cizgi: '#e3ebf1',           // ince ayraç
+  sayfa: colors.surface,
+  satir: colors.surface,
+  satirAlt: colors.surfaceSoft,   // zebra — uygulamanın kendi açık tonu
+  cizgi: colors.border,
 
-  // Yazı
-  baslik: '#8ba6ba',          // tablo başlıkları (Sıra/Maç/…) — soluk mavi-gri
-  metin: '#6f93ab',           // maç adı, gün, saat — mavi-gri
-  guclu: '#3f5f76',           // skor/sonuç gibi öne çıkan sayılar
-  soluk: '#9db3c2',           // yardımcı notlar
+  // Yazı — uygulamanın metin hiyerarşisi
+  baslik: colors.muted,
+  metin: colors.textSoft,
+  guclu: colors.text,
+  soluk: colors.muted,
 
-  // Üst şerit ve kırmızı bant
-  ustCizgi: '#9c1231',        // sayfanın en üstündeki koyu kırmızı şerit
-  bant: '#e2172f',            // "Açıklanan Sonuçlar" bandı
-  bantYazi: '#ffffff',
+  // Üst şerit ve bant: uygulamanın LACİVERT ana rengi (resmî sitedeki
+  // parlak kırmızı değil). Bant, hemen üstündeki "Kupon Oluştur" düğmesiyle
+  // aynı renk olduğu için ekran tek parça görünür.
+  ustCizgi: colors.primary,
+  bant: colors.primary,
+  bantYazi: colors.white,
 
   // Alt bilgi satırları (15 Bilen / Kapanış / Açıklamalar)
-  etiketZemin: '#eef4f8',
-  etiketYazi: '#7e9bb0',
-  degerZemin: '#f7fafc',
-  degerYazi: '#6f93ab',
+  etiketZemin: colors.primarySoft,
+  etiketYazi: colors.textSoft,
+  degerZemin: colors.surfaceSoft,
+  degerYazi: colors.textSoft,
 };
 
-// Ölçüler — resmî listedeki sıkı, tablo hissi (uygulamanın genel
-// yuvarlaklığından belirgin biçimde daha düz).
+// Ölçüler — resmî listedeki sıkı, tablo hissi. Renk değil DÜZEN burada
+// korunuyor: uygulamanın genel yuvarlaklığından belirgin biçimde daha düz.
 export const RLO = {
   satirYuksekligi: 44,
-  koseYaricapi: 3,
-  bantYaricapi: 4,
+  koseYaricapi: 6,
+  bantYaricapi: 8,
   yaziBoyu: 12,
   baslikBoyu: 11.5,
   armaBoyu: 22,

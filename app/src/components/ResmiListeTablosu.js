@@ -24,6 +24,13 @@ function Satir({ item, zebra, onPress }) {
     <>
       <Text style={st.hSira}>{item.no}</Text>
       <Ayrac />
+      {/* ARMALAR ADLARLA BİRLİKTE ORTALANIR.
+          Önce arma-ad-arma üçlüsü hücreye YAYILIYORDU (ad flex:1): geniş
+          ekranda armalar hücrenin iki ucuna savruluyor, aradaki boşluk
+          kocaman açılıyordu. Telefonda daha az belliydi ama yapı aynıydı —
+          yani "web'de öyle görünüyor" değil, yerleşim hatasıydı.
+          Şimdi üçlü tek grup hâlinde ortalanıyor; hücre genişledikçe
+          boşluk grubun DIŞINDA kalıyor, armalar adın yanında duruyor. */}
       <View style={[st.hMac, st.macHucre]}>
         <Logo uri={crestOf(item, 'home')} name={item.home?.name} size={RLO.armaBoyu} />
         <Text style={st.macYazi} numberOfLines={1}>
@@ -137,8 +144,11 @@ const st = StyleSheet.create({
   hSonuc: { width: 48, textAlign: 'center', color: RL.metin, fontSize: RLO.yaziBoyu },
   ayrac: { width: 1, alignSelf: 'stretch', backgroundColor: RL.cizgi, marginVertical: 10 },
 
-  macHucre: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8 },
-  macYazi: { flex: 1, color: RL.metin, fontSize: RLO.yaziBoyu, textAlign: 'center' },
+  // justifyContent:'center' + macYazi'da flex YOK: üçlü tek grup olarak
+  // ortalanır, boşluk grubun dışında kalır. (flex:1 verilseydi ad hücreyi
+  // doldurur ve armaları uçlara iterdi — düzeltilen hata buydu.)
+  macHucre: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 8 },
+  macYazi: { color: RL.metin, fontSize: RLO.yaziBoyu, textAlign: 'center', flexShrink: 1 },
 
   kirmiziBant: {
     backgroundColor: RL.bant, borderRadius: RLO.bantYaricapi,
