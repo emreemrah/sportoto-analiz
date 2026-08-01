@@ -203,7 +203,7 @@ export function buildDecision(m) {
     wing: na, setPiece: na,
     transition: tacticalMismatch ? 'Deplasmanın geçiş oyunu ev savunmasına ters gelebilir' : na,
     mismatch: tacticalMismatch ? 'Deplasman yapısı ev sahibine ters' : (h2hAwayFav ? 'Geçmiş eşleşme deplasman lehine' : 'Belirgin taktik terslik tespit edilmedi'),
-    verdict: tacticalMismatch ? 'Taktik olarak deplasman lehine risk var; 2 silinmemeli.' : (favSym === '1' && favPct >= 55 ? 'Taktik veriler ev sahibi lehine ama net üstünlük yok.' : 'Taktik denge net değil; kapalı oynamak güvenli.'),
+    verdict: tacticalMismatch ? 'Taktik olarak deplasman lehine risk var; 2 silinmemeli.' : (favSym === '1' && favPct >= 55 ? 'Taktik veriler ev sahibi lehine ama net üstünlük yok.' : 'Taktik denge net değil; kapalı tercih iki sonucu birden kapsar.'),
   };
 
   // ——— GELİŞMİŞ İSTATİSTİK ———
@@ -279,7 +279,7 @@ function joinCoupon(arr) { return (arr || []).join('-'); }
 function buildShortComment({ mainTrend, favSym, favPct, pX, p2, gap12, h2hAwayFav, tacticalMismatch, narrowCoupon, safeCoupon, bankoStatus, riskLevel }) {
   const parts = [];
   // 1) önce risk
-  if (favPct < FAVORITE_MIN_PCT || gap12 < CLOSE_GAP_PCT) parts.push(`Bu maç tek ${favSym} için güvenli değil.`);
+  if (favPct < FAVORITE_MIN_PCT || gap12 < CLOSE_GAP_PCT) parts.push(`Bu maçta tek ${favSym} dayanağı zayıf.`);
   else parts.push(`Bu maç ${favSym} yönünde eğilimli ama garanti değil.`);
   // 2) kanıt
   const ev = [];

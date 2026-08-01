@@ -195,12 +195,16 @@ export function computeMasterAnalysis({
     mainPrediction = top;
     alternativePrediction = second;
     closedPrediction = [top, second].sort((x, y) => '1X2'.indexOf(x) - '1X2'.indexOf(y)).join('');
-    decisionNote = `Ana tercih ${top} açık önde (+${lead} puan); güvenli kapama ${closedPrediction}.`;
+    // "GÜVENLİ" DENMEZ. Kapalı tercih daha güvenli değil, daha GENİŞ kapsar —
+    // ve genişlik bedavaya gelmez (kolon sayısı, dolayısıyla maliyet artar).
+    // Bahis bağlamında "güvenli" sıfatı bir güvence iddiasıdır; bu ürünün dili
+    // iddia kurmaz, ne yaptığını ve neye mal olduğunu söyler.
+    decisionNote = `Ana tercih ${top} açık önde (+${lead} puan); kapalı tercih ${closedPrediction} iki sonucu birden kapsar (kolon sayısı iki katına çıkar).`;
   } else {
     mainPrediction = top;
     alternativePrediction = second;
     closedPrediction = [top, second].sort((x, y) => '1X2'.indexOf(x) - '1X2'.indexOf(y)).join('');
-    decisionNote = `İlk iki yön yakın (fark ${lead} puan) — çifte tercih ${closedPrediction} daha güvenli.`;
+    decisionNote = `İlk iki yön yakın (fark ${lead} puan) — çifte tercih ${closedPrediction} iki sonucu birden kapsar (kolon sayısı iki katına çıkar).`;
   }
 
   // Güven — veri kalitesinden AYRI (destek yüzdesi olasılık değildir).
@@ -292,7 +296,7 @@ export function buildMasterSummary(master, { radarMaster = null, names = {} } = 
   // banko/yanılmaz/net favori"). Arayüzün geri kalanı zaten "güçlü aday"
   // diyor (bkz. MasterAnalysisView rozeti ve aşağıdaki radar cümlesi); bu
   // cümle tek istisnaydı ve kullanıcıya görünen özet metnine düşüyordu.
-  p.push(`Ana tercih ${master.mainPrediction ?? '—'}${master.closedPrediction ? `, güvenli kapama ${master.closedPrediction}` : ''}; güçlü aday için ${master.bankoEligible ? 'koşullar sağlandı (garanti değildir)' : 'uygun değil'}.`);
+  p.push(`Ana tercih ${master.mainPrediction ?? '—'}${master.closedPrediction ? `, kapalı tercih ${master.closedPrediction}` : ''}; güçlü aday için ${master.bankoEligible ? 'koşullar sağlandı (garanti değildir)' : 'uygun değil'}.`);
   // Radar kıyası — ayrı sistem, gizlice karışmaz; yalnız ortak görüş/çelişki cümlesi.
   if (radarMaster?.classification) {
     const agree = radarMaster.mainPrediction && master.mainPrediction && radarMaster.mainPrediction === master.mainPrediction;

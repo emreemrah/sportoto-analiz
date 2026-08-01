@@ -122,7 +122,7 @@ function buildSportotoDecision(ctx) {
   if (gap12 < CLOSE_GAP_PCT) addTag('Tek Oynanmaz', TAG_BASE_STRONG + (CLOSE_GAP_PCT - gap12), `1 ve 2 arasındaki fark %${gap12} — güçler yakın.`, 'Tek yerine dar (1-2) veya kapalı oyna.');
   if (sX >= X_KEEP_PCT) addTag('X Silinmez', TAG_BASE + (sX - X_KEEP_PCT) * 2, `Beraberlik kriter payı %${sX}.`, 'Geniş kuponda X kalmalı.');
   if (s2 >= AWAY_KEEP_PCT) addTag('2 Silinmez', TAG_BASE + (s2 - AWAY_TAG_PIVOT), `Deplasman kriter payı %${s2} — gerçek risk.`, 'Geniş kuponda 2 kalmalı.');
-  if (naRows.length) addTag('Veri Eksikliği Riski', 40 + naRows.length * 6, `Seçili ${selectedCount} kriterden ${naRows.length} tanesi veri bulamadı: ${naRows.slice(0, 3).map((x) => x.label).join(', ')}.`, 'Eksik veri nedeniyle daha geniş (güvenli) seçim tercih edilmeli.');
+  if (naRows.length) addTag('Veri Eksikliği Riski', 40 + naRows.length * 6, `Seçili ${selectedCount} kriterden ${naRows.length} tanesi veri bulamadı: ${naRows.slice(0, 3).map((x) => x.label).join(', ')}.`, 'Eksik veri nedeniyle daha geniş seçim düşünülmeli (kolon sayısı artar).');
   if (decisiveCount <= 1) addTag('Dayanak Zayıf', 70, `Yalnız ${decisiveCount} kriter bir tarafı gösteriyor.`, 'Daha çok kriter seçmeden bu maça tek oynanmamalı.');
   // Alan adları (bankoStatus/bankoReasons) İÇ İSİMDİR, değiştirilmedi; ama
   // kullanıcıya GÖRÜNEN her kelime "güçlü aday" dilinde olmak zorunda.
@@ -139,7 +139,7 @@ function buildSportotoDecision(ctx) {
   // kullanılmaz (CLAUDE.md: iddialı dil yok).
   parts.push(clear
     ? `${outName(topOut)} yönünde eğilim var; yine de diğer sonuçlar tamamen elenmez.`
-    : `Bu maç tek sonuç için güvenli değil — ${outName(topOut)} ile ${outName(secondOut)} arasındaki fark kapanabilir.`);
+    : `${outName(topOut)} ile ${outName(secondOut)} arasındaki fark kapanabilir; tek sonuç bu farkı yok sayar.`);
   const ev = [`Kriter payları — 1: %${s1} · X: %${sX} · 2: %${s2}.`];
   if (sX >= X_KEEP_PCT) ev.push(`Beraberlik %${sX} ile silinemeyecek kadar canlı.`);
   if (s2 >= AWAY_KEEP_PCT) ev.push(`Deplasman %${s2} ile 2 ihtimalini ayakta tutuyor.`);
@@ -313,13 +313,16 @@ export function userSelectedAnalysisEngine(m, profile) {
 
   let risk;
   if (decisiveCount === 0) {
-    risk = 'Seçili kriterler net bir taraf göstermedi — veri yetersiz; çift/üçlü ihtimal daha güvenli.';
+    // "güvenli" DENMEZ (bkz. backend/src/analysis/masterEngine.js'teki aynı
+    // karar): geniş tercih daha güvenli değil, daha GENİŞ kapsar ve kolon
+    // sayısını artırır. Güvence iddiası kurulmaz.
+    risk = 'Seçili kriterler net bir taraf göstermedi — veri yetersiz; çift/üçlü ihtimal daha geniş kapsar (kolon sayısı artar).';
   } else if (!clear) {
     risk = `Bu maçta belirgin bir üstünlük yok — puanlar birbirine yakın (1: ${r1(homeScore)} · X: ${r1(drawScore)} · 2: ${r1(awayScore)}), maç her sonuca açık. Ana seçim geniş tutuldu (${main}), alternatif üç ihtimal (${alt}).`;
   } else if (lead >= 0.55) {
-    risk = `${outName(topOut)} açık ara önde (${r1(scores[topOut])} — ${r1(scores[secondOut])}). Ana seçim ${main} göreceli güvenli; daha geniş oynamak istersen alternatif ${alt}.`;
+    risk = `${outName(topOut)} açık ara önde (${r1(scores[topOut])} — ${r1(scores[secondOut])}). Ana seçim ${main} tek sonuca dayanır; daha geniş kapsamak istersen alternatif ${alt}.`;
   } else {
-    risk = `${outName(topOut)} önde ama ${outName(secondOut)} tamamen silinmez (${r1(scores[topOut])} — ${r1(scores[secondOut])}). Güvenli oynamak için alternatif ${alt} tercih edilebilir.`;
+    risk = `${outName(topOut)} önde ama ${outName(secondOut)} tamamen silinmez (${r1(scores[topOut])} — ${r1(scores[secondOut])}). Daha geniş kapsamak için alternatif ${alt} tercih edilebilir (kolon sayısı artar).`;
   }
 
   const parts = [];
