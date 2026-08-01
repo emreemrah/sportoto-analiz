@@ -18,15 +18,11 @@ import { api } from '../api';
 import { spacing } from '../theme';
 // Bu ekranın paleti AYRIDIR (resmî listenin görünümü) — bkz. resmiListeTema.js
 import { RL, RLO } from '../resmiListeTema';
-import { Logo } from '../ui';
-import { crestOf } from '../utils';
+import ResmiListeTablosu, { AciklananSonuclar } from '../components/ResmiListeTablosu';
 import { INDEPENDENCE_NOTICE } from '../brand';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
-import {
-  macGunu, macSaati, skorMetni, sonucMetni,
-  kademeSatirlari, altSatirlar, haftaSecenekleri, sezonMetni,
-} from '../resmiListe';
+import { macSaati, haftaSecenekleri, sezonMetni } from '../resmiListe';
 
 export default function ResmiListeScreen({ navigation }) {
   const [rounds, setRounds] = useState(null);
@@ -121,58 +117,15 @@ export default function ResmiListeScreen({ navigation }) {
         />
       ) : null}
 
-      {/* TABLO BAŞLIĞI */}
-      <View style={[st.satir, st.baslikSatiri]}>
-        <Text style={[st.hSira, st.baslikYazi]}>Sıra</Text>
-        <View style={st.ayrac} />
-        <Text style={[st.hMac, st.baslikYazi]}>Maç</Text>
-        <View style={st.ayrac} />
-        <Text style={[st.hGun, st.baslikYazi]}>Maç Günü</Text>
-        <View style={st.ayrac} />
-        <Text style={[st.hSaat, st.baslikYazi]}>Maç Saati</Text>
-        <View style={st.ayrac} />
-        <Text style={[st.hSkor, st.baslikYazi]}>Skor</Text>
-        <View style={st.ayrac} />
-        <Text style={[st.hSonuc, st.baslikYazi]}>Sonuç</Text>
-      </View>
+      {/* TABLO — components/ResmiListeTablosu.js (Bülten ekranıyla ORTAK). */}
+      <ResmiListeTablosu
+        maclar={maclar}
+        yukleniyor={yukleniyor}
+        bosNot="Bu hafta için resmî liste bulunamadı."
+        onSatirPress={(no) => navigation.navigate('MatchDetail', { no })}
+      />
 
-      {yukleniyor && !maclar.length ? (
-        <View style={st.orta}><ActivityIndicator color={RL.bant} /></View>
-      ) : !maclar.length ? (
-        <Text style={st.bosNot}>Bu hafta için resmî liste bulunamadı.</Text>
-      ) : maclar.map((m, i) => (
-        <View key={m.no ?? i} style={[st.satir, i % 2 === 1 && st.zebra]} testID={`resmi-satir-${m.no}`}>
-          <Text style={st.hSira}>{m.no}</Text>
-          <View style={st.ayrac} />
-          <View style={[st.hMac, st.macHucre]}>
-            <Logo uri={crestOf(m, 'home')} name={m.home?.name} size={22} />
-            <Text style={st.macYazi} numberOfLines={1}>
-              {m.home?.mediumName || m.home?.name} – {m.away?.mediumName || m.away?.name}
-            </Text>
-            <Logo uri={crestOf(m, 'away')} name={m.away?.name} size={22} />
-          </View>
-          <View style={st.ayrac} />
-          <Text style={st.hGun}>{macGunu(m.date)}</Text>
-          <View style={st.ayrac} />
-          <Text style={st.hSaat}>{macSaati(m.date)}</Text>
-          <View style={st.ayrac} />
-          <Text style={st.hSkor}>{skorMetni(m)}</Text>
-          <View style={st.ayrac} />
-          <Text style={st.hSonuc}>{sonucMetni(m)}</Text>
-        </View>
-      ))}
-
-      {/* AÇIKLANAN SONUÇLAR */}
-      <View style={st.kirmiziBant}>
-        <Text style={st.kirmiziBantYazi}>Açıklanan Sonuçlar</Text>
-      </View>
-      {[...kademeSatirlari(hafta?.prize), ...altSatirlar(hafta?.prize, seciliHafta?.closeDate)]
-        .map((s, i) => (
-          <View key={s.etiket} style={[st.altSatir, i % 2 === 1 && st.zebra]}>
-            <Text style={st.altEtiket}>{s.etiket}</Text>
-            <Text style={st.altDeger}>{s.deger}</Text>
-          </View>
-        ))}
+      <AciklananSonuclar prize={hafta?.prize} closeDate={seciliHafta?.closeDate} />
 
       {/* Bu ekran resmî listeyi YANSITIR ama resmî bir kaynak DEĞİLDİR. */}
       <Text style={st.kaynak}>

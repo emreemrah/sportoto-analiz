@@ -167,7 +167,9 @@ test('resmî palet uygulamanın geri kalanına SIZMAZ', async () => {
     }
   }(kok));
 
-  const izinli = ['resmiListeTema.js', 'ResmiListeScreen.js'];
+  // Tablo bileşeni ve onu kullanan iki ekran paleti kullanabilir; başka
+  // hiçbir dosya kullanamaz.
+  const izinli = ['resmiListeTema.js', 'ResmiListeScreen.js', 'ResmiListeTablosu.js'];
   for (const p of dosyalar) {
     if (izinli.some((a) => p.endsWith(a))) continue;
     const s = readFileSync(p, 'utf8');

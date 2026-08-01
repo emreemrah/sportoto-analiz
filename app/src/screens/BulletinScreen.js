@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator, Image, Platform } from 'react-native';
+import { View, Text, FlatList, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator, Image, Platform } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { api } from '../api';
 import { colors, spacing, radius, shadow } from '../theme';
@@ -15,6 +15,7 @@ import { API_BASE } from '../config';
 import ScoreLegend from '../components/ScoreLegend';
 import SnapshotSealBanner from '../components/SnapshotSealBanner';
 import LiveBulletinView from '../components/LiveBulletinView';
+import ResmiListeTablosu, { AciklananSonuclar } from '../components/ResmiListeTablosu';
 import BultenBackdrop from '../components/BultenBackdrop';
 import BultenEmptyState from '../components/BultenEmptyState';
 
@@ -69,6 +70,9 @@ export default function BulletinScreen({ navigation }) {
   const [histChecking, setHistChecking] = useState(false);      // "Resmi sonuçlar kontrol ediliyor"
   const [histUpdateMsg, setHistUpdateMsg] = useState(null);      // null | 'updated' | 'noNew'
   const [corrections, setCorrections] = useState([]);           // oturum-içi resmi sonuç DÜZELTMELERİ
+  // GÖRÜNÜM: 'resmi' (resmî sitedeki tablo) | 'analiz' (mevcut analiz kartları).
+  // Varsayılan resmî liste; tercih cihazda saklanır.
+  const [gorunum, setGorunum] = useState(getPref('bultenGorunum') || 'resmi');
   const [prizeView, setPrizeView] = useState(getPref('prizeView'));       // list|table|card
   // Geçmiş hafta üst sayaç kutuları + filtre çipleri KALDIRILDI (kullanıcı isteği);
   // liste bülten sırasında (veya kayıtlı sıralama tercihinde) akar.
@@ -306,9 +310,27 @@ export default function BulletinScreen({ navigation }) {
       {/* RESMÎ LİSTE: haftanın bülteni resmî sitedeki düzenle — bu ekrandaki
           analiz/tahmin katmanı olmadan, yalnız ham liste ve açıklanan
           sonuçlar. "Resmî sitede ne yazıyor?" sorusunun doğrudan cevabı. */}
-      <TouchableOpacity onPress={() => navigation.navigate('ResmiListe')} style={styles.historyLink}>
-        <Text style={styles.historyLinkTxt}>📋 Resmî Liste · Skor ve Açıklanan Sonuçlar ›</Text>
-      </TouchableOpacity>
+      {/* GÖRÜNÜM ANAHTARI — liste artık BU ekranda. Varsayılan resmî tablo;
+          analiz kartları silinmedi, tek dokunuşla geri geliyor. */}
+      {viewingCurrent ? (
+        <View style={styles.gorunumSatir}>
+          {[{ k: 'resmi', ad: '📋 Resmî Liste' }, { k: 'analiz', ad: '📊 Analiz' }].map((g) => {
+            const acik = gorunum === g.k;
+            return (
+              <TouchableOpacity
+                key={g.k}
+                onPress={() => { setGorunum(g.k); setPref('bultenGorunum', g.k); }}
+                style={[styles.gorunumDugme, acik && styles.gorunumDugmeAcik]}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityState={{ selected: acik }}
+              >
+                <Text style={[styles.gorunumYazi, acik && styles.gorunumYaziAcik]}>{g.ad}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ) : null}
       {/* MÜHÜR DURUMU — kilit geri sayımı / "Mühürlü Analiz" + doğrulama hash'i.
           Veri kalıcı arşivden (data.archive); arşiv yoksa şerit çizilmez. */}
       {viewingCurrent && !data?.pending ? <SnapshotSealBanner archive={data?.archive} /> : null}
@@ -538,7 +560,26 @@ export default function BulletinScreen({ navigation }) {
         const rv = rc ? finalVersion(rc) : null;
         if (rv) for (const sc of rv.selections) if (sc.selectedOutcomes?.length) rankedPicks[sc.no] = sc.selectedOutcomes.map(toOfficial).join('');
       }
-      body = (
+      // GÖRÜNÜM ANAHTARI: varsayılan RESMÎ LİSTE (resmî sitedeki tablo).
+      // Analiz kartları SİLİNMEDİ — "Analiz" görünümünde duruyor. Ana ekrandan
+      // 15 analiz kartını tamamen kaldırmak geri dönüşü zor bir karardır;
+      // anahtar sayesinde ikisi de tek dokunuş uzakta.
+      body = gorunum === 'resmi' ? (
+        <ScrollView contentContainerStyle={styles.resmiPad} refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary} />
+        }>
+          <ResmiListeTablosu
+            maclar={currentMatches}
+            bosNot="Bu haftanın maç listesi bulunamadı."
+            onSatirPress={(no) => {
+              const m = currentMatches.find((x) => x.no === no);
+              const started = !!(m && (m.started || m.live || m.finalized || (m.date && new Date(m.date).getTime() <= Date.now())));
+              navigation.navigate(started ? 'LiveMatchDetail' : 'MatchDetail', { no });
+            }}
+          />
+          <AciklananSonuclar prize={data?.prize} closeDate={data?.closeDate} />
+        </ScrollView>
+      ) : (
         <LiveBulletinView
           matches={currentMatches}
           userPicks={rankedPicks}
@@ -670,6 +711,16 @@ function TeamLogo({ logo, name }) {
 }
 
 const styles = StyleSheet.create({
+  // Görünüm anahtarı (Resmî Liste / Analiz)
+  gorunumSatir: { flexDirection: 'row', gap: 8, marginTop: 8, paddingHorizontal: spacing.md },
+  gorunumDugme: {
+    flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: radius.sm,
+    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card,
+  },
+  gorunumDugmeAcik: { backgroundColor: colors.primary, borderColor: colors.primary },
+  gorunumYazi: { color: colors.textSoft, fontSize: 12.5, fontWeight: '800' },
+  gorunumYaziAcik: { color: '#fff' },
+  resmiPad: { paddingBottom: 24 },
   container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, padding: 24 },
   listPad: { padding: spacing.md, paddingBottom: spacing.xl },
