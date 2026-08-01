@@ -161,7 +161,13 @@ export default function RadarTabHeader({
     // yüzdeleri her maçın kendi kartında görünür. Teknik bilgiler (n, arşiv
     // sayısı, shrinkage) ana ekranda YOK — yalnız metodolojide.
     const sezonlar = sezonSecenekleri(positionDna);
-    const seciliSezon = sezonlar.find((s) => s.k === dnaPeriod) || null;
+    // Sabit pencereler (Tüm Haftalar / Son 5-10-15) AKTİF SEZONU ölçer. Düğmede
+    // "Seç" yazsaydı kullanıcı hangi sezona baktığını bilemezdi; aktif sezon
+    // arka uçtan (cut.season) okunur, uydurulmaz.
+    const aktifSezon = positionDna?.cut?.season || null;
+    const seciliSezon = sezonlar.find((s) => s.k === dnaPeriod)
+      || sezonlar.find((s) => s.sezon === aktifSezon)
+      || null;
     return (
       <View style={[styles.dnaFilterWrap, styles.yapiskan]}>
         <View style={styles.dnaFilterRow}>
@@ -197,7 +203,7 @@ export default function RadarTabHeader({
               activeOpacity={0.75}
               accessibilityRole="button"
               accessibilityLabel={`Sezon seç, şu an ${seciliSezon ? seciliSezon.sezon : 'seçili değil'}`}
-              style={[styles.sezonChip, (sezonAcik || !!seciliSezon) && styles.sezonChipAcik]}
+              style={[styles.sezonChip, sezonAcik && styles.sezonChipAcik]}
             >
               <Text style={styles.sezonChipEtiket}>SEZON</Text>
               <Text style={styles.sezonChipTxt}>{seciliSezon ? seciliSezon.sezon : 'Seç'}</Text>

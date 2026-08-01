@@ -50,11 +50,19 @@ export function computePositionDna(matches, {
   excludeRoundId = null,        // güncel haftanın kendisi asla dahil edilmez
   seasonYear = null,
 } = {}) {
-  const usable = (matches || []).filter((m) =>
+  // GEÇERLİ SATIRLAR — sezon süzmesi HARİÇ. Sezon pencereleri bu kümeden
+  // üretilir, sabit pencereler (allTime/last5/…) ise sezona süzülmüş
+  // kümeden. İkisi ayrı olmalı: kullanıcı "Tüm Haftalar"ı O SEZONUN tüm
+  // haftaları diye okuyor, ama sezon listesi arşivdeki BÜTÜN sezonları
+  // göstermeli — yoksa seçilecek tek bir sezon kalır.
+  const gecerli = (matches || []).filter((m) =>
     m?.result && ['1', 'X', '2'].includes(m.result) && m.position >= 1 && m.position <= 15
     && (excludeRoundId == null || String(m.roundId) !== String(excludeRoundId))
-    && (seasonYear == null || String(m.seasonYear) === String(seasonYear))
     && (upToRoundCloseAt == null || (m.roundCloseAt && m.roundCloseAt < upToRoundCloseAt)));
+
+  const usable = seasonYear == null
+    ? gecerli
+    : gecerli.filter((m) => String(m.seasonYear) === String(seasonYear));
 
   // Global dağılım (shrinkage prior'u + bülten başına ortalama).
   const globalW = countWindow(usable);
@@ -85,10 +93,13 @@ export function computePositionDna(matches, {
     };
     const tier = sampleTier(windows.allTime.sample);
 
-    // Sezon kırılımı
+    // Sezon kırılımı — SÜZÜLMEMİŞ kümeden (gecerli), sabit pencerelerden
+    // farklı olarak. Böylece seçili sezon 2025/2026 iken bile 2022/2023
+    // seçeneği listede durur.
+    const tumSatirlar = gecerli.filter((m) => m.position === pos);
     const bySeason = {};
     const rowsBySeason = {};
-    for (const m of rows) {
+    for (const m of tumSatirlar) {
       const s = m.seasonYear || 'bilinmiyor';
       if (!bySeason[s]) { bySeason[s] = { '1': 0, X: 0, '2': 0, n: 0 }; rowsBySeason[s] = []; }
       bySeason[s][m.result] += 1; bySeason[s].n += 1;

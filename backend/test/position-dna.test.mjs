@@ -225,3 +225,26 @@ test('15. Sezonu bilinmeyen haftalar sezon penceresi ÜRETMEZ', () => {
   // Ama veri kaybolmaz: allTime hâlâ 3 haftayı sayar.
   assert.equal(p1.windows.allTime.sample, 3);
 });
+
+test('16. Sezon süzmesi VARKEN bile sezon listesi tüm sezonları gösterir', () => {
+  // Kullanıcı "Tüm Haftalar"ı O SEZONUN tüm haftaları diye okur; ama SEZON
+  // açılır listesi arşivdeki bütün sezonları göstermeli. Bir zamanlar süzme
+  // sezon kırılımından ÖNCE yapılıyordu ve listede tek seçenek kalıyordu.
+  const ms = [
+    ...makeMatches(4, () => '1', { startRound: 1000 }).map((m) => ({ ...m, seasonYear: '2024/2025' })),
+    ...makeMatches(6, () => '2', { startRound: 2000 }).map((m) => ({ ...m, seasonYear: '2025/2026' })),
+  ];
+  const dna = computePositionDna(ms, { seasonYear: '2025/2026' });
+  const p1 = dna.positions.find((p) => p.position === 1);
+
+  // Sabit pencereler YALNIZ seçili sezonu ölçer.
+  assert.equal(p1.windows.allTime.sample, 6, '"Tüm Haftalar" = o sezonun tüm haftaları');
+  assert.equal(p1.windows.allTime.counts['2'], 6);
+  assert.equal(p1.windows.allTime.counts['1'], 0, 'öteki sezon sabit pencereye SIZMAZ');
+
+  // Sezon listesi ise İKİ sezonu da içerir.
+  assert.equal(p1.windows['season:2024/2025'].sample, 4);
+  assert.equal(p1.windows['season:2025/2026'].sample, 6);
+  assert.equal(p1.windows['season:2024/2025'].counts['1'], 4,
+    'seçili olmayan sezonun kendi sayıları doğru kalmalı');
+});

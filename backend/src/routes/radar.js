@@ -461,12 +461,14 @@ router.get('/position-dna', async (req, res) => {
       activeSeason = selectedRound?.seasonYear
         || eligibleRounds.sort((a, b) => String(b.roundCloseAt || '').localeCompare(String(a.roundCloseAt || '')))[0]?.seasonYear
         || null;
-      // SEZONA GÖRE SÜZME KALDIRILDI. Eskiden yalnız AKTİF sezonun maçları
-      // hesaba giriyordu; bu yüzden sezon pencereleri hiç oluşamıyor ve
-      // ekranda sezon filtresi gösterilemiyordu (oysa arşivde 4 sezon var).
-      // Artık tüm uygun sezonlar hesaba girer:
-      //   * "Tüm Haftalar" = arşivdeki tüm sezonlar (etiketin söylediği şey),
-      //   * her sezon ayrıca kendi penceresiyle seçilebilir.
+      // SEZON SÜZMESİ YOK — ama bu "Tüm Haftalar tüm sezonlar demek" anlamına
+      // GELMEZ. Maçların tamamı computePositionDna'ya verilir; orada:
+      //   * sabit pencereler (Tüm Haftalar / Son 5-10-15) seasonYear ile
+      //     AKTİF SEZONA süzülür — "Tüm Haftalar" = o sezonun tüm haftaları,
+      //   * sezon pencereleri süzülmemiş kümeden üretilir, böylece SEZON
+      //     açılır listesinde arşivdeki dört sezon da görünür.
+      // Eskiden süzme burada yapılıyordu ve sezonlar hesaba hiç girmediği için
+      // liste tek seçenekle kalıyordu.
       // ÖĞRENME SINIRI DEĞİŞMEDİ: historyLearningFilter hâlâ yalnız seçilen
       // haftadan ÖNCEKİ sonuçları geçiriyor.
     } catch { /* geçmiş arşiv yoksa yalnız ileri-test verisi kalır */ }
@@ -487,7 +489,9 @@ router.get('/position-dna', async (req, res) => {
 
     const dna = computePositionDna([...histMatches, ...arsivMaclari], {
       excludeRoundId: cutRoundId,
-      seasonYear: null,     // aynı sebep: tüm sezonlar hesaba girsin
+      // Sabit pencereleri AKTİF SEZONA bağlar; sezon pencereleri bundan
+      // etkilenmez (bkz. positionDna.js — gecerli/usable ayrımı).
+      seasonYear: activeSeason,
     });
 
     // İleri-test (official_forward) sıra istatistikleri — geçmiş arşivle birleşik özet.

@@ -420,6 +420,22 @@ describe('Radar 5 dönem filtresi', () => {
     await screen.findByText(/Tüm Haftalar/);
   };
 
+  test('SEZON düğmesi AKTİF SEZONU yazar (sabit pencereler onu ölçüyor)', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      // cut.season arka uçtan gelir; "Tüm Haftalar" bu sezonun tüm haftaları.
+      '/api/radar/position-dna': { ...dnaVer(), cut: { roundId: 1600, season: '2025/2026' } },
+    });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Bülten DNA'));
+    await screen.findByText(/Tüm Haftalar/);
+    // Düğmede "Seç" değil, ölçülen sezon yazar — yoksa kullanıcı "Tüm
+    // Haftalar"ın hangi sezona ait olduğunu bilemez.
+    expect(screen.getByText('2025/2026')).toBeTruthy();
+    expect(screen.queryByText('Seç')).toBeNull();
+  });
+
   test('SEZON düğmesi var, liste KAPALI başlar', async () => {
     await dnaSekmesi();
     // Sabit dönem çipleri duruyor…
