@@ -46,28 +46,70 @@ export function orneklemUyarisi(sample) {
     : `Yalnız ${n} hafta — yön sinyali üretilmez`;
 }
 
-/**
- * HAFTA ÇİPİ ETİKETİ — sezon geçişine hazırlık.
- *
- * 53. haftadan sonra yeni sezon 1. haftayla başlar. O anda şerit
- * "1. Hafta · Güncel | 53. Hafta 🔏 | 52. Hafta 🔏" olur; hafta numaraları
- * KÜÇÜLDÜĞÜ için hangisinin daha yeni olduğu anlaşılmaz. Şeritte birden çok
- * sezon varsa hafta adının yanına sezon yazılır — tek sezonda yazılmaz
- * (gereksiz gürültü).
- *
- * cokSezon: çağıran, görünen haftalarda birden çok sezon olup olmadığını verir.
- */
-export function haftaCipEtiketi(w, { guncel = false, cokSezon = false } = {}) {
-  const ad = w?.round || (w?.roundId != null ? `#${w.roundId}` : '');
-  const sezon = cokSezon && w?.year != null ? ` ${String(w.year)}` : '';
-  const isaret = guncel ? ' · Güncel' : (w?.locked || w?.sealed) ? ' 🔏' : '';
-  return `${ad}${sezon}${isaret}`;
-}
+/** 2026 → "2025/2026 Sezonu"; "2025/2026" → "2025/2026 Sezonu"; boşsa ''. */
+export const sezonAdiUzun = (y) => {
+  const s = String(y ?? '').trim();
+  if (!s) return '';
+  if (s.includes('/')) return `${s} Sezonu`;
+  return Number.isFinite(Number(s)) ? `${Number(s) - 1}/${Number(s)} Sezonu` : s;
+};
 
-/** Görünen haftalar birden çok sezona mı yayılıyor? (yılı bilinmeyen sayılmaz) */
-export function haftalarCokSezon(weeks) {
-  const yillar = new Set((weeks || []).map((w) => w?.year).filter((y) => y != null).map(String));
-  return yillar.size > 1;
+/**
+ * HAFTA SEÇİCİ VERİSİ — resmî Spor Toto listesindeki gezinti:
+ *   [2025/2026 Sezonu ▼]  [53. Hafta ▼]
+ *
+ * NEDEN: hafta çipleri yan yana diziliyordu. Yeni sezon 1. haftayla başlayınca
+ * hem numara küçülüyor hem de haftalar birikiyor (sezonda 52) — şerit okunmaz
+ * hâle geliyor.
+ *
+ * Hafta listesi seçili sezonun BÜTÜN haftalarını içerir, GÜNCEL hafta da dahil
+ * ve en üstte (resmî listede de öyle). Sıralama yeniden eskiye: 53, 52, 51…
+ *
+ * "Güncel" ölçütü radarScreenLogic.isCurrentWeek ile AYNIDIR (backend
+ * current:true alanı esas) — iki ayrı güncel tanımı olmaz.
+ */
+export function haftaSeciciVerisi(weeks, { curId = null, selectedId = null, navSezon = null } = {}) {
+  const guncelMi = (w) => w?.current === true
+    || (w?.roundId != null && curId != null && Number(w.roundId) === Number(curId));
+
+  const hepsi = (weeks || [])
+    .filter((w) => w?.roundId != null)
+    .map((w) => ({
+      roundId: Number(w.roundId),
+      ad: w.round || `#${w.roundId}`,
+      kilitli: !!(w.locked || w.sealed),
+      guncel: guncelMi(w),
+      yil: w.year ?? null,
+    }))
+    .sort((a, b) => b.roundId - a.roundId);
+
+  const sezonlar = [...new Set(hepsi.map((w) => w.yil).filter((y) => y != null).map(String))]
+    .sort((a, b) => b.localeCompare(a))
+    .map((y) => ({ y, ad: sezonAdiUzun(y) }));
+
+  // Bakılan hafta: seçili → yoksa güncel → yoksa en yeni.
+  const bakilan = hepsi.find((w) => selectedId != null && w.roundId === Number(selectedId))
+    || hepsi.find((w) => w.guncel) || hepsi[0] || null;
+
+  // Seçili sezon: kullanıcının seçimi → bakılan haftanın sezonu → en yeni.
+  const seciliSezon = (navSezon != null && sezonlar.some((s) => s.y === String(navSezon)))
+    ? String(navSezon)
+    : (bakilan?.yil != null ? String(bakilan.yil) : (sezonlar[0]?.y ?? null));
+
+  // Sezon süzgeci yalnız BİRDEN ÇOK sezon varken; tek sezonda süzülmez ki
+  // yılı bilinmeyen hafta listeden düşmesin.
+  const liste = sezonlar.length > 1 && seciliSezon != null
+    ? hepsi.filter((w) => String(w.yil) === seciliSezon)
+    : hepsi;
+
+  return {
+    sezonlar,                                  // [{y, ad}] — 1 taneyse düz yazı
+    seciliSezon,
+    sezonAdi: sezonAdiUzun(seciliSezon),
+    liste,                                     // hafta açılır listesinin içeriği
+    haftaAdi: bakilan?.ad ?? null,             // düğmede yazan hafta
+    haftaGuncelMi: !!bakilan?.guncel,
+  };
 }
 
 export const MASTER_FILTERS = [

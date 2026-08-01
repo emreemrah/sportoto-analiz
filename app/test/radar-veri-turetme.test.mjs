@@ -188,33 +188,58 @@ test('örneklem uyarısı: az veride yüzdenin neye dayandığı yazılır', asy
   assert.equal(orneklemUyarisi(undefined), null);
 });
 
-test('hafta çipi: TEK sezonda sezon yazılmaz', async () => {
-  const { haftaCipEtiketi, haftalarCokSezon } = await import('../src/radarScreenData.js');
+// ---------------------------------------------------------------------------
+// HAFTA SEÇİCİ — resmî listedeki gezinti verisi.
+// ---------------------------------------------------------------------------
+test('hafta seçici: TÜM haftalar güncel dahil, yeniden eskiye', async () => {
+  const { haftaSeciciVerisi } = await import('../src/radarScreenData.js');
+  const v = haftaSeciciVerisi([
+    { roundId: 1521, round: '49. Hafta', year: 2026, sealed: true },
+    { roundId: 1527, round: '53. Hafta', year: 2026, current: true },
+    { roundId: 1525, round: '51. Hafta', year: 2026, locked: true },
+  ], { curId: 1527, selectedId: 1527 });
+  assert.deepEqual(v.liste.map((w) => w.ad), ['53. Hafta', '51. Hafta', '49. Hafta']);
+  assert.equal(v.liste[0].guncel, true);
+  assert.equal(v.haftaAdi, '53. Hafta');
+  assert.equal(v.haftaGuncelMi, true);
+  // Tek sezon → düz yazı; sezon adı yine üretilir.
+  assert.equal(v.sezonlar.length, 1);
+  assert.equal(v.sezonAdi, '2025/2026 Sezonu');
+});
+
+test('hafta seçici: SEZON GEÇİŞİNDE liste seçili sezona göre süzülür', async () => {
+  const { haftaSeciciVerisi } = await import('../src/radarScreenData.js');
   const haftalar = [
-    { roundId: 1527, round: '53. Hafta', year: 2026 },
+    { roundId: 1528, round: '1. Hafta', year: 2027, current: true },
+    { roundId: 1527, round: '53. Hafta', year: 2026, sealed: true },
     { roundId: 1526, round: '52. Hafta', year: 2026, sealed: true },
   ];
-  assert.equal(haftalarCokSezon(haftalar), false);
-  assert.equal(haftaCipEtiketi(haftalar[0], { guncel: true, cokSezon: false }), '53. Hafta · Güncel');
-  assert.equal(haftaCipEtiketi(haftalar[1], { cokSezon: false }), '52. Hafta 🔏');
+  // Güncele bakılıyor → sezon onun sezonu, liste yalnız o sezon.
+  const a = haftaSeciciVerisi(haftalar, { curId: 1528, selectedId: 1528 });
+  assert.deepEqual(a.sezonlar.map((s) => s.ad), ['2026/2027 Sezonu', '2025/2026 Sezonu']);
+  assert.equal(a.seciliSezon, '2027');
+  assert.deepEqual(a.liste.map((w) => w.ad), ['1. Hafta']);
+  // Eski sezon seçilince liste ona döner.
+  const b = haftaSeciciVerisi(haftalar, { curId: 1528, selectedId: 1528, navSezon: '2026' });
+  assert.deepEqual(b.liste.map((w) => w.ad), ['53. Hafta', '52. Hafta']);
+  // Geçmiş haftaya bakılıyorsa sezon elle seçilmeden ona uyar.
+  const c = haftaSeciciVerisi(haftalar, { curId: 1528, selectedId: 1526 });
+  assert.equal(c.seciliSezon, '2026');
+  assert.equal(c.haftaAdi, '52. Hafta');
+  assert.equal(c.haftaGuncelMi, false);
 });
 
-test('hafta çipi: SEZON GEÇİŞİNDE sezon yazılır (numara küçülür, karışmasın)', async () => {
-  const { haftaCipEtiketi, haftalarCokSezon } = await import('../src/radarScreenData.js');
-  // Yeni sezon başladı: güncel hafta "1. Hafta", geçmişte "53. Hafta" var.
-  const haftalar = [
-    { roundId: 1528, round: '1. Hafta', year: 2027 },
-    { roundId: 1527, round: '53. Hafta', year: 2026, sealed: true },
-  ];
-  assert.equal(haftalarCokSezon(haftalar), true);
-  assert.equal(haftaCipEtiketi(haftalar[0], { guncel: true, cokSezon: true }), '1. Hafta 2027 · Güncel');
-  assert.equal(haftaCipEtiketi(haftalar[1], { cokSezon: true }), '53. Hafta 2026 🔏');
+test('hafta seçici: hafta yoksa liste boş (ekran çizmez)', async () => {
+  const { haftaSeciciVerisi } = await import('../src/radarScreenData.js');
+  assert.deepEqual(haftaSeciciVerisi([], {}).liste, []);
+  assert.deepEqual(haftaSeciciVerisi(null, {}).liste, []);
+  assert.equal(haftaSeciciVerisi(null, {}).haftaAdi, null);
 });
 
-test('hafta çipi: yılı BİLİNMEYEN hafta sezon uydurmaz', async () => {
-  const { haftaCipEtiketi, haftalarCokSezon } = await import('../src/radarScreenData.js');
-  assert.equal(haftalarCokSezon([{ roundId: 1, round: 'A' }, { roundId: 2, round: 'B' }]), false);
-  assert.equal(haftaCipEtiketi({ roundId: 9, round: '9. Hafta' }, { cokSezon: true }), '9. Hafta');
-  // Hafta adı hiç yoksa kimlik yazılır (boş çip olmaz).
-  assert.equal(haftaCipEtiketi({ roundId: 9 }, {}), '#9');
+test('sezonAdiUzun: iki biçim de desteklenir, boş değer uydurmaz', async () => {
+  const { sezonAdiUzun } = await import('../src/radarScreenData.js');
+  assert.equal(sezonAdiUzun(2026), '2025/2026 Sezonu');
+  assert.equal(sezonAdiUzun('2025/2026'), '2025/2026 Sezonu');
+  assert.equal(sezonAdiUzun(null), '');
+  assert.equal(sezonAdiUzun(''), '');
 });

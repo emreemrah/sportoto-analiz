@@ -17,6 +17,7 @@ import { MasterMatchCard, RadarTabCard, RADAR_TAB_DEFS } from '../components/Rad
 import RadarTabHeader, { providerLabel } from '../components/RadarTabHeaders';
 import { MarketRow, PublicRow } from '../components/RadarDayRows';
 import LegacyRadarCard from '../components/LegacyRadarCard';
+import HaftaSecici from '../components/HaftaSecici';
 import { getDraft, setDraftPick } from '../coupon/store';
 import { OUTCOMES } from '../couponConfig';
 import {
@@ -28,7 +29,7 @@ import {
   DNA_PERIODS, MASTER_FILTERS, roundPct100, ord, wdl, num1, fmtClock, birOndalik,
   classCountsOf, filterMaster, sortMaster,
   legacyCountsOf, legacyFiltered, radar5PeriodSuccess, radar5PeriodTrend, rowTrend,
-  DONEM_MAC_SAYISI, DNA_PERIOD_LABELS, orneklemUyarisi, haftaCipEtiketi, haftalarCokSezon,
+  DONEM_MAC_SAYISI, DNA_PERIOD_LABELS, orneklemUyarisi,
 } from '../radarScreenData';
 
 // RADAR 3 OTOMATİK TAZELEME — sekme açıkken ekran kendiliğinden yenilenir.
@@ -58,6 +59,8 @@ export default function RadarScreen({ navigation }) {
   const [dnaPeriod, setDnaPeriod] = useState('allTime'); // dönem filtresi (Tüm/5/10/15)
   const [acikSira, setAcikSira] = useState(null);        // Radar 5'te açık satır (sıra no)
   const [siraMaclari, setSiraMaclari] = useState({});    // { sıra: {yukleniyor|hata|liste} }
+  const [secAcik, setSecAcik] = useState(null);          // hafta seçici: null|'sezon'|'hafta'
+  const [navSezon, setNavSezon] = useState(null);        // hafta listesinin sezon süzgeci
   const [dailyOdds, setDailyOdds] = useState(null);   // Radar 4 Oran Takibi (günlük mühürlü oran)
   const [oddsDay, setOddsDay] = useState(null);       // seçili gün (Pazar..Cuma)
   const [dailyPlayed, setDailyPlayed] = useState(null); // Radar 3 Oynanma DNA (günlük mühürlü yüzde)
@@ -325,9 +328,6 @@ export default function RadarScreen({ navigation }) {
   };
 
   const centerMode = !!view;
-  // Şeritte birden çok sezon varsa hafta çipleri sezonu da yazar (sezon
-  // geçişinde "1. Hafta" ile "53. Hafta" yan yana gelir ve numara küçülür).
-  const cokSezon = haftalarCokSezon(weeks);
   const legacyMode = !centerMode && meta?.legacyOnly === true;
 
   // ---- Master liste: filtre + sıralama ----
@@ -575,25 +575,21 @@ export default function RadarScreen({ navigation }) {
         ) : null}
       </View>
 
-      {/* SEZON GEÇİŞİ: 53. haftadan sonra yeni sezon 1. haftayla başlar ve
-          hafta numaraları küçülür. Şeritte iki sezon varsa hangi haftanın
-          hangi sezona ait olduğu yazılır. */}
-      {/* HAFTA ÇUBUKLARI */}
+      {/* HAFTA SEÇİCİ — resmî listedeki gezinti: [sezon ▼] [hafta ▼].
+          Çipler kaldırıldı: yeni sezon 1. haftayla başlayınca numaralar
+          küçülüyor ve haftalar birikiyor (sezonda 52), şerit okunmuyordu. */}
       {weeks.length > 0 && (
         <View style={styles.weekBarWrap}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekBar}>
-            {weeks.map((w) => {
-              const on = Number(w.roundId) === Number(selectedId);
-              const isCur = isCurrentWeek(w, curId); // backend current:true alanı esas
-              return (
-                <TouchableOpacity key={w.roundId} onPress={() => selectWeek(w.roundId)} style={[styles.weekChip, on && styles.weekChipOn]} activeOpacity={0.85}>
-                  <Text style={[styles.weekChipTxt, on && styles.weekChipTxtOn]}>
-                    {haftaCipEtiketi(w, { guncel: isCur, cokSezon })}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          <HaftaSecici
+            weeks={weeks} curId={curId} selectedId={selectedId}
+            acik={secAcik}
+            onToggle={(k) => setSecAcik((v) => (v === k ? null : k))}
+            navSezon={navSezon}
+            // Sezon seçilince hafta listesi açılır: resmî sitedeki akışla aynı,
+            // sıradaki doğal adım hafta seçmektir.
+            onSelectSezon={(y) => { setNavSezon(y); setSecAcik('hafta'); }}
+            onSelectWeek={(rid) => { setSecAcik(null); selectWeek(rid); }}
+          />
         </View>
       )}
 
@@ -668,7 +664,7 @@ export default function RadarScreen({ navigation }) {
 
       <FlatList
         data={listData}
-        extraData={[tab, legacyView, filter, legacyFilter, sortMode, expandedNo, picks, dnaPeriod, acikSira, siraMaclari, positionDna, dailyOdds, oddsDay, dailyPlayed, playedDay, dnaKey]}
+        extraData={[tab, legacyView, filter, legacyFilter, sortMode, expandedNo, picks, dnaPeriod, acikSira, siraMaclari, secAcik, navSezon, positionDna, dailyOdds, oddsDay, dailyPlayed, playedDay, dnaKey]}
         keyExtractor={(r) => String(r.no)}
         // BUG DÜZELTMESİ: Web'de FlatList varsayılan ilk 10 satırı çizer
         // (initialNumToRender=10) ve filtre küçülüp "Tümü"ne dönünce
@@ -740,12 +736,10 @@ const styles = StyleSheet.create({
   frozenBadge: { marginTop: 8, backgroundColor: colors.warningSoft || '#FDF3DC', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 6, alignSelf: 'flex-start' },
   frozenTxt: { color: colors.text, fontSize: 11, fontWeight: '700', lineHeight: 15 },
 
-  weekBarWrap: { backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
-  weekBar: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, paddingVertical: 8 },
-  weekChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border },
-  weekChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-  weekChipTxt: { color: colors.textSoft, fontSize: 12, fontWeight: '800' },
-  weekChipTxtOn: { color: '#fff' },
+  weekBarWrap: {
+    backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border,
+    paddingHorizontal: spacing.md, paddingVertical: 8,
+  },
 
   tabsWrap: { backgroundColor: 'transparent' },
   tabsWrapRow: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xs },

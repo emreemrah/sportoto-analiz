@@ -575,15 +575,24 @@ describe('Sezon geçişi (yeni sezon 1. hafta)', () => {
     currentRoundId: 1528,
   };
 
-  test('hafta çipleri sezonu yazar (1. Hafta 53. Hafta ile karışmasın)', async () => {
+  test('SEZON seçici çıkar, hafta listesi seçili sezona göre süzülür', async () => {
     mockUclar({
       ...VARSAYILAN,
       '/api/radar/current': { ...GUNCEL, roundId: 1528, round: '1. Hafta', year: 2027 },
       '/api/radar/weeks': YENI_SEZON_HAFTALAR,
     });
     render(<RadarScreen navigation={nav} />);
-    await waitFor(() => expect(screen.getByText('1. Hafta 2027 · Güncel')).toBeTruthy());
-    expect(screen.getByText('53. Hafta 2026 🔏')).toBeTruthy();
+    // Bakılan hafta yeni sezonun 1. haftası → sezon ona uyar.
+    await waitFor(() => expect(screen.getByText('2026/2027 Sezonu')).toBeTruthy());
+    expect(screen.getByText('1. Hafta · Güncel')).toBeTruthy();
+    // Hafta listesi KAPALI başlar; eski sezonun haftası görünmez.
+    expect(screen.queryByText('53. Hafta')).toBeNull();
+
+    // Eski sezona geç: liste onun haftalarını gösterir, yenininki düşer.
+    fireEvent.press(screen.getByText('2026/2027 Sezonu'));
+    fireEvent.press(await screen.findByText('2025/2026 Sezonu'));
+    expect(await screen.findByText('53. Hafta')).toBeTruthy();
+    expect(screen.queryByText('1. Hafta')).toBeNull();
   });
 
   test('TEK maçlık örneklemde "%100" çıplak bırakılmaz', async () => {
@@ -630,5 +639,74 @@ describe('Sezon geçişi (yeni sezon 1. hafta)', () => {
     fireEvent.press(screen.getByText('Bülten DNA'));
     expect(await screen.findByText(/Geçmiş 1\. sıra \(51\)/)).toBeTruthy();
     expect(screen.queryByText(/yön sinyali üretilmez/)).toBeNull();
+  });
+});
+
+// HAFTA SEÇİCİ — resmî listedeki gezinti: [sezon ▼] [hafta ▼].
+// Çipler kaldırıldı: yeni sezon 1. haftayla başlayınca numaralar küçülüyor,
+// haftalar birikiyor (sezonda 52) ve şerit okunmuyordu.
+describe('Hafta seçici (sezon + hafta açılır listeleri)', () => {
+  const COK_HAFTA = {
+    weeks: [
+      { roundId: 1527, round: '53. Hafta', year: 2026, current: true, archived: false, locked: false, sealed: false },
+      { roundId: 1526, round: '52. Hafta', year: 2026, current: false, archived: true, locked: true, sealed: true },
+      { roundId: 1525, round: '51. Hafta', year: 2026, current: false, archived: true, locked: true, sealed: true },
+      { roundId: 1521, round: '49. Hafta', year: 2026, current: false, archived: true, locked: true, sealed: true },
+    ],
+    currentRoundId: 1527,
+  };
+  const GUNCEL_53 = { ...GUNCEL, roundId: 1527, round: '53. Hafta', year: 2026 };
+
+  const kur = async (uclar = {}) => {
+    mockUclar({ ...VARSAYILAN, '/api/radar/current': GUNCEL_53, '/api/radar/weeks': COK_HAFTA, ...uclar });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getByText('53. Hafta · Güncel')).toBeTruthy());
+  };
+
+  test('haftalar çip olarak DİZİLMEZ; liste kapalı başlar', async () => {
+    await kur();
+    // Sezon düz yazı (tek sezon), hafta düğmesi bakılan haftayı yazar.
+    expect(screen.getByText('2025/2026 Sezonu')).toBeTruthy();
+    // Öbür haftalar ekranda YOK.
+    expect(screen.queryByText('52. Hafta')).toBeNull();
+    expect(screen.queryByText('49. Hafta')).toBeNull();
+  });
+
+  test('hafta düğmesine basınca TÜM haftalar (güncel dahil) yeniden eskiye', async () => {
+    await kur();
+    fireEvent.press(screen.getByText('53. Hafta · Güncel'));
+    // Güncel hafta da listenin İÇİNDE — resmî listedeki gibi.
+    expect(await screen.findByText('53. Hafta')).toBeTruthy();
+    expect(screen.getByText('52. Hafta')).toBeTruthy();
+    expect(screen.getByText('49. Hafta')).toBeTruthy();
+    expect(screen.getAllByText('🔏').length).toBe(3);
+    expect(screen.getAllByText('Güncel').length).toBe(1);
+    expect(screen.getByTestId('hafta-ok').props.children).toBe('⌃');
+  });
+
+  test('listeden hafta seçince o hafta yüklenir ve liste kapanır', async () => {
+    await kur({
+      '/api/radar/1526': {
+        ...GUNCEL, roundId: 1526, round: '52. Hafta', current: false, sealed: true,
+        sealedAt: '2026-07-28T17:00:00Z', verificationHash: 'feedbeef01',
+      },
+    });
+    fireEvent.press(screen.getByText('53. Hafta · Güncel'));
+    fireEvent.press(await screen.findByText('52. Hafta'));
+    await waitFor(() => expect(screen.getByText(/Mühürlü analiz/)).toBeTruthy());
+    const urls = global.fetch.mock.calls.map((c) => String(c[0]));
+    expect(urls.some((u) => u.includes('/api/radar/1526'))).toBe(true);
+    // Liste kapandı; düğme artık seçili haftayı yazıyor ("· Güncel" düştü).
+    expect(screen.getByTestId('hafta-ok').props.children).toBe('⌄');
+    expect(screen.queryByText('49. Hafta')).toBeNull();
+    expect(screen.queryByText('53. Hafta · Güncel')).toBeNull();
+  });
+
+  test('TEK sezonda sezon açılır liste DEĞİL, düz yazıdır', async () => {
+    await kur();
+    // Dokunulacak bir sezon oku yok (tek seçenekli liste = dokunup hiçbir şey olmaz).
+    expect(screen.queryByTestId('sezon-ok')).toBeNull();
+    // Olumlu karşılık: sezon adı yine görünüyor.
+    expect(screen.getByText('2025/2026 Sezonu')).toBeTruthy();
   });
 });
