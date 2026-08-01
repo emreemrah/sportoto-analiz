@@ -461,16 +461,7 @@ router.get('/position-dna', async (req, res) => {
       activeSeason = selectedRound?.seasonYear
         || eligibleRounds.sort((a, b) => String(b.roundCloseAt || '').localeCompare(String(a.roundCloseAt || '')))[0]?.seasonYear
         || null;
-      // SEZON SÜZMESİ YOK — ama bu "Tüm Haftalar tüm sezonlar demek" anlamına
-      // GELMEZ. Maçların tamamı computePositionDna'ya verilir; orada:
-      //   * sabit pencereler (Tüm Haftalar / Son 5-10-15) seasonYear ile
-      //     AKTİF SEZONA süzülür — "Tüm Haftalar" = o sezonun tüm haftaları,
-      //   * sezon pencereleri süzülmemiş kümeden üretilir, böylece SEZON
-      //     açılır listesinde arşivdeki dört sezon da görünür.
-      // Eskiden süzme burada yapılıyordu ve sezonlar hesaba hiç girmediği için
-      // liste tek seçenekle kalıyordu.
-      // ÖĞRENME SINIRI DEĞİŞMEDİ: historyLearningFilter hâlâ yalnız seçilen
-      // haftadan ÖNCEKİ sonuçları geçiriyor.
+      if (activeSeason != null) histMatches = histMatches.filter((m) => String(m.seasonYear) === String(activeSeason));
     } catch { /* geçmiş arşiv yoksa yalnız ileri-test verisi kalır */ }
 
     // ARŞİVDE TAMAMLANAN HAFTALAR da sıra geçmişine girer. Statik geçmiş dosyası
@@ -483,19 +474,13 @@ router.get('/position-dna', async (req, res) => {
         beforeRoundId: cutRoundId,     // yalnız SEÇİLEN haftadan önceki turlar
         // Statik geçmişte zaten olan tur ÇİFT SAYILMAZ.
         knownRoundIds: new Set(histMatches.map((m) => String(m.roundId))),
-        seasonYear: null,   // sezon süzmesi yok — sezonlar birer PENCERE olarak sunulur
+        seasonYear: activeSeason,
       });
     } catch { /* arşiv okunamazsa yalnız statik geçmişle devam edilir */ }
 
     const dna = computePositionDna([...histMatches, ...arsivMaclari], {
       excludeRoundId: cutRoundId,
-      // Sabit pencereleri AKTİF SEZONA bağlar; sezon pencereleri bundan
-      // etkilenmez (bkz. positionDna.js — gecerli/usable ayrımı).
       seasonYear: activeSeason,
-      // KULLANICI KARARI (2026-08-01): 2022/2023 SEZON listesinde gösterilmez.
-      // Veri arşivde duruyor (51 hafta, resmî kaynaktan); yalnız filtre
-      // seçeneği kapalı. Geri istenirse bu satırı silmek yeter.
-      excludeSeasons: ['2022/2023'],
     });
 
     // İleri-test (official_forward) sıra istatistikleri — geçmiş arşivle birleşik özet.

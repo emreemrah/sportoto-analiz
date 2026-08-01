@@ -16,62 +16,6 @@ export const DNA_PERIODS = [
   { k: 'last15', label: 'Son 15 Hafta' },
 ];
 
-/**
- * "2025/2026" → "2025/2026 Sezonu".
- *
- * Arşivde sezon "2025/2026" biçiminde yazılıdır; tek yıl ("2026") gelirse
- * bültenlerdeki yazıma çevrilir. Boş değer boş etiket üretir — "-1/0 Sezonu"
- * gibi uydurma bir sezon YAZILMAZ.
- */
-export const sezonEtiketi = (y) => {
-  const s = String(y ?? '').trim();
-  if (!s) return '';
-  if (s.includes('/')) return `${s} Sezonu`;
-  return Number.isFinite(Number(s)) ? `${Number(s) - 1}/${Number(s)} Sezonu` : s;
-};
-
-/**
- * SEZON SEÇENEKLERİ — açılır "SEZON" listesini besleyen kayıtlar.
- *
- * Sezonlar elle yazılmaz: arka uçtan gelen pencere anahtarlarından
- * ("season:2025/2026") türetilir. Böylece arşivde olmayan bir sezon seçenek
- * olarak GÖRÜNMEZ — dokunulduğunda boş çıkan bir filtre, olmayan veriyi
- * varmış gibi gösterir.
- *
- * Sıralama ESKİDEN YENİYE'dir (Bülten ekranındaki sezon listesiyle aynı
- * düzen; iki ekranda farklı sıra kullanıcıyı yanıltır). Karşılaştırma METİN
- * ile yapılır: "2025/2026" bir sayı değildir, Number() ile NaN olur.
- *
- * hafta: o sezonda arşivde kaç hafta var. Arşivde 2022/2023 yalnız 6,
- * 2025/2026 ise 51 hafta — sayı yazılmazsa iki yüzde eşit güvenilir görünür.
- */
-export function sezonSecenekleri(positionDna) {
-  const pozisyonlar = positionDna?.dna?.positions || [];
-  const hafta = new Map();     // anahtar → o sezondaki hafta sayısı
-  for (const p of pozisyonlar) {
-    for (const [k, w] of Object.entries(p.windows || {})) {
-      if (!k.startsWith('season:')) continue;
-      const n = w?.sample ?? 0;
-      if (n > 0) hafta.set(k, Math.max(hafta.get(k) ?? 0, n));
-    }
-  }
-  return [...hafta.keys()]
-    .map((k) => ({ k, sezon: k.slice('season:'.length) }))
-    .filter((x) => x.sezon && x.sezon !== 'bilinmiyor')
-    .sort((a, b) => String(a.sezon).localeCompare(String(b.sezon)))
-    .map((x) => ({
-      k: x.k,
-      sezon: x.sezon,                 // "2022/2023" — açılır listede yazılan
-      label: sezonEtiketi(x.sezon),   // "2022/2023 Sezonu"
-      hafta: hafta.get(x.k),
-    }));
-}
-
-/** Sabit pencereler + sezonlar tek listede (yüzde/eğilim hesapları için). */
-export function donemSecenekleri(positionDna) {
-  return [...DNA_PERIODS, ...sezonSecenekleri(positionDna)];
-}
-
 export const MASTER_FILTERS = [
   { k: 'all', label: 'Tümü' },
   { k: 'strong', label: '🟢 Güçlü Aday' },
@@ -190,9 +134,7 @@ export function legacyFiltered(radar, legacyFilter) {
  * "bilmiyoruz" değil).
  */
 export function radar5PeriodSuccess(positionDna) {
-  // Sabit pencereler + sezonlar birlikte (donemSecenekleri) — sezon seçilince
-  // yüzde boş kalmasın.
-  return Object.fromEntries(donemSecenekleri(positionDna).map(({ k }) => {
+  return Object.fromEntries(DNA_PERIODS.map(({ k }) => {
     const values = (positionDna?.dna?.positions || []).map((p) => {
       const pct = p.windows?.[k]?.pct;
       return pct ? Math.max(Number(pct['1']) || 0, Number(pct.X) || 0, Number(pct['2']) || 0) : null;
@@ -207,8 +149,7 @@ export function radar5PeriodSuccess(positionDna) {
  * ve ok gösterilirse kullanıcı olmayan bir eğilim görür.
  */
 export function radar5PeriodTrend(success) {
-  // Anahtarlar success'ten okunur: sezonlar da kapsanır.
-  return Object.fromEntries(Object.keys(success || {}).map((k) => {
+  return Object.fromEntries(DNA_PERIODS.map(({ k }) => {
     if (k === 'allTime') return [k, { key: 'flat', symbol: '—' }];
     if (success?.[k] == null || success?.allTime == null) return [k, null];
     const delta = Number(success[k]) - Number(success.allTime);

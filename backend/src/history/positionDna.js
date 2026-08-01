@@ -49,24 +49,12 @@ export function computePositionDna(matches, {
   upToRoundCloseAt = null,      // öğrenme sınırı: bu tarihten (dahil değil) sonrası HARİÇ
   excludeRoundId = null,        // güncel haftanın kendisi asla dahil edilmez
   seasonYear = null,
-  // Bu sezonlar için SEZON PENCERESİ üretilmez → ekrandaki SEZON listesinde
-  // görünmezler. YALNIZ pencereyi kapatır: satırlar arşivde durur ve öbür
-  // hesaplara (sabit pencereler, prior) etkisi değişmez.
-  excludeSeasons = [],
 } = {}) {
-  // GEÇERLİ SATIRLAR — sezon süzmesi HARİÇ. Sezon pencereleri bu kümeden
-  // üretilir, sabit pencereler (allTime/last5/…) ise sezona süzülmüş
-  // kümeden. İkisi ayrı olmalı: kullanıcı "Tüm Haftalar"ı O SEZONUN tüm
-  // haftaları diye okuyor, ama sezon listesi arşivdeki BÜTÜN sezonları
-  // göstermeli — yoksa seçilecek tek bir sezon kalır.
-  const gecerli = (matches || []).filter((m) =>
+  const usable = (matches || []).filter((m) =>
     m?.result && ['1', 'X', '2'].includes(m.result) && m.position >= 1 && m.position <= 15
     && (excludeRoundId == null || String(m.roundId) !== String(excludeRoundId))
+    && (seasonYear == null || String(m.seasonYear) === String(seasonYear))
     && (upToRoundCloseAt == null || (m.roundCloseAt && m.roundCloseAt < upToRoundCloseAt)));
-
-  const usable = seasonYear == null
-    ? gecerli
-    : gecerli.filter((m) => String(m.seasonYear) === String(seasonYear));
 
   // Global dağılım (shrinkage prior'u + bülten başına ortalama).
   const globalW = countWindow(usable);
@@ -97,32 +85,12 @@ export function computePositionDna(matches, {
     };
     const tier = sampleTier(windows.allTime.sample);
 
-    // Sezon kırılımı — SÜZÜLMEMİŞ kümeden (gecerli), sabit pencerelerden
-    // farklı olarak. Böylece seçili sezon 2025/2026 iken bile 2022/2023
-    // seçeneği listede durur.
-    const tumSatirlar = gecerli.filter((m) => m.position === pos);
+    // Sezon kırılımı
     const bySeason = {};
-    const rowsBySeason = {};
-    for (const m of tumSatirlar) {
+    for (const m of rows) {
       const s = m.seasonYear || 'bilinmiyor';
-      if (!bySeason[s]) { bySeason[s] = { '1': 0, X: 0, '2': 0, n: 0 }; rowsBySeason[s] = []; }
+      if (!bySeason[s]) bySeason[s] = { '1': 0, X: 0, '2': 0, n: 0 };
       bySeason[s][m.result] += 1; bySeason[s].n += 1;
-      rowsBySeason[s].push(m);
-    }
-    // SEZONLAR DA BİRER PENCERE olarak sunulur.
-    // bySeason yalnız ham sayıları tutuyordu; ekran ise pencereleri (pct +
-    // sample) okuyor. Sezonları aynı biçimde vermek, ekran tarafında
-    // "Son 5 Hafta" ile "2025/2026 Sezonu" arasında hiçbir özel durum
-    // kalmamasını sağlar — filtre tek bir listeden beslenir.
-    //
-    // Anahtar: "season:2025/2026". seasonYear arşivde "2025/2026" BİÇİMİNDE
-    // (sayı değil) tutulur; sayısal bir kontrol bütün sezonları elerdi.
-    // Yalnız "bilinmiyor" atlanır: kullanıcıya "bilinmiyor sezonu" diye bir
-    // seçenek gösterilemez.
-    for (const [y, list] of Object.entries(rowsBySeason)) {
-      if (!y || y === 'bilinmiyor') continue;
-      if (excludeSeasons.some((h) => String(h) === String(y))) continue;   // kullanıcı kararıyla gizli
-      windows[`season:${y}`] = countWindow(list);
     }
 
     // Eğilim: son 25 ile tüm zamanlar farkı (yeterli örneklemde).
