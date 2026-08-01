@@ -396,6 +396,12 @@ export async function archivePositionMatches(store, { beforeRoundId = null, know
         position: pos,
         result: r.officialResult,
         roundId: rid,
+        // SEZON ŞART: computePositionDna sezona göre süzerken bu alanı arar.
+        // Taşınmadığı için arşiv (official_forward) maçları yüzde hesabından
+        // SESSİZCE düşüyordu — 52. Hafta'nın sonuçlanmış maçları satır
+        // açılımında görünüyor ama yüzdeye girmiyordu (liste ile yüzde
+        // birbirini tutmuyordu).
+        seasonYear: b.season ?? b.seasonYear ?? null,
         roundCloseAt: r.confirmedAt || b.freezeAt || null,
         homeTeam: k?.homeName ?? null,
         awayTeam: k?.awayName ?? null,

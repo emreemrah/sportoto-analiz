@@ -247,3 +247,45 @@ test('18. Liste yalnız EKRANDA GÖRÜNEN alanları taşır (yanıt şişmesin)'
     { position: 1 });
   assert.deepEqual(Object.keys(satir).sort(), ['away', 'home', 'result', 'roundId', 'score', 'week']);
 });
+
+test('19. LİSTE ile YÜZDE aynı kümeden gelir (sezonsuz satır sessizce düşmez)', () => {
+  // GERÇEK HATA: arşiv (official_forward) maçları seasonYear taşımıyordu.
+  // computePositionDna sezona göre süzerken onları ATIYOR, positionMatchList
+  // ise ALIYORDU. Ekranda liste "X, X, 1, 2, X" gösterirken yüzde "1 %40 ·
+  // X %40 · 2 %20" diyordu — kullanıcı sayıyı doğrulayamıyordu.
+  const S = '2025/2026';
+  const girdi = [
+    // Arşivden gelen taze hafta (sezon alanı DOLU olmalı):
+    { position: 1, roundId: 1526, roundCloseAt: '2026-08-01', result: 'X', seasonYear: S,
+      homeTeam: 'A', awayTeam: 'B', scoreHome: 1, scoreAway: 1 },
+    { position: 1, roundId: 1525, roundCloseAt: '2026-07-27', result: 'X', seasonYear: S,
+      homeTeam: 'C', awayTeam: 'D', scoreHome: 1, scoreAway: 1 },
+    { position: 1, roundId: 1522, roundCloseAt: '2026-07-20', result: '1', seasonYear: S,
+      homeTeam: 'E', awayTeam: 'F', scoreHome: 2, scoreAway: 0 },
+  ];
+  const dna = computePositionDna(girdi, { seasonYear: S });
+  const liste = positionMatchList(girdi, { position: 1 });
+  const say = { '1': 0, X: 0, '2': 0 };
+  for (const m of liste) say[m.result] += 1;
+
+  assert.deepEqual(dna.positions[0].windows.allTime.counts, say,
+    'yüzde ile liste AYNI maçlardan hesaplanmalı');
+  assert.equal(liste.length, 3, 'sezonu olan hiçbir satır düşmemeli');
+});
+
+test('20. Sezonu OLMAYAN satır sezon süzgecinde düşer — liste de düşürmeli', () => {
+  // Aynı kuralın öbür yüzü: bir satır yüzdeye girmiyorsa listede de
+  // görünmemeli. positionMatchList sezon süzgecini ÇAĞIRAN uygular
+  // (routes/radar.js), bu yüzden burada süzülmüş küme verilir.
+  const S = '2025/2026';
+  const ham = [
+    { position: 1, roundId: 1526, roundCloseAt: '2026-08-01', result: 'X', seasonYear: S },
+    { position: 1, roundId: 999, roundCloseAt: '2026-08-02', result: '1', seasonYear: null },
+  ];
+  const dna = computePositionDna(ham, { seasonYear: S });
+  const suzulmus = ham.filter((m) => String(m.seasonYear) === S);
+  const liste = positionMatchList(suzulmus, { position: 1 });
+  assert.equal(dna.positions[0].windows.allTime.sample, 1);
+  assert.equal(liste.length, 1);
+  assert.equal(liste[0].roundId, '1526');
+});
