@@ -5,6 +5,7 @@
 // Not: Tablolara yalnız service-role (SUPABASE_SECRET_KEY) istemcisi erişir (RLS).
 import { sbAdmin } from '../supabase.js';
 import { ImmutableError, AlreadyExistsError, NotFoundError } from './errors.js';
+import { tumSatirlar } from '../db/sayfala.js';
 
 const toIso = (v) => (v == null ? null : new Date(v).toISOString());
 
@@ -85,9 +86,12 @@ export class SupabaseArchiveStore {
 
   // --- bulletins -----------------------------------------------------------
   async listBulletins() {
-    const { data, error } = await this.sb.from('bulletins').select('*').order('round_id', { ascending: false });
-    if (error) throwDb(error, 'bulletins listelenemedi');
-    return (data || []).map(bulletinFromRow);
+    // Sayfalanir: bultenler sezonda ~52 birikiyor. 1000 sinirina carpinca
+    // PostgREST hata vermez, yalniz eksik doner (bkz. db/sayfala.js).
+    // round_id benzersizdir -> sira kararli.
+    const data = await tumSatirlar(() => this.sb
+      .from('bulletins').select('*').order('round_id', { ascending: false }));
+    return data.map(bulletinFromRow);
   }
 
   async getBulletin(id) {
@@ -310,8 +314,10 @@ export class SupabaseArchiveStore {
   }
 
   async listEvaluations() {
-    const { data, error } = await this.sb.from('snapshot_evaluations').select('*').order('round_id');
-    if (error) throwDb(error, 'değerlendirmeler okunamadı');
+    // Sayfalanir: her muhurlu hafta bir degerlendirme uretir. Kirpilirsa
+    // radar karnesi ("%48 (n=45)") eksik ornekle hesaplanir.
+    const data = await tumSatirlar(() => this.sb
+      .from('snapshot_evaluations').select('*').order('round_id').order('bulletin_id'));
     return (data || []).map((d) => ({
       bulletinId: d.bulletin_id, roundId: Number(d.round_id), snapshotId: d.snapshot_id,
       snapshotHash: d.snapshot_hash, evaluatedAt: d.evaluated_at, resultSource: d.result_source,

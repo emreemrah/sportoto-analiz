@@ -10,6 +10,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from '
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sbAdmin } from '../supabase.js';
+import { tumSatirlar } from '../db/sayfala.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -69,15 +70,20 @@ class FileHistoryStore {
 // ---------------------------------------------------------------------------
 // SUPABASE SÜRÜCÜSÜ (üretim — migration 005 tabloları)
 // ---------------------------------------------------------------------------
-class SupabaseHistoryStore {
+// export: sayfalama davranışı sahte bir istemciyle sınanabilsin diye
+// (bkz. test/gecmis-sayfalama.test.mjs). Üretimde getHistoryStore() kullanılır.
+export class SupabaseHistoryStore {
   constructor(client = sbAdmin) {
     if (!client) throw new Error('Supabase yapılandırılmamış.');
     this.sb = client;
   }
   async listRounds() {
-    const { data, error } = await this.sb.from('sportoto_history_rounds').select('*').order('round_close_at');
-    if (error) throw new Error(`history rounds okunamadı: ${error.message}`);
-    return (data || []).map(rowToRound);
+    // Sayfalanır: haftalar birikiyor (sezonda ~52) ve 1000 sınırına çarptığı
+    // gün sessizce eksik dönerdi. round_close_at eşit olabilir; round_id ile
+    // bitirmek sırayı benzersiz ve kararlı yapar.
+    const data = await tumSatirlar(() => this.sb
+      .from('sportoto_history_rounds').select('*').order('round_close_at').order('round_id'));
+    return data.map(rowToRound);
   }
   async getRound(roundId) {
     const { data, error } = await this.sb.from('sportoto_history_rounds').select('*').eq('round_id', String(roundId)).maybeSingle();
@@ -111,12 +117,25 @@ class SupabaseHistoryStore {
     const { error } = await this.sb.from('sportoto_history_matches').upsert(rows, { onConflict: 'round_id,position' });
     if (error) throw new Error(error.message);
   }
+  // TÜM GEÇMİŞ MAÇLAR — SAYFALANARAK okunur.
+  //
+  // NEDEN: PostgREST tek istekte en çok db-max-rows satır döndürür (Supabase
+  // varsayılanı 1000) ve bunu SESSİZCE yapar — hata yok, uyarı yok, yalnız
+  // eksik veri. Bir bültende 15 maç olduğuna göre bu, arşivin ilk ~66 haftası
+  // demektir. Radar 5 sıra yüzdeleri bu eksik kümeden hesaplanıyordu:
+  // "2025/2026 · 44 hafta" görünüyordu, oysa o sezonda 52 hafta oynanmıştı.
+  //
+  // Üstelik .order() olmadan hangi 1000 satırın döneceği garanti bile değil
+  // (fiziksel sıra) — yani eksik olan "en eski haftalar" olmayabilir.
+  // round_id + position ile sıralayıp sayfa sayfa okuyoruz; sıra kararlı
+  // olmadan sayfalama satır atlar ya da tekrar eder.
   async listAllMatches() {
-    const { data, error } = await this.sb
-      .from('sportoto_history_matches').select('*, sportoto_history_rounds!inner(round_id,season_year,status,round_close_at)')
-      .eq('sportoto_history_rounds.status', 'completed');
-    if (error) throw new Error(error.message);
-    return (data || []).map((row) => ({
+    const hepsi = await tumSatirlar(() => this.sb
+      .from('sportoto_history_matches')
+      .select('*, sportoto_history_rounds!inner(round_id,season_year,status,round_close_at)')
+      .eq('sportoto_history_rounds.status', 'completed')
+      .order('round_id').order('position'));   // (round_id, position) benzersiz → kararlı sıra
+    return hepsi.map((row) => ({
       ...rowToMatch(row), roundId: row.round_id,
       seasonYear: row.sportoto_history_rounds?.season_year ?? null,
       roundCloseAt: row.sportoto_history_rounds?.round_close_at ?? null,
@@ -131,9 +150,11 @@ class SupabaseHistoryStore {
     if (error) throw new Error(error.message);
   }
   async listAudit() {
-    const { data, error } = await this.sb.from('sportoto_history_audit').select('*').order('at');
-    if (error) throw new Error(error.message);
-    return data || [];
+    // Denetim kaydı her düzeltmede büyür — kırpılırsa "hangi sonuç ne zaman
+    // düzeltildi" izi eksik görünür. Aynı 'at' değerleri olabildiği için
+    // sıralama id ile bitirilir.
+    return tumSatirlar(() => this.sb
+      .from('sportoto_history_audit').select('*').order('at').order('id'));
   }
   async getCheckpoint() {
     const { data, error } = await this.sb.from('sportoto_history_checkpoint').select('*').eq('id', 'main').maybeSingle();
