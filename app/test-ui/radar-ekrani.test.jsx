@@ -76,6 +76,15 @@ function metinleriTopla(node, out = []) {
   return out;
 }
 
+
+// Cihazda görünmeyen ok karakterlerine karşı koruma. ⌄ (U+2304) ve ⌃ (U+2303)
+// birçok yazı tipinde yoktur; ekranda boş kutu çıkıyordu. Yalnız yaygın
+// desteklenen üçgenler kabul edilir.
+const GORUNUR_OKLAR = ['▼', '▲'];
+function assertGorunurOk(ok) {
+  expect(GORUNUR_OKLAR).toContain(ok);
+}
+
 describe('Radar Merkezi ekranı', () => {
   test('güncel hafta çiziliyor ve çökmüyor', async () => {
     mockUclar(VARSAYILAN);
@@ -681,7 +690,7 @@ describe('Hafta seçici (sezon + hafta açılır listeleri)', () => {
     expect(screen.getByText('49. Hafta')).toBeTruthy();
     expect(screen.getAllByText('🔏').length).toBe(3);
     expect(screen.getAllByText('Güncel').length).toBe(1);
-    expect(screen.getByTestId('hafta-ok').props.children).toBe('⌃');
+    expect(screen.getByTestId('hafta-ok').props.children).toBe('▲');
   });
 
   test('listeden hafta seçince o hafta yüklenir ve liste kapanır', async () => {
@@ -697,16 +706,28 @@ describe('Hafta seçici (sezon + hafta açılır listeleri)', () => {
     const urls = global.fetch.mock.calls.map((c) => String(c[0]));
     expect(urls.some((u) => u.includes('/api/radar/1526'))).toBe(true);
     // Liste kapandı; düğme artık seçili haftayı yazıyor ("· Güncel" düştü).
-    expect(screen.getByTestId('hafta-ok').props.children).toBe('⌄');
+    expect(screen.getByTestId('hafta-ok').props.children).toBe('▼');
     expect(screen.queryByText('49. Hafta')).toBeNull();
     expect(screen.queryByText('53. Hafta · Güncel')).toBeNull();
   });
 
-  test('TEK sezonda sezon açılır liste DEĞİL, düz yazıdır', async () => {
+  test('TEK sezonda bile sezon AÇILIR görünür (dokunulabilir olduğu belli)', async () => {
     await kur();
-    // Dokunulacak bir sezon oku yok (tek seçenekli liste = dokunup hiçbir şey olmaz).
-    expect(screen.queryByTestId('sezon-ok')).toBeNull();
-    // Olumlu karşılık: sezon adı yine görünüyor.
+    // Önce düz yazıydı ve "açılır olduğu anlaşılmıyor" geri bildirimi geldi.
+    expect(screen.getByTestId('sezon-ok').props.children).toBe('▼');
     expect(screen.getByText('2025/2026 Sezonu')).toBeTruthy();
+    // Açılınca o tek sezon listelenir; ok yön değiştirir.
+    fireEvent.press(screen.getByText('2025/2026 Sezonu'));
+    expect(screen.getByTestId('sezon-ok').props.children).toBe('▲');
+  });
+
+  test('oklar CİHAZDA GÖRÜNEN karakterlerle çizilir (⌄/⌃ değil)', async () => {
+    // ⌄ (U+2304) ve ⌃ (U+2303) birçok yazı tipinde YOK — cihazda boş çıkıyordu.
+    // ▼/▲ aynı ekranda Radar 5 satır açılımında zaten çalışıyor.
+    await kur();
+    for (const id of ['sezon-ok', 'hafta-ok']) {
+      const ok = screen.getByTestId(id).props.children;
+      assertGorunurOk(ok);
+    }
   });
 });

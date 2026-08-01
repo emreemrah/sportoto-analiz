@@ -32,42 +32,38 @@ export default function HaftaSecici({
   const v = haftaSeciciVerisi(weeks, { curId, selectedId, navSezon });
   if (!v.liste.length) return null;
 
-  const cokSezon = v.sezonlar.length > 1;
-
   return (
     <View>
       <View style={styles.satir}>
-        {cokSezon ? (
-          <TouchableOpacity
-            onPress={() => onToggle('sezon')}
-            activeOpacity={0.75}
-            accessibilityRole="button"
-            accessibilityLabel={`Sezon seç, şu an ${v.sezonAdi}`}
-            style={styles.sec}
-          >
-            <Text style={styles.secTxt}>{v.sezonAdi}</Text>
-            <Text testID="sezon-ok" style={styles.ok}>{acik === 'sezon' ? '⌃' : '⌄'}</Text>
-          </TouchableOpacity>
-        ) : (
-          // Tek sezon: seçecek bir şey yok, düz yazı.
-          <Text style={styles.tekSezon}>{v.sezonAdi}</Text>
-        )}
+        {/* SEZON — tek sezon olsa bile AÇILIR kalır. Düz yazı denendi ve
+            "açılır olduğu anlaşılmıyor" geri bildirimi geldi; ikinci sezon
+            gelince görünümün değişmemesi de daha tutarlı. */}
+        <TouchableOpacity
+          onPress={() => onToggle('sezon')}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel={`Sezon seç, şu an ${v.sezonAdi}`}
+          style={[styles.sec, acik === 'sezon' && styles.secAcik]}
+        >
+          <Text style={styles.secTxt}>{v.sezonAdi}</Text>
+          <Text testID="sezon-ok" style={styles.ok}>{acik === 'sezon' ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => onToggle('hafta')}
           activeOpacity={0.75}
           accessibilityRole="button"
           accessibilityLabel={`Hafta seç, şu an ${v.haftaAdi || 'seçili değil'}`}
-          style={styles.sec}
+          style={[styles.sec, acik === 'hafta' && styles.secAcik]}
         >
           <Text style={styles.secTxt}>
             {v.haftaAdi || 'Seç'}{v.haftaGuncelMi ? ' · Güncel' : ''}
           </Text>
-          <Text testID="hafta-ok" style={styles.ok}>{acik === 'hafta' ? '⌃' : '⌄'}</Text>
+          <Text testID="hafta-ok" style={styles.ok}>{acik === 'hafta' ? '▲' : '▼'}</Text>
         </TouchableOpacity>
       </View>
 
-      {acik === 'sezon' && cokSezon ? (
+      {acik === 'sezon' ? (
         <View style={styles.liste}>
           {v.sezonlar.map((s) => {
             const secili = s.y === v.seciliSezon;
@@ -114,12 +110,21 @@ export default function HaftaSecici({
 }
 
 const styles = StyleSheet.create({
-  satir: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 14 },
-  // Resmî listedeki gibi sade: çerçevesiz yazı + küçük ok.
-  sec: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
-  secTxt: { color: colors.text, fontSize: 14, fontWeight: '700' },
-  tekSezon: { color: colors.textSoft, fontSize: 14, fontWeight: '700', paddingVertical: 4 },
-  ok: { color: colors.muted, fontSize: 13, fontWeight: '900' },
+  satir: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  // DOKUNULABİLİR OLDUĞU BELLİ OLMALI: çerçeve + zemin + ok. Önce resmî
+  // listedeki gibi çerçevesiz düz yazı denendi, "açılır olduğu anlaşılmıyor"
+  // geri bildirimi geldi.
+  sec: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSoft, paddingHorizontal: 12, paddingVertical: 7,
+  },
+  secAcik: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  secTxt: { color: colors.text, fontSize: 13.5, fontWeight: '800' },
+  // ▼/▲ (U+25BC/25B2) — önce ⌄/⌃ (U+2304/2303) kullanılmıştı ve cihazda
+  // GÖRÜNMÜYORDU; o karakterler birçok yazı tipinde yok. Bu ikisi aynı
+  // ekranda Radar 5 satır açılımında zaten çalışıyor.
+  ok: { color: colors.primary, fontSize: 11, fontWeight: '900' },
   liste: {
     marginTop: 6, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,
     backgroundColor: colors.card, overflow: 'hidden', alignSelf: 'flex-start', minWidth: 210,
