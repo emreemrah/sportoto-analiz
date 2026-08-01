@@ -307,9 +307,14 @@ export default function BulletinScreen({ navigation }) {
       <TouchableOpacity onPress={() => navigation.navigate('BulletinHistory')} style={styles.historyLink}>
         <Text style={styles.historyLinkTxt}>📜 Bülten Geçmişi · Kilitli Analiz ›</Text>
       </TouchableOpacity>
-      {/* RESMÎ LİSTE: haftanın bülteni resmî sitedeki düzenle — bu ekrandaki
-          analiz/tahmin katmanı olmadan, yalnız ham liste ve açıklanan
-          sonuçlar. "Resmî sitede ne yazıyor?" sorusunun doğrudan cevabı. */}
+      {/* RESMÎ LİSTE ARŞİVİ — sezon ve hafta SEÇİCİLERİYLE geçmiş haftalar.
+          Bu ekrandaki ‹ › okları tek tek ilerler; arşivde gezinmek için
+          resmî sitedeki gibi açılır seçim gerekiyor.
+          (Bağlantı bir ara kaldırılmıştı ve ekran erişilemez kalmıştı —
+          kayıtlı ama açılamayan bir rota, ölü koddan da kötüdür.) */}
+      <TouchableOpacity onPress={() => navigation.navigate('ResmiListe')} style={styles.historyLink}>
+        <Text style={styles.historyLinkTxt}>🗂️ Resmî Liste Arşivi · Sezon ve Hafta Seçimi ›</Text>
+      </TouchableOpacity>
       {/* GÖRÜNÜM ANAHTARI — liste artık BU ekranda. Varsayılan resmî tablo;
           analiz kartları silinmedi, tek dokunuşla geri geliyor. */}
       {viewingCurrent ? (

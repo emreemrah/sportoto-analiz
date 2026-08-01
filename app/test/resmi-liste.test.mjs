@@ -50,9 +50,9 @@ test('kapanış resmî biçimde: "08 Ağustos Cumartesi 2026 14:55"', () => {
   assert.equal(kapanisMetni('2026-08-08T14:55:00'), '08 Ağustos Cumartesi 2026 14:55');
 });
 
-test('TL biçimi binlik ayraçlı; sıfır/geçersiz null döner', () => {
-  assert.equal(tlMetni(1234567.5), '1.234.567,50 TL');
-  assert.equal(tlMetni(1250), '1.250,00 TL');
+test('para biçimi RESMÎ yazımla (₺) ve binlik ayraçlı; sıfır/geçersiz null döner', () => {
+  assert.equal(tlMetni(1234567.5), '1.234.567,50 ₺');
+  assert.equal(tlMetni(1250), '1.250,00 ₺');
   assert.equal(tlMetni(0), null, 'sıfır ikramiye "0,00 TL" diye yazılmamalı');
   assert.equal(tlMetni(null), null);
   assert.equal(tlMetni('abc'), null);
@@ -81,10 +81,10 @@ test('ikramiye açıklandıysa kazanan sayısı VE tutar birlikte', () => {
   });
   const bul = (e) => s.find((x) => x.etiket === e);
   // 15'te KAZANAN YOK: bu bir bilgidir (devreden var demektir), boşluk değil.
-  assert.equal(bul('15 Bilen').deger, '0 kişi');
+  assert.equal(bul('15 Bilen').deger, '0 ADET');
   assert.equal(bul('15 Bilen').bos, false);
-  assert.equal(bul('14 Bilen').deger, '3 kişi · 1.234.567,50 TL');
-  assert.equal(bul('13 Bilen').deger, '420 kişi · 1.500,00 TL');
+  assert.equal(bul('14 Bilen').deger, '3 ADET 1.234.567,50 ₺');
+  assert.equal(bul('13 Bilen').deger, '420 ADET 1.500,00 ₺');
   // Verisi hiç gelmeyen kademe "----" kalır.
   assert.equal(bul('12 Bilen').deger, BOS);
 });

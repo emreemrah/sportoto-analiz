@@ -74,13 +74,13 @@ export function kapanisMetni(iso) {
     + `${iki(d.getHours())}:${iki(d.getMinutes())}`;
 }
 
-/** Para biçimi: 1234567.5 → "1.234.567,50 TL" */
+/** Para biçimi RESMÎ yazımla: 1234567.5 → "1.234.567,50 ₺" */
 export function tlMetni(v) {
   if (bosMu(v)) return null;
   const n = Number(v);
   if (!Number.isFinite(n) || n <= 0) return null;
   const [tam, kurus] = n.toFixed(2).split('.');
-  return `${tam.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${kurus} TL`;
+  return `${tam.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${kurus} ₺`;
 }
 
 /**
@@ -98,12 +98,13 @@ export function kademeSatirlari(prize) {
     const row = tiers.find((t) => Number(t.hit) === hit);
     const adet = Number(row?.count);
     const tutar = tlMetni(row?.prize);
+    // RESMÎ YAZIM: "9 ADET 4.035.942,42 ₺" — resmî listedeki biçimin aynısı.
     const parcalar = [];
-    if (Number.isFinite(adet) && adet >= 0) parcalar.push(`${adet} kişi`);
+    if (Number.isFinite(adet) && adet >= 0) parcalar.push(`${adet.toLocaleString('tr-TR')} ADET`);
     if (tutar) parcalar.push(tutar);
     return {
       etiket: `${hit} Bilen`,
-      deger: parcalar.length ? parcalar.join(' · ') : BOS,
+      deger: parcalar.length ? parcalar.join(' ') : BOS,
       // Kazanan YOKSA (0 kişi) bu bir bilgidir, boşluk değil — devreden var demektir.
       bos: parcalar.length === 0,
     };

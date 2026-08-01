@@ -105,7 +105,7 @@ describe('Resmî Liste', () => {
     }
     // Dört kademe + açıklamalar = 5 adet "----" (kapanış hafta kaydından gelir).
     expect(screen.getAllByText('----').length).toBeGreaterThanOrEqual(5);
-    expect(screen.queryByText('0 kişi')).toBeNull();
+    expect(screen.queryByText('0 ADET')).toBeNull();
   });
 
   test('ikramiye açıklandıysa kazanan ve tutar birlikte (pozitif eş)', async () => {
@@ -121,8 +121,8 @@ describe('Resmî Liste', () => {
     });
     render(<ResmiListeScreen navigation={nav} />);
     // 15 bilen YOK: "0 kişi" bir BİLGİDİR (devreden var demektir), boşluk değil.
-    expect(await screen.findByText('0 kişi')).toBeTruthy();
-    expect(screen.getByText('3 kişi · 1.234.567,50 TL')).toBeTruthy();
+    expect(await screen.findByText('0 ADET')).toBeTruthy();
+    expect(screen.getByText('3 ADET 1.234.567,50 ₺')).toBeTruthy();
     expect(screen.getByText('08 Ağustos Cumartesi 2026 14:55')).toBeTruthy();
     expect(screen.getByText('Devreden ikramiye vardır.')).toBeTruthy();
   });
