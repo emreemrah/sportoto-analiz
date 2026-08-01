@@ -11,13 +11,14 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 import { acilistaMigrationCalistir } from '../src/migrate/index.js';
 
 const sessiz = () => {};
 
 /** Migration'ın ASLA çalıştırılmaması gereken durumlarda bile klasör verilir;
  *  motor oraya hiç gitmemelidir. */
-const KLASOR = new URL('./fixtures/bos-migration/', import.meta.url).pathname;
+const KLASOR = fileURLToPath(new URL('./fixtures/bos-migration/', import.meta.url));
 
 test('NODE_ENV=test → kapı açık, hiçbir şey uygulanmaz (testler kendi şemasını kurar)', async () => {
   const s = await acilistaMigrationCalistir({

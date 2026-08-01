@@ -19,6 +19,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 import { readFileSync, readdirSync, mkdtempSync, writeFileSync, cpSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -27,7 +28,7 @@ import { migrationUygula, DEFTER } from '../src/migrate/runner.js';
 import { semayiDogrula } from '../src/migrate/verify.js';
 
 const YONETIM_URL = process.env.MIGRATION_TEST_DB_URL;
-const KLASOR = new URL('../migrations/', import.meta.url).pathname;
+const KLASOR = fileURLToPath(new URL('../migrations/', import.meta.url));
 const atla = !YONETIM_URL;
 
 if (atla) {

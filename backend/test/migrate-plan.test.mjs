@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 import { readdirSync } from 'node:fs';
 import { ozetle, planCikar, dosyalariOku } from '../src/migrate/plan.js';
 import { baglantiVarMi, sslAyari, baglantiYapilandirmasi, gizle, guvenliHata } from '../src/migrate/dbUrl.js';
@@ -61,7 +62,7 @@ test('araya geriye dönük migration sokulamaz', () => {
 // ——— DOSYA DÜZENİ ———
 test('kurala uymayan dosya adı sessizce ATLANMAZ, hata olur', () => {
   // Sessiz atlama, bir migration'ın hiç çalışmaması demek olurdu.
-  assert.throws(() => dosyalariOku(new URL('./fixtures/bozuk-migration/', import.meta.url).pathname), /dosya adı/i);
+  assert.throws(() => dosyalariOku(fileURLToPath(new URL('./fixtures/bozuk-migration/', import.meta.url))), /dosya adı/i);
 });
 
 // Beklenen sürüm listesi ELLE yazılmaz. Elle yazılınca her yeni migration bu
@@ -74,7 +75,7 @@ test('kurala uymayan dosya adı sessizce ATLANMAZ, hata olur', () => {
 const CEKIRDEK = ['001', '002', '003', '004', '005', '006', '007'];
 
 test('gerçek migrations klasörü sırayla ve eksiksiz okunur', () => {
-  const klasor = new URL('../migrations/', import.meta.url).pathname;
+  const klasor = fileURLToPath(new URL('../migrations/', import.meta.url));
   const dosyalar = dosyalariOku(klasor);
   const surumler = dosyalar.map((x) => x.surum);
 

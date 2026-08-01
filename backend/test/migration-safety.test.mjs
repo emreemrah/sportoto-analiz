@@ -8,6 +8,7 @@
 // Buradaki statik denetimler o güvenlik kalıbının koddan SİLİNMESİNİ engeller.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { dosyalariOku } from '../src/migrate/plan.js';
 
@@ -82,7 +83,7 @@ test('migrate betiği elle dosya listesi taşımaz — motoru çağırır', () =
 });
 
 test('sıra motorda: dosyalar numaraya göre dizilir, atlanmaz', () => {
-  const dosyalar = dosyalariOku(new URL('../migrations/', import.meta.url).pathname);
+  const dosyalar = dosyalariOku(fileURLToPath(new URL('../migrations/', import.meta.url)));
   const surumler = dosyalar.map((d) => d.surum);
   assert.deepEqual(surumler, [...surumler].sort(), 'artan sırada uygulanır');
   assert.ok(surumler.includes('005') && surumler.includes('006'), '005 ve 006 da kapsamda');

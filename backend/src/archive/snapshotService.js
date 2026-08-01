@@ -455,6 +455,19 @@ export async function freezeBulletinFromData(data, {
       reason: late ? 'Geç kilit: sunucu freeze anında çalışmıyordu.' : null,
     });
     console.log(`[arsiv] 🔒 bülten ${id} kilitlendi (hash ${payloadHash.slice(0, 10)}…${late ? ' · geç' : ''})`);
+
+    // EV GÖLGE KAYDI (T10) — kilit anı bir daha gelmez. Kalabalığın kapanış
+    // dağılımı ŞİMDİ kaydedilmezse sonsuza kadar kaybolur (sağlayıcılar geçmişe
+    // dönük yüzde vermez). Kullanıcıya HİÇBİR ŞEY gösterilmez.
+    // Hata kilidi ASLA bozmaz: mühür işlemi kritik, gölge kayıt değil.
+    try {
+      const { runWeeklyShadow } = await import('../ev/weekly.js');
+      const r = await runWeeklyShadow({ bulletinId: id, store, now });
+      console.log(r.ran
+        ? `[ev-golge] ${id} kaydedildi (birim: ${r.unit}, λ=${r.lambda})`
+        : `[ev-golge] ${id} kayıt yok: ${r.reason}${r.note ? ` — ${r.note}` : ''}`);
+    } catch (e) { console.warn('[ev-golge] kayıt başarısız:', e.message); }
+
     return { frozen: true, bulletinId: id, snapshot };
   });
 }

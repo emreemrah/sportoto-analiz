@@ -170,6 +170,22 @@ export async function maybeCompleteAndEvaluate(bulletinId, { store = getArchiveS
     newValue: { correct, predicted: withPick.length, effectiveFromRoundId: evaluation.effectiveFromRoundId, snapshotHash: snap.payloadHash },
   });
   console.log(`[arsiv] ✅ bülten ${id} tamamlandı: ${correct}/${withPick.length} doğru (değerlendirme kaydedildi).`);
+
+  // EV GÖLGE SONUCU (T10) — kilit anında yazılan tahmin, gerçekleşenle
+  // kıyaslanıp kayda BİR KEZ eklenir. Resmî kademe verisi (kazanan sayıları)
+  // de burada saklanır: ρ bulunduğu gün λ kalibrasyonu bu satırlardan yapılacak.
+  // Değerlendirmeyi ASLA bozmaz.
+  try {
+    const { settleWeeklyShadow } = await import('../ev/weekly.js');
+    let roundResult = null;
+    try {
+      const { getRoundResult } = await import('../sources/sportoto.js');
+      roundResult = await getRoundResult(b.roundId);
+    } catch { roundResult = null; }     // ikramiye verisi yoksa kayıt yine düşer
+    const s = await settleWeeklyShadow({ bulletinId: id, store, roundResult, now });
+    if (s.settled) console.log(`[ev-golge] ${id} sonuçlandı: kolon ${s.hits}/15 tuttu.`);
+  } catch (e) { console.warn('[ev-golge] sonuçlandırma başarısız:', e.message); }
+
   return { completed: true, evaluated: true, evaluation };
 }
 

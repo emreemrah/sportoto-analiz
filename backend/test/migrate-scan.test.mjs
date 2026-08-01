@@ -6,13 +6,14 @@
 // tek tek denetlenir.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 import { readFileSync, readdirSync } from 'node:fs';
 import {
   ifadeleriAyir, calistirilacakIfadeler, ifadeTuru, cikarYorum,
   olusturulanTablolar, rlsAcilanTablolar, olusturulanTriggerlar,
 } from '../src/migrate/sqlScan.js';
 
-const KLASOR = new URL('../migrations/', import.meta.url).pathname;
+const KLASOR = fileURLToPath(new URL('../migrations/', import.meta.url));
 const oku = (f) => readFileSync(KLASOR + f, 'utf8');
 const sqlDosyalari = readdirSync(KLASOR).filter((f) => f.endsWith('.sql')).sort();
 

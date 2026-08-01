@@ -13,6 +13,13 @@ const LEGACY = mkdtempSync(join(tmpdir(), 'sportoto-iso-legacy-'));
 process.env.CACHE_DIR = CACHE;
 process.env.LEGACY_ARCHIVE_DIR = LEGACY;
 process.env.ARCHIVE_DIR = mkdtempSync(join(tmpdir(), 'sportoto-iso-arsiv-'));
+// GEÇMİŞ ARŞİVİ DE İZOLE: Radar 5'in hafıza bağlamı official_result_history'yi
+// de okur (radarService.js). Sürücü sabitlenmezse .env'de Supabase varken
+// getHistoryStore() CANLI VERİTABANINA düşüyordu — test bin küsur gerçek maç
+// okuyup "hafıza boş" iddiasını çürütüyordu. Arşiv için zaten yapılan sürücü
+// sabitlemesinin (ARCHIVE_DRIVER) geçmiş deposundaki karşılığı.
+process.env.HISTORY_DRIVER = 'file';
+process.env.HISTORY_DIR = mkdtempSync(join(tmpdir(), 'sportoto-iso-gecmis-'));
 // Sürücü sabitlenir: .env'de Supabase varsa depo gerçek arşive kayar (bkz. api.test.mjs).
 process.env.ARCHIVE_DRIVER = 'file';
 delete process.env.ENABLE_LEGACY_RETROSPECTIVE;

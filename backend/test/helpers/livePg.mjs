@@ -15,13 +15,14 @@
 //   MIGRATION_TEST_DB_URL='postgresql://kullanici:parola@127.0.0.1:5433/postgres' npm test
 
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { migrationUygula } from '../../src/migrate/runner.js';
 
 export const YONETIM_URL = process.env.MIGRATION_TEST_DB_URL;
 export const atla = !YONETIM_URL;
 
-const KLASOR = new URL('../../migrations/', import.meta.url).pathname;
+const KLASOR = fileURLToPath(new URL('../../migrations/', import.meta.url));
 
 let sayac = 0;
 

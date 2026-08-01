@@ -30,6 +30,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
 import {
@@ -62,7 +63,7 @@ if (atla) {
   ));
 }
 
-const KAYNAK = (yol) => readFileSync(new URL(yol, import.meta.url).pathname, 'utf8');
+const KAYNAK = (yol) => readFileSync(fileURLToPath(new URL(yol, import.meta.url)), 'utf8');
 
 /**
  * Kaynaktan yorum satırlarını atar.

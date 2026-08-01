@@ -13,6 +13,11 @@ process.env.CACHE_DIR = mkdtempSync(join(tmpdir(), 'sportoto-sc-cache-'));
 process.env.ARCHIVE_DIR = mkdtempSync(join(tmpdir(), 'sportoto-sc-arsiv-'));
 // Sürücü sabitlenir: .env'de Supabase varsa depo gerçek arşive kayar (bkz. api.test.mjs).
 process.env.ARCHIVE_DRIVER = 'file';
+// GEÇMİŞ DEPOSU DA SABİT: .env'de Supabase varsa getHistoryStore() CANLI
+// veritabanına düşer ve test geliştirme makinesindeki gerçek veriyi okur
+// (legacy-isolation'da tam olarak bu olmuştu). Testler ağa çıkmaz.
+process.env.HISTORY_DRIVER = 'file';
+process.env.HISTORY_DIR = mkdtempSync(join(tmpdir(), 'sportoto-gecmis-'));
 
 const { save } = await import('../src/cache.js');
 const { _resetArchiveStoreForTests, getArchiveStore } = await import('../src/archive/store.js');
