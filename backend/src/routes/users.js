@@ -11,7 +11,7 @@ import { requireAuth } from '../mw.js';
 import { zatenVarMi, gecersizHedefMi } from '../moderation.js';
 import { evaluateProgress, settleRoundAccuracy, totalPoints, gamificationEnabled } from '../gamification/service.js';
 import { levelFromPoints } from '../gamification/catalog.js';
-import { readMap } from '../couponStore.js';
+import { countCoupons } from '../couponStore.js';
 import { getRoundsForNav, getBulletinByRoundId } from '../sources/sportoto.js';
 
 const router = Router();
@@ -94,8 +94,7 @@ router.get('/me/progress', requireAuth, async (req, res) => {
   await lazySettle();
   let couponCount = 0;
   try {
-    const map = readMap();
-    couponCount = Array.isArray(map[req.user.id]) ? map[req.user.id].length : 0;
+    couponCount = await countCoupons(req.user.id);
   } catch { /* kupon deposu okunamazsa görev ilerlemesi 0 görünür */ }
   const progress = await evaluateProgress(sbAdmin, { userId: req.user.id, profile, couponCount });
   if (!progress) {

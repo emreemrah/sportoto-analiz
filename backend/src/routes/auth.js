@@ -15,7 +15,7 @@ import { Router } from 'express';
 import { sbAdmin, sbAuth, supabaseEnabled, getProfile } from '../supabase.js';
 import { requireAuth } from '../mw.js';
 import { deleteUserAccount, makeCouponPurger } from '../accountDeletion.js';
-import { readMap, writeMap } from '../couponStore.js';
+import { deleteCoupons } from '../couponStore.js';
 import { makeRateLimiter, rateLimitMiddleware } from '../security/rateLimit.js';
 import { logSecurityEvent, maskEmail } from '../security/securityLog.js';
 import {
@@ -356,7 +356,7 @@ function normalizeConfirm(v) {
     .trim();
 }
 
-const purgeCoupons = makeCouponPurger(readMap, writeMap);
+const purgeCoupons = makeCouponPurger(deleteCoupons);
 
 // Silme sonucunu kullanıcıya anlaşılır biçimde döndürür. Kısmi başarısızlıkta
 // "silindi" DENMEZ; hangi adımın tamamlanamadığı dürüstçe bildirilir.

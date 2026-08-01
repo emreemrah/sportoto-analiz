@@ -1,10 +1,12 @@
 // Kullanıcının kuponları — hesaba bağlı KALICI saklama (tarayıcı/tünel adresi
-// değişse de kaybolmaz). Depo: src/couponStore.js (backend/data/coupons.json,
-// { [userId]: coupons[] }). İstemci tüm listeyi gönderir (kaynak app'tir),
-// sunucu hesap bazında saklar. Kupon MANTIĞI app'te; burası sadece kalıcı depo.
+// değişse de kaybolmaz). Depo: src/couponStore.js (sürücülü: Supabase
+// user_coupons tablosu; yapılandırılmamışsa dosya). İstemci tüm listeyi
+// gönderir (kaynak app'tir), sunucu hesap bazında saklar. Kupon MANTIĞI
+// app'te; burası sadece kalıcı depo. API sözleşmesi T12'de DEĞİŞMEDİ.
 import { Router } from 'express';
 import { requireAuth } from '../mw.js';
-import { readMap, writeMap } from '../couponStore.js';
+import { getCoupons, setCoupons } from '../couponStore.js';
+import { safeError } from '../security/safeError.js';
 import { sbAdmin, supabaseEnabled } from '../supabase.js';
 import { uyelikKapisi } from '../security/supabaseGuard.js';
 import { award } from '../gamification/service.js';
@@ -35,19 +37,25 @@ async function awardNewCoupons(userId, list) {
 }
 
 // Kullanıcının kuponları
-router.get('/', requireAuth, (req, res) => {
-  const map = readMap();
-  res.json({ coupons: Array.isArray(map[req.user.id]) ? map[req.user.id] : [] });
+router.get('/', requireAuth, async (req, res) => {
+  try {
+    const coupons = await getCoupons(req.user.id);
+    res.json({ coupons });
+  } catch (e) {
+    safeError(res, e, 'Kuponlar şu an okunamadı.');
+  }
 });
 
 // Kullanıcının kupon listesini KOMPLE değiştir (app kaynak)
-router.put('/', requireAuth, (req, res) => {
+router.put('/', requireAuth, async (req, res) => {
   const list = Array.isArray(req.body?.coupons) ? req.body.coupons : null;
   if (!list) return res.status(400).json({ error: 'coupons dizisi gerekli.' });
   if (list.length > 1000) return res.status(400).json({ error: 'Çok fazla kupon.' });
-  const map = readMap();
-  map[req.user.id] = list;
-  writeMap(map);
+  try {
+    await setCoupons(req.user.id, list);
+  } catch (e) {
+    return safeError(res, e, 'Kuponlar şu an kaydedilemedi.');
+  }
   awardNewCoupons(req.user.id, list); // ateşle-unut; yanıtı bloklamaz
   res.json({ ok: true, count: list.length });
 });

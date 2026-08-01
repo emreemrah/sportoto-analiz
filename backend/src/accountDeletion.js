@@ -96,16 +96,14 @@ export async function purgeReportsOnOwnComments(sbAdmin, uid) {
   }
 }
 
-// Kullanıcının kuponları dosya deposunda ({ [userId]: coupons[] }) tutulur.
-// Silme sırasında bu kaydın da kaldırılması için çağrılır.
-export function makeCouponPurger(readMap, writeMap) {
-  return (userId) => {
-    const map = readMap();
-    if (!Object.prototype.hasOwnProperty.call(map, userId)) return { removed: 0 };
-    const removed = Array.isArray(map[userId]) ? map[userId].length : 0;
-    delete map[userId];
-    writeMap(map);
-    return { removed };
+// Kullanıcının kuponları sürücülü depodadır (couponStore: Supabase user_coupons
+// veya dosya). Silme sırasında bu kaydın da kaldırılması için çağrılır.
+// T12: eski (readMap, writeMap) imzası yerine doğrudan async silici alınır —
+// depo sürücüsünü depo bilir, silme akışı bilmek zorunda değildir.
+export function makeCouponPurger(deleteCoupons) {
+  return async (userId) => {
+    const r = await deleteCoupons(userId);
+    return { removed: r?.removed ?? 0 };
   };
 }
 
@@ -170,10 +168,10 @@ export async function deleteUserAccount({ sbAdmin, userId, purgeCoupons }) {
     failed.push('avatar-dosyalari');
   }
 
-  // 3) Dosya deposundaki kuponlar.
+  // 3) Kupon deposu (sürücülü: Supabase tablosu veya dosya).
   if (typeof purgeCoupons === 'function') {
     try {
-      const r = purgeCoupons(uid);
+      const r = await purgeCoupons(uid);
       steps.push({ step: 'kuponlar', ok: true, removed: r?.removed ?? 0 });
     } catch (e) {
       steps.push({ step: 'kuponlar', ok: false, error: e.message });

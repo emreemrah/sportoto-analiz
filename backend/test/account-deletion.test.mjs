@@ -290,20 +290,22 @@ test('engeller İKİ YÖNDEN de silinir (kalan yetim engel olmaz)', () => {
   assert.deepEqual(engeller.sort(), ['blocked_id', 'blocker_id']);
 });
 
-test('kupon temizleyici yalnız o kullanıcının kaydını siler', () => {
-  let store = { 'user-1111': [{ id: 'a' }, { id: 'b' }], 'user-2222': [{ id: 'c' }] };
-  const purge = makeCouponPurger(
-    () => store,
-    (m) => {
-      store = m;
-    },
-  );
+test('kupon temizleyici yalnız o kullanıcının kaydını siler (sürücülü depo, T12)', async () => {
+  // T12: purger artık (readMap, writeMap) değil, deponun kendi async silicisini
+  // alır — sürücüyü (dosya/Supabase) depo bilir, silme akışı bilmez.
+  const store = { 'user-1111': [{ id: 'a' }, { id: 'b' }], 'user-2222': [{ id: 'c' }] };
+  const purge = makeCouponPurger(async (userId) => {
+    if (!Object.prototype.hasOwnProperty.call(store, userId)) return { removed: 0 };
+    const removed = store[userId].length;
+    delete store[userId];
+    return { removed };
+  });
 
-  const r = purge('user-1111');
+  const r = await purge('user-1111');
   assert.equal(r.removed, 2);
   assert.equal(store['user-1111'], undefined);
   assert.deepEqual(store['user-2222'], [{ id: 'c' }], 'başka kullanıcının kuponu silinmiş');
 
   // Hiç kuponu olmayan kullanıcı hata vermez.
-  assert.deepEqual(purge('user-9999'), { removed: 0 });
+  assert.deepEqual(await purge('user-9999'), { removed: 0 });
 });
