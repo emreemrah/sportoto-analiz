@@ -16,6 +16,13 @@ export const DNA_PERIODS = [
   { k: 'last15', label: 'Son 15 Hafta' },
 ];
 
+// Dönem → satır açılımında gösterilecek maç sayısı. Anahtarlar DNA_PERIODS ile
+// aynıdır; allTime için sınır YOKTUR (undefined → tüm liste). Liste dönemle
+// sınırlanmazsa "Son 5 Hafta" seçiliyken 51 maç görünür ve ekrandaki yüzdeyle
+// uyuşmaz — kullanıcı sayıyı doğrulayamaz.
+export const DONEM_MAC_SAYISI = { last5: 5, last10: 10, last15: 15 };
+export const DNA_PERIOD_LABELS = Object.fromEntries(DNA_PERIODS.map((p) => [p.k, p.label]));
+
 export const MASTER_FILTERS = [
   { k: 'all', label: 'Tümü' },
   { k: 'strong', label: '🟢 Güçlü Aday' },

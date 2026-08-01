@@ -93,6 +93,13 @@ export const api = {
   radarPositionDna: (roundId) => req(
     `/api/radar/position-dna${roundId != null ? `?roundId=${encodeURIComponent(roundId)}` : ''}`,
   ),
+  // Bir SIRANIN geçmiş maçları (Radar 5 satır açılımı) — "%54.5 hangi
+  // maçlardan geliyor?". Ayrı uç: 15 sıranın listesini birden taşımak DNA
+  // yanıtını 12 KB'dan 92 KB'a çıkarıyordu, oysa tek seferde tek sıra açılır.
+  radarPositionMatches: (position, roundId) => req(
+    `/api/radar/position-matches?position=${encodeURIComponent(position)}`
+    + `${roundId != null ? `&roundId=${encodeURIComponent(roundId)}` : ''}`,
+  ),
   radarHistoryArchive: () => req('/api/radar/history-archive'),
 
   // master analiz motoru (41 kriter kataloğu backend'de — tek doğruluk kaynağı)

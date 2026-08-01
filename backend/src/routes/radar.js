@@ -28,7 +28,7 @@ import {
 } from '../radar/playedDnaArchive.js';
 import { PUBLIC_BANDS } from '../radar/config.js';
 import { getHistoryStore } from '../history/historyStore.js';
-import { computePositionDna, positionStatsFromHistory, mergePositionStats, positionSummaryText, historyLearningFilter } from '../history/positionDna.js';
+import { computePositionDna, positionStatsFromHistory, mergePositionStats, positionSummaryText, historyLearningFilter, positionMatchList } from '../history/positionDna.js';
 import { getPositionStats } from '../archive/resultsService.js';
 import { computeFreezeAt, firstKickoffMs, bulletinIdOf } from '../archive/snapshotService.js';
 
@@ -369,21 +369,120 @@ export async function archivePositionMatches(store, { beforeRoundId = null, know
     const rid = b.roundId ?? b.id;
     let rows = [];
     try { rows = await store.listOfficialResults(b.id ?? rid); } catch { continue; }
+    // TAKIM ADI + SKOR: yüzde hesabı için gerekmez, ama satır açılımında
+    // ("%54.5 hangi maçlardan geliyor?") gerekir. Taşınmazsa liste
+    // "null – null" satırları gösteriyordu. Okunamazsa liste adsız kalır,
+    // sonuçlar yine doğrudur — bu yüzden hata yutulur.
+    let kimlik = new Map();
+    try {
+      const ms = await store.getMatches(b.id ?? rid);
+      kimlik = new Map((ms || []).map((m) => [Number(m.orderNo), m]));
+    } catch { /* kimlik yoksa yalnız sonuç gösterilir */ }
     for (const r of rows || []) {
       if (!r?.officialResult || r.orderNo == null) continue;             // sonucu yoksa satır yok
       const pos = Number(r.orderNo);
       if (!(pos >= 1 && pos <= 15)) continue;
+      const k = kimlik.get(pos);
+      // fullTimeScore bir NESNEDİR ({home, away}) — metin sanıp ayrıştırmak
+      // skoru sessizce null bırakıyordu. Metin biçimi de tolere edilir.
+      const fts = r.fullTimeScore;
+      let sh = null; let sa = null;
+      if (fts && typeof fts === 'object') { sh = fts.home ?? null; sa = fts.away ?? null; }
+      else {
+        const eslesme = String(fts ?? '').match(/^(\d+)\s*[-:]\s*(\d+)$/);
+        if (eslesme) { sh = Number(eslesme[1]); sa = Number(eslesme[2]); }
+      }
       out.push({
         position: pos,
         result: r.officialResult,
         roundId: rid,
         roundCloseAt: r.confirmedAt || b.freezeAt || null,
+        homeTeam: k?.homeName ?? null,
+        awayTeam: k?.awayName ?? null,
+        scoreHome: sh,
+        scoreAway: sa,
+        // Hafta adı arşiv bülteninden gelir: bu haftalar geçmiş deposunda
+        // YOKTUR (ileri-test), oradaki ad tablosunda aranırsa "?" kalır.
+        weekName: b.week ?? b.weekName ?? null,
         source: 'official_forward',
       });
     }
   }
   return out;
 }
+
+// ---- SIRA MAÇ LİSTESİ (Radar 5 satır açılımı) -------------------------------
+// "%54.5 hangi maçlardan geliyor?" — kullanıcı bir karşılaşmaya dokununca o
+// SIRANIN geçmiş maçları listelenir. Yüzdenin arkasındaki maçlar gösterilmezse
+// kullanıcı sayıyı doğrulayamaz.
+//
+// AYRI UÇ, çünkü listeyi /position-dna yanıtına gömmek yanıtı 12 KB'dan 92 KB'a
+// çıkarıyordu (15 sıra × ~50 maç) — oysa kullanıcı tek seferde tek sıra açar.
+//
+// Kesim ve sezon kapsamı /position-dna İLE AYNI hesaplanır; başka türlü açılan
+// liste ekrandaki yüzdeyle uyuşmazdı.
+let _liste = { at: 0, key: null, val: null };
+router.get('/position-matches', async (req, res) => {
+  try {
+    const position = Number(req.query.position);
+    if (!(position >= 1 && position <= 15)) {
+      return res.status(400).json({ error: 'Sıra 1–15 arasında olmalı.' });
+    }
+    const cur = load('bulletin')?.data;
+    const store = getArchiveStore();
+    const cutRoundId = req.query.roundId != null ? Number(req.query.roundId)
+      : (cur?.roundId != null ? Number(cur.roundId) : null);
+
+    const key = String(cutRoundId);
+    if (!_liste.val || _liste.key !== key || Date.now() - _liste.at > 10 * 60 * 1000) {
+      const hs = getHistoryStore();
+      const allRounds = await hs.listRounds();
+      const secilen = allRounds.find((r) => String(r.roundId) === String(cutRoundId));
+      const aktifSezon = secilen?.seasonYear
+        || allRounds.filter((r) => r.status === 'completed')
+          .sort((a, b) => String(b.roundCloseAt || '').localeCompare(String(a.roundCloseAt || '')))[0]?.seasonYear
+        || null;
+
+      let hist = (await hs.listAllMatches())
+        .filter(historyLearningFilter({ currentRoundId: cutRoundId, currentFreezeAt: null }));
+      if (aktifSezon != null) hist = hist.filter((m) => String(m.seasonYear) === String(aktifSezon));
+
+      let arsiv = [];
+      try {
+        arsiv = await archivePositionMatches(store, {
+          beforeRoundId: cutRoundId,
+          knownRoundIds: new Set(hist.map((m) => String(m.roundId))),
+          seasonYear: aktifSezon,
+        });
+      } catch { /* arşiv okunamazsa yalnız statik geçmiş */ }
+
+      const adlar = Object.fromEntries(allRounds.map((r) => [String(r.roundId), r.weekName || null]));
+      const kaynak = [...hist, ...arsiv]
+        .filter((m) => cutRoundId == null || String(m.roundId) !== String(cutRoundId));
+      _liste = {
+        at: Date.now(), key,
+        val: {
+          roundId: cutRoundId, season: aktifSezon,
+          // 15 sıranın tamamı bir kez hesaplanır; kullanıcı sıra değiştirdikçe
+          // aynı önbellekten okunur (her dokunuşta arşiv taranmaz).
+          byPosition: Object.fromEntries(Array.from({ length: 15 }, (_, i) => (
+            [i + 1, positionMatchList(kaynak, { position: i + 1, roundNames: adlar })]
+          ))),
+        },
+      };
+    }
+    const matches = _liste.val.byPosition[position] || [];
+    res.json({
+      hasData: matches.length > 0,
+      position,
+      roundId: _liste.val.roundId,
+      season: _liste.val.season,
+      count: matches.length,
+      matches,
+      note: matches.length ? null : 'Bu sıra için doğrulanmış geçmiş sonuç yok.',
+    });
+  } catch (e) { fail(res, e); }
+});
 
 let _dnaCache = { at: 0, key: null, val: null };
 router.get('/position-dna', async (req, res) => {

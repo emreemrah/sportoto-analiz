@@ -29,6 +29,7 @@ import {
   DNA_PERIODS, MASTER_FILTERS, roundPct100, ord, wdl, num1, fmtClock, birOndalik,
   classCountsOf, filterMaster, sortMaster, freezeMinutes,
   legacyCountsOf, legacyFiltered, radar5PeriodSuccess, radar5PeriodTrend, rowTrend,
+  DONEM_MAC_SAYISI, DNA_PERIOD_LABELS,
 } from '../radarScreenData';
 
 // RADAR 3 OTOMATİK TAZELEME — sekme açıkken ekran kendiliğinden yenilenir.
@@ -63,6 +64,8 @@ export default function RadarScreen({ navigation }) {
   const [now, setNow] = useState(Date.now());
   const [positionDna, setPositionDna] = useState(null); // Bülten DNA (Radar 5 detayı)
   const [dnaPeriod, setDnaPeriod] = useState('allTime'); // dönem filtresi (Tüm/5/10/15)
+  const [acikSira, setAcikSira] = useState(null);        // Radar 5'te açık satır (sıra no)
+  const [siraMaclari, setSiraMaclari] = useState({});    // { sıra: {yukleniyor|hata|liste} }
   const [dailyOdds, setDailyOdds] = useState(null);   // Radar 4 Oran Takibi (günlük mühürlü oran)
   const [oddsDay, setOddsDay] = useState(null);       // seçili gün (Pazar..Cuma)
   const [dailyPlayed, setDailyPlayed] = useState(null); // Radar 3 Oynanma DNA (günlük mühürlü yüzde)
@@ -162,6 +165,9 @@ export default function RadarScreen({ navigation }) {
       // dönüşünde ref "A zaten çekildi" der ama state boştur → panel sonsuza
       // kadar boş kalır.
       cekilenDna.current = null; cekilenOran.current = null; cekilenOynanma.current = null;
+      // Radar 5 satır açılımı da haftaya aittir: açık satır ve çekilmiş maç
+      // listeleri temizlenmezse yeni haftada ESKİ haftanın maçları görünür.
+      setAcikSira(null); setSiraMaclari({});
       const d = await api.radarRound(rid);
       applyResponse(d, { current: false });
     } catch (e) {
@@ -177,6 +183,29 @@ export default function RadarScreen({ navigation }) {
       setError(e.message);
     }
   }, [curId, weeks, load, applyResponse]);
+
+  // RADAR 5 SATIR AÇ/KAPA — açılırken o sıranın geçmiş maçları BİR KEZ çekilir
+  // ve saklanır; aynı satıra tekrar dokunmak yeni istek atmaz. Tek seferde tek
+  // satır açık kalır (birden çok açık liste ekranı okunmaz hâle getiriyordu).
+  //
+  // DİKKAT: bu kanca ERKEN RETURN'LERDEN ÖNCE durmalı. Aşağıya konduğunda
+  // "Rendered more hooks than during the previous render" hatası veriyordu —
+  // yükleniyor/hata durumlarında ekran o satıra hiç ulaşmıyor.
+  const cekilenSira = useRef(new Set());
+  const siraAcKapa = useCallback((no) => {
+    setAcikSira((onceki) => (onceki === no ? null : no));
+    // Anahtar haftayı da içerir: başka haftaya geçilince liste yeniden çekilir.
+    const anahtar = `${selectedId}|${no}`;
+    if (cekilenSira.current.has(anahtar)) return;
+    cekilenSira.current.add(anahtar);
+    setSiraMaclari((s) => ({ ...s, [no]: { yukleniyor: true } }));
+    api.radarPositionMatches(no, selectedId)
+      .then((d) => setSiraMaclari((s) => ({ ...s, [no]: { liste: d?.matches || [] } })))
+      .catch((e) => {
+        cekilenSira.current.delete(anahtar);           // hata → tekrar denenebilsin
+        setSiraMaclari((s) => ({ ...s, [no]: { hata: e.message } }));
+      });
+  }, [selectedId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -396,6 +425,7 @@ export default function RadarScreen({ navigation }) {
   // Dönem gücü ve eğilim hesabı radarScreenData.js'te (saf, ayrı test edilir).
   const donemGucu = radar5PeriodSuccess(positionDna);
   const donemEgilimi = radar5PeriodTrend(donemGucu);
+
   const renderMemoryRow = ({ item }) => {
     const pct = birOndalik(dnaByPosition.get(item.no));
     const highest = pct ? Math.max(...['1', 'X', '2'].map((key) => Number(pct[key]))) : null;
@@ -403,12 +433,24 @@ export default function RadarScreen({ navigation }) {
     const allTimePct = dnaStatsByPosition.get(item.no)?.allTime?.pct;
     const allTimeHighest = allTimePct ? Math.max(Number(allTimePct['1']) || 0, Number(allTimePct.X) || 0, Number(allTimePct['2']) || 0) : null;
     const trend = rowTrend({ highest, allTimeHighest, dnaPeriod });
+    // SATIR AÇILIMI — dokununca bu SIRANIN geçmiş maçları listelenir. Yüzdenin
+    // arkasındaki maçlar gösterilmezse kullanıcı sayıyı doğrulayamaz.
+    const acik = acikSira === item.no;
+    const kayit = siraMaclari[item.no];
     return (
       <View style={styles.memRow}>
-        <View style={styles.memTop}>
-          <Text style={styles.memNo}>{item.no}</Text>
-          <Text style={styles.memTeams} numberOfLines={1}>{item.home} – {item.away}</Text>
-        </View>
+        <TouchableOpacity
+          onPress={() => siraAcKapa(item.no)}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.no}. sıranın geçmiş maçları${acik ? ' — kapat' : ''}`}
+        >
+          <View style={styles.memTop}>
+            <Text style={styles.memNo}>{item.no}</Text>
+            <Text style={styles.memTeams} numberOfLines={1}>{item.home} – {item.away}</Text>
+            <Text style={styles.memAc}>{acik ? '▲' : '▼'}</Text>
+          </View>
+        </TouchableOpacity>
         {pct ? (
           <>
             <View style={styles.memPctRow}>
@@ -443,6 +485,41 @@ export default function RadarScreen({ navigation }) {
               : 'Bu dönemde geçmiş sonuç yok.'}
           </Text>
         )}
+        {acik ? (
+          <View style={styles.macListe}>
+            {kayit?.yukleniyor ? (
+              <Text style={styles.macBilgi}>Maçlar yükleniyor…</Text>
+            ) : kayit?.hata ? (
+              <Text style={styles.macBilgi}>Maçlar okunamadı: {kayit.hata}</Text>
+            ) : kayit?.liste?.length ? (
+              <>
+                {/* Liste SEÇİLİ DÖNEMLE sınırlanır: "Son 5 Hafta" seçiliyken
+                    51 maç göstermek, ekrandaki yüzdeyle uyuşmayan bir liste
+                    olurdu. Yeniden eskiye. */}
+                {kayit.liste.slice(0, DONEM_MAC_SAYISI[dnaPeriod] ?? kayit.liste.length).map((m, i) => (
+                  <View key={`${m.roundId}-${i}`} style={styles.macSatir}>
+                    <Text style={styles.macHafta} numberOfLines={1}>{m.week || '—'}</Text>
+                    <Text style={styles.macTakim} numberOfLines={1}>{m.home} – {m.away}</Text>
+                    <Text style={styles.macSkor}>{m.score || '—'}</Text>
+                    <Text style={[
+                      styles.macSonuc,
+                      m.result === '1' && styles.memOutcomeOneKey,
+                      m.result === 'X' && styles.memOutcomeDrawKey,
+                      m.result === '2' && styles.memOutcomeTwoKey,
+                    ]}>{m.result}</Text>
+                  </View>
+                ))}
+                <Text style={styles.macBilgi}>
+                  {DNA_PERIOD_LABELS[dnaPeriod] || 'Seçili dönem'} · {
+                    Math.min(DONEM_MAC_SAYISI[dnaPeriod] ?? kayit.liste.length, kayit.liste.length)
+                  } maç · resmî sonuçlar
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.macBilgi}>Bu sıra için doğrulanmış geçmiş sonuç yok.</Text>
+            )}
+          </View>
+        ) : null}
       </View>
     );
   };
@@ -687,7 +764,7 @@ export default function RadarScreen({ navigation }) {
 
       <FlatList
         data={listData}
-        extraData={[tab, legacyView, filter, legacyFilter, sortMode, expandedNo, picks, dnaPeriod, positionDna, dailyOdds, oddsDay, dailyPlayed, playedDay, dnaKey]}
+        extraData={[tab, legacyView, filter, legacyFilter, sortMode, expandedNo, picks, dnaPeriod, acikSira, siraMaclari, positionDna, dailyOdds, oddsDay, dailyPlayed, playedDay, dnaKey]}
         keyExtractor={(r) => String(r.no)}
         // BUG DÜZELTMESİ: Web'de FlatList varsayılan ilk 10 satırı çizer
         // (initialNumToRender=10) ve filtre küçülüp "Tümü"ne dönünce
@@ -800,6 +877,15 @@ const styles = StyleSheet.create({
   memSuccessValue: { color: colors.success, fontSize: 12, fontWeight: '900' },
   memTrend: { fontSize: 12, fontWeight: '900' },
   memNone: { color: colors.textMuted, fontSize: 12, fontStyle: 'italic', marginTop: 6, marginLeft: 34 },
+  // RADAR 5 SATIR AÇILIMI — o sıranın geçmiş maçları.
+  memAc: { color: colors.primary, fontSize: 11, fontWeight: '900', marginLeft: 6 },
+  macListe: { marginTop: 8, marginLeft: 34, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 6 },
+  macSatir: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 5 },
+  macHafta: { width: 66, color: colors.muted, fontSize: 11, fontWeight: '800' },
+  macTakim: { flex: 1, color: colors.textSoft, fontSize: 12, fontWeight: '600' },
+  macSkor: { width: 38, textAlign: 'right', color: colors.textSoft, fontSize: 12, fontWeight: '800' },
+  macSonuc: { width: 20, textAlign: 'center', fontSize: 11, fontWeight: '900', borderRadius: 4, overflow: 'hidden' },
+  macBilgi: { color: colors.muted, fontSize: 11, fontStyle: 'italic', marginTop: 6 },
   // Eksik oranın AYRINTILI gerekçesi (kapsam raporundan gelen gerçek cümle).
 
   // Radar 4 (Oran Takibi) — gün filtresi + günlük 1/X/2 oran satırı.

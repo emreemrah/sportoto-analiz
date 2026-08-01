@@ -140,6 +140,40 @@ export function computePositionDna(matches, {
 }
 
 // ---------------------------------------------------------------------------
+// SIRA MAÇ LİSTESİ — "%54.5 nereden geliyor?" sorusunun cevabı.
+//
+// Radar 5'te bir karşılaşmaya dokununca o SIRANIN geçmiş maçları açılır.
+// Yüzdenin arkasındaki maçlar gösterilmezse kullanıcı sayıyı doğrulayamaz;
+// bu ürünün "uydurma sayı yok" sözünün görünür hâlidir.
+//
+// Sıra computePositionDna'daki pencerelerle AYNIDIR (yeniden → eskiye), yoksa
+// "Son 5 Hafta" seçiliyken listenin ilk 5'i pencereyle uyuşmaz.
+// roundNames: { roundId → "48. Hafta" }. Bilinmeyen tur için ad UYDURULMAZ.
+// ---------------------------------------------------------------------------
+export function positionMatchList(matches, { position, roundNames = {}, limit = null } = {}) {
+  const rows = (matches || [])
+    .filter((m) => Number(m?.position) === Number(position)
+      && m?.result && ['1', 'X', '2'].includes(m.result))
+    .sort((a, b) => String(b.roundCloseAt || '').localeCompare(String(a.roundCloseAt || ''))
+      || (Number(b.roundId) || 0) - (Number(a.roundId) || 0));
+  const kesilen = limit != null ? rows.slice(0, limit) : rows;
+  // YALNIZ EKRANDA GÖRÜNEN ALANLAR. Tam kayıt (sezon, kapanış, skor alanları,
+  // kaynak hash'i) 15 sıra × ~50 maç ile yanıtı 141 KB'a çıkarıyordu; sıralama
+  // zaten burada yapıldığı için istemcinin o alanlara ihtiyacı yok.
+  return kesilen.map((m) => ({
+    roundId: m.roundId != null ? String(m.roundId) : null,
+    // "48. Hafta" — önce satırın kendi adı (arşiv/ileri-test haftaları geçmiş
+    // deposunda yoktur), sonra ad tablosu. Bilinmiyorsa null; ad UYDURULMAZ.
+    week: m.weekName ?? roundNames[String(m.roundId)] ?? null,
+    home: m.homeTeam ?? null,
+    away: m.awayTeam ?? null,
+    // Skor yoksa null döner; "0-0" yazmak bilinmeyeni sonuç gibi gösterirdi.
+    score: (m.scoreHome != null && m.scoreAway != null) ? `${m.scoreHome}-${m.scoreAway}` : null,
+    result: m.result,
+  }));
+}
+
+// ---------------------------------------------------------------------------
 // RADAR 5 KÖPRÜSÜ — resultsService.getPositionStats ile AYNI şekil:
 // { positions: [{ position, sample, counts, pct }] }. Böylece Bülten DNA
 // radarı formülü değişmeden yalnız KAYNAĞI güçlenir (official_result_history

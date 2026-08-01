@@ -189,3 +189,61 @@ test('13. Sezon filtresi: Radar 5 seçili sezon dışındaki haftaları kullanma
   assert.equal(first.windows.allTime.counts['2'], 5);
   assert.equal(first.windows.allTime.counts['1'], 0);
 });
+
+// --- SIRA MAÇ LİSTESİ (Radar 5 satır açılımı) --------------------------------
+// "%54.5 hangi maçlardan geliyor?" — yüzdenin arkasındaki maçlar. Liste
+// computePositionDna ile AYNI sırada olmalı, yoksa "Son 5 Hafta" seçiliyken
+// listenin ilk 5'i ekrandaki yüzdeyle uyuşmaz.
+const { positionMatchList } = await import('../src/history/positionDna.js');
+
+const mac = (pos, rid, kapanis, over = {}) => ({
+  position: pos, roundId: rid, roundCloseAt: kapanis, result: '1',
+  homeTeam: `Ev${rid}`, awayTeam: `Dep${rid}`, scoreHome: 2, scoreAway: 0, ...over,
+});
+
+test('14. Sıra maç listesi YENİDEN ESKİYE sıralanır (pencerelerle aynı)', () => {
+  const liste = positionMatchList([
+    mac(1, 1520, '2026-05-01'),
+    mac(1, 1526, '2026-07-01'),
+    mac(1, 1523, '2026-06-01'),
+    mac(2, 1526, '2026-07-01'),          // başka sıra — girmemeli
+  ], { position: 1 });
+  assert.deepEqual(liste.map((m) => m.roundId), ['1526', '1523', '1520']);
+  assert.equal(liste.length, 3, 'yalnız istenen sıranın maçları');
+});
+
+test('15. Sonucu olmayan maç listeye GİRMEZ (yüzdeye de girmiyor)', () => {
+  const liste = positionMatchList([
+    mac(1, 1526, '2026-07-01'),
+    mac(1, 1525, '2026-06-24', { result: null }),        // ertelenen/iptal
+    mac(1, 1524, '2026-06-17', { result: 'çöp' }),       // geçersiz simge
+  ], { position: 1 });
+  assert.deepEqual(liste.map((m) => m.roundId), ['1526'],
+    'liste ile yüzde AYNI kümeden gelmeli');
+});
+
+test('16. Hafta adı: satırın kendi adı öncelikli, yoksa ad tablosu, yoksa null', () => {
+  const liste = positionMatchList([
+    mac(1, 1526, '2026-07-03', { weekName: '52. Hafta' }),   // arşiv haftası (ad tablosunda YOK)
+    mac(1, 1525, '2026-07-02'),                              // ad tablosundan
+    mac(1, 1524, '2026-07-01'),                              // hiçbir yerde yok
+  ], { position: 1, roundNames: { 1525: '51. Hafta' } });
+  assert.equal(liste[0].week, '52. Hafta');
+  assert.equal(liste[1].week, '51. Hafta');
+  assert.equal(liste[2].week, null, 'bilinmeyen hafta adı UYDURULMAZ');
+});
+
+test('17. Skoru olmayan maçta "0-0" yazılmaz', () => {
+  const liste = positionMatchList([
+    mac(1, 1526, '2026-07-01', { scoreHome: null, scoreAway: null }),
+    mac(1, 1525, '2026-06-24', { scoreHome: 0, scoreAway: 0 }),
+  ], { position: 1 });
+  assert.equal(liste[0].score, null, 'bilinmeyen skor sonuç gibi gösterilemez');
+  assert.equal(liste[1].score, '0-0', 'gerçek 0-0 ise yazılır');
+});
+
+test('18. Liste yalnız EKRANDA GÖRÜNEN alanları taşır (yanıt şişmesin)', () => {
+  const [satir] = positionMatchList([mac(1, 1526, '2026-07-01', { seasonYear: '2025/2026', sourceHash: 'x' })],
+    { position: 1 });
+  assert.deepEqual(Object.keys(satir).sort(), ['away', 'home', 'result', 'roundId', 'score', 'week']);
+});

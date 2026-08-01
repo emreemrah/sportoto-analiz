@@ -390,3 +390,101 @@ describe('Radar Merkezi ekranı', () => {
     expect(metinleriTopla(toJSON())).toMatchSnapshot();
   });
 });
+
+// RADAR 5 SATIR AÇILIMI — karşılaşmaya dokununca o SIRANIN geçmiş maçları.
+// Ürünün "uydurma sayı yok" sözünün görünür hâli: %54.5'in arkasındaki
+// maçlar gösterilmezse kullanıcı sayıyı doğrulayamaz.
+describe('Radar 5 satır açılımı (sıranın geçmiş maçları)', () => {
+  const DNA = {
+    hasData: true,
+    dna: {
+      positions: Array.from({ length: 3 }, (_, i) => ({
+        position: i + 1,
+        windows: {
+          allTime: { sample: 30, pct: { '1': 54.5, X: 13.6, '2': 31.9 } },
+          last5: { sample: 5, pct: { '1': 60, X: 20, '2': 20 } },
+        },
+      })),
+    },
+  };
+  // Backend'in GERÇEK yükü (routes/radar.js → positionMatchList): week/home/
+  // away/score/result. Uydurma bir şekil test yeşil olsa bile bir şey kanıtlamaz.
+  const MACLAR = {
+    hasData: true, position: 1, count: 7,
+    matches: [
+      { roundId: '1526', week: '52. Hafta', home: 'Club Brugge', away: 'Union SG', score: '1-1', result: 'X' },
+      { roundId: '1525', week: '51. Hafta', home: 'AGF Aarhus', away: 'Brondby', score: '1-1', result: 'X' },
+      { roundId: '1524', week: '50. Hafta', home: 'AIK Stockholm', away: 'Gais', score: '2-0', result: '1' },
+      { roundId: '1521', week: '49. Hafta', home: 'Mjallby', away: 'AIK Stockholm', score: '1-2', result: '2' },
+      { roundId: '1520', week: '48. Hafta', home: 'Sirius', away: 'Mjallby', score: '4-4', result: 'X' },
+      { roundId: '1519', week: '47. Hafta', home: 'Hammarby', away: 'Degerfors', score: '3-1', result: '1' },
+      { roundId: '1518', week: '46. Hafta', home: 'Elfsborg', away: 'Norrkoping', score: '0-2', result: '2' },
+    ],
+  };
+
+  const radar5 = async (uclar = {}) => {
+    mockUclar({
+      ...VARSAYILAN,
+      '/api/radar/position-dna': DNA,
+      '/api/radar/position-matches': MACLAR,
+      ...uclar,
+    });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Bülten DNA'));
+    await screen.findByText(/Tüm Haftalar/);
+  };
+
+  test('liste KAPALI başlar — maçlar kendiliğinden çizilmez', async () => {
+    await radar5();
+    // Satırlar duruyor (olumlu karşılık)…
+    expect(screen.getAllByText(/Geçmiş 1\. sıra/).length).toBeGreaterThan(0);
+    // …ama geçmiş maçlar yok.
+    expect(screen.queryByText(/Club Brugge/)).toBeNull();
+    expect(screen.queryByText('52. Hafta')).toBeNull();
+  });
+
+  test('karşılaşmaya dokununca o sıranın maçları yeniden eskiye listelenir', async () => {
+    await radar5();
+    fireEvent.press(screen.getAllByText('Ev Takımı – Dep Takımı')[0]);
+    expect(await screen.findByText('Club Brugge – Union SG')).toBeTruthy();
+    // Sıra yeniden eskiye: 52 → 51 → 50 …
+    expect(screen.getByText('52. Hafta')).toBeTruthy();
+    expect(screen.getByText('51. Hafta')).toBeTruthy();
+    // Skor ve sonuç birlikte — sonuç tek başına doğrulanamaz.
+    expect(screen.getAllByText('1-1').length).toBe(2);   // 52. ve 51. hafta
+    expect(screen.getAllByText('X').length).toBeGreaterThan(0);
+    // Doğru uç, doğru sıra ile çağrıldı.
+    const urls = global.fetch.mock.calls.map((c) => String(c[0]));
+    expect(urls.some((u) => u.includes('/api/radar/position-matches?position=1'))).toBe(true);
+  });
+
+  test('liste SEÇİLİ DÖNEMLE sınırlanır (Son 5 Hafta → 5 maç)', async () => {
+    await radar5();
+    fireEvent.press(screen.getByText(/Son 5 Hafta · %/));
+    fireEvent.press(screen.getAllByText('Ev Takımı – Dep Takımı')[0]);
+    // İlk 5 maç görünür…
+    expect(await screen.findByText('48. Hafta')).toBeTruthy();
+    // …6. ve 7. görünmez: yüzde 5 haftadan hesaplandı, liste de 5 hafta olmalı.
+    expect(screen.queryByText('47. Hafta')).toBeNull();
+    expect(screen.queryByText('46. Hafta')).toBeNull();
+    expect(screen.getByText(/Son 5 Hafta · 5 maç/)).toBeTruthy();
+  });
+
+  test('tekrar dokununca kapanır', async () => {
+    await radar5();
+    const satir = screen.getAllByText('Ev Takımı – Dep Takımı')[0];
+    fireEvent.press(satir);
+    expect(await screen.findByText('52. Hafta')).toBeTruthy();
+    fireEvent.press(satir);
+    expect(screen.queryByText('52. Hafta')).toBeNull();
+  });
+
+  test('sıra için geçmiş sonuç YOKSA uydurma satır çizilmez', async () => {
+    await radar5({
+      '/api/radar/position-matches': { hasData: false, position: 1, count: 0, matches: [] },
+    });
+    fireEvent.press(screen.getAllByText('Ev Takımı – Dep Takımı')[0]);
+    expect(await screen.findByText(/doğrulanmış geçmiş sonuç yok/)).toBeTruthy();
+  });
+});

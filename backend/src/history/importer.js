@@ -238,8 +238,16 @@ export async function importOfficialHistoryTick({
         // 3) Kaydet (idempotent upsert; unique sezon/hafta/sıra).
         // roundCloseAt = haftanın kapanış çapası (öğrenme sınırı + "son N bülten"
         // sıralaması). Resmî hafta listesi kapanış tarihi TAŞIMAZ → en güvenilir
-        // gerçek çapa SON MAÇIN tarihi (bülten o an fiilen tamamlanır).
-        const lastMatchAt = matches.map((m) => m.matchAt).filter(Boolean).sort().pop() ?? null;
+        // gerçek çapa SON SONUÇLANAN MAÇIN tarihidir.
+        //
+        // DİKKAT — "son maç" DEĞİL. Ertelenen maç bültende AYLAR sonrasına
+        // tarihli durabiliyor: 2025/2026 43. Hafta haziranda oynandı ama iki
+        // ertelemesi 3 Eylül'e yazılı. Tüm maçlara bakan eski çapa o haftayı
+        // sezonun EN YENİ haftası yapıyor, "Son 5 Hafta" penceresine haziran
+        // haftasını sokuyor ve ekrandaki yüzdeyi bozuyordu.
+        const lastMatchAt = roundLastMatchAt(
+          matches.filter((m) => m.resultValid || m.conflict === 'result_conflict'),
+        ) ?? roundLastMatchAt(matches);
         await store.upsertRound({
           roundId: String(r.id), seasonYear: String(year), weekName: r.name ?? null,
           status: 'completed',

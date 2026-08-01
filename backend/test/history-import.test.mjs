@@ -344,3 +344,25 @@ test('14. Dayanıklı depo: Supabase 005 tabloları yokken DOSYA arşivine düş
   const rs2 = new ResilientHistoryStore(netFail, () => fb, () => {});
   await assert.rejects(() => rs2.listRounds(), /fetch failed/);
 });
+
+test('11e. Haftanın KAPANIŞI son sonuçlanan maçtır (ertelenen maç sırayı bozmaz)', async () => {
+  // Gerçek gerileme: 2025/2026 43. Hafta haziranda oynandı, iki ertelemesi
+  // 3 Eylül'e tarihliydi. Tüm maçlara bakan çapa o haftayı sezonun EN YENİ
+  // haftası yapmış; "Son 5 Hafta" penceresine haziran haftası girmiş ve
+  // ekrandaki yüzde bozulmuştu.
+  const store = mkStore();
+  const b = fullRound(1407);
+  // 11. maç ertelenmiş: sonuçsuz ve AYLAR sonrasına tarihli.
+  b.matches[10] = { ...mkMatch(11, null, null, null, '2024-06-15T18:00:00Z'), score: null };
+  const api = makeApi({
+    roundsByYear: { '2023-2024': [{ id: 1407, isPublished: true }] },
+    bulletins: { 1407: b },
+  });
+  await importOfficialHistoryTick({
+    store, api, pauseMs: 0, log: () => {}, now: () => '2024-01-20T00:00:00.000Z',
+  });
+  const round = await store.getRound('1407');
+  // Sonuçlanan maçlar 10 Ocak'ta → kapanış ocakta olmalı, haziranda DEĞİL.
+  assert.equal(String(round.roundCloseAt).slice(0, 7), '2024-01',
+    `kapanış ertelenen maça kaymamalı (gelen: ${round.roundCloseAt})`);
+});
