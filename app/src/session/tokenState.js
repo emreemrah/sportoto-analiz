@@ -16,6 +16,18 @@ export function getRefreshToken() { return state.refreshToken; }
 export function getSessionId() { return state.sessionId; }
 export function isCookieMode() { return state.cookieMode; }
 
+/**
+ * "Kullanıcı girişli mi?" sorusunun PLATFORMSUZ tek cevabı.
+ * • Çerez modunda (web üretimi) belirteç bellekte TUTULMAZ — oturum kimliği
+ *   varlığı girişin kanıtıdır.
+ * • Diğer platformlarda erişim belirtecinin varlığı esastır.
+ * localStorage'a bakan eski yaklaşım mobilde ve üretim web'inde her zaman
+ * "girişsiz" diyordu (kupon senkronu hiç çalışmıyordu) — buradan okunmalı.
+ */
+export function isAuthenticated() {
+  return state.cookieMode ? !!state.sessionId : !!state.token;
+}
+
 export function setSession({ token, refreshToken, sessionId, cookieMode } = {}) {
   if (token !== undefined) state.token = token;
   if (refreshToken !== undefined) state.refreshToken = refreshToken;

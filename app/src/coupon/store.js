@@ -14,10 +14,10 @@
 //   hafta boyunca kupon kurulabilir; geriye dönük başarı ÜRETİLEMEZ.
 import { columnCount, MAX_COUPONS_PER_WEEK, isLockedNow, lockViolations } from '../couponConfig';
 import { api } from '../api';
+import { isAuthenticated } from '../session/tokenState';
 
 const KEY = 'sportoto.couponCenter.v1';   // YENİ anahtar — eski 'sportoto.coupons.v1' okunmaz
 const DKEY = 'sportoto.couponCenterDraft.v1';
-const TOKEN_KEY = 'sportoto.token';
 const SCHEMA = 2;
 
 let cache = null;
@@ -32,8 +32,12 @@ const subs = new Set();
 export function subscribeCoupons(fn) { subs.add(fn); return () => subs.delete(fn); }
 function emit() { subs.forEach((f) => { try { f(); } catch {} }); }
 
+// Giriş durumu tokenState'ten okunur (platformsuz tek doğruluk kaynağı).
+// ESKİ HÂL localStorage'a bakıyordu: mobilde localStorage yok, üretim web'inde
+// belirteç HttpOnly çerezde — ikisinde de her zaman false dönüyor ve kupon
+// senkronu HİÇ çalışmıyordu.
 function hasToken() {
-  try { return HAS_LS && !!localStorage.getItem(TOKEN_KEY); } catch { return false; }
+  try { return isAuthenticated(); } catch { return false; }
 }
 
 function readAll() {
