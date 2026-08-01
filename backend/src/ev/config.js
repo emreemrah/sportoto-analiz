@@ -18,18 +18,67 @@ export const MATCH_COUNT = 15;
 export const TIERS_ARE_DISJOINT = true;
 
 /**
- * ρ — hasılatın ikramiyeye giden oranı. **BULUNAMADI (araştırma R1).**
- * 5602 sayılı Kanun'da "%83" bir ÜST SINIR olarak geçiyor; resmî Müşterek Oyun
- * Planı PDF'i makine ile okunamadı. ρ bilinmeden TL ölçeği hesaplanamaz —
- * uydurulmaz. Elle teyit edilince buraya yazılır ve `payoutRatioVerified`
- * true olur; o zamana kadar motor ölçeksiz çalışır.
+ * ρ_net — İKRAMİYEYE GİDEN ORAN, **KDV DÜŞÜLMÜŞ** hasılat üzerinden. BULUNDU.
+ *
+ * 5602 sayılı Kanun md. 4/2: bir takvim yılında ödenen ikramiye toplamı,
+ * hasılatın %40'ından az %93'ünden fazla olamaz. Yani kanun bir ARALIK verir.
+ * Spor Toto Oyun Planı md. 10/1 ise bu aralığın ÜST SINIRININ dağıtıldığını
+ * söyler — "üst sınıra tekabül eden bedel … iştirakçilere dağıtılır".
+ *
+ * Bu mekanizma AMPİRİK OLARAK DOĞRULANDI: Sayıştay'ın 2023 denetim raporundaki
+ * gerçekleşme rakamları (ikramiye 232.628.493.455,54 TL ÷ net hasılat
+ * 280.275.293.319,86 TL) = **%83,000** — o yılın yasal üst sınırıyla üç ondalık
+ * basamağa kadar birebir. Yani "üst sınır = fiilen dağıtılan oran" kuralı
+ * sayılarla kanıtlıdır.
+ *
+ * Üst sınır 27.12.2023 tarihli 7491 sayılı Kanun md. 64 ile %83'ten %93'e
+ * çıkarıldı (yürürlük 28.12.2023).
+ *
+ * ⚠ 2024-2026 için gerçekleşme rakamıyla ayrıca teyit YOK (o yılların Sayıştay
+ * raporu yayımlanmamış) — mekanizma teyitli, o yılların uygulaması değil.
  */
-export const PAYOUT_RATIO = null;
-export const PAYOUT_RATIO_SOURCE = 'BULUNAMADI — sportoto.gov.tr Müşterek Oyun Planı PDF elle okunmalı';
+export const PAYOUT_RATIO_NET = 0.93;
+export const PAYOUT_RATIO_NET_SINCE = '2023-12-28';
+export const PAYOUT_RATIO_NET_SOURCE =
+  '5602 s.K. md.4/2 (7491 s.K. md.64 ile %93) + Spor Toto Oyun Planı md.10/1 '
+  + '(üst sınır dağıtılır) + Sayıştay 2023 raporu gerçekleşmesi (%83,000 = o yılın sınırı)';
 
-/** Kolon bedeli (TL). Düşük güven: haber kaynaklı, resmî tarifeden teyit edilmeli. */
+/**
+ * KDV ORANI — **BULUNAMADI, kalan tek bilinmeyen.**
+ *
+ * NEDEN ÖNEMLİ: Kanunun %93'ü KDV DÜŞÜLMÜŞ hasılat üzerinden; oyuncunun
+ * ödediği kolon bedeli ise BRÜT. İkisi karıştırılırsa havuz sessizce şişer.
+ * 2023 gerçekleşmesinde KDV / brüt hasılat = %16,01 idi (yani net/brüt =
+ * %83,99); o yıl KDV oranı yıl ortasında değiştiği için bu bir KARIŞIK
+ * ortalamadır ve bugünkü oran olarak KULLANILAMAZ.
+ *
+ * Ölçek: 0,93'ü brüt bedele doğrudan uygulamak havuzu ~%19 şişirir.
+ * Bu yüzden VAT_RATE bilinmeden TL üretilmez — motor "havuz payı" ile çalışır.
+ */
+export const VAT_RATE = null;
+export const VAT_RATE_SOURCE = 'BULUNAMADI — KDV oranı ve dahil/hariç olduğu teyit edilmeli';
+
+/**
+ * ρ — motorun KULLANDIĞI oran: brüt kolon bedelinin ikramiyeye giden kısmı.
+ * ρ = ρ_net × (net / brüt) = ρ_net / (1 + KDV)
+ * KDV bilinmiyorsa null — motor ölçeksiz (havuz payı) çalışmaya devam eder.
+ */
+export const PAYOUT_RATIO = VAT_RATE == null ? null : PAYOUT_RATIO_NET / (1 + VAT_RATE);
+export const PAYOUT_RATIO_SOURCE = VAT_RATE == null
+  ? `ρ_net=${PAYOUT_RATIO_NET} bulundu ama KDV oranı bilinmiyor — brüt bedele çevrilemiyor.`
+  : `${PAYOUT_RATIO_NET_SOURCE} · KDV: ${VAT_RATE_SOURCE}`;
+
+/**
+ * Kolon bedeli (TL). Araştırma bu değeri DOĞRULAMADI, yalnız TEYİT ETTİ:
+ * 18.03.2025'ten beri 10 TL (öncesi 6.08.2023-17.03.2025 arası 2 TL, ondan
+ * önce 0,50 TL) — ama yalnız haber kaynaklarından. Resmî Oyun Planı PDF'i
+ * okundu ve fiyat tarifesini İÇERMİYOR; tarife ayrı bir karar/duyuruyla
+ * belirleniyor ve o belgeye ulaşılamadı. Bu yüzden VERIFIED hâlâ false.
+ */
 export const COLUMN_PRICE_TL = 10;
 export const COLUMN_PRICE_VERIFIED = false;
+export const COLUMN_PRICE_SOURCE =
+  'İkincil (haber) kaynaklar: 18.03.2025 itibarıyla 10 TL. Resmî tarife belgesi bulunamadı.';
 
 /** Veraset ve İntikal Vergisi: istisnayı aşan kısma %20 (01.01.2026 istisnası). */
 export const TAX_RATE = 0.20;
