@@ -28,7 +28,7 @@ import {
   DNA_PERIODS, MASTER_FILTERS, roundPct100, ord, wdl, num1, fmtClock, birOndalik,
   classCountsOf, filterMaster, sortMaster,
   legacyCountsOf, legacyFiltered, radar5PeriodSuccess, radar5PeriodTrend, rowTrend,
-  DONEM_MAC_SAYISI, DNA_PERIOD_LABELS,
+  DONEM_MAC_SAYISI, DNA_PERIOD_LABELS, orneklemUyarisi, haftaCipEtiketi, haftalarCokSezon,
 } from '../radarScreenData';
 
 // RADAR 3 OTOMATİK TAZELEME — sekme açıkken ekran kendiliğinden yenilenir.
@@ -325,6 +325,9 @@ export default function RadarScreen({ navigation }) {
   };
 
   const centerMode = !!view;
+  // Şeritte birden çok sezon varsa hafta çipleri sezonu da yazar (sezon
+  // geçişinde "1. Hafta" ile "53. Hafta" yan yana gelir ve numara küçülür).
+  const cokSezon = haftalarCokSezon(weeks);
   const legacyMode = !centerMode && meta?.legacyOnly === true;
 
   // ---- Master liste: filtre + sıralama ----
@@ -411,6 +414,10 @@ export default function RadarScreen({ navigation }) {
     const allTimePct = dnaStatsByPosition.get(item.no)?.allTime?.pct;
     const allTimeHighest = allTimePct ? Math.max(Number(allTimePct['1']) || 0, Number(allTimePct.X) || 0, Number(allTimePct['2']) || 0) : null;
     const trend = rowTrend({ highest, allTimeHighest, dnaPeriod });
+    // ÖRNEKLEM UYARISI — sezon geçişinde örneklem 51 haftadan 1'e düşer ve
+    // çıplak "%100" bir bulguymuş gibi görünür. Kaç haftaya dayandığı yazılır.
+    const orneklem = dnaStatsByPosition.get(item.no)?.[dnaPeriod]?.sample ?? null;
+    const uyari = orneklemUyarisi(orneklem);
     // SATIR AÇILIMI — dokununca bu SIRANIN geçmiş maçları listelenir. Yüzdenin
     // arkasındaki maçlar gösterilmezse kullanıcı sayıyı doğrulayamaz.
     const acik = acikSira === item.no;
@@ -432,7 +439,9 @@ export default function RadarScreen({ navigation }) {
         {pct ? (
           <>
             <View style={styles.memPctRow}>
-              <Text style={styles.memPctLabel}>Geçmiş {item.no}. sıra</Text>
+              <Text style={styles.memPctLabel}>
+                Geçmiş {item.no}. sıra{orneklem != null ? ` (${orneklem})` : ''}
+              </Text>
               <View style={styles.memOutcome}><Text style={[styles.memOutcomeKey, styles.memOutcomeOneKey]}>1</Text><Text style={styles.memOutcomeValue}>%{pct['1']}</Text></View>
               <View style={styles.memOutcome}><Text style={[styles.memOutcomeKey, styles.memOutcomeDrawKey]}>X</Text><Text style={styles.memOutcomeValue}>%{pct.X}</Text></View>
               <View style={styles.memOutcome}><Text style={[styles.memOutcomeKey, styles.memOutcomeTwoKey]}>2</Text><Text style={styles.memOutcomeValue}>%{pct['2']}</Text></View>
@@ -455,6 +464,10 @@ export default function RadarScreen({ navigation }) {
                 trend.key === 'flat' && styles.dnaTrendFlat,
               ]}>{trend.symbol}</Text> : null}
             </View>
+            {/* AZ ÖRNEKLEM: yüzde yine gösterilir (veri gizlenmez) ama neye
+                dayandığı yazılır. Sezon başında bu satır 15 sıranın hepsinde
+                görünür ve kullanıcı %100'ü bulgu sanmaz. */}
+            {uyari ? <Text style={styles.memUyari}>⚠ {uyari}</Text> : null}
           </>
         ) : (
           <Text style={styles.memNone}>
@@ -562,6 +575,9 @@ export default function RadarScreen({ navigation }) {
         ) : null}
       </View>
 
+      {/* SEZON GEÇİŞİ: 53. haftadan sonra yeni sezon 1. haftayla başlar ve
+          hafta numaraları küçülür. Şeritte iki sezon varsa hangi haftanın
+          hangi sezona ait olduğu yazılır. */}
       {/* HAFTA ÇUBUKLARI */}
       {weeks.length > 0 && (
         <View style={styles.weekBarWrap}>
@@ -572,7 +588,7 @@ export default function RadarScreen({ navigation }) {
               return (
                 <TouchableOpacity key={w.roundId} onPress={() => selectWeek(w.roundId)} style={[styles.weekChip, on && styles.weekChipOn]} activeOpacity={0.85}>
                   <Text style={[styles.weekChipTxt, on && styles.weekChipTxtOn]}>
-                    {w.round || `#${w.roundId}`}{isCur ? ' · Güncel' : (w.locked || w.sealed) ? ' 🔏' : ''}
+                    {haftaCipEtiketi(w, { guncel: isCur, cokSezon })}
                   </Text>
                 </TouchableOpacity>
               );
@@ -770,6 +786,7 @@ const styles = StyleSheet.create({
   memSuccess: { color: colors.success, fontSize: 12, fontWeight: '900' },
   memSuccessValue: { color: colors.success, fontSize: 12, fontWeight: '900' },
   memTrend: { fontSize: 12, fontWeight: '900' },
+  memUyari: { color: colors.warning, fontSize: 11, fontWeight: '800', marginTop: 4, marginLeft: 34 },
   memNone: { color: colors.textMuted, fontSize: 12, fontStyle: 'italic', marginTop: 6, marginLeft: 34 },
   // RADAR 5 SATIR AÇILIMI — o sıranın geçmiş maçları.
   memAc: { color: colors.primary, fontSize: 11, fontWeight: '900', marginLeft: 6 },

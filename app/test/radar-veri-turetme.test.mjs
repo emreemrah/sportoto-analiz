@@ -166,3 +166,55 @@ test('satır eğilimi dönem seçimine göre davranır', () => {
   assert.equal(rowTrend({ highest: 50.3, allTimeHighest: 50, dnaPeriod: 'last5' }).key, 'flat');
   assert.equal(rowTrend({ highest: null, allTimeHighest: 50, dnaPeriod: 'last5' }), null);
 });
+
+// ---------------------------------------------------------------------------
+// SEZON GEÇİŞİ HAZIRLIĞI — 53. haftadan sonra yeni sezon 1. haftayla başlar.
+// Ölçülen gerçek: sabit pencereler aktif sezona bağlı olduğu için örneklem
+// 51 haftadan 1'e düşüyor ve bir sıra "1 %100.0" gösteriyor.
+// ---------------------------------------------------------------------------
+test('örneklem uyarısı: az veride yüzdenin neye dayandığı yazılır', async () => {
+  const { orneklemUyarisi, YON_SINYALI_ESIGI } = await import('../src/radarScreenData.js');
+  // Eşik arka uçtaki directional kuralıyla AYNI olmalı (positionDna.js: n>=10).
+  assert.equal(YON_SINYALI_ESIGI, 10);
+  assert.equal(orneklemUyarisi(1), 'Yalnız 1 hafta — yön sinyali üretilmez');
+  assert.equal(orneklemUyarisi(3), 'Yalnız 3 hafta — yön sinyali üretilmez');
+  assert.equal(orneklemUyarisi(9), 'Yalnız 9 hafta — yön sinyali üretilmez');
+  // Eşikte ve üstünde uyarı YOK.
+  assert.equal(orneklemUyarisi(10), null);
+  assert.equal(orneklemUyarisi(51), null);
+  // Veri yoksa uyarı da yok (satır zaten "geçmiş sonuç yok" der).
+  assert.equal(orneklemUyarisi(0), null);
+  assert.equal(orneklemUyarisi(null), null);
+  assert.equal(orneklemUyarisi(undefined), null);
+});
+
+test('hafta çipi: TEK sezonda sezon yazılmaz', async () => {
+  const { haftaCipEtiketi, haftalarCokSezon } = await import('../src/radarScreenData.js');
+  const haftalar = [
+    { roundId: 1527, round: '53. Hafta', year: 2026 },
+    { roundId: 1526, round: '52. Hafta', year: 2026, sealed: true },
+  ];
+  assert.equal(haftalarCokSezon(haftalar), false);
+  assert.equal(haftaCipEtiketi(haftalar[0], { guncel: true, cokSezon: false }), '53. Hafta · Güncel');
+  assert.equal(haftaCipEtiketi(haftalar[1], { cokSezon: false }), '52. Hafta 🔏');
+});
+
+test('hafta çipi: SEZON GEÇİŞİNDE sezon yazılır (numara küçülür, karışmasın)', async () => {
+  const { haftaCipEtiketi, haftalarCokSezon } = await import('../src/radarScreenData.js');
+  // Yeni sezon başladı: güncel hafta "1. Hafta", geçmişte "53. Hafta" var.
+  const haftalar = [
+    { roundId: 1528, round: '1. Hafta', year: 2027 },
+    { roundId: 1527, round: '53. Hafta', year: 2026, sealed: true },
+  ];
+  assert.equal(haftalarCokSezon(haftalar), true);
+  assert.equal(haftaCipEtiketi(haftalar[0], { guncel: true, cokSezon: true }), '1. Hafta 2027 · Güncel');
+  assert.equal(haftaCipEtiketi(haftalar[1], { cokSezon: true }), '53. Hafta 2026 🔏');
+});
+
+test('hafta çipi: yılı BİLİNMEYEN hafta sezon uydurmaz', async () => {
+  const { haftaCipEtiketi, haftalarCokSezon } = await import('../src/radarScreenData.js');
+  assert.equal(haftalarCokSezon([{ roundId: 1, round: 'A' }, { roundId: 2, round: 'B' }]), false);
+  assert.equal(haftaCipEtiketi({ roundId: 9, round: '9. Hafta' }, { cokSezon: true }), '9. Hafta');
+  // Hafta adı hiç yoksa kimlik yazılır (boş çip olmaz).
+  assert.equal(haftaCipEtiketi({ roundId: 9 }, {}), '#9');
+});

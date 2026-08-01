@@ -366,3 +366,44 @@ test('11e. Haftanın KAPANIŞI son sonuçlanan maçtır (ertelenen maç sırayı
   assert.equal(String(round.roundCloseAt).slice(0, 7), '2024-01',
     `kapanış ertelenen maça kaymamalı (gelen: ${round.roundCloseAt})`);
 });
+
+// --- SEZON GEÇİŞİ -----------------------------------------------------------
+// 53. haftadan sonra resmî kaynakta YENİ SEZON açılır ve haftalar 1'den
+// başlar. İçe aktarıcı sezon listesini her turda kaynaktan okur; elle
+// yapılandırma yoktur. Bu testler o varsayımı kilitler.
+test('12b. YENİ SEZON kendiliğinden içeri alınır (elle ayar gerekmez)', async () => {
+  const store = mkStore();
+  const api = makeApi({
+    years: ['2026-2027', '2025-2026'],                 // kaynak yeni sezonu ekledi
+    roundsByYear: {
+      '2026-2027': [{ id: 1600, name: '1. Hafta', isPublished: true }],
+      '2025-2026': [{ id: 1527, name: '53. Hafta', isPublished: true }],
+    },
+    bulletins: { 1600: fullRound(1600), 1527: fullRound(1527) },
+  });
+  const res = await importOfficialHistoryTick({ store, api, pauseMs: 0, log: () => {} });
+  assert.equal(res.imported, 2, 'iki sezonun haftaları da alınmalı');
+  assert.equal((await store.getRound('1600')).seasonYear, '2026-2027');
+  assert.equal((await store.getRound('1527')).seasonYear, '2025-2026');
+});
+
+test('12c. Yeni sezonun hafta NUMARASI 1e dönse de eski hafta EZİLMEZ', async () => {
+  // Tehlike: kimlik hafta ADI olsaydı yeni sezonun "1. Hafta"sı eskisini
+  // ezerdi. Kimlik roundId'dir ve resmî kaynakta artmaya devam eder.
+  const store = mkStore();
+  const api = makeApi({
+    years: ['2026-2027', '2025-2026'],
+    roundsByYear: {
+      '2026-2027': [{ id: 1600, name: '1. Hafta', isPublished: true }],
+      '2025-2026': [{ id: 1475, name: '1. Hafta', isPublished: true }],   // AYNI AD
+    },
+    bulletins: { 1600: fullRound(1600, () => '1'), 1475: fullRound(1475, () => '2') },
+  });
+  await importOfficialHistoryTick({ store, api, pauseMs: 0, log: () => {} });
+  const yeni = await store.getMatches('1600');
+  const eski = await store.getMatches('1475');
+  assert.equal(yeni.length, 15);
+  assert.equal(eski.length, 15);
+  assert.ok(yeni.every((m) => m.result === '1'), 'yeni sezonun sonuçları kendi turunda');
+  assert.ok(eski.every((m) => m.result === '2'), 'aynı adlı eski hafta EZİLMEDİ');
+});

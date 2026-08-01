@@ -98,7 +98,13 @@ test('6. Sağlayıcı İZOLASYONU: biri çökerse diğeri yazmaya devam eder', a
 });
 
 test('7. Değişmeyen yüzde TEKRAR yazılmaz (zaman serisi şişmez)', async () => {
-  const now = Date.now();
+  // SABİT SAAT ŞART — Date.now() ile kırılgandı. Tekrar filtresi yalnız AYNI
+  // GÜN içinde çalışır (shouldSkipAsDuplicate → dayKeyOf). Test +30 dakika
+  // ileri gidiyor; gerçek saat 23:30'u geçtiyse bu sıçrama gece yarısını
+  // aşıyor, iki gözlem AYRI GÜNE düşüyor ve tekrar sayılmıyordu. Test her
+  // gece aynı yarım saatte kırmızı oluyordu (2026-08-01 23:48'de yakalandı).
+  // Öğle vaktine sabitlenerek gün sınırından uzak durulur.
+  const now = Date.UTC(2026, 6, 20, 10, 0, 0);
   const store = memStore();
   const p = { id: 'p1', name: 'P1', enabled: true, async fetchPercentages() { return [{ matchNo: 'm1', pct: { '1': 50, X: 30, '2': 20 } }]; } };
   await observePlayedPercentages({ bulletinData: bulletin(6 * H, now), store, now, providers: [p], log: () => {} });
