@@ -99,7 +99,10 @@ export default function ForumScreen() {
 
         <Row style={styles.heroStats}>
           <View style={styles.heroStat}>
-            <Text style={styles.heroStatValue}>4</Text>
+            {/* Sayı LİSTEDEN türer, elle yazılmaz. Değer aynı (4) — burada
+                bir hata yoktu; amaç oda eklenip çıkarıldığında sayacın
+                sessizce yanlışa düşmesini imkânsız kılmak. */}
+            <Text style={styles.heroStatValue}>{quickRooms.length}</Text>
             <Text style={styles.heroStatLabel}>Oda</Text>
           </View>
           <View style={styles.heroStat}>
@@ -118,9 +121,14 @@ export default function ForumScreen() {
         subtitle="Kullanıcı uygulamayı açınca aradığı konuya tek dokunuşla girsin."
       />
 
+      {/* ODA KARTLARI HENÜZ ÇALIŞMIYOR — topluluk arka ucu bağlı değil.
+          Eskiden TouchableOpacity idiler: dokunulunca sönüp geri geliyor ama
+          HİÇBİR ŞEY olmuyordu. Çalışmayan bir şeyi düğme gibi göstermek,
+          kullanıcıya "sen yanlış yaptın" hissi verir. Artık düz kart olarak
+          çiziliyorlar ve durumu açıkça yazıyor. */}
       <View style={styles.roomGrid}>
         {quickRooms.map((room) => (
-          <TouchableOpacity key={room.title} activeOpacity={0.84} style={styles.roomCard}>
+          <View key={room.title} style={styles.roomCard} accessible accessibilityRole="text">
             <Row between center>
               <Ionicons
                 name={room.icon}
@@ -131,9 +139,13 @@ export default function ForumScreen() {
             </Row>
             <Text style={styles.roomTitle}>{room.title}</Text>
             <Text style={styles.roomSubtitle}>{room.subtitle}</Text>
-          </TouchableOpacity>
+          </View>
         ))}
       </View>
+      <Text style={styles.roomNote}>
+        Odalar henüz açılmadı — topluluk özellikleri hazır olduğunda burada
+        aktifleşecek.
+      </Text>
 
       <SectionTitle
         title="Stadyum Akışı"
@@ -307,6 +319,13 @@ const styles = StyleSheet.create({
     fontSize: font.sm,
     lineHeight: 18,
     marginTop: spacing.xs,
+  },
+  roomNote: {
+    color: colors.textMuted,
+    fontSize: font.sm,
+    lineHeight: 18,
+    marginTop: spacing.sm,
+    fontStyle: 'italic',
   },
   tabs: {
     flexDirection: 'row',
