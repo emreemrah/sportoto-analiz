@@ -128,11 +128,14 @@ export const CLASSIFICATIONS = {
   INSUFFICIENT: 'insufficient_data',
 };
 
-// Kullanıcı dili: "Orta Risk"→"Temkinli", "Sürpriz Adayı"→"Sürpriz Sinyali",
-// "Yetersiz Veri"→"Analiz Hazır Değil". Anahtarlar (API sözleşmesi) DEĞİŞMEZ.
+// Kullanıcı dili: "Orta Risk"→"Karışık Sinyal", "Sürpriz Adayı"→"Sürpriz
+// Sinyali", "Yetersiz Veri"→"Analiz Hazır Değil". Anahtarlar (API sözleşmesi)
+// DEĞİŞMEZ. "Temkinli" → "Karışık Sinyal" (Ağustos 2026): kullanıcı isteğiyle
+// güvenli/riskli çağrışımlı dil tamamen kaldırıldı; sınıfın gerçek anlamı da
+// budur — radarlar aynı yönde birleşmedi.
 export const CLASSIFICATION_LABELS = {
   strong_candidate: 'Güçlü Aday',   // "banko" kesinlik iddiası TAŞIMAZ — aday dili
-  medium_risk: 'Temkinli',
+  medium_risk: 'Karışık Sinyal',
   surprise_candidate: 'Sürpriz Sinyali',
   insufficient_data: 'Analiz Hazır Değil',
 };

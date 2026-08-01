@@ -116,8 +116,8 @@ test('3. KİLİTLİ SNAPSHOT: sonradan gelen geçmiş arşiv/gözlem mühürlü 
   assert.equal(again.snapshot.payloadHash, hashBefore, 'yeniden freeze denemesi aynı snapshot\'ı döndürür');
 });
 
-test('4. Kullanıcı dili: Temkinli / Sürpriz Sinyali / Analiz Hazır Değil + radar adları', () => {
-  assert.equal(CLASSIFICATION_LABELS.medium_risk, 'Temkinli');
+test('4. Kullanıcı dili: Karışık Sinyal / Sürpriz Sinyali / Analiz Hazır Değil + radar adları', () => {
+  assert.equal(CLASSIFICATION_LABELS.medium_risk, 'Karışık Sinyal');
   assert.equal(CLASSIFICATION_LABELS.surprise_candidate, 'Sürpriz Sinyali');
   assert.equal(CLASSIFICATION_LABELS.insufficient_data, 'Analiz Hazır Değil');
   assert.equal(CLASSIFICATION_LABELS.strong_candidate, 'Güçlü Aday');

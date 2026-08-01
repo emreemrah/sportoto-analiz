@@ -9,7 +9,7 @@ import { colors, spacing, radius } from '../theme';
 // "Sürpriz Sinyali", "Yetersiz Veri"→"Analiz Hazır Değil" (anahtarlar aynı).
 export const CLASS_META = {
   strong_candidate: { label: 'Güçlü Aday', color: colors.success, soft: colors.successSoft, icon: '🟢' },
-  medium_risk: { label: 'Temkinli', color: colors.warning, soft: colors.warningSoft, icon: '🟡' },
+  medium_risk: { label: 'Karışık Sinyal', color: colors.warning, soft: colors.warningSoft, icon: '🟡' },
   surprise_candidate: { label: 'Sürpriz Sinyali', color: colors.danger, soft: colors.dangerSoft, icon: '🔴' },
   insufficient_data: { label: 'Analiz Hazır Değil', color: colors.muted, soft: colors.surfaceSoft, icon: '⚪' },
 };
@@ -74,7 +74,7 @@ function RadarRow({ r }) {
         {r.hasData ? (
           <Text style={st.radarRowLine}>
             {r.homeScore != null ? `1 %${r.homeScore} · X %${r.drawScore} · 2 %${r.awayScore}` : 'Yön puanı üretmez (yardımcı sinyal)'}
-            {r.favoriteFailureRisk != null ? ` · Risk sinyali ${r.favoriteFailureRisk}` : ''}
+            {r.favoriteFailureRisk != null ? ` · Sürpriz göstergesi ${r.favoriteFailureRisk}` : ''}
           </Text>
         ) : (
           <Text style={st.radarRowOff}>{r.status === 'no_source' ? '⏳ Veri kaynağı bekleniyor' : '— Veri yetersiz'}{r.note ? ` · ${r.note}` : ''}</Text>
@@ -279,7 +279,7 @@ export function RadarTabCard({ item, radarId }) {
             <Text style={[st.risk, { color: r.favoriteFailureRisk >= 65 ? colors.danger : r.favoriteFailureRisk >= 35 ? colors.warning : colors.success }]}>
               {r.favoriteFailureRisk}
             </Text>
-            <Text style={st.riskLbl}>Risk sinyali</Text>
+            <Text style={st.riskLbl}>Sürpriz göstergesi</Text>
           </View>
         ) : null}
       </View>

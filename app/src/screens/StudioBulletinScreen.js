@@ -41,7 +41,7 @@ import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 
 import { api } from '../api';
-import { APP_NAME_UPPER, NO_GUARANTEE_NOTICE } from '../brand';
+import { APP_NAME_UPPER, LEGAL_FOOTER } from '../brand';
 import {
   buildStudioRows, readinessOf, distributionOf, columnsOf,
   nextUnpicked, KIND_LABEL,
@@ -359,7 +359,7 @@ export default function StudioBulletinScreen({ navigation }) {
       {tablo}
 
       <Text style={[st.kareNot, fontOf(400, f), { fontSize: t.mikro }]}>
-        18+ · {NO_GUARANTEE_NOTICE} Yalnız resmî Spor Toto sonucu kesindir.
+        {LEGAL_FOOTER} · Yalnız resmî Spor Toto sonucu kesindir.
         Seçimler yayıncının kendi kararıdır.
       </Text>
     </ViewShot>

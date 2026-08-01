@@ -18,7 +18,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, useWindowDimensions,
 } from 'react-native';
 import { api } from '../api';
-import { BRAND_LINE_1, BRAND_LINE_2, NO_GUARANTEE_NOTICE } from '../brand';
+import { BRAND_LINE_1, BRAND_LINE_2, LEGAL_FOOTER } from '../brand';
 import { buildBroadcastSlides, clampIndex, SCALES, DEFAULT_SCALE_INDEX } from '../broadcast';
 
 // —— Yayın paleti: koyu tema burada YAŞAR (B5). Uygulamanın geri kalanı
@@ -211,7 +211,7 @@ export default function BroadcastScreen({ navigation }) {
           </View>
         ) : null}
 
-        <Text style={st.legal}>18+ · {NO_GUARANTEE_NOTICE}</Text>
+        <Text style={st.legal}>{LEGAL_FOOTER}</Text>
         {Platform.OS === 'web' ? (
           <Text style={st.hint}>Klavye: ← →  slayt · +/−  punto · Esc  çıkış</Text>
         ) : null}

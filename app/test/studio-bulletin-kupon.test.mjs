@@ -429,8 +429,8 @@ test('kadraj tablodur; kupon adı kutusu ve arşiv durumu kareye GİRMEZ', () =>
 test('paylaşılan karede dürüstlük bildirimi VAR ve merkezden geliyor', () => {
   const kod = kodu(BULTEN);
   const kare = kod.match(/<ViewShot[\s\S]*?<\/ViewShot>/)[0];
-  assert.match(kare, /\{NO_GUARANTEE_NOTICE\}/, 'kazanç vaadi olmadığı bildirimi kadrajın içinde değil');
-  assert.match(kare, /18\+/, 'yaş uyarısı kadrajın içinde değil');
+  // LEGAL_FOOTER (brand.js) = 18+ + vaat-yok + YEDAM hattı tek sabitte (T7).
+  assert.match(kare, /\{LEGAL_FOOTER\}/, 'birleşik yasal alt satır kadrajın içinde değil');
   assert.match(kare, /\{APP_NAME_UPPER\}/, 'marka şeridi yok ya da elle yazılmış');
   assert.match(kod, /from '\.\.\/brand'/, 'marka/bildirim merkezden okunmuyor');
   // LegalStrip kadrajın DIŞINDA kalıyor; bu yüzden kare kendi uyarısını taşır.

@@ -36,6 +36,14 @@ export const INDEPENDENCE_NOTICE =
 // Analiz dürüstlüğü bildirimi — paylaşılan her görselde ve sonuç ekranında geçer.
 export const NO_GUARANTEE_NOTICE = 'Kesin sonuç veya kazanç vaadi değildir.';
 
+// Sorumlu oyun yardım hattı — Yeşilay Danışmanlık Merkezi (ücretsiz, gizli).
+export const SUPPORT_HELPLINE = 'YEDAM 444 79 75';
+
+// BİRLEŞİK YASAL ALT SATIR — 18+ ibaresi taşıyan her ekran/paylaşım yüzeyi
+// bu SABİTİ kullanır; elle "18+ · ..." yazılmaz. Tek kaynak: metin değişirse
+// (ör. hat numarası) tek satır değişir, 7 kopya birbirinden ayrı düşmez.
+export const LEGAL_FOOTER = `18+ · ${NO_GUARANTEE_NOTICE} · Destek: ${SUPPORT_HELPLINE}`;
+
 // Resmî sonuç bildirimi.
 export const OFFICIAL_RESULT_NOTICE =
   'Yalnız resmî 90 dakika sonucu kesindir; canlı ve geçici veriler kesin sayılmaz.';
@@ -55,6 +63,10 @@ export const DELETE_ACCOUNT_PATH = '/hesap-silme';
 // eşleşmeyi app/test/account-privacy.test.mjs ölçer.
 export const COMMUNITY_RULES_PATH = '/topluluk-kurallari';
 
+// SORUMLU OYUN — yardım hattı (YEDAM) + "kazanç garantisi değildir" beyanı.
+// Yol, backend/src/server.js içindeki rotayla BİREBİR aynı olmak zorundadır.
+export const RESPONSIBLE_GAMING_PATH = '/sorumlu-oyun';
+
 // Saf yardımcı: verilen sunucu adresinden yasal sayfa bağlantılarını üretir.
 // Adres boşsa (web'de aynı origin) göreli yol döner; bu da doğru çalışır.
 export function legalUrls(apiBase = '') {
@@ -63,5 +75,6 @@ export function legalUrls(apiBase = '') {
     privacy: `${base}${PRIVACY_PATH}`,
     deleteAccount: `${base}${DELETE_ACCOUNT_PATH}`,
     rules: `${base}${COMMUNITY_RULES_PATH}`,
+    responsibleGaming: `${base}${RESPONSIBLE_GAMING_PATH}`,
   };
 }

@@ -179,8 +179,9 @@ test('elle çizilen tuval gitti — kare artık ekranın kendisinden alınıyor'
   // Dışına taşarsa paylaşılan görselde uyarı görünmez; ayrıca gizlilik denetimi
   // (scripts/render-coupon.mjs) kadrajı bu bildirime bakarak bulur.
   const kadraj = PAYLAS.match(/<ViewShot[\s\S]*?<\/ViewShot>/)[0];
-  assert.match(kadraj, /NO_GUARANTEE_NOTICE/, 'dürüstlük bildirimi kadrajın dışında kalmış');
-  assert.match(kadraj, /18\+/, '18+ uyarısı kadrajın dışında kalmış');
+  // LEGAL_FOOTER = "18+ · Kesin sonuç... · Destek: YEDAM 444 79 75" (brand.js
+  // tek kaynak) — 18+ ve dürüstlük bildirimi bu sabitin İÇİNDEDİR (T7).
+  assert.match(kadraj, /LEGAL_FOOTER/, 'birleşik yasal alt satır kadrajın dışında kalmış');
 });
 
 test('paylaşım stüdyonun kare yolunu kullanıyor: armalar gömülüyor, çözünürlük yüksek', () => {
@@ -208,8 +209,7 @@ test('kadrajda dürüstlük bildirimi VAR ve merkezden geliyor', () => {
   const kare = PAYLAS.match(/<ViewShot[\s\S]*?<\/ViewShot>/);
   assert.ok(kare, 'paylaşılan kare tanımlı değil');
   const ic = kare[0];
-  assert.match(ic, /\{NO_GUARANTEE_NOTICE\}/, 'kazanç vaadi olmadığı bildirimi kadrajın içinde değil');
-  assert.match(ic, /18\+/, 'yaş uyarısı kadrajın içinde değil');
+  assert.match(ic, /\{LEGAL_FOOTER\}/, 'birleşik yasal alt satır (18+ + vaat-yok + YEDAM) kadrajın içinde değil');
   assert.match(ic, /\{APP_NAME_UPPER\}/, 'marka şeridi yok ya da elle yazılmış');
   assert.match(PAYLAS, /from '\.\.\/brand'/, 'marka/bildirim merkezden okunmuyor');
 });

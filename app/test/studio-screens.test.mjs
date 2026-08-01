@@ -372,5 +372,6 @@ test('yayın yüzeyinde yasal şerit ve 18+ uyarısı var', () => {
   for (const r of STUDIO_ROTALARI) {
     assert.ok(EKRANLAR[r].includes('LegalStrip'), `${r}: yasal şerit yok`);
   }
-  assert.match(EKRANLAR.parts, /18\+/, 'yaş uyarısı kaldırılmış');
+  // 18+ artık LEGAL_FOOTER sabitinin içinde (brand.js, T7) — kaynak bu sabiti kullanmalı.
+  assert.match(EKRANLAR.parts, /LEGAL_FOOTER/, 'birleşik yasal alt satır (18+ dahil) kaldırılmış');
 });

@@ -9,6 +9,7 @@ import { pickHits } from '../liveLogic';
 import { getRankedCoupon, finalVersion } from '../coupon/store';
 import { toOfficial } from '../couponConfig';
 import { RecordBadges, SurpriseBadge, FormStrip } from '../components';
+import { LEGAL_FOOTER } from '../brand';
 import ScoreLegend from '../components/ScoreLegend';
 import SnapshotSealBanner from '../components/SnapshotSealBanner';
 import LiveBulletinView from '../components/LiveBulletinView';
@@ -321,7 +322,7 @@ export default function BulletinScreen({ navigation }) {
           </Text>
         </View>
       ) : null}
-      <Text style={styles.legalTxt}>18+ · Analiz ve karar desteği amaçlıdır; kesin sonuç veya kazanç vaadi içermez.</Text>
+      <Text style={styles.legalTxt}>{LEGAL_FOOTER}</Text>
     </View>
   );
 

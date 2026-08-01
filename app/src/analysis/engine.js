@@ -36,7 +36,7 @@ function emptySportotoDecision(message) {
     dataConfidence: 'Çok Düşük',
     tags: [{ name: 'Veri Yetersiz', weight: 100, reason: message, couponEffect: 'Kör karar verilmez; kapalı (1-X-2) düşünülmeli veya bu maç kupona alınmamalı.' }],
     unknownData: [message],
-    shortComment: `${message} Bu maç için yön verilemez; güvenli kupon 1-X-2, güçlü aday önerilmez.`,
+    shortComment: `${message} Bu maç için yön verilemez; geniş kupon 1-X-2, güçlü aday önerilmez.`,
   };
 }
 
@@ -60,13 +60,13 @@ function buildSportotoDecision(ctx) {
     : (fillRate >= 0.4 && decisiveCount >= 2) ? 'Düşük' : 'Çok Düşük';
 
   // ——— KUPONLAR ———
-  // Güvenli kupon: silinmemesi gerekenler. Dar kupon: bütçe için daraltılmış hâli.
+  // Geniş kupon: silinmemesi gerekenler. Dar kupon: bütçe için daraltılmış hâli.
   // clear (net lider var) → dar = tek ana seçim, güvenli = ana + hedge.
   // clear değil       → dar = en güçlü iki sonuç, güvenli = kapalı (1-X-2).
   const mainArr = main.split('');
   const narrowCoupon = mainArr;
-  // DÜZELTME: güvenli kupon clear durumunda hedge'i (alt) korumalı. Eskiden
-  // mainArr üzerinden kurulduğu için tek sonuca düşüyor, güvenli kupon dar
+  // DÜZELTME: Geniş kupon clear durumunda hedge'i (alt) korumalı. Eskiden
+  // mainArr üzerinden kurulduğu için tek sonuca düşüyor, geniş kupon dar
   // kuponla aynı çıkıyordu — yani alternatif hiç kupona ulaşmıyordu.
   const safeCoupon = clear ? alt.split('') : ['1', 'X', '2'];
 
@@ -119,8 +119,8 @@ function buildSportotoDecision(ctx) {
   if (!clear) addTag('Belirgin Üstünlük Yok', 65, `Sonuç payları yakın (1: %${s1} · X: %${sX} · 2: %${s2}).`, 'Tek seçim önerilmez; çift ya da kapalı düşünülmeli.');
   if (spread <= 14) addTag('Kapama Adayı', 60 + (14 - spread), 'Üç sonucun kriter payı birbirine çok yakın.', '15 hedefinde 1-X-2 kapalı değerlendirilebilir.');
   if (gap12 < 15) addTag('Tek Oynanmaz', 55 + (15 - gap12), `1 ve 2 arasındaki fark %${gap12} — güçler yakın.`, 'Tek yerine dar (1-2) veya kapalı oyna.');
-  if (sX >= 20) addTag('X Silinmez', 45 + (sX - 20) * 2, `Beraberlik kriter payı %${sX}.`, 'Güvenli kuponda X kalmalı.');
-  if (s2 >= 30) addTag('2 Silinmez', 45 + (s2 - 28), `Deplasman kriter payı %${s2} — gerçek risk.`, 'Güvenli kuponda 2 kalmalı.');
+  if (sX >= 20) addTag('X Silinmez', 45 + (sX - 20) * 2, `Beraberlik kriter payı %${sX}.`, 'Geniş kuponda X kalmalı.');
+  if (s2 >= 30) addTag('2 Silinmez', 45 + (s2 - 28), `Deplasman kriter payı %${s2} — gerçek risk.`, 'Geniş kuponda 2 kalmalı.');
   if (naRows.length) addTag('Veri Eksikliği Riski', 40 + naRows.length * 6, `Seçili ${selectedCount} kriterden ${naRows.length} tanesi veri bulamadı: ${naRows.slice(0, 3).map((x) => x.label).join(', ')}.`, 'Eksik veri nedeniyle daha geniş (güvenli) seçim tercih edilmeli.');
   if (decisiveCount <= 1) addTag('Dayanak Zayıf', 70, `Yalnız ${decisiveCount} kriter bir tarafı gösteriyor.`, 'Daha çok kriter seçmeden bu maça tek oynanmamalı.');
   // Alan adları (bankoStatus/bankoReasons) İÇ İSİMDİR, değiştirilmedi; ama
@@ -144,7 +144,7 @@ function buildSportotoDecision(ctx) {
   if (s2 >= 30) ev.push(`Deplasman %${s2} ile 2 ihtimalini ayakta tutuyor.`);
   if (naRows.length) ev.push(`${naRows.length} kriter veri bulamadığı için güven düşürüldü.`);
   parts.push(ev.join(' '));
-  parts.push(`Dar kupon: ${joinCoupon(narrowCoupon)} · Güvenli kupon: ${joinCoupon(safeCoupon)} · Güçlü aday uygunluğu: ${bankoStatus} · Risk: ${riskLevel}.`);
+  parts.push(`Dar kupon: ${joinCoupon(narrowCoupon)} · Geniş kupon: ${joinCoupon(safeCoupon)} · Güçlü aday uygunluğu: ${bankoStatus} · Risk: ${riskLevel}.`);
 
   return {
     available: true,
@@ -328,7 +328,7 @@ export function userSelectedAnalysisEngine(m, profile) {
   parts.push(`Taraf puanları — 1: ${r1(homeScore)} · X: ${r1(drawScore)} · 2: ${r1(awayScore)}. Ana seçim ${main}, alternatif ${alt}.`);
   const reason = parts.join(' ');
 
-  // Kupon karar katmanı (Spor Toto): aynı kriter puanlarından dar/güvenli kupon,
+  // Kupon karar katmanı (Spor Toto): aynı kriter puanlarından dar/geniş kupon,
   // hedef stratejisi, risk ve banko uygunluğu türetir. Karara yeni veri KATMAZ.
   const sportotoDecision = buildSportotoDecision({
     scores, totalScore, decisiveCount, clear, main, alt, topOut, secondOut, names, results,

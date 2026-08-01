@@ -147,7 +147,7 @@ export default function DecisionEngineView({ m }) {
             {d.mainTrend ? <View style={[st.symPill, { borderColor: symColor(d.mainTrend), backgroundColor: symColor(d.mainTrend) + '18' }]}><Text style={[st.symPillTxt, { color: symColor(d.mainTrend) }]}>{d.mainTrend}</Text></View> : <Text style={st.na}>Bilinmiyor</Text>}
           </PanelRow>
           <PanelRow k="Dar Kupon"><Coupon arr={d.narrowCoupon} /></PanelRow>
-          <PanelRow k="Güvenli Kupon"><Coupon arr={d.safeCoupon} /></PanelRow>
+          <PanelRow k="Geniş kupon"><Coupon arr={d.safeCoupon} /></PanelRow>
           <PanelRow k="Güçlü Aday Uygunluğu"><Text style={[st.pStrong, { color: bankoColor(d.bankoStatus) }]}>{d.bankoStatus}</Text></PanelRow>
           <PanelRow k="Risk Seviyesi"><Text style={[st.pStrong, { color: riskColor(d.riskLevel) }]}>{d.riskLevel}</Text></PanelRow>
           <PanelRow k="Veri Güvenliği"><Text style={[st.pStrong, { color: dataColor(d.dataConfidence) }]}>{d.dataConfidence}</Text></PanelRow>
@@ -220,7 +220,7 @@ export default function DecisionEngineView({ m }) {
             <KV k="Silinmemesi gerekenler" v={joinCoupon(d.mustKeep)} />
             <KV k="Silinirse risk" v={d.removalRisk} />
             <KV k="Dar kupon" v={joinCoupon(d.narrowCoupon)} />
-            <KV k="Güvenli kupon" v={joinCoupon(d.safeCoupon)} />
+            <KV k="Geniş kupon" v={joinCoupon(d.safeCoupon)} />
           </Accordion>
 
           <Accordion title="Hedef Stratejisi (12 / 13-14 / 15)" icon="🎯">

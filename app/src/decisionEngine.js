@@ -75,17 +75,17 @@ export function buildDecision(m) {
 
   if (favSym === '1' && (h2hAwayFav || p2 >= 30 || (awayForm != null && homeForm != null && awayForm > homeForm + 0.2))) {
     let w = 45 + (p2 - 25) + (h2hAwayFav ? 15 : 0) + (awayForm > (homeForm ?? 0) ? 10 : 0);
-    addTag('Favori Tuzağı', w, `Ev sahibi favori görünse de ${h2hAwayFav ? 'geçmiş eşleşme deplasman lehine' : 'deplasmanın son form ve gücü'} bu maçı bozabilir.`, 'Tek 1 önerilmez; dar kupon 1-2, güvenli kupon 1-X-2.');
+    addTag('Favori Tuzağı', w, `Ev sahibi favori görünse de ${h2hAwayFav ? 'geçmiş eşleşme deplasman lehine' : 'deplasmanın son form ve gücü'} bu maçı bozabilir.`, 'Tek 1 önerilmez; dar kupon 1-2, geniş kupon 1-X-2.');
   }
-  if (pX >= 20) addTag('Beraberlik Riski', 45 + (pX - 20) * 2.2, `X ihtimali %${pX} — güç dengesi ve tempo beraberliği canlı tutuyor.`, 'X güvenli kupondan silinmemeli.');
+  if (pX >= 20) addTag('Beraberlik Riski', 45 + (pX - 20) * 2.2, `X ihtimali %${pX} — güç dengesi ve tempo beraberliği canlı tutuyor.`, 'X geniş kupondan silinmemeli.');
   if (p2 >= 30 || (favSym === '1' && h2hAwayFav)) addTag('Deplasman Sürprizi', 45 + (p2 - 28) + (h2hAwayFav ? 12 : 0), `Deplasman %${p2}${h2hAwayFav ? ' + geçmiş eşleşme üstünlüğü' : ''} — gerçek risk.`, 'Favori tuzağı varsa 2 dikkate alınmalı.');
   if (tacticalMismatch) addTag('Taktik Terslik', 55 + (awayAttack - homeDefense) * 20, 'Deplasmanın gol beklentisi (xG) ev savunmasına ters geliyor.', 'Deplasman sonucu silinmemeli.');
   if (gap12 < 15) addTag('Tek Oynanmaz', 55 + (15 - gap12) * 2, `1 ve 2 farkı sadece %${gap12} — güçler yakın.`, 'Tek yerine dar (1-2) veya kapalı oyna.');
   if (Math.max(p1, pX, p2) - Math.min(p1, pX, p2) <= 14) addTag('Kapama Adayı', 60, 'Üç ihtimal de birbirine çok yakın.', '15 hedefinde 1-X-2 kapalı düşünülmeli.');
   if (surprise != null && surprise >= 50) addTag('Sürpriz Değeri', 45 + (surprise - 50), `Sürpriz puanı ${surprise}/100.`, 'Güçlü aday önerilmez; kolon yakma riski var.');
   if (favPct < 50) addTag('Güçlü Aday Freni', 60 + (50 - favPct), `Favori oranı %${favPct} — %50 altında.`, 'Bu maç güçlü aday sayılmaz.');
-  if (pX >= 20) addTag('X Silinmez', 45 + (pX - 20) * 2, `X %${pX} — tamamen silinemez.`, 'Güvenli kuponda X kalmalı.');
-  if (p2 >= 30 || h2hAwayFav) addTag('2 Silinmez', 45 + (p2 - 28), 'Deplasman ciddi sürpriz adayı.', 'Güvenli kuponda 2 kalmalı.');
+  if (pX >= 20) addTag('X Silinmez', 45 + (pX - 20) * 2, `X %${pX} — tamamen silinemez.`, 'Geniş kuponda X kalmalı.');
+  if (p2 >= 30 || h2hAwayFav) addTag('2 Silinmez', 45 + (p2 - 28), 'Deplasman ciddi sürpriz adayı.', 'Geniş kuponda 2 kalmalı.');
   tags.sort((x, y) => y.weight - x.weight);
 
   const tagWeight = tags.reduce((s, t) => s + t.weight, 0);
@@ -124,13 +124,13 @@ export function buildDecision(m) {
   const outs = [{ s: '1', p: p1 }, { s: 'X', p: pX }, { s: '2', p: p2 }];
   const alive = outs.filter((o) => o.p >= 8).map((o) => o.s);
   const safeCoupon = alive.length ? ['1', 'X', '2'].filter((s) => alive.includes(s)) : ['1', 'X', '2'];
-  // GÜVENLİ kuponda kalması gerekenler (silinmez): ana eğilim + canlı X + sürpriz 2.
+  // Geniş kuponda kalması gerekenler (silinmez): ana eğilim + canlı X + sürpriz 2.
   const mustKeep = new Set([mainTrend]);
   if (pX >= 20) mustKeep.add('X');
   if (p2 >= 30 || h2hAwayFav) mustKeep.add('2');
   if (favPct >= 50) mustKeep.add(favSym);
   // DAR (bütçe) kupon: en düşük ihtimalliyi düşürür — ama canlı X / sürpriz 2 ise
-  // riskini AÇIKÇA "Yüksek" işaretler (güvenli kupondan silinmez, sadece bütçede).
+  // riskini AÇIKÇA "Yüksek" işaretler (geniş kupondan silinmez, sadece bütçede).
   const lowest = [...outs].sort((x, y) => x.p - y.p)[0];
   let firstRemovable = null;
   let removalRisk = 'Yüksek';
@@ -163,7 +163,7 @@ export function buildDecision(m) {
       label: 'X', percent: pX,
       whyCanHappen: `Güçler yakınsa (${gap12}% fark), tempo düşükse veya iki takım kontrollü oynuyorsa beraberlik canlı${h2hDrawish ? '; geçmiş eşleşmeler beraberlik eğilimli' : ''}.`,
       whyMayFail: pX < 20 ? `X ihtimali %${pX} — düşük.` : 'İki takım da kazanmak için oynarsa X zayıflar.',
-      couponEffect: pX >= 20 ? 'X %20 üzerinde — güvenli kupondan silinmemeli.' : 'Dar bütçede ilk silinebilir aday olabilir.',
+      couponEffect: pX >= 20 ? 'X %20 üzerinde — geniş kupondan silinmemeli.' : 'Dar bütçede ilk silinebilir aday olabilir.',
     },
     away: {
       label: '2', percent: p2,
@@ -269,7 +269,7 @@ function emptyDecision(m) {
     tactical: null, advStats: null,
     unknownData: ['Bu maç için analiz verisi mevcut değil (kapsam dışı).'],
     contradictionWarnings: [],
-    shortComment: 'Bu maç için yeterli veri yok. Kesin bir yön verilemez; kör karar önerilmez. Güvenli kupon 1-X-2, güçlü aday önerilmez.',
+    shortComment: 'Bu maç için yeterli veri yok. Kesin bir yön verilemez; kör karar önerilmez. Geniş kupon 1-X-2, güçlü aday önerilmez.',
   };
 }
 
@@ -289,7 +289,7 @@ function buildShortComment({ mainTrend, favSym, favPct, pX, p2, gap12, h2hAwayFa
   if (pX >= 20) ev.push(`X %${pX} — düşük görünse de güç dengesi nedeniyle tamamen silinmemeli.`);
   parts.push(ev.join(' '));
   // 3) karar
-  parts.push(`Dar kupon: ${joinCoupon(narrowCoupon)} · Güvenli kupon: ${joinCoupon(safeCoupon)} · Güçlü aday: ${bankoStatus} · Risk: ${riskLevel}.`);
+  parts.push(`Dar kupon: ${joinCoupon(narrowCoupon)} · Geniş kupon: ${joinCoupon(safeCoupon)} · Güçlü aday: ${bankoStatus} · Risk: ${riskLevel}.`);
   return parts.join(' ');
 }
 

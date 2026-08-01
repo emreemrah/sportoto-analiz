@@ -28,7 +28,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, Share }
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { api } from '../api';
-import { APP_NAME_UPPER, NO_GUARANTEE_NOTICE } from '../brand';
+import { APP_NAME_UPPER, LEGAL_FOOTER } from '../brand';
 import { S, R, SP, TABLE, ETIKET } from '../studioTheme';
 import { fontOf, TABULAR } from '../studioFonts';
 import {
@@ -175,7 +175,7 @@ export default function CouponShareScreen({ route }) {
       </Tablo>
 
       <Text style={[st.kareNot, fontOf(400, f), { fontSize: t.mikro }]}>
-        18+ · {NO_GUARANTEE_NOTICE} Yalnız resmî Spor Toto sonucu kesindir.
+        {LEGAL_FOOTER} · Yalnız resmî Spor Toto sonucu kesindir.
         Seçimler kullanıcının kendi kararıdır.
       </Text>
     </ViewShot>

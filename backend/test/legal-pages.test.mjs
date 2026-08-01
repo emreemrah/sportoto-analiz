@@ -21,11 +21,13 @@ const legalDir = join(here, '..', 'legal');
 const gizlilik = readFileSync(join(legalDir, 'gizlilik.html'), 'utf8');
 const hesapSilme = readFileSync(join(legalDir, 'hesap-silme.html'), 'utf8');
 const kurallar = readFileSync(join(legalDir, 'topluluk-kurallari.html'), 'utf8');
+const sorumluOyun = readFileSync(join(legalDir, 'sorumlu-oyun.html'), 'utf8');
 
 const SAYFALAR = [
   ['gizlilik.html', gizlilik],
   ['hesap-silme.html', hesapSilme],
   ['topluluk-kurallari.html', kurallar],
+  ['sorumlu-oyun.html', sorumluOyun],
 ];
 
 test('her iki sayfa da doğru marka adını ve telif satırını taşır', () => {
@@ -163,6 +165,29 @@ test('topluluk kuralları diğer yasal sayfalara bağlanır', () => {
   assert.ok(/href="\/gizlilik"/.test(kurallar), 'gizlilik bağlantısı yok');
   assert.ok(/href="\/hesap-silme"/.test(kurallar), 'hesap silme bağlantısı yok');
   assert.ok(/hiçbir kurum, operatör veya veri sağlayıcı/.test(kurallar), 'bağımsızlık uyarısı yok');
+});
+
+// ———————————————————————————————————————————————————————————————————
+// SORUMLU OYUN — yardım hattı + vaat-yok beyanı (T7).
+// ———————————————————————————————————————————————————————————————————
+
+test('sorumlu oyun sayfası yardım hattını ve dürüstlük beyanlarını taşır', () => {
+  assert.ok(sorumluOyun.includes('444 79 75'), 'YEDAM hat numarası yok');
+  assert.ok(/yedam\.org\.tr/i.test(sorumluOyun), 'YEDAM bağlantısı yok');
+  assert.ok(/18\+/.test(sorumluOyun), '18+ ibaresi yok');
+  assert.ok(/bahis oynatmaz/i.test(sorumluOyun), 'bahis oynatmadığı beyanı yok');
+  assert.ok(/Kesin sonuç veya kazanç vaadi değildir/.test(sorumluOyun), 'vaat-yok bildirimi yok');
+  assert.ok(sorumluOyun.includes('{{DESTEK_EPOSTA}}'), 'destek adresi yer tutucusu yok');
+});
+
+test('sorumlu oyun rotası KAYITLIDIR ve catch-all öncesindedir', () => {
+  const kaynak = readFileSync(join(here, '..', 'src', 'server.js'), 'utf8');
+  const satir = kaynak.match(/app\.get\(\s*\[[^\]]*sorumlu-oyun[^\]]*\][\s\S]{0,120}?\)/);
+  assert.ok(satir, 'server.js içinde /sorumlu-oyun rotası yok');
+  assert.ok(/serveLegal\('sorumlu-oyun\.html'\)/.test(satir[0]), 'rota yanlış dosyayı sunuyor');
+  const yasalIndex = kaynak.indexOf("serveLegal('sorumlu-oyun.html')");
+  const catchAll = kaynak.indexOf("app.get('*'");
+  assert.ok(catchAll === -1 || yasalIndex < catchAll, 'rota catch-all SONRASINDA kayıtlı — sayfa açılmaz');
 });
 
 test('topluluk kuralları rotası KAYITLIDIR ve HTML döner', async () => {

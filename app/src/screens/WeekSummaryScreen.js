@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { api } from '../api';
 import { colors, spacing, radius } from '../theme';
-import { BRAND_LINE_1, BRAND_LINE_2, NO_GUARANTEE_NOTICE } from '../brand';
+import { BRAND_LINE_1, BRAND_LINE_2, LEGAL_FOOTER } from '../brand';
 import { buildWeekSummary, matchLine } from '../weekSummary';
 import { displayLabel } from '../labels';
 import LoadingState from '../components/LoadingState';
@@ -115,7 +115,7 @@ export default function WeekSummaryScreen({ navigation }) {
         ) : null}
 
         <View style={st.footDivider} />
-        <Text style={st.disc}>18+ · {NO_GUARANTEE_NOTICE}</Text>
+        <Text style={st.disc}>{LEGAL_FOOTER}</Text>
       </View>
 
       <TouchableOpacity style={st.cta} onPress={() => navigation.navigate('MatchDetail', { no: (sum.strong[0] || sum.surprises[0] || { no: 1 }).no })}>

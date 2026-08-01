@@ -1,22 +1,25 @@
-# ⚽ Spor Toto Analiz
+# ⚽ Sportoto Master Analiz
 
-Spor Toto bültenini otomatik çekip her maç için **sürpriz analizi** yapan sistem.
-İşaretleme/kupon değil — **analiz** odaklı: hangi maç banko, hangisi sürprize açık.
+Resmî Spor Toto bültenini otomatik çekip her maç için **veri destekli analiz**
+sunan sistem. Bahis oynatmaz, para kabul etmez, hiçbir bahis sitesine
+yönlendirmez — yalnız **istatistik ve olasılık analizi** gösterir.
+Hiçbir çıktı kazanç garantisi değildir. **18+**
 
 ## Yapı (mimari)
 
 ```
 sportoto.gov.tr API ─┐
-                     ├──→  BACKEND (Node)  ──→  MOBİL APP (Expo)
-FootyStats API ──────┘     • API anahtarı .env'de        • sadece backend'i okur
-                           • veriyi çeker + cache'ler     • analizi gösterir
-                           • sürpriz analizini hesaplar
+FootyStats API ──────┼──→  BACKEND (Node/Express) ──→  UYGULAMA (Expo: Android/iOS/Web)
+API-Football ────────┤     • tüm API anahtarları .env'de   • yalnız backend'i okur
+Oynanma gözlemleri ──┘     • veri + mühürlü arşiv + analiz  • analiz ekranları
+        Supabase (Postgres) ← üyelik, yorum, kalıcı arşiv
 ```
 
-- **backend/** — sunucu. FootyStats anahtarı BURADA, asla uygulamada değil.
-- **app/** — React Native (Expo) mobil uygulama. Sadece backend'e bağlanır.
-
----
+- **backend/** — sunucu. Tüm dış API anahtarları BURADA (`backend/.env`),
+  asla uygulamada değil. Kurulum alanları için: `backend/.env.example`.
+- **app/** — Expo (React Native) uygulaması. Yalnız backend'e bağlanır;
+  adresi `EXPO_PUBLIC_API_BASE` ortam değişkeninden alır (yayın derlemesinde
+  HTTPS zorunludur, yerel IP'ler reddedilir — bkz. `app/src/apiBase.js`).
 
 ## Çalıştırma
 
@@ -25,52 +28,52 @@ FootyStats API ──────┘     • API anahtarı .env'de        • sa
 ```bash
 cd backend
 npm install            # ilk seferde
-npm start              # sunucuyu başlatır → http://localhost:4000
+npm start              # http://localhost:4000
 ```
 
-İlk açılışta bülteni + istatistikleri çeker, cache'ler. 6 saatte bir otomatik yeniler.
+İlk açılışta bülteni + istatistikleri çeker, önbellekler; 6 saatte bir
+otomatik yenilenir. Üyelik/arşiv için Supabase alanlarını `.env`'e girin
+(boş bırakılırsa üyelik uçları kapalı, analiz yine çalışır).
 
-**Kendi FootyStats anahtarını eklemek için:**
-`backend/.env` dosyasını aç, şu satırları düzenle:
-```
-FOOTYSTATS_API_KEY=senin_anahtarin        # "example" yerine kendi anahtarın
-FOOTYSTATS_SEASON_IDS=1234,5678,...       # analiz edilecek lig sezon id'leri (en fazla 50)
-```
-> ⚠️ `.env` dosyası `.gitignore` ile korunur, paylaşılmaz. Anahtarını kimseyle paylaşma.
-
-### 2) Mobil uygulama
+### 2) Uygulama
 
 ```bash
 cd app
 npm install            # ilk seferde
-npm start              # QR kod çıkar → telefonda Expo Go ile okut
+npm start              # QR kod → telefonda Expo Go ile okut
+npm run web            # tarayıcıda denemek için
 ```
 
-**Önemli:** Telefon, bilgisayarınla **aynı Wi-Fi'da** olmalı.
-`app/src/config.js` içindeki `API_BASE` bilgisayarının IP'sini göstermeli
-(şu an `192.168.1.100`). IP değişirse oradan güncelle (`ipconfig` → IPv4).
+Geliştirmede telefon ile bilgisayar aynı Wi-Fi'da olmalı ve
+`EXPO_PUBLIC_API_BASE` bilgisayarın adresini göstermeli.
 
-Tarayıcıda denemek için: `app` klasöründe `npm run web`.
+## Başlıca özellikler
 
----
+- **📋 Bülten** — haftanın 15 maçı; her maçta veri destekli 1/X/2 analizi
+- **🎯 Radar Merkezi** — 4 karar radarı (Rakip Gücü, xG/Beklenti, Oynanma
+  DNA, Oran Takibi) + bilgi amaçlı Bülten DNA paneli (karara katılmaz)
+- **🔬 Master Analiz** — 40 kriterlik, kullanıcı seçimli analiz motoru;
+  veri yoksa uydurmaz, "analiz dışı" der
+- **🧾 Sistem Karnesi** — geçmiş tahminlerin mühürlü, değiştirilemez kaydı
+  üzerinden dürüst başarı ölçümü
+- **🎟️ Kupon Merkezi** — kişisel kupon taslakları (maç bazlı kilit: maç
+  başladıktan sonra seçim değiştirilemez)
+- **📺 Yayın Stüdyosu** — yayıncılar için sunum ekranları
+- **👤 Üyelik + topluluk** — yorumlar, moderasyon, rozetler, cihaz yönetimi
 
-## Ekranlar
+## Dürüstlük kuralları (kısaca)
 
-- **📋 Bülten** — haftanın 15 maçı, her birinde 1/X/2 ihtimalleri + sürpriz etiketi
-- **🎯 Sürpriz Radarı** — maçlar en sürprize açıktan en bankoya sıralı
-- **Maç Detayı** — ihtimaller, sürpriz puanı, unsurlar ve uygulamanın yorumu
-
-## Sürpriz analizi nasıl çalışır?
-
-1. Maçın **oranları** (1/X/2) ihtimale çevrilir (bahisçi marjı temizlenir).
-2. **Taban sürpriz** = favori ne kadar zayıf öndeyse o kadar yüksek.
-3. Üstüne **unsur puanları** eklenir: form (ppg), xG, çekişme, beraberlik riski.
-4. Eşiklere göre etiket: 🟢 **BANKO** · 🟡 **DİKKAT** · 🔴 **SÜRPRİZE AÇIK**.
-
-> Şu an "example" anahtarıyla sadece Premier Lig verisi var; bültendeki o ligin
-> maçları analizli gelir, diğerleri "veri yok" der. Kendi anahtarın + doğru sezon
-> id'lerini ekleyince bültenin çoğu analizli olur.
+- "Kesin, garanti, banko, kazandırır" dili kullanılmaz; en güçlü ifade
+  "Güçlü Aday"dır ve garanti değildir.
+- Tahminler maç kilitlenmeden mühürlenir; geçmişe dönük tahmin üretilmez.
+- Küçük örneklemde yüzde gösterilmez ("örneklem yetersiz" denir).
+- Kupon sırası gibi nedensel bağı olmayan örüntüler karara katılmaz.
 
 ## Veri kaynakları
-- **Bülten:** sportoto.gov.tr resmi API'si (anahtarsız) — 15 maç, sonuçlar
-- **Oran/xG/form:** FootyStats (kendi anahtarınla)
+
+- **Bülten/sonuçlar:** sportoto.gov.tr resmî API (anahtarsız)
+- **Oran/xG/form:** FootyStats · **Canlı skor:** API-Football (anahtarlar `.env`)
+- **Oynanma yüzdeleri:** yasal bayilerin kamuya açık uçlarından 15 dk'lık
+  mühürlü gözlemler (ayrıntı: `backend/src/providers/`)
+
+> Güncel geliştirme durumu ve devir notları için: `HANDOFF.md` · `DEVAM.md`

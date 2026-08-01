@@ -156,3 +156,16 @@ test('Data Safety anahtarı reklam/analitik/izleme yokluğunu beyan eder', () =>
   assert.ok(/Crashlytics/.test(ds), 'çökme günlüğü beyanı yok');
   assert.ok(/Gerçek silme|gerçek silme/.test(ds), 'silmenin gerçek olduğu beyanı yok');
 });
+
+test('OKUBENI.md proje dil kurallarına uyar (iddialı dil yok, eski IP talimatı yok)', () => {
+  // Kök README bir dönem "hangi maç banko" diyerek projenin kendi yasağını
+  // ihlal ediyordu (T6 temizliği). Bu test geri dönüşü engeller.
+  const okubeni = readFileSync(join(here, '..', '..', 'OKUBENI.md'), 'utf8');
+  for (const kalip of [/\bbanko\b/i, /garanti\s+kazan/i, /kesin(likle)?\s+kazan/i, /kazandırır/i, /yanılmaz/i]) {
+    const bulunan = ihlaller(okubeni, kalip);
+    assert.deepEqual(bulunan, [], `OKUBENI.md iddialı dil içeriyor (${kalip}): ${bulunan[0] || ''}`);
+  }
+  assert.ok(!/192\.168\./.test(okubeni), 'bayat sabit IP talimatı geri gelmiş');
+  assert.ok(/18\+/.test(okubeni), '18+ ibaresi bulunmalı');
+  assert.ok(/bahis oynatmaz/i.test(okubeni), 'bahis oynatmadığı beyanı bulunmalı');
+});

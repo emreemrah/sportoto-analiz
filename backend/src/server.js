@@ -617,6 +617,12 @@ app.get(
   ['/topluluk-kurallari', '/community-guidelines', '/topluluk-kurallari.html'],
   serveLegal('topluluk-kurallari.html'),
 );
+// Sorumlu oyun: yardım hattı (YEDAM 444 79 75) + "kazanç garantisi değildir"
+// beyanı. Mağaza incelemesi ve kullanıcılar uygulama kurulmadan da açabilmeli.
+app.get(
+  ['/sorumlu-oyun', '/responsible-gaming', '/sorumlu-oyun.html'],
+  serveLegal('sorumlu-oyun.html'),
+);
 
 // Üretim (Render): derlenmiş web uygulaması varsa onu da aynı sunucudan servis et.
 // Geliştirmede public/ olmadığı için bu blok atlanır, normal akış bozulmaz.

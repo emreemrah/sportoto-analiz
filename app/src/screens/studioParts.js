@@ -16,7 +16,7 @@
 import React, { useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 
-import { APP_NAME_UPPER, NO_GUARANTEE_NOTICE } from '../brand';
+import { APP_NAME_UPPER, LEGAL_FOOTER } from '../brand';
 import { API_BASE } from '../config';
 import { crestUrlOf } from '../crestUrl';
 import { OUTCOMES } from '../couponConfig';
@@ -298,7 +298,7 @@ export function LegalStrip({ extra }) {
   const f = useStudioFontReady();
   return (
     <Text style={[st.legal, fontOf(400, f)]} numberOfLines={2}>
-      18+ · {NO_GUARANTEE_NOTICE}{extra ? ` · ${extra}` : ''}
+      {LEGAL_FOOTER}{extra ? ` · ${extra}` : ''}
     </Text>
   );
 }

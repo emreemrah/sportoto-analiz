@@ -143,3 +143,9 @@ otomatik denetlenir. Test şunları arar ve **bulursa başarısız olur**:
   `iddaa oyna` (olumsuzlanmış hâlleri hariç)
 - Eski marka: `Spor Toto Analiz`, `Spor Toto Master`
 - Karakter sınırları: başlık ≤ 30, kısa açıklama ≤ 80, uzun açıklama ≤ 4000
+
+## EK — Sorumlu oyun cümlesi (T7, uygulama adı kesinleşince uzun açıklamanın sonuna eklenecek)
+
+Hazır metin (blok dışında not olarak durur; karakter limiti hesabına ad kararından sonra katılacak):
+
+Sorumlu oyun: Bu uygulama bahis oynatmaz ve kazanç garantisi vermez; 18 yaş altına uygun değildir. Destek gerekirse YEDAM 444 79 75 (ücretsiz, gizli) — yedam.org.tr. Uygulama içinden ve /sorumlu-oyun sayfasından her zaman erişilebilir.

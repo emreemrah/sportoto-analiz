@@ -60,7 +60,7 @@ const providerLabel = (s) => PROVIDER_NAMES[s] || s;
 const MASTER_FILTERS = [
   { k: 'all', label: 'Tümü' },
   { k: 'strong', label: '🟢 Güçlü Aday' },
-  { k: 'medium', label: '🟡 Temkinli' },
+  { k: 'medium', label: '🟡 Karışık Sinyal' },
   { k: 'surprise', label: '🔴 Sürpriz Sinyali' },
   { k: 'insufficient', label: '⚪ Analiz Hazır Değil' },
   { k: 'drawRisk', label: 'X Beraberlik Riski' },
