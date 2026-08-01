@@ -10,12 +10,14 @@
 //     yoktur — seçilen aralık neyse o uygulanır. Tolerans havuzun tamamı için
 //     tektir; gün ve sıra kırılımları aynı yakınlıkla hesaplanır.
 //  3) KAYNAK ASLA KARIŞMAZ. Nesine geçmişi yalnız Nesine, Misli yalnız Misli.
-//  4) Bu modül GÖSTERİM içindir; radar skorunu/yönünü beslemez. Bu yüzden
-//     "n<10 ise sinyal yok" tipi eşik YOKTUR — 1 kayıt varsa 1 kayıt gösterilir.
-//     Adet her zaman yüzdeyle birlikte verilir; "1 kayıtta" ifadesi örneklemi
-//     zaten şeffaf biçimde bildirir. Olasılık iddiası ÜRETİLMEZ.
+//  4) Bu modül GÖSTERİM içindir; radar skorunu/yönünü beslemez. Kayıtların
+//     KENDİSİ her örneklemde gösterilir (şeffaflık) — ama TOPLU YÜZDE yalnız
+//     yeterli örneklemde (n ≥ 10, config.SAMPLE_LADDER) üretilir. Eski hâl
+//     "1 benzer kayıt → Deplasman kazandı (%100)" gösterebiliyordu; n yazsa
+//     bile %100 etiketi kullanıcıda olasılık yanılsaması yaratıyor (Ağustos
+//     2026 dürüstlük düzeltmesi). Küçük örneklemde yüzde yerine ADET yazılır.
 //  5) Alınmamış bir günün yüzdesi SONRADAN ÜRETİLMEZ (kayıt yoksa yoktur).
-export const PLAYED_DNA_VERSION = 'played-dna-2.0.0';
+export const PLAYED_DNA_VERSION = 'played-dna-2.1.0'; // 2.1.0: n<10 yüzde gösterilmez
 
 // YAKINLIK FİLTRESİ — kullanıcı seçer, otomatik genişleme YOKTUR.
 //   0 = birebir aynı · 1 = ±1 · 2 = ±2 · 3 = ±3 (tavan)
@@ -102,27 +104,37 @@ function pctFromCounts(counts, total) {
   return out;
 }
 
-// Bir kayıt listesini adet + yüzde özetine ve DOĞAL TÜRKÇE cümleye çevirir.
-// Güven seviyesi / n= / örneklem uyarısı ÜRETİLMEZ. Sonucu olmayan yön
-// GÖSTERİLMEZ ("2: 0 (%0)" gibi gereksiz bilgi kullanıcıyı yorar).
+// ÖRNEKLEM EŞİĞİ: bu sayının altında TOPLU YÜZDE üretilmez (yüzde yanılsaması
+// önlemi). config.SAMPLE_LADDER'daki "Yetersiz" bandıyla (0-9) hizalıdır.
+export const MIN_SAMPLE_FOR_PCT = 10;
+
+// Bir kayıt listesini adet (+ yeterli örneklemde yüzde) özetine ve DOĞAL
+// TÜRKÇE cümleye çevirir. Sonucu olmayan yön GÖSTERİLMEZ.
+// n < MIN_SAMPLE_FOR_PCT → pct: null, insufficient: true; metin yüzdesiz,
+// adet bazlı yazılır ("2 kez Ev sahibi kazandı" gibi) — "%100" yanılsaması yok.
 export function summarize(list) {
   const counts = { '1': 0, X: 0, '2': 0 };
   for (const r of list || []) {
     if (r?.result && counts[r.result] != null) counts[r.result] += 1;
   }
   const total = counts['1'] + counts.X + counts['2'];
-  const pct = pctFromCounts(counts, total);
+  const insufficient = total > 0 && total < MIN_SAMPLE_FOR_PCT;
+  const pct = insufficient ? null : pctFromCounts(counts, total);
 
   let text = DNA_BUCKET_EMPTY;
-  if (total) {
+  if (total && insufficient) {
+    const present = KEYS.filter((k) => counts[k] > 0);
+    const adetler = present.map((k) => `${counts[k]} kez ${OUTCOME_WORDS[k].toLowerCase()}`).join(', ');
+    text = `${total} benzer kayıt — örneklem yetersiz, yüzde gösterilmez (${adetler})`;
+  } else if (total) {
     const present = KEYS.filter((k) => counts[k] > 0);
     text = present.length === 1
-      // Tek yönde toplanmış: kod yerine cümle → "Deplasman kazandı (%100)"
-      ? `${total} benzer kayıt → ${OUTCOME_WORDS[present[0]]} (%100)`
-      // Birden çok yön: yalnız sonucu OLAN yönler listelenir.
-      : `${total} benzer kayıt → ${present.map((k) => `${k}: %${pct[k]}`).join(' · ')}`;
+      // Tek yönde toplanmış: kod yerine cümle → "Deplasman kazandı (%100, n=12)"
+      ? `${total} benzer kayıt → ${OUTCOME_WORDS[present[0]]} (%100, n=${total})`
+      // Birden çok yön: yalnız sonucu OLAN yönler listelenir (n her zaman görünür).
+      : `${total} benzer kayıt → ${present.map((k) => `${k}: %${pct[k]}`).join(' · ')} (n=${total})`;
   }
-  return { total, counts, pct, text };
+  return { total, counts, pct, insufficient, text };
 }
 
 // Hareketin sözle anlatımı: "1 yükseldi · X değişmedi · 2 düştü".

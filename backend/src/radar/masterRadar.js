@@ -77,12 +77,23 @@ export function computeConflict(radars) {
 }
 
 export function combineMaster(radars, { surpriseDna: dnaIn = null } = {}) {
-  const weights = normalizeWeights(radars);
-  const active = Object.values(RADAR_IDS).filter((id) => radars[id]?.hasData);
+  // KARAR TABANI: Radar 5 (Bülten DNA / kupon sırası) karara KATILMAZ.
+  // Kupon sırasının maç sonucuyla nedensel bağı yoktur (bağımsız çoklu-model
+  // araştırması + iç inceleme, Ağustos 2026). Radar 5 kartı yalnız bilgi
+  // panelidir: ağırlığa, veri kalitesine, risk ortalamasına, sınıf kapılarına
+  // ve karar gerekçelerine GİREMEZ. Eskiden favoriteFailureRisk'i risk
+  // ortalamasına, varlığı da aktif-radar kapısına sayılıyordu — sahte örüntü
+  // bu kanallardan karara sızıyordu.
+  const coreRadars = Object.fromEntries(
+    Object.entries(radars).filter(([id]) => id !== RADAR_IDS.MEMORY),
+  );
+  const weights = normalizeWeights(coreRadars);
+  weights[RADAR_IDS.MEMORY] = 0; // alan sözleşmesi korunur; katkı daima 0
+  const active = Object.values(RADAR_IDS).filter((id) => coreRadars[id]?.hasData);
   const activeRadarCount = active.length;
 
   const dq = masterDataQuality(active.map((id) => ({ weight: weights[id], dataQuality: radars[id].dataQuality })));
-  const conflict = computeConflict(radars);
+  const conflict = computeConflict(coreRadars);
   const dna = dnaIn || computeSurpriseDna(radars);
 
   // Birleşik 1/X/2 skorları — yalnız YÖN skoru üreten radarlardan (hafıza üretmez).

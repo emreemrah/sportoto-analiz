@@ -172,7 +172,8 @@ test('az örnekli Hafıza Radarı güçlü sinyal üretmez; bülten sırası TEK
   assert.equal(r5.hasData, true);
   assert.equal(r5.homeScore, null, 'hafıza yön puanı üretmez');
   assert.ok(r5.favoriteFailureRisk >= 50, 'favoriler bu sırada çok kaybetmiş');
-  assert.ok(r5.note.includes('tek başına'), 'yardımcı sinyal uyarısı zorunlu');
+  assert.ok(r5.note.includes('nedensel bağı yoktur') && r5.note.includes('KATILMAZ'),
+    'dürüstlük uyarısı zorunlu: sıra nedensel değildir + karara katılmaz (radar-center-1.2.0)');
 
   const master = combineMaster({ [RADAR_IDS.MEMORY]: r5 });
   assert.equal(master.classification, 'insufficient_data', 'tek (yalnız hafıza) radar → sınıf üretilmez');

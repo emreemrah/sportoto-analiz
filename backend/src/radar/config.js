@@ -2,7 +2,9 @@
 // Bu değerler İLK SÜRÜM başlangıç değerleridir; değiştirilirse
 // METHODOLOGY_VERSION artırılmalıdır (eski bültenler eski sürümle mühürlü kalır).
 
-export const METHODOLOGY_VERSION = 'radar-center-1.1.0';
+// 1.2.0: Radar 5 (Bülten DNA) karar tabanından çıkarıldı — kupon sırasının
+// sonuçla nedensel bağı yoktur; kart yalnız bilgi panelidir (Ağustos 2026).
+export const METHODOLOGY_VERSION = 'radar-center-1.2.0';
 
 export const RADAR_IDS = {
   PERFORMANCE: 'performance',
@@ -143,7 +145,7 @@ export const METHODOLOGY_NOTES = [
   'Radar 1 (Rakip Gücü) rakip seviyesini MAÇ TARİHİNDEKİ tabloya göre sınıflar; bugünkü tablo geçmişe uygulanmaz. Ev sahibi yalnız iç saha, deplasman yalnız deplasman maçlarıyla değerlendirilir.',
   'Radar 3 (Oynanma DNA) gerçek oynanma yüzdesi sağlayıcılarından beslenir; kaynak yoksa uydurma yüzde gösterilmez. Oynanma yüzdesi oran DEĞİLDİR. İlk maçtan 5 dk öncesi son geçerli veridir; sonrası yalnız araştırma amaçlı saklanır ve tahmine giremez.',
   'Radar 4 (Oran Takibi) gerçek 1/X/2 maç oranlarının gün gün hareketini gösterir (yüzde değil). Her günün oranı 23:55 Europe/Istanbul (maç günü ilk maçtan 5 dk önce) itibarıyla o gün gerçekten alınmış SON gözlemle mühürlenir ve sonradan değişmez; o güne ait gözlem yoksa geriye dönük oran ÜRETİLMEZ ("Bu gün için oran kaydı yok"). Radar 3 oynanma yüzdesi, Radar 4 gerçek orandır — karıştırılmaz.',
-  'Radar 5 (Bülten DNA) yalnız doğrulanmış resmî geçmiş arşiv + mühürlü ileri-test haftalarından beslenir; bir haftanın sonucu en erken SONRAKİ bültenden itibaren kullanılabilir. Tarihsel yardımcı sinyaldir; tek başına tahmin gerekçesi değildir.',
+  'Radar 5 (Bülten DNA) yalnız doğrulanmış resmî geçmiş arşiv + mühürlü ileri-test haftalarından beslenir; bir haftanın sonucu en erken SONRAKİ bültenden itibaren kullanılabilir. Kupon sırasının maç sonucuyla nedensel bağı olmadığı için bu radar MASTER KARARA VE SINIFLANDIRMAYA KATILMAZ — yalnız istatistiksel bilgi panelidir (radar-center-1.2.0).',
   'Sakatlık/ceza listesi gibi yapısal olarak sağlanmayan alanlar "desteklenmiyor" sayılır; veri yeterliliği puanını DÜŞÜRMEZ ve her kartta tekrar tekrar gösterilmez.',
   'Radar çıktıları bülten kilidiyle snapshot içine mühürlenir; kilit sonrası yeniden hesaplanmaz.',
 ];

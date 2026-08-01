@@ -9,7 +9,7 @@ import { RADAR_IDS, RADAR_META, SIGNAL_FAMILIES as F, sampleConfidence } from '.
 import { qualityFromParts } from './dataQuality.js';
 import { clamp, radarOutput } from './util.js';
 
-export const MEMORY_DISCLAIMER = 'Tarihsel yardımcı sinyal; tek başına tahmin gerekçesi değildir.';
+export const MEMORY_DISCLAIMER = 'Kupon sırasının maç sonucuyla nedensel bağı yoktur; bu panel yalnız tarihsel dağılımı gösterir, Master karara ve sınıflandırmaya KATILMAZ.';
 
 // BÜLTEN GENELİ hafıza bağlamı: evaluations (mühürlü değerlendirmeler) +
 // positionStats (resmî sonuç dağılımı) → sıra bazlı istatistikler.

@@ -17,7 +17,7 @@ export const DNA_FEATURES = [
   { key: 'radarConsensus', label: 'Radarlar arası sürpriz uzlaşması', maxPoints: 15 },
 ];
 
-export const DNA_VERSION = 'surprise-dna-1.0.0';
+export const DNA_VERSION = 'surprise-dna-1.1.0'; // 1.1.0: memoryAssist karar dışı (sıra sinyali nedensel değil)
 
 // radars: { performance, expectation, publicBetting, market, bulletinMemory } çıktıları
 export function computeSurpriseDna(radars, { surpriseAgreeThreshold = 65 } = {}) {
@@ -81,15 +81,17 @@ export function computeSurpriseDna(radars, { surpriseAgreeThreshold = 65 } = {})
   push('squadIssue', 'unavailable', 0, 'Eksik/cezalı oyuncu kaynağı bağlı değil.');
   push('fixtureFatigue', 'unavailable', 0, 'Fikstür yoğunluğu verisi yok.');
 
-  // 8) Bülten hafızası (yardımcı — küçük katkı)
-  if (mem?.hasData) {
-    const assist = mem.favoriteFailureRisk != null && mem.favoriteFailureRisk >= 50;
-    push('memoryAssist', assist ? 'present' : 'absent', assist ? 4 : 0,
-      assist ? 'Bu sırada favoriler tarihsel olarak zorlanmış (yardımcı sinyal).' : null);
-  } else push('memoryAssist', 'unavailable', 0, 'Yeterli arşiv yok.');
+  // 8) Bülten hafızası — KARARA KATILMAZ (Ağustos 2026 dürüstlük düzeltmesi).
+  // Kupon sırasının maç sonucuyla nedensel bağı yoktur; sıra bazlı sinyal
+  // DNA puanına giremez. Özellik anahtarı API sözleşmesi için korunur,
+  // durumu kalıcı olarak 'unavailable'dır (payda dışı).
+  void mem; // bilinçli: yalnız görüntü katmanında kullanılır
+  push('memoryAssist', 'unavailable', 0, 'Sıra bazlı sinyal karara katılmaz (nedensel bağ yok); Radar 5 yalnız bilgi panelidir.');
 
-  // 9) Radarlar arası sürpriz uzlaşması
-  const withRisk = Object.values(radars).filter((r) => r?.hasData && r.favoriteFailureRisk != null);
+  // 9) Radarlar arası sürpriz uzlaşması — Radar 5 hariç (sıra sinyali oy değildir).
+  const withRisk = Object.entries(radars)
+    .filter(([id, r]) => id !== RADAR_IDS.MEMORY && r?.hasData && r.favoriteFailureRisk != null)
+    .map(([, r]) => r);
   const agreeing = withRisk.filter((r) => r.favoriteFailureRisk >= surpriseAgreeThreshold);
   if (withRisk.length >= 2) {
     const present = agreeing.length >= 2;

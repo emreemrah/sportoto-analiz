@@ -64,11 +64,13 @@ test('hiç yakın kayıt yoksa dürüst mesaj döner (uydurma yok)', () => {
   assert.equal(r.message, DNA_EMPTY_MESSAGE);
 });
 
-test('TEK kayıt bile gösterilir — örneklem eşiği YOK (panel gösterim amaçlı)', () => {
+test('TEK kayıt yine GÖRÜNÜR (şeffaflık) ama yüzdesiz — "%100 yanılsaması" üretilmez (2.1.0)', () => {
   const r = findPlayedDna([rec({ roundId: 1519 })],
     { current: CUR, source: 'nesine', position: 1, weekday: 5 });
-  assert.equal(r.byDay.selected.total, 1);
-  assert.equal(r.byDay.selected.text, '1 benzer kayıt → Ev sahibi kazandı (%100)');
+  assert.equal(r.byDay.selected.total, 1, 'kayıt gizlenmez, adet şeffaf');
+  assert.equal(r.byDay.selected.insufficient, true);
+  assert.equal(r.byDay.selected.pct, null, 'küçük örneklemde toplu yüzde ÜRETİLMEZ');
+  assert.equal(r.byDay.selected.text, '1 benzer kayıt — örneklem yetersiz, yüzde gösterilmez (1 kez ev sahibi kazandı)');
 });
 
 test('kaynaklar ASLA karışmaz', () => {
@@ -128,25 +130,41 @@ test('aynı maçın farklı günleri TEK maç sayılır (kayıt olarak ayrı kal
   assert.equal(r.matched, 3);
 });
 
-test('yüzdeler adetten türer ve toplamı 100', () => {
-  const s = summarize([{ result: '1' }, { result: '1' }, { result: 'X' }]);
+test('yüzdeler YETERLİ örneklemde (n≥10) adetten türer ve toplamı 100', () => {
+  const kayitlar = [
+    ...Array.from({ length: 8 }, () => ({ result: '1' })),
+    ...Array.from({ length: 4 }, () => ({ result: 'X' })),
+  ];
+  const s = summarize(kayitlar);
+  assert.equal(s.insufficient, false);
   assert.equal(s.pct['1'] + s.pct.X + s.pct['2'], 100);
-  assert.equal(s.counts['1'], 2);
+  assert.equal(s.counts['1'], 8);
 });
 
-test('sade dil: sonucu olmayan yön GÖSTERİLMEZ', () => {
-  const s = summarize([{ result: '1' }, { result: '1' }, { result: 'X' }]);
+test('sade dil (n≥10): sonucu olmayan yön GÖSTERİLMEZ, n her zaman görünür', () => {
+  const kayitlar = [
+    ...Array.from({ length: 8 }, () => ({ result: '1' })),
+    ...Array.from({ length: 4 }, () => ({ result: 'X' })),
+  ];
+  const s = summarize(kayitlar);
   assert.equal(s.text.includes('2:'), false);
-  assert.equal(s.text, '3 benzer kayıt → 1: %67 · X: %33');
+  assert.equal(s.text, '12 benzer kayıt → 1: %67 · X: %33 (n=12)');
 });
 
 test('sade dil: hiç kayıt yoksa teknik sıfırlar değil düz mesaj', () => {
   assert.equal(summarize([]).text, 'Geçmiş sonuç yok');
 });
 
-test('sade dil: tek yönde toplanınca doğal Türkçe cümle', () => {
-  assert.equal(summarize([{ result: '2' }]).text, '1 benzer kayıt → Deplasman kazandı (%100)');
-  assert.equal(summarize([{ result: '2' }, { result: '2' }]).text, '2 benzer kayıt → Deplasman kazandı (%100)');
+test('küçük örneklem (n<10): yüzdesiz, adet bazlı dürüst cümle (2.1.0 sözleşmesi)', () => {
+  assert.equal(summarize([{ result: '2' }]).text,
+    '1 benzer kayıt — örneklem yetersiz, yüzde gösterilmez (1 kez deplasman kazandı)');
+  assert.equal(summarize([{ result: '2' }, { result: '2' }]).text,
+    '2 benzer kayıt — örneklem yetersiz, yüzde gösterilmez (2 kez deplasman kazandı)');
+});
+
+test('tek yönde toplanmış YETERLİ örneklem: doğal cümle + %100 + n', () => {
+  const s = summarize(Array.from({ length: 11 }, () => ({ result: '2' })));
+  assert.equal(s.text, '11 benzer kayıt → Deplasman kazandı (%100, n=11)');
 });
 
 test('hareket sözle anlatılır; 1 puan altı değişim "değişmedi"', () => {
@@ -335,7 +353,7 @@ test('TOPLAM satırı: kırılımlar aynı kayıtların iki görünümü, toplam
 
   assert.equal(r.matched, 2);
   assert.equal(r.overall.total, 2);                       // TOPLAM mevcut
-  assert.equal(r.overall.text, '2 benzer kayıt → 1: %50 · 2: %50');
+  assert.equal(r.overall.text, '2 benzer kayıt — örneklem yetersiz, yüzde gösterilmez (1 kez ev sahibi kazandı, 1 kez deplasman kazandı)');
   // Her kırılım kendi içinde toplama eşit (çift sayım yok).
   assert.equal(r.byDay.selected.total + r.byDay.others.total, r.overall.total);
   assert.equal(r.byPosition.own.total + r.byPosition.rest.total, r.overall.total);
