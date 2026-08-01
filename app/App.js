@@ -51,6 +51,7 @@ import StudioKarneScreen from './src/screens/StudioKarneScreen';
 import { UyariHost } from './src/components/Uyari';
 import { STUDIO_CONTENT_STYLE, FULLSCREEN_ROUTES } from './src/studioTheme';
 import { useStudioFontLoader } from './src/studioFonts';
+import { YAYIN_STUDYOSU_ACIK } from './src/features';
 import { initAuth, getToken } from './src/auth';
 import { needsLockOnLaunch } from './src/security/biometricLock';
 import {
@@ -132,34 +133,40 @@ function HomeStack() {
       <Stack.Screen name="WeekSummary" component={WeekSummaryScreen} options={{ title: 'Haftanın Özeti' }} />
       <Stack.Screen name="WeekRecap" component={WeekRecapScreen} options={{ title: 'Hafta Kapanışı' }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Bildirimler' }} />
-      {/* YAYIN MODU: OBS kadrajı için tam ekran. Başlık çubuğu YOK; alt sekme
-          çubuğu da aşağıdaki tabBarStyle kuralıyla gizlenir. */}
-      <Stack.Screen
-        name="Broadcast"
-        component={BroadcastScreen}
-        options={{ headerShown: false, contentStyle: BROADCAST_CONTENT_STYLE }}
-      />
-      {/* YAYIN STÜDYOSU: 15 maçlık bülteni canlı yayında maç maç işleyen mod.
-          Üçü de tam ekran; başlık çubuğu yok, alt sekme çubuğu gizli
-          (FULLSCREEN_ROUTES). Eski "Sunum" ekranı (Broadcast) korunur. */}
-      <Stack.Screen
-        name="StudioBulletin"
-        component={StudioBulletinScreen}
-        options={{ headerShown: false, contentStyle: STUDIO_CONTENT_STYLE }}
-      />
-      <Stack.Screen
-        name="StudioMatch"
-        component={StudioMatchScreen}
-        options={{ headerShown: false, contentStyle: STUDIO_CONTENT_STYLE }}
-      />
-      {/* KARNE: geçmiş haftanın "ne oldu, kaç tuttu" ekranı. Yayıncı bir sonraki
-          hafta yayına çıkarken buraya bakar; seçimler cihazda kayıtlı kaldığı
-          için hafta hafta karşılaştırma yapılabilir. */}
-      <Stack.Screen
-        name="StudioKarne"
-        component={StudioKarneScreen}
-        options={{ headerShown: false, contentStyle: STUDIO_CONTENT_STYLE }}
-      />
+      {/* YAYIN STÜDYOSU — features.js ile KAPALI (emrah şu an kullanmıyor).
+          Rotalar hiç KAYDEDİLMİYOR: düğmeyi gizlemek yetmez, kayıtlı bir rota
+          derin bağlantıyla ya da unutulmuş bir navigate çağrısıyla yine
+          açılabilir. Kod, testler ve stiller yerinde — geri açmak tek satır
+          (src/features.js → YAYIN_STUDYOSU_ACIK = true).
+
+          İçindeki dört ekran: Broadcast (eski "Sunum" tam ekran modu),
+          StudioBulletin, StudioMatch, StudioKarne. Dördü de tam ekran; alt
+          sekme çubuğu FULLSCREEN_ROUTES kuralıyla gizlenir. */}
+      {YAYIN_STUDYOSU_ACIK ? (
+        <>
+          <Stack.Screen
+            name="Broadcast"
+            component={BroadcastScreen}
+            options={{ headerShown: false, contentStyle: BROADCAST_CONTENT_STYLE }}
+          />
+          <Stack.Screen
+            name="StudioBulletin"
+            component={StudioBulletinScreen}
+            options={{ headerShown: false, contentStyle: STUDIO_CONTENT_STYLE }}
+          />
+          <Stack.Screen
+            name="StudioMatch"
+            component={StudioMatchScreen}
+            options={{ headerShown: false, contentStyle: STUDIO_CONTENT_STYLE }}
+          />
+          {/* KARNE: geçmiş haftanın "ne oldu, kaç tuttu" ekranı. */}
+          <Stack.Screen
+            name="StudioKarne"
+            component={StudioKarneScreen}
+            options={{ headerShown: false, contentStyle: STUDIO_CONTENT_STYLE }}
+          />
+        </>
+      ) : null}
       {detailScreen}
       {/* Topluluk (eski "Stadyum" sekmesi) — alt menüden kaldırıldı, Ana Sayfa
           "Toplulukta Gündem" bölümünden erişilir. */}
@@ -368,7 +375,9 @@ const splashStyles = StyleSheet.create({
 export default function App() {
   // Stüdyo yazı tipi arka planda yüklenir. BEKLENMEZ: dönüş değeri kullanılmaz,
   // uygulama fontsuz da açılır; font gelince stüdyo ekranları kendini yeniler.
-  useStudioFontLoader();
+  // Stüdyo kapalıyken yüklemeye hiç girilmez (kanca her koşulda ÇAĞRILIR —
+  // koşullu çağırmak kanca sırasını bozar; kararı kancanın kendisi verir).
+  useStudioFontLoader(YAYIN_STUDYOSU_ACIK);
   const [ready, setReady] = useState(false);
   const [locked, setLocked] = useState(false);
   const navRef = useRef(null);

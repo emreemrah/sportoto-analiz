@@ -55,11 +55,19 @@ function isaretle(v) {
   dinleyiciler.forEach((fn) => { try { fn(); } catch { /* dinleyici hatası akışı kesmesin */ } });
 }
 
-/** App kökünde BİR KEZ çağrılır. Dönüşü beklenmez — uygulama fontsuz da açılır. */
-export function useStudioFontLoader() {
-  const [loaded] = useFonts(STUDIO_FONT_MAP);
-  useEffect(() => { isaretle(!!loaded); }, [loaded]);
-  return loaded;
+/**
+ * App kökünde BİR KEZ çağrılır. Dönüşü beklenmez — uygulama fontsuz da açılır.
+ *
+ * @param acik  Stüdyo özelliği açık mı (features.js). Kapalıyken yazı tipleri
+ *              İNDİRİLMEZ: kullanılmayacak bir varlık için açılışta iş yapılmaz.
+ *
+ * Kanca HER KOŞULDA çağrılır, kararı burada verilir. Çağıranın `if` içinde
+ * çağırması kanca sırasını bozardı (React kuralı).
+ */
+export function useStudioFontLoader(acik = true) {
+  const [loaded] = useFonts(acik ? STUDIO_FONT_MAP : {});
+  useEffect(() => { isaretle(acik ? !!loaded : false); }, [loaded, acik]);
+  return acik ? loaded : false;
 }
 
 /** Stüdyo ekranları: font hazır olduğunda yeniden çizilmek için. */
