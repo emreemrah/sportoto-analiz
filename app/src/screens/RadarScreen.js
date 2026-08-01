@@ -85,6 +85,9 @@ export default function RadarScreen({ navigation }) {
   const cekilenDna = useRef(null);
   const cekilenOran = useRef(null);
   const cekilenOynanma = useRef(null);
+  // En son UYGULANAN haftanın kimliği — "aynı hafta mı yeniden yüklendi?"
+  // sorusunun cevabı. Sekme sıfırlaması buna bakar (bkz. applyResponse).
+  const uygulananHafta = useRef(null);
   const zatenCekildi = (ref, rid) => {
     if (ref.current != null && Number(ref.current) === Number(rid)) return true;
     ref.current = rid;
@@ -96,10 +99,26 @@ export default function RadarScreen({ navigation }) {
     // kaynağı); alan yoksa çağıranın bağlamı kullanılır. roundId sıralamasına
     // göre "güncellik" TAHMİN EDİLMEZ.
     const current = d?.current === true ? true : d?.current === false ? false : fallbackCurrent;
+
+    // SEKME KORUMASI — aynı hafta yeniden yüklendiğinde açık radar KORUNUR.
+    //
+    // Eskiden burada koşulsuz setTab('master') vardı ve bu satır yalnız hafta
+    // değişince değil, listeyi aşağı çekince (yenileme), güncel haftaya tekrar
+    // dokununca ve "yeniden dene"de de çalışıyordu. Radar 3'te gün çipleri
+    // listenin en üstünde olduğu için çipe uzanırken parmağın azıcık kayması
+    // yenilemeyi tetikliyor ve kullanıcı Master'a atılıyordu.
+    const gelenRid = d?.roundId != null ? Number(d.roundId) : null;
+    const ayniHafta = gelenRid != null && uygulananHafta.current != null
+      && Number(uygulananHafta.current) === gelenRid;
+    uygulananHafta.current = gelenRid;
+
     if (d?.hasData && Array.isArray(d.matches) && d.matches.length) {
       setView(d);
       setLegacyRadar(null);
-      setTab('master');
+      // Hafta DEĞİŞTİYSE Master'a dön (yeni haftada o radarın verisi olmayabilir);
+      // aynı haftaysa bulunduğun sekmede kal. 'legacy' artık geçerli değil.
+      if (!ayniHafta) setTab('master');
+      else setTab((t) => (t === 'legacy' ? 'master' : t));
       setMeta({
         round: d.round || null, year: d.year || null, current,
         sealed: !!d.sealed, sealedAt: d.sealedAt || null,

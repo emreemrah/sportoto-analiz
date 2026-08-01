@@ -686,3 +686,60 @@ describe('Hafta seçici (sezon + hafta açılır listeleri)', () => {
     }
   });
 });
+
+// SEKME KORUMASI — aynı hafta yeniden yüklendiğinde açık radar korunur.
+// Gerçek şikâyet: "Radar 3'e geldiğimde filtre seçince Master'a geçiyor."
+// Sebep, listeyi aşağı çekince tetiklenen yenilemeydi; gün çipleri listenin
+// en üstünde olduğu için çipe uzanırken kolayca oluyordu.
+describe('Sekme koruması (yenilemede Master\'a atmaz)', () => {
+  const yenile = (UNSAFE_getByType) => {
+    const { FlatList } = require('react-native');
+    const liste = UNSAFE_getByType(FlatList);
+    act(() => { liste.props.refreshControl.props.onRefresh(); });
+  };
+
+  test('AYNI hafta yeniden yüklenince açık radar KORUNUR', async () => {
+    mockUclar(VARSAYILAN);
+    const { UNSAFE_getByType } = render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Oynanma DNA'));
+    expect(await screen.findByText(/Oynanma DNA · Günlük/)).toBeTruthy();
+
+    // Yenilemeyi tetikle ve YANITIN GELMESİNİ BEKLE. Beklenmezse test,
+    // sekme sıfırlanmadan önce bakar ve hatayı yakalamaz (bir kez düştü).
+    const oncekiIstek = global.fetch.mock.calls.filter((c) => String(c[0]).includes('/api/radar/current')).length;
+    yenile(UNSAFE_getByType);
+    await waitFor(() => {
+      const simdi = global.fetch.mock.calls.filter((c) => String(c[0]).includes('/api/radar/current')).length;
+      expect(simdi).toBeGreaterThan(oncekiIstek);
+    });
+    await act(async () => { await Promise.resolve(); });
+    // Radar 3 paneli hâlâ ekranda — Master'a atmadı.
+    expect(screen.getByText(/Oynanma DNA · Günlük/)).toBeTruthy();
+  });
+
+  test('HAFTA DEĞİŞİNCE Master\'a dönülür (yeni haftada o radar boş olabilir)', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      '/api/radar/weeks': {
+        weeks: [
+          { roundId: 1600, round: '1. Hafta', year: 2026, current: true },
+          { roundId: 1599, round: '52. Hafta', year: 2026, sealed: true, locked: true },
+        ],
+        currentRoundId: 1600,
+      },
+      '/api/radar/1599': { ...GUNCEL, roundId: 1599, round: '52. Hafta', current: false },
+    });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Oynanma DNA'));
+    expect(await screen.findByText(/Oynanma DNA · Günlük/)).toBeTruthy();
+
+    // Başka haftaya geç.
+    fireEvent.press(screen.getByText('1. Hafta · Güncel'));
+    fireEvent.press(await screen.findByText('52. Hafta'));
+    // Master listesine dönüldü: Radar 3 paneli yok, maç kartları var.
+    await waitFor(() => expect(screen.queryByText(/Oynanma DNA · Günlük/)).toBeNull());
+    expect(screen.getAllByText(/Ev Takımı/).length).toBe(3);
+  });
+});
