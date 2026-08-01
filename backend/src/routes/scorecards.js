@@ -8,6 +8,7 @@ import {
 } from '../scorecards/scorecardService.js';
 import { buildRadarScorecard } from '../radar/scorecard.js';
 import { buildCriterionScorecard } from '../analysis/analysisService.js';
+import { buildCalibrationReport } from '../scorecards/calibration.js';
 
 // server.js sonuç servisini (retrospektif ölçüm için) enjekte eder — testte stub.
 export default function makeScorecardsRouter({ fetchBulletin = null } = {}) {
@@ -59,6 +60,13 @@ export default function makeScorecardsRouter({ fetchBulletin = null } = {}) {
 
   router.get('/criteria', async (req, res) => {
     try { res.json(await cached('criteria', TTL, () => buildCriterionScorecard({}))); } catch (e) { fail(res, e); }
+  });
+
+  // KALİBRASYON — "kaç tuttu" değil olasılık kalitesi (log-loss / Brier / RPS,
+  // piyasaya ve tabana karşı skill score, kalibrasyon eğrisi). Aynı uygunluk
+  // kapısını kullanır; mevcut karne uçları DEĞİŞMEDİ, bu ek bir uçtur.
+  router.get('/calibration', async (req, res) => {
+    try { res.json(await cached('calibration', TTL, () => buildCalibrationReport({}))); } catch (e) { fail(res, e); }
   });
 
   // RETROSPEKTİF UÇ — ⛔ VARSAYILAN KAPALI (normal kullanıcıya sunulmaz).
