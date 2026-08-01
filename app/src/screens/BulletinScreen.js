@@ -16,6 +16,7 @@ import ScoreLegend from '../components/ScoreLegend';
 import SnapshotSealBanner from '../components/SnapshotSealBanner';
 import LiveBulletinView from '../components/LiveBulletinView';
 import ResmiListeTablosu, { AciklananSonuclar } from '../components/ResmiListeTablosu';
+import { haftaSecenekleri, sezonMetni } from '../resmiListe';
 import BultenBackdrop from '../components/BultenBackdrop';
 import BultenEmptyState from '../components/BultenEmptyState';
 
@@ -73,6 +74,9 @@ export default function BulletinScreen({ navigation }) {
   // GÖRÜNÜM: 'resmi' (resmî sitedeki tablo) | 'analiz' (mevcut analiz kartları).
   // Varsayılan resmî liste; tercih cihazda saklanır.
   const [gorunum, setGorunum] = useState(getPref('bultenGorunum') || 'resmi');
+  // Resmî görünümdeki sezon/hafta açılır seçicileri: 'sezon' | 'hafta' | null
+  const [acikSecici, setAcikSecici] = useState(null);
+  const [seciliSezon, setSeciliSezon] = useState(null);
   const [prizeView, setPrizeView] = useState(getPref('prizeView'));       // list|table|card
   // Geçmiş hafta üst sayaç kutuları + filtre çipleri KALDIRILDI (kullanıcı isteği);
   // liste bülten sırasında (veya kayıtlı sıralama tercihinde) akar.
@@ -166,6 +170,10 @@ export default function BulletinScreen({ navigation }) {
   const navRounds = curIdx >= 0 ? allRounds.slice(0, curIdx + 1) : allRounds;
   const selIdx = navRounds.findIndex((r) => r.id === effectiveId);
   const selMeta = navRounds[selIdx] || null;
+  // Sezon/hafta seçimi resmiListe.js'ten türer (Resmî Liste ekranıyla AYNI
+  // mantık). navRounds kullanılır: yayımlanmamış gelecek haftalar girmez.
+  const sezonSecimi = haftaSecenekleri({ rounds: navRounds }, seciliSezon);
+
   const canPrev = selIdx > 0;                       // daha eski hafta var
   const canNext = selIdx >= 0 && selIdx < navRounds.length - 1; // daha yeni hafta var
 
@@ -334,6 +342,61 @@ export default function BulletinScreen({ navigation }) {
               </TouchableOpacity>
             );
           })}
+        </View>
+      ) : null}
+
+      {/* SEZON / HAFTA SEÇİCİLERİ — resmî listedeki gibi açılır seçim.
+          ‹ › okları tek adım ilerler; arşivde gezinmek için seçim gerekir.
+          Yalnız resmî görünümde çizilir: analiz görünümünün kendi akışı var. */}
+      {gorunum === 'resmi' ? (
+        <View style={styles.arsivSaridi}>
+          <View style={styles.arsivSatir}>
+            <TouchableOpacity
+              style={styles.arsivSecici}
+              onPress={() => setAcikSecici(acikSecici === 'sezon' ? null : 'sezon')}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+            >
+              <Text style={styles.arsivSeciciTxt} numberOfLines={1}>{sezonMetni(sezonSecimi.seciliSezon)}</Text>
+              <Text style={styles.arsivOk}>{acikSecici === 'sezon' ? '▴' : '▾'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.arsivSecici}
+              onPress={() => setAcikSecici(acikSecici === 'hafta' ? null : 'hafta')}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+            >
+              <Text style={styles.arsivSeciciTxt} numberOfLines={1}>{selMeta?.name || '—'}</Text>
+              <Text style={styles.arsivOk}>{acikSecici === 'hafta' ? '▴' : '▾'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {acikSecici ? (
+            <ScrollView style={styles.arsivListe} nestedScrollEnabled>
+              {(acikSecici === 'sezon'
+                ? sezonSecimi.sezonlar.map((y) => ({ id: y, ad: sezonMetni(y) }))
+                : sezonSecimi.haftalar.map((h) => ({ id: h.id, ad: h.name }))
+              ).map((o) => {
+                const acik = acikSecici === 'sezon'
+                  ? o.id === sezonSecimi.seciliSezon
+                  : Number(o.id) === Number(effectiveId);
+                return (
+                  <TouchableOpacity
+                    key={String(o.id)}
+                    style={[styles.arsivOge, acik && styles.arsivOgeAcik]}
+                    onPress={() => {
+                      if (acikSecici === 'sezon') setSeciliSezon(o.id);
+                      else setSelectedId(Number(o.id));
+                      setAcikSecici(null);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.arsivOgeTxt, acik && styles.arsivOgeTxtAcik]}>{o.ad}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          ) : null}
         </View>
       ) : null}
       {/* MÜHÜR DURUMU — kilit geri sayımı / "Mühürlü Analiz" + doğrulama hash'i.
@@ -598,6 +661,22 @@ export default function BulletinScreen({ navigation }) {
         />
       );
     }
+  } else if (gorunum === 'resmi' && hist) {
+    // GEÇMİŞ HAFTA — resmî görünüm. Aynı tablo, dolu skor/sonuç ve
+    // açıklanan ikramiye satırlarıyla. Analiz görünümüne geçilirse aşağıdaki
+    // eski geçmiş listesi (mühürlü tahmin + düzeltme akışı) çizilir.
+    body = (
+      <ScrollView contentContainerStyle={styles.resmiPad} refreshControl={
+        <RefreshControl refreshing={histChecking} onRefresh={() => checkOfficial(effectiveId)} tintColor={colors.primary} />
+      }>
+        <ResmiListeTablosu
+          maclar={hist.matches || []}
+          bosNot="Bu haftanın maç listesi bulunamadı."
+          onSatirPress={(no) => navigation.navigate('MatchDetail', { no })}
+        />
+        <AciklananSonuclar prize={hist.prize} closeDate={selMeta?.closeDate} />
+      </ScrollView>
+    );
   } else if (histLoading) {
     body = <Center><ActivityIndicator size="large" color={colors.primary} /><Text style={styles.muted}>Geçmiş bülten yükleniyor…</Text></Center>;
   } else if (histError) {
@@ -726,6 +805,23 @@ const styles = StyleSheet.create({
   gorunumYazi: { color: colors.textSoft, fontSize: 12.5, fontWeight: '800' },
   gorunumYaziAcik: { color: '#fff' },
   resmiPad: { paddingBottom: 24 },
+  // Arşiv seçicileri (sezon / hafta)
+  arsivSaridi: { paddingHorizontal: spacing.md, marginTop: 8 },
+  arsivSatir: { flexDirection: 'row', gap: 10 },
+  arsivSecici: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 7,
+  },
+  arsivSeciciTxt: { flex: 1, color: colors.textSoft, fontSize: 12.5, fontWeight: '700' },
+  arsivOk: { color: colors.muted, fontSize: 10 },
+  arsivListe: {
+    maxHeight: 220, marginTop: 6, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.sm, backgroundColor: colors.card,
+  },
+  arsivOge: { paddingVertical: 10, paddingHorizontal: spacing.md },
+  arsivOgeAcik: { backgroundColor: colors.primarySoft },
+  arsivOgeTxt: { color: colors.textSoft, fontSize: 12.5, fontWeight: '700' },
+  arsivOgeTxtAcik: { color: colors.primary, fontWeight: '900' },
   container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, padding: 24 },
   listPad: { padding: spacing.md, paddingBottom: spacing.xl },

@@ -18,6 +18,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react-nativ
 import BulletinScreen from '../src/screens/BulletinScreen';
 import { LEGAL_FOOTER, APP_NAME } from '../src/brand';
 import { displayLabel, humanizeVerdictText } from '../src/labels';
+import { setPref } from '../src/prefs';
 
 // Navigasyon taklidi: ekranlar navigation/route bekler.
 const nav = { navigate: jest.fn(), goBack: jest.fn(), setOptions: jest.fn(), addListener: jest.fn(() => jest.fn()) };
@@ -75,6 +76,10 @@ describe('Kullanıcıya görünen dil', () => {
 // Analiz kartları silinmedi; "Analiz" görünümünde duruyor.
 // ---------------------------------------------------------------------------
 describe('Bülten görünüm anahtarı', () => {
+  // TERCİH SIZINTISI: görünüm anahtarı tercihi CİHAZDA saklanıyor; bir test
+  // "Analiz"e geçince sonraki testler onu devralıyor ve resmî görünümü hiç
+  // görmüyordu. Her test kendi başlangıcını kurar.
+  beforeEach(() => setPref('bultenGorunum', 'resmi'));
   const GELECEK = '2099-01-01T17:00:00Z';
   const mac = (no) => ({
     no, sportotoMatchId: `sm${no}`,
@@ -138,5 +143,95 @@ describe('Bülten görünüm anahtarı', () => {
     await waitFor(() => expect(screen.queryByText('Maç Günü')).toBeNull());
     // Ve maçlar hâlâ listeleniyor (kartlar duruyor).
     expect(screen.getAllByText(/Ev 1/).length).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ARŞİV SEÇİCİLERİ — resmî listedeki gibi sezon/hafta açılır seçimi.
+// ‹ › okları tek adım ilerler; arşivde gezinmek için seçim gerekir.
+// ---------------------------------------------------------------------------
+describe('Bülten arşiv seçicileri', () => {
+  beforeEach(() => setPref('bultenGorunum', 'resmi'));
+  const mac = (no) => ({
+    no,
+    home: { name: `Ev ${no}`, mediumName: `Ev ${no}` },
+    away: { name: `Dep ${no}`, mediumName: `Dep ${no}` },
+    date: '2099-01-01T17:00:00Z',
+    analysis: { probabilities: { '1': 50, X: 27, '2': 23 }, favorite: { symbol: '1', percent: 52 }, surpriseScore: 37 },
+  });
+  const ROUNDS = {
+    currentRoundId: 1600,
+    rounds: [
+      { id: 1598, name: '51. Hafta', year: 2026, closeDate: '2026-07-24T19:55:00' },
+      { id: 1599, name: '52. Hafta', year: 2026 },
+      { id: 1600, name: '53. Hafta', year: 2026 },
+    ],
+  };
+  const GUNCEL = { roundId: 1600, round: '53. Hafta', year: 2026, verification: { status: 'confirmed' }, matches: [mac(1), mac(2)] };
+  // 51. hafta SONUÇLANMIŞ: skor + resmî sonuç + açıklanan ikramiye.
+  const GECMIS = {
+    roundId: 1598,
+    matches: [
+      { ...mac(1), score: { home: 1, away: 1 }, result: 'X' },
+      { ...mac(2), score: { home: 2, away: 0 }, result: '1' },
+    ],
+    prize: {
+      tiers: [{ hit: 15, count: 9, prize: 4035942.42 }, { hit: 14, count: 389, prize: 31794.38 }],
+      closeDate: '2026-07-24T19:55:00',
+      description: 'Tebrikler',
+    },
+  };
+
+  const mockUclar = () => {
+    global.fetch.mockImplementation(async (url) => {
+      const u = String(url);
+      const g = u.includes('/api/rounds') ? ROUNDS
+        : u.includes('/api/history/1598') ? GECMIS
+          : u.includes('/api/bulletin') ? GUNCEL : { hasData: false };
+      return { ok: true, status: 200, json: async () => g, text: async () => JSON.stringify(g) };
+    });
+  };
+
+  test('sezon ve hafta seçicileri resmî görünümde çiziliyor', async () => {
+    mockUclar();
+    render(<BulletinScreen navigation={nav} route={route} />);
+    expect(await screen.findByText('2025/2026 Sezonu')).toBeTruthy();
+    expect(screen.getAllByText('53. Hafta').length).toBeGreaterThan(0);
+  });
+
+  test('hafta seçilince o haftanın RESMÎ SONUÇLARI geliyor', async () => {
+    mockUclar();
+    render(<BulletinScreen navigation={nav} route={route} />);
+    await screen.findByText('2025/2026 Sezonu');
+
+    // Hafta açılır listesini aç ve 51. Hafta'yı seç.
+    fireEvent.press(screen.getAllByText('53. Hafta')[0]);
+    fireEvent.press(await screen.findByText('51. Hafta'));
+
+    // Skorlar ve resmî sonuçlar (beraberlik resmî yazımda "0").
+    expect(await screen.findByText('1-1')).toBeTruthy();
+    expect(screen.getByText('2-0')).toBeTruthy();
+    expect(screen.getByText('0')).toBeTruthy();
+  });
+
+  test('geçmiş haftada AÇIKLANAN İKRAMİYE resmî yazımla dolu', async () => {
+    mockUclar();
+    render(<BulletinScreen navigation={nav} route={route} />);
+    await screen.findByText('2025/2026 Sezonu');
+    fireEvent.press(screen.getAllByText('53. Hafta')[0]);
+    fireEvent.press(await screen.findByText('51. Hafta'));
+
+    expect(await screen.findByText('9 ADET 4.035.942,42 ₺')).toBeTruthy();
+    expect(screen.getByText('389 ADET 31.794,38 ₺')).toBeTruthy();
+    expect(screen.getByText('24 Temmuz Cuma 2026 19:55')).toBeTruthy();
+    expect(screen.getByText('Tebrikler')).toBeTruthy();
+  });
+
+  test('ANALİZ görünümünde seçiciler GİZLİ (kendi akışı var)', async () => {
+    mockUclar();
+    render(<BulletinScreen navigation={nav} route={route} />);
+    await screen.findByText('2025/2026 Sezonu');
+    fireEvent.press(screen.getByText('📊 Analiz'));
+    await waitFor(() => expect(screen.queryByText('2025/2026 Sezonu')).toBeNull());
   });
 });
