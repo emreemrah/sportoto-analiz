@@ -13,7 +13,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, spacing, radius } from '../theme';
-import { DNA_PERIODS } from '../radarScreenData';
+import { donemSecenekleri } from '../radarScreenData';
 
 // Oynanma yüzdesi sağlayıcı adları (Radar 3 kaynağı = hangi bahis sitesi).
 const PROVIDER_NAMES = { nesine: 'Nesine', bilyoner: 'Bilyoner', misli: 'Misli', oley: 'Oley' };
@@ -76,8 +76,8 @@ export default function RadarTabHeader({
   if (tab === 'market') {
     const dd = dailyOdds;
     return (
-      <View>
-        <View style={styles.tabBanner}>
+      <View style={styles.yapiskan}>
+        <View style={[styles.tabBanner, styles.yapiskan]}>
           <Text style={styles.tabBannerTitle}>💹 Oran Takibi · Günlük 1/X/2 Oranları</Text>
           <Text style={styles.tabBannerTxt}>
             Gerçek 1/X/2 maç oranlarının gün gün hareketi. Bir gün seçin; 15 maçın o güne ait
@@ -106,8 +106,8 @@ export default function RadarTabHeader({
   if (tab === 'publicBetting') {
     const dp = dailyPlayed;
     return (
-      <View>
-        <View style={styles.tabBanner}>
+      <View style={styles.yapiskan}>
+        <View style={[styles.tabBanner, styles.yapiskan]}>
           <Text style={styles.tabBannerTitle}>📊 Oynanma DNA · Günlük 1/X/2 Yüzdeleri</Text>
           <Text style={styles.tabBannerTxt}>
             Kullanıcıların 1/X/2 OYNAMA YÜZDESİNİN gün gün değişimi. Bir gün seçin; 15 maçın o güne ait mühürlü
@@ -144,7 +144,7 @@ export default function RadarTabHeader({
     // değerdir. Yalnız hangi ana ait olduğu yazılır.
     if (muhurluHafta && !positionDna?.dna) {
       return (
-        <View style={styles.dnaFilterWrap}>
+        <View style={[styles.dnaFilterWrap, styles.yapiskan]}>
           <Text style={styles.dnaHint}>
             {muhurluRadar5Yok
               ? 'Bu hafta için mühürlü Radar 5 kaydı yok.'
@@ -157,9 +157,9 @@ export default function RadarTabHeader({
     // yüzdeleri her maçın kendi kartında görünür. Teknik bilgiler (n, arşiv
     // sayısı, shrinkage) ana ekranda YOK — yalnız metodolojide.
     return (
-      <View style={styles.dnaFilterWrap}>
+      <View style={[styles.dnaFilterWrap, styles.yapiskan]}>
         <View style={styles.dnaFilterRow}>
-          {DNA_PERIODS.map((p) => {
+          {donemSecenekleri(positionDna).map((p) => {
             const on = dnaPeriod === p.k;
             return (
               <TouchableOpacity key={p.k} onPress={() => onSelectDnaPeriod(p.k)}
@@ -197,7 +197,7 @@ export default function RadarTabHeader({
 
   if (tab === 'performance' && anyData) {
     return (
-      <View style={styles.tabBanner}>
+      <View style={[styles.tabBanner, styles.yapiskan]}>
         <Text style={styles.tabBannerTitle}>🛡 Rakip Gücü & Saha Performansı</Text>
         <Text style={styles.tabBannerTxt}>
           Form, rakibin MAÇ TARİHİNDEKİ ligdeki yerine göre tartılır (bugünkü tablo geçmişe uygulanmaz).
@@ -211,7 +211,7 @@ export default function RadarTabHeader({
 
   if (!anyData) {
     return (
-      <View style={styles.tabBanner}>
+      <View style={[styles.tabBanner, styles.yapiskan]}>
         <Text style={styles.tabBannerTitle}>— Bu radar bu hafta devre dışı</Text>
         <Text style={styles.tabBannerTxt}>{items[0]?.note || 'Gerekli veri bulunamadı; skora katkısı yok.'}</Text>
       </View>
@@ -221,6 +221,9 @@ export default function RadarTabHeader({
 }
 
 const styles = StyleSheet.create({
+  // YAPIŞIK BAŞLIK ZEMİNİ — sticky başlıkta arka plan olmazsa liste satırları
+  // filtrenin İÇİNDEN geçerek okunmaz hâle gelir.
+  yapiskan: { backgroundColor: colors.bg, paddingTop: 2, paddingBottom: 4 },
   tabBanner: { backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.border },
   tabBannerTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
   tabBannerTxt: { color: colors.textSoft, fontSize: 11.5, lineHeight: 16, marginTop: 4 },

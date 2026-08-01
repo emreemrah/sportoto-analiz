@@ -16,6 +16,37 @@ export const DNA_PERIODS = [
   { k: 'last15', label: 'Son 15 Hafta' },
 ];
 
+/** "2026" → "2025/2026 Sezonu" (bültenlerdeki yazım). */
+export const sezonEtiketi = (y) => (
+  Number.isFinite(Number(y)) ? `${Number(y) - 1}/${Number(y)} Sezonu` : String(y || '')
+);
+
+/**
+ * DÖNEM SEÇENEKLERİ — sabit pencereler + VERİDE GERÇEKTEN BULUNAN sezonlar.
+ *
+ * Sezonlar elle yazılmaz: arka uçtan gelen pencere anahtarlarından
+ * ("season:2026") türetilir. Böylece arşivde olmayan bir sezon seçenek
+ * olarak GÖRÜNMEZ — dokunulduğunda boş çıkan bir filtre, olmayan veriyi
+ * varmış gibi gösterir.
+ *
+ * Sezonlar yeniden eskiye sıralanır (kullanıcı önce güncel sezonu arar).
+ */
+export function donemSecenekleri(positionDna) {
+  const pozisyonlar = positionDna?.dna?.positions || [];
+  const anahtarlar = new Set();
+  for (const p of pozisyonlar) {
+    for (const k of Object.keys(p.windows || {})) {
+      if (k.startsWith('season:') && (p.windows[k]?.sample ?? 0) > 0) anahtarlar.add(k);
+    }
+  }
+  const sezonlar = [...anahtarlar]
+    .map((k) => ({ k, yil: Number(k.slice('season:'.length)) }))
+    .filter((x) => Number.isFinite(x.yil))
+    .sort((a, b) => b.yil - a.yil)
+    .map((x) => ({ k: x.k, label: sezonEtiketi(x.yil) }));
+  return [...DNA_PERIODS, ...sezonlar];
+}
+
 export const MASTER_FILTERS = [
   { k: 'all', label: 'Tümü' },
   { k: 'strong', label: '🟢 Güçlü Aday' },
@@ -134,7 +165,9 @@ export function legacyFiltered(radar, legacyFilter) {
  * "bilmiyoruz" değil).
  */
 export function radar5PeriodSuccess(positionDna) {
-  return Object.fromEntries(DNA_PERIODS.map(({ k }) => {
+  // Sabit pencereler + sezonlar birlikte (donemSecenekleri) — sezon seçilince
+  // yüzde boş kalmasın.
+  return Object.fromEntries(donemSecenekleri(positionDna).map(({ k }) => {
     const values = (positionDna?.dna?.positions || []).map((p) => {
       const pct = p.windows?.[k]?.pct;
       return pct ? Math.max(Number(pct['1']) || 0, Number(pct.X) || 0, Number(pct['2']) || 0) : null;
@@ -149,7 +182,8 @@ export function radar5PeriodSuccess(positionDna) {
  * ve ok gösterilirse kullanıcı olmayan bir eğilim görür.
  */
 export function radar5PeriodTrend(success) {
-  return Object.fromEntries(DNA_PERIODS.map(({ k }) => {
+  // Anahtarlar success'ten okunur: sezonlar da kapsanır.
+  return Object.fromEntries(Object.keys(success || {}).map((k) => {
     if (k === 'allTime') return [k, { key: 'flat', symbol: '—' }];
     if (success?.[k] == null || success?.allTime == null) return [k, null];
     const delta = Number(success[k]) - Number(success.allTime);

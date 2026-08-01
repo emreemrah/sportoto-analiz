@@ -87,10 +87,24 @@ export function computePositionDna(matches, {
 
     // Sezon kırılımı
     const bySeason = {};
+    const rowsBySeason = {};
     for (const m of rows) {
       const s = m.seasonYear || 'bilinmiyor';
-      if (!bySeason[s]) bySeason[s] = { '1': 0, X: 0, '2': 0, n: 0 };
+      if (!bySeason[s]) { bySeason[s] = { '1': 0, X: 0, '2': 0, n: 0 }; rowsBySeason[s] = []; }
       bySeason[s][m.result] += 1; bySeason[s].n += 1;
+      rowsBySeason[s].push(m);
+    }
+    // SEZONLAR DA BİRER PENCERE olarak sunulur.
+    // bySeason yalnız ham sayıları tutuyordu; ekran ise pencereleri (pct +
+    // sample) okuyor. Sezonları aynı biçimde vermek, ekran tarafında
+    // "Son 5 Hafta" ile "2025/2026 Sezonu" arasında hiçbir özel durum
+    // kalmamasını sağlar — filtre tek bir listeden beslenir.
+    //
+    // Anahtar: "season:2026". Sayısal olmayan ("bilinmiyor") ATLANIR:
+    // kullanıcıya "bilinmiyor sezonu" diye bir seçenek gösterilemez.
+    for (const [y, list] of Object.entries(rowsBySeason)) {
+      if (!Number.isFinite(Number(y))) continue;
+      windows[`season:${y}`] = countWindow(list);
     }
 
     // Eğilim: son 25 ile tüm zamanlar farkı (yeterli örneklemde).

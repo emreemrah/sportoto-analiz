@@ -700,6 +700,12 @@ export default function RadarScreen({ navigation }) {
         removeClippedSubviews={false}
         renderItem={renderItem}
         ListHeaderComponent={radarTabHeader()}
+        // FİLTRE SATIRI SABİT (yapışık) — liste aşağı inince üstte kalır.
+        // Aksi hâlde 15 satırlık listede dönem/gün filtresini değiştirmek için
+        // hep en başa dönmek gerekiyordu.
+        // Koşullu: başlık YOKKEN (Master sekmesi) sticky index vermek boş bir
+        // yapışık alan bırakır.
+        stickyHeaderIndices={radarTabHeader() ? [0] : undefined}
         ListFooterComponent={
           centerMode && tab === 'bulletinMemory' && positionDna?.hasData ? (
             <Text style={styles.dnaFootnote}>

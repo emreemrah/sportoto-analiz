@@ -166,3 +166,67 @@ test('satır eğilimi dönem seçimine göre davranır', () => {
   assert.equal(rowTrend({ highest: 50.3, allTimeHighest: 50, dnaPeriod: 'last5' }).key, 'flat');
   assert.equal(rowTrend({ highest: null, allTimeHighest: 50, dnaPeriod: 'last5' }), null);
 });
+
+// ---------------------------------------------------------------------------
+// DÖNEM SEÇENEKLERİ — sabit pencereler + VERİDEKİ sezonlar.
+// Sezonlar elle yazılmaz; arka uçtan gelen "season:YYYY" pencerelerinden
+// türer. Arşivde olmayan bir sezonu seçenek olarak göstermek, olmayan veriyi
+// varmış gibi sunmak olurdu.
+// ---------------------------------------------------------------------------
+const dnaIle = (windows) => ({ dna: { positions: [{ windows }] } });
+
+test('sezonlar VERİDEN türüyor, yeniden eskiye sıralı', async () => {
+  const { donemSecenekleri } = await import('../src/radarScreenData.js');
+  const s = donemSecenekleri(dnaIle({
+    allTime: { sample: 20, pct: { '1': 50, X: 30, '2': 20 } },
+    'season:2024': { sample: 6, pct: { '1': 40, X: 30, '2': 30 } },
+    'season:2026': { sample: 12, pct: { '1': 55, X: 25, '2': 20 } },
+    'season:2025': { sample: 8, pct: { '1': 45, X: 35, '2': 20 } },
+  }));
+  const anahtarlar = s.map((x) => x.k);
+  // Önce sabit pencereler, sonra sezonlar (yeniden eskiye).
+  assert.deepEqual(anahtarlar.slice(0, 4), ['allTime', 'last5', 'last10', 'last15']);
+  assert.deepEqual(anahtarlar.slice(4), ['season:2026', 'season:2025', 'season:2024']);
+  assert.equal(s.find((x) => x.k === 'season:2026').label, '2025/2026 Sezonu');
+});
+
+test('ÖRNEKLEMİ OLMAYAN sezon seçenek olarak GÖSTERİLMEZ', async () => {
+  const { donemSecenekleri } = await import('../src/radarScreenData.js');
+  const s = donemSecenekleri(dnaIle({
+    allTime: { sample: 5, pct: { '1': 50, X: 30, '2': 20 } },
+    'season:2026': { sample: 0, pct: null },     // veri yok
+  }));
+  assert.ok(!s.some((x) => x.k === 'season:2026'),
+    'boş sezon seçenek olmamalı — dokunulduğunda boş çıkar');
+});
+
+test('SAYISAL OLMAYAN sezon ("bilinmiyor") elenir', async () => {
+  const { donemSecenekleri } = await import('../src/radarScreenData.js');
+  const s = donemSecenekleri(dnaIle({
+    allTime: { sample: 9, pct: { '1': 50, X: 30, '2': 20 } },
+    'season:bilinmiyor': { sample: 4, pct: { '1': 50, X: 25, '2': 25 } },
+  }));
+  assert.ok(!s.some((x) => String(x.k).includes('bilinmiyor')),
+    '"bilinmiyor sezonu" diye bir seçenek kullanıcıya gösterilemez');
+});
+
+test('dönem gücü ve eğilimi SEZONLARI da kapsıyor', async () => {
+  const { radar5PeriodSuccess, radar5PeriodTrend } = await import('../src/radarScreenData.js');
+  const dna = dnaIle({
+    allTime: { sample: 20, pct: { '1': 50, X: 30, '2': 20 } },
+    'season:2026': { sample: 12, pct: { '1': 55, X: 25, '2': 20 } },
+    'season:2025': { sample: 8, pct: { '1': 45, X: 35, '2': 20 } },
+  });
+  const g = radar5PeriodSuccess(dna);
+  assert.equal(g['season:2026'], '55.0');
+  assert.equal(g['season:2025'], '45.0');
+  const t = radar5PeriodTrend(g);
+  assert.equal(t['season:2026'].key, 'up');    // 55 > 50
+  assert.equal(t['season:2025'].key, 'down');  // 45 < 50
+});
+
+test('sezon yoksa liste eskisi gibi 4 sabit dönem', async () => {
+  const { donemSecenekleri, DNA_PERIODS } = await import('../src/radarScreenData.js');
+  assert.deepEqual(donemSecenekleri(null).map((x) => x.k), DNA_PERIODS.map((x) => x.k));
+  assert.deepEqual(donemSecenekleri({ dna: { positions: [] } }).length, 4);
+});

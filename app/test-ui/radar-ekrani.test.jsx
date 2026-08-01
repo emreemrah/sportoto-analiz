@@ -390,3 +390,74 @@ describe('Radar Merkezi ekranı', () => {
     expect(metinleriTopla(toJSON())).toMatchSnapshot();
   });
 });
+
+// ---------------------------------------------------------------------------
+// RADAR 5 — sezon filtreleri + yapışık filtre satırı.
+// ---------------------------------------------------------------------------
+describe('Radar 5 dönem filtresi', () => {
+  const dnaVer = () => ({
+    hasData: true,
+    dna: {
+      positions: Array.from({ length: 3 }, (_, i) => ({
+        position: i + 1,
+        windows: {
+          allTime: { sample: 30, pct: { '1': 50, X: 30, '2': 20 } },
+          last5: { sample: 5, pct: { '1': 60, X: 20, '2': 20 } },
+          'season:2026': { sample: 14, pct: { '1': 55, X: 25, '2': 20 } },
+          'season:2025': { sample: 16, pct: { '1': 45, X: 35, '2': 20 } },
+        },
+      })),
+    },
+  });
+
+  test('sezon seçenekleri filtre satırında görünüyor', async () => {
+    mockUclar({ ...VARSAYILAN, '/api/radar/position-dna': dnaVer() });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Bülten DNA'));
+
+    // Sabit dönemler duruyor…
+    expect(await screen.findByText(/Tüm Haftalar/)).toBeTruthy();
+    // …ve sezonlar eklendi (yeniden eskiye).
+    expect(screen.getByText(/2025\/2026 Sezonu/)).toBeTruthy();
+    expect(screen.getByText(/2024\/2025 Sezonu/)).toBeTruthy();
+  });
+
+  test('sezon çipinde o sezonun kendi yüzdesi yazıyor', async () => {
+    mockUclar({ ...VARSAYILAN, '/api/radar/position-dna': dnaVer() });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Bülten DNA'));
+    // 2025/2026 → %55.0 · 2024/2025 → %45.0 (uydurma değil, veriden).
+    expect(await screen.findByText(/2025\/2026 Sezonu · %55\.0/)).toBeTruthy();
+    expect(screen.getByText(/2024\/2025 Sezonu · %45\.0/)).toBeTruthy();
+  });
+
+  test('veride sezon YOKSA sezon çipi çıkmaz', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      '/api/radar/position-dna': {
+        hasData: true,
+        dna: { positions: [{ position: 1, windows: { allTime: { sample: 30, pct: { '1': 50, X: 30, '2': 20 } } } }] },
+      },
+    });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Bülten DNA'));
+    await screen.findByText(/Tüm Haftalar/);
+    expect(screen.queryByText(/Sezonu/)).toBeNull();
+  });
+
+  test('filtre satırı YAPIŞIK — liste kayınca üstte kalır', async () => {
+    mockUclar({ ...VARSAYILAN, '/api/radar/position-dna': dnaVer() });
+    const { UNSAFE_getByType } = render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Bülten DNA'));
+    await screen.findByText(/Tüm Haftalar/);
+
+    const { FlatList } = require('react-native');
+    const liste = UNSAFE_getByType(FlatList);
+    // Başlık (dönem filtresi) yapışık indekste olmalı.
+    expect(liste.props.stickyHeaderIndices).toEqual([0]);
+  });
+});
