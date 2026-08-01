@@ -5,9 +5,15 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const cacheDir = join(here, '..', 'cache');
+// CACHE_DIR: test izolasyonu için geçici dizin verilebilir; üretimde boş bırakılır.
+const cacheDir = process.env.CACHE_DIR || join(here, '..', 'cache');
 
 mkdirSync(cacheDir, { recursive: true });
+
+// Cache klasörünün yolu. JSON dışında ikili dosya da tutulabilsin diye dışa
+// verilir (ör. arma vekilinin indirdiği görseller: cache/crests/). Yol tek
+// yerde hesaplansın; CACHE_DIR ile taşındığında hepsi birlikte taşınsın.
+export const CACHE_DIR = cacheDir;
 
 export function save(key, data) {
   const payload = { savedAt: new Date().toISOString(), data };

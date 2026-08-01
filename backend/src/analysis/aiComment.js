@@ -15,7 +15,7 @@ Kurallar:
 - 2-3 cümle, en fazla ~60 kelime. Markdown veya başlık kullanma, düz metin yaz.
 - Verilere dayan: oranlar/ihtimaller, form (PPG), puan durumu, önemli oyuncular, karşılıklı geçmiş (H2H), xG.
 - En belirleyici 1-2 unsuru vurgula; genel geçer laf etme.
-- Kupon/bahis tavsiyesi VERME; sadece analiz yap (banko mu, sürprize açık mı).
+- Kupon/bahis tavsiyesi VERME; sadece analiz yap (güçlü aday mı, sürprize açık mı).
 - Oran yoksa "tahmini" olduğunu ima et.`;
 
 // Maç verisini Claude'un okuyacağı kompakt bir metne çevirir.

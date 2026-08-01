@@ -32,6 +32,38 @@ export async function fetchLeagueNames() {
   return map;
 }
 
+// SEÇİLİ liglerin GÜNCEL sezon id'leri (saf yardımcı — test edilebilir).
+// Her lig için en büyük 'year' değerli sezon seçilir (kaynak, güncel sezonu
+// en yüksek yıl koduyla listeler). Id'si olmayan kayıtlar atlanır; uydurma yok.
+export function pickCurrentSeasonIds(leagues) {
+  const ids = new Set();
+  for (const lg of leagues || []) {
+    let best = null;
+    for (const s of lg.season || []) {
+      if (s?.id == null) continue;
+      if (!best || Number(s.year || 0) > Number(best.year || 0)) best = s;
+    }
+    if (best) ids.add(Number(best.id));
+  }
+  return [...ids];
+}
+
+// SEZON KEŞFİ: kullanıcının kaynak panelinde SEÇTİĞİ liglerin güncel sezon
+// id'lerini döndürür. Böylece panelde eklenen yeni lig (ör. Polonya), .env'e
+// elle id yazılmadan bir sonraki refresh'te otomatik kapsanır.
+export async function fetchChosenSeasonIds() {
+  const data = await apiGet('league-list', { chosen_leagues_only: 'true' });
+  return pickCurrentSeasonIds(data);
+}
+
+// LİG KATALOĞU (yalnız METADATA) — sezon keşfi bu listeden seçim yapar.
+// chosenOnly=true: kullanıcının panelde seçtiği ligler (varsayılan; dar kapsam).
+// Katalogdaki sezonların maç verisi BURADAN ÇEKİLMEZ; onu yalnız refresh,
+// seçilmiş az sayıda sezon için fetchSeason ile ister.
+export async function fetchLeagueCatalog(chosenOnly = true) {
+  return apiGet('league-list', chosenOnly ? { chosen_leagues_only: 'true' } : {});
+}
+
 // Bir sezonun maçlarını çeker (oran + xG + ppg dahil), temiz yapıya çevirir.
 // "example" anahtarı league_id ile, gerçek anahtarlar season_id ile çalışır.
 export async function fetchMatches(seasonId) {
@@ -58,6 +90,10 @@ export async function fetchMatches(seasonId) {
       awayId: m.awayID,
       homeName: m.home_name || '',
       awayName: m.away_name || '',
+      // Takım logoları (varsa) — eşleştirici v3 logo-kimliği katmanı için.
+      // Kaynak bu alanı vermezse null kalır; eşleşme ada düşer (zararsız).
+      homeImage: m.home_image || null,
+      awayImage: m.away_image || null,
       status: complete ? 'finished' : (live ? 'live' : 'upcoming'),
       live,
       dateUnix,

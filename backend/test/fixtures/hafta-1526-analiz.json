@@ -1,0 +1,268 @@
+{
+  "_kaynak": "Kullanıcının kendi makinesinde çalışan backend'den (http://localhost:4000/api/bulletin) 1526. hafta için ALINAN GERÇEK veridir. Uydurulmamıştır. predict()'in okuduğu alanlar korunmuş, okumadığı alanlar (kadro, lig tablosu, arma vb.) yer kaplamasın diye çıkarılmıştır.",
+  "_uyari": "Bu dosya bir ÖLÇÜM kaydıdır; elle düzeltilmez. Yeniden alınacaksa yine gerçek bültenden alınır.",
+  "roundId": 1526,
+  "matches": [
+    {
+      "no": 1,
+      "ev": "Club Brugge",
+      "dep": "Union St.Gilloise",
+      "analysis": { "hasOdds": false, "estimated": false, "probabilities": null, "surpriseScore": null, "label": "VERİ YOK", "favorite": null, "factors": [] },
+      "stats": null,
+      "eski": { "symbol": "-", "label": "VERİ YOK" }
+    },
+    {
+      "no": 2,
+      "ev": "Brondby",
+      "dep": "Viborg",
+      "analysis": {
+        "hasOdds": true, "estimated": false,
+        "probabilities": { "1": 44, "X": 26, "2": 30 },
+        "surpriseScore": 60, "label": "SÜRPRİZE AÇIK",
+        "favorite": { "symbol": "1", "percent": 44 },
+        "factors": [
+          { "label": "İhtimaller çok yakın (çekişmeli)" },
+          { "label": "Net bir favori yok" },
+          { "label": "Son maç formunda rakip önde" }
+        ]
+      },
+      "stats": {
+        "potentials": { "over25": 0 },
+        "h2h": { "played": 22, "homeWins": 9, "awayWins": 7, "draws": 6 },
+        "home": { "standing": { "home": { "wins": 0, "draws": 0, "losses": 0 } } },
+        "away": { "standing": { "away": { "wins": 0, "draws": 0, "losses": 0 } } }
+      },
+      "eski": { "symbol": "10", "label": "ÇİFTE" }
+    },
+    {
+      "no": 3,
+      "ev": "Odense",
+      "dep": "SonderjyskE",
+      "analysis": {
+        "hasOdds": true, "estimated": false,
+        "probabilities": { "1": 45, "X": 27, "2": 27 },
+        "surpriseScore": 33, "label": "DİKKAT",
+        "favorite": { "symbol": "1", "percent": 45 },
+        "factors": []
+      },
+      "stats": {
+        "potentials": { "over25": 0 },
+        "h2h": { "played": 33, "homeWins": 6, "awayWins": 10, "draws": 17 },
+        "home": { "standing": { "home": { "wins": 0, "draws": 0, "losses": 0 } } },
+        "away": { "standing": { "away": { "wins": 0, "draws": 0, "losses": 0 } } }
+      },
+      "eski": { "symbol": "10", "label": "ÇİFTE" }
+    },
+    {
+      "no": 4,
+      "ev": "PSV Eindhoven",
+      "dep": "AZ Alkmaar",
+      "analysis": { "hasOdds": false, "estimated": false, "probabilities": null, "surpriseScore": null, "label": "VERİ YOK", "favorite": null, "factors": [] },
+      "stats": null,
+      "eski": { "symbol": "-", "label": "VERİ YOK" }
+    },
+    {
+      "no": 5,
+      "ev": "Hacken",
+      "dep": "Kalmar",
+      "analysis": {
+        "hasOdds": true, "estimated": false,
+        "probabilities": { "1": 58, "X": 22, "2": 21 },
+        "surpriseScore": 35, "label": "DİKKAT",
+        "favorite": { "symbol": "1", "percent": 58 },
+        "factors": [{ "label": "Beklenen gol (xG) favoriyi öne çıkarmıyor" }]
+      },
+      "stats": {
+        "potentials": { "over25": 75 },
+        "h2h": { "played": 28, "homeWins": 13, "awayWins": 9, "draws": 6 },
+        "home": { "standing": { "home": { "wins": 3, "draws": 2, "losses": 1 } } },
+        "away": { "standing": { "away": { "wins": 0, "draws": 0, "losses": 6 } } }
+      },
+      "eski": { "symbol": "1", "label": "NET" }
+    },
+    {
+      "no": 6,
+      "ev": "Brommapojkarna",
+      "dep": "Malmö",
+      "analysis": {
+        "hasOdds": true, "estimated": false,
+        "probabilities": { "1": 32, "X": 25, "2": 43 },
+        "surpriseScore": 58, "label": "SÜRPRİZE AÇIK",
+        "favorite": { "symbol": "2", "percent": 43 },
+        "factors": [
+          { "label": "İhtimaller çok yakın (çekişmeli)" },
+          { "label": "Net bir favori yok" },
+          { "label": "Favorinin savunması gol yemeye açık" }
+        ]
+      },
+      "stats": {
+        "potentials": { "over25": 47 },
+        "h2h": { "played": 14, "homeWins": 1, "awayWins": 11, "draws": 2 },
+        "home": { "standing": { "home": { "wins": 1, "draws": 3, "losses": 2 } } },
+        "away": { "standing": { "away": { "wins": 3, "draws": 2, "losses": 2 } } }
+      },
+      "eski": { "symbol": "2", "label": "NET" }
+    },
+    {
+      "no": 7,
+      "ev": "AIK Stockholm",
+      "dep": "Örgryte IS",
+      "analysis": {
+        "hasOdds": false, "estimated": true,
+        "probabilities": { "1": 60, "X": 14, "2": 26 },
+        "surpriseScore": 24, "label": "BANKO",
+        "favorite": { "symbol": "1", "percent": 60 },
+        "factors": []
+      },
+      "stats": {
+        "potentials": { "over25": 47 },
+        "h2h": { "played": 2, "homeWins": 2, "awayWins": 0, "draws": 0 },
+        "home": { "standing": { "home": { "wins": 3, "draws": 0, "losses": 3 } } },
+        "away": { "standing": { "away": { "wins": 1, "draws": 0, "losses": 6 } } }
+      },
+      "eski": { "symbol": "1", "label": "BANKO" }
+    },
+    {
+      "no": 8,
+      "ev": "Djurgarden",
+      "dep": "Vasteras SK",
+      "analysis": {
+        "hasOdds": false, "estimated": true,
+        "probabilities": { "1": 45, "X": 22, "2": 33 },
+        "surpriseScore": 63, "label": "SÜRPRİZE AÇIK",
+        "favorite": { "symbol": "1", "percent": 45 },
+        "factors": [
+          { "label": "Rakip son dönemde daha formda" },
+          { "label": "İhtimaller çok yakın (çekişmeli)" },
+          { "label": "Saha performansı favoriyi desteklemiyor" }
+        ]
+      },
+      "stats": {
+        "potentials": { "over25": 71 },
+        "h2h": { "played": 2, "homeWins": 2, "awayWins": 0, "draws": 0 },
+        "home": { "standing": { "home": { "wins": 3, "draws": 1, "losses": 3 } } },
+        "away": { "standing": { "away": { "wins": 4, "draws": 1, "losses": 2 } } }
+      },
+      "eski": { "symbol": "12", "label": "ÇİFTE" }
+    },
+    {
+      "no": 9,
+      "ev": "Valerenga",
+      "dep": "Ham Kam",
+      "analysis": {
+        "hasOdds": true, "estimated": false,
+        "probabilities": { "1": 55, "X": 23, "2": 22 },
+        "surpriseScore": 33, "label": "DİKKAT",
+        "favorite": { "symbol": "1", "percent": 55 },
+        "factors": [{ "label": "Favorinin savunması gol yemeye açık" }]
+      },
+      "stats": {
+        "potentials": { "over25": 64 },
+        "h2h": { "played": 8, "homeWins": 2, "awayWins": 2, "draws": 4 },
+        "home": { "standing": { "home": { "wins": 4, "draws": 1, "losses": 2 } } },
+        "away": { "standing": { "away": { "wins": 0, "draws": 3, "losses": 4 } } }
+      },
+      "eski": { "symbol": "1", "label": "NET" }
+    },
+    {
+      "no": 10,
+      "ev": "Bodo Glimt",
+      "dep": "Lillestrom",
+      "analysis": {
+        "hasOdds": true, "estimated": false,
+        "probabilities": { "1": 71, "X": 17, "2": 12 },
+        "surpriseScore": 17, "label": "BANKO",
+        "favorite": { "symbol": "1", "percent": 71 },
+        "factors": []
+      },
+      "stats": {
+        "potentials": { "over25": 43 },
+        "h2h": { "played": 23, "homeWins": 12, "awayWins": 6, "draws": 5 },
+        "home": { "standing": { "home": { "wins": 6, "draws": 0, "losses": 1 } } },
+        "away": { "standing": { "away": { "wins": 4, "draws": 1, "losses": 2 } } }
+      },
+      "eski": { "symbol": "1", "label": "BANKO" }
+    },
+    {
+      "no": 11,
+      "ev": "Fredrikstad",
+      "dep": "Sandefjord",
+      "analysis": {
+        "hasOdds": true, "estimated": false,
+        "probabilities": { "1": 44, "X": 25, "2": 31 },
+        "surpriseScore": 52, "label": "SÜRPRİZE AÇIK",
+        "favorite": { "symbol": "1", "percent": 44 },
+        "factors": [
+          { "label": "İhtimaller çok yakın (çekişmeli)" },
+          { "label": "Net bir favori yok" }
+        ]
+      },
+      "stats": {
+        "potentials": { "over25": 69 },
+        "h2h": { "played": 11, "homeWins": 4, "awayWins": 4, "draws": 3 },
+        "home": { "standing": { "home": { "wins": 3, "draws": 1, "losses": 2 } } },
+        "away": { "standing": { "away": { "wins": 2, "draws": 0, "losses": 5 } } }
+      },
+      "eski": { "symbol": "1", "label": "NET" }
+    },
+    {
+      "no": 12,
+      "ev": "KFUM",
+      "dep": "Kristiansund BK",
+      "analysis": {
+        "hasOdds": false, "estimated": true,
+        "probabilities": { "1": 46, "X": 23, "2": 31 },
+        "surpriseScore": 42, "label": "DİKKAT",
+        "favorite": { "symbol": "1", "percent": 46 },
+        "factors": [{ "label": "Beklenen gol (xG) favoriyi öne çıkarmıyor" }]
+      },
+      "stats": {
+        "potentials": { "over25": 34 },
+        "h2h": { "played": 9, "homeWins": 4, "awayWins": 2, "draws": 3 },
+        "home": { "standing": { "home": { "wins": 3, "draws": 1, "losses": 4 } } },
+        "away": { "standing": { "away": { "wins": 1, "draws": 1, "losses": 5 } } }
+      },
+      "eski": { "symbol": "1", "label": "NET" }
+    },
+    {
+      "no": 13,
+      "ev": "Molde",
+      "dep": "Sarpsborg 08",
+      "analysis": {
+        "hasOdds": false, "estimated": true,
+        "probabilities": { "1": 52, "X": 18, "2": 31 },
+        "surpriseScore": 37, "label": "DİKKAT",
+        "favorite": { "symbol": "1", "percent": 52 },
+        "factors": [{ "label": "Son maç formunda rakip önde" }]
+      },
+      "stats": {
+        "potentials": { "over25": 57 },
+        "h2h": { "played": 32, "homeWins": 15, "awayWins": 11, "draws": 6 },
+        "home": { "standing": { "home": { "wins": 5, "draws": 0, "losses": 2 } } },
+        "away": { "standing": { "away": { "wins": 2, "draws": 1, "losses": 4 } } }
+      },
+      "eski": { "symbol": "1", "label": "NET" }
+    },
+    {
+      "no": 14,
+      "ev": "Porto",
+      "dep": "Uniao Torreense",
+      "analysis": { "hasOdds": false, "estimated": false, "probabilities": null, "surpriseScore": null, "label": "VERİ YOK", "favorite": null, "factors": [] },
+      "stats": null,
+      "eski": { "symbol": "-", "label": "VERİ YOK" }
+    },
+    {
+      "no": 15,
+      "ev": "Legia Varşova",
+      "dep": "KGHM Zaglebie Lubin",
+      "analysis": { "hasOdds": false, "estimated": false, "probabilities": null, "surpriseScore": null, "label": "VERİ YOK", "favorite": null, "factors": [] },
+      "stats": {
+        "potentials": { "over25": 0 },
+        "h2h": { "played": 35, "homeWins": 23, "awayWins": 7, "draws": 5 },
+        "home": { "standing": { "home": { "wins": 0, "draws": 0, "losses": 0 } } },
+        "away": { "standing": { "away": { "wins": 0, "draws": 0, "losses": 0 } } }
+      },
+      "eski": { "symbol": "-", "label": "VERİ YOK" }
+    }
+  ]
+}

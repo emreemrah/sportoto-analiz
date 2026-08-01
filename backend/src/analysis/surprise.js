@@ -112,7 +112,7 @@ export function analyzeMatch(input) {
 
   let comment;
   if (label === 'BANKO') {
-    comment = `Favori "${favSymbol}" %${favPct} ile açık ara önde. Güçlü banko adayı.${tag}`;
+    comment = `Favori "${favSymbol}" %${favPct} ile açık ara önde. Güçlü aday.${tag}`;
   } else if (label === 'DİKKAT') {
     comment = `Favori "${favSymbol}" (%${favPct}) önde ama tartışmalı.` +
       (factors.length ? ` Dikkat: ${factors.map((f) => f.label.toLowerCase()).join(', ')}.` : '') + tag;
@@ -195,7 +195,7 @@ export function enrichSurprise(analysis, stats) {
   const tag = analysis.estimated ? ' (≈ tahmini, oran yok)' : '';
   let comment;
   if (label === 'BANKO') {
-    comment = `Favori "${favSym}" %${favPct} ile açık ara önde. Güçlü banko adayı.${tag}`;
+    comment = `Favori "${favSym}" %${favPct} ile açık ara önde. Güçlü aday.${tag}`;
   } else if (label === 'DİKKAT') {
     comment = `Favori "${favSym}" (%${favPct}) önde ama tartışmalı.` +
       (factors.length ? ` Dikkat: ${factors.map((f) => f.label.toLowerCase()).join(', ')}.` : '') + tag;

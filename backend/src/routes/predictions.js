@@ -2,11 +2,17 @@
 //  • Skor Tahmini   • Maçın Oyuncusu   • Kadro Tahmini   • Topluluk Anketi
 // Hepsi maça (matchId) ve kullanıcıya bağlı; aynı kullanıcı aynı maçta günceller (upsert).
 import { Router } from 'express';
-import { sbAdmin, getProfiles } from '../supabase.js';
+import { sbAdmin, supabaseEnabled, getProfiles } from '../supabase.js';
+import { uyelikKapisi } from '../security/supabaseGuard.js';
 import { requireAuth, optionalAuth } from '../mw.js';
 import { getBulletinByRoundId, getRoundsForNav } from '../sources/sportoto.js';
+import { awardParticipation, settleRoundAccuracy } from '../gamification/service.js';
+import { levelFromPoints } from '../gamification/catalog.js';
 
 const router = Router();
+// /ms-summary muaf: bülten kartları için 15 maçta birden çağrılır ve kendi
+// zarif boş yanıtını verir; kapalıyken hata değil boş özet dönmesi doğrudur.
+router.use(uyelikKapisi(supabaseEnabled, ['/ms-summary']));
 const now = () => new Date().toISOString();
 
 // ---- Skor Tahmini ----
@@ -25,6 +31,8 @@ router.post('/score', requireAuth, async (req, res) => {
   };
   const { error } = await sbAdmin.from('score_predictions').upsert(row, { onConflict: 'match_id,user_id' });
   if (error) return res.status(500).json({ error: error.message });
+  // Katılım puanı — maç başına BİR KEZ (unique kısıt mükerrer ödülü engeller).
+  awardParticipation(sbAdmin, req.user.id, 'lock_score', String(matchId));
   res.json({ ok: true });
 });
 
@@ -44,6 +52,7 @@ router.post('/player', requireAuth, async (req, res) => {
   };
   const { error } = await sbAdmin.from('player_votes').upsert(row, { onConflict: 'match_id,user_id' });
   if (error) return res.status(500).json({ error: error.message });
+  awardParticipation(sbAdmin, req.user.id, 'player_vote', String(matchId));
   res.json({ ok: true });
 });
 
@@ -65,6 +74,7 @@ router.post('/lineup', requireAuth, async (req, res) => {
   };
   const { error } = await sbAdmin.from('lineup_predictions').upsert(row, { onConflict: 'match_id,user_id,team_id' });
   if (error) return res.status(500).json({ error: error.message });
+  awardParticipation(sbAdmin, req.user.id, 'lineup', `${matchId}:${teamId}`);
   res.json({ ok: true });
 });
 
@@ -96,6 +106,7 @@ router.post('/poll', requireAuth, async (req, res) => {
   };
   const { error } = await sbAdmin.from('community_poll_votes').upsert(row, { onConflict: 'match_id,user_id,poll_key' });
   if (error) return res.status(500).json({ error: error.message });
+  awardParticipation(sbAdmin, req.user.id, 'poll_vote', `${matchId}:${pollKey}`);
   res.json({ ok: true });
 });
 
@@ -122,6 +133,28 @@ router.get('/community', async (req, res) => {
     formations: { total: formations.total, top: formations.top.slice(0, 4) },
     scores: { total: scores.total, top: scores.top.slice(0, 5) },
   });
+});
+
+// ---- Topluluk MS dağılımı (bülten kartları için TOPLU özet) ----
+// Maç başına ayrı istek atılmaz; 15 maçlık bülten tek istekte gelir.
+// Kişisel veri yoktur — yalnız anonim sayımlar döner.
+router.get('/ms-summary', async (req, res) => {
+  if (!sbAdmin) return res.json({ summary: {} });
+  const ids = String(req.query.matchIds || '').split(',').map((x) => x.trim()).filter(Boolean).slice(0, 30);
+  if (!ids.length) return res.json({ summary: {} });
+  const { data, error } = await sbAdmin
+    .from('community_poll_votes')
+    .select('match_id,selected_option')
+    .eq('poll_key', 'ms')
+    .in('match_id', ids);
+  if (error) return res.json({ summary: {} });
+  const summary = {};
+  (data || []).forEach((v) => {
+    const s2 = summary[v.match_id] || (summary[v.match_id] = { total: 0, home: 0, draw: 0, away: 0 });
+    s2.total += 1;
+    if (s2[v.selected_option] != null) s2[v.selected_option] += 1;
+  });
+  res.json({ summary });
 });
 
 // ---- Puanlama / Lider Tablosu (hafta bazlı) ----
@@ -152,6 +185,9 @@ router.get('/leaderboard', optionalAuth, async (req, res) => {
   const ids = Object.keys(resultMap);
   if (!ids.length) return res.json({ roundId, leaderboard: [], me: null, note: 'Bu hafta için sonuç henüz açıklanmadı.' });
 
+  // Resmî sonuçlar eldeyken kalıcı isabet puanlarını da (idempotent) yaz.
+  settleRoundAccuracy(sbAdmin, { roundId, matches }).catch(() => {});
+
   const [sp, pv] = await Promise.all([
     sbAdmin.from('score_predictions').select('user_id,ft_home,ft_away,match_id').in('match_id', ids),
     sbAdmin.from('community_poll_votes').select('user_id,poll_key,selected_option,match_id').in('match_id', ids),
@@ -163,9 +199,18 @@ router.get('/leaderboard', optionalAuth, async (req, res) => {
 
   const uids = Object.keys(pts);
   const profiles = await getProfiles(uids);
+  // Seviye rozetleri: kalıcı puan defterinden (migration 006 yoksa sessizce atlanır).
+  const levelOf = {};
+  try {
+    const { data: ledger } = await sbAdmin.from('points_history').select('user_id,points').in('user_id', uids);
+    const sums = {};
+    (ledger || []).forEach((r) => { sums[r.user_id] = (sums[r.user_id] || 0) + (r.points || 0); });
+    for (const uid of uids) levelOf[uid] = levelFromPoints(sums[uid] || 0).level;
+  } catch { /* seviye opsiyonel süslemedir */ }
   const board = uids.map((uid) => ({
     userId: uid, username: profiles[uid]?.username || 'Kullanıcı', points: pts[uid],
     correct: correct[uid] || 0, made: made[uid] || 0, accuracy: made[uid] ? Math.round(((correct[uid] || 0) / made[uid]) * 100) : 0,
+    level: levelOf[uid] || null,
   })).sort((a, b) => b.points - a.points || b.accuracy - a.accuracy).slice(0, 50);
   board.forEach((b, i) => { b.rank = i + 1; });
   const me = req.user ? (board.find((b) => b.userId === req.user.id) || null) : null;

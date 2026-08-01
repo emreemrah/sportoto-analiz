@@ -1,0 +1,245 @@
+{
+  "_note": "GERÇEK yakalanmış Bilyoner açık/oturumsuz yanıtları (credentials:'omit' ile HTTP 200 doğrulandı, 22 Tem 2026). Kaynak: https://www.bilyoner.com/api/sto/programs/active ve /api/sto/playratio?gcNo=350. gcNo dinamik keşfedilir; 350 örnektir.",
+  "programsActive": {
+    "gameCycleEntityModel": {
+      "id": 12233,
+      "gcNo": 350,
+      "gameNo": 4,
+      "weekNumber": 31,
+      "weekNumberText": "24.07 - 27.07 Programı",
+      "payinEndDate": "2026-07-24T19:55:00.000+03:00",
+      "drawDateFormatted": "24 Temmuz 19:55",
+      "eventVOs": [
+        {
+          "eventNo": 1,
+          "eventDescription": "AGF Aarhus-Brondby",
+          "competitionName": "DANI",
+          "eventDate": "2026-07-25T19:00:00.000+03:00",
+          "id": 91835,
+          "eventDescriptionFormatted": "AGF Aarhus\nBrondby"
+        },
+        {
+          "eventNo": 2,
+          "eventDescription": "AC Horsens-Nordsjælland",
+          "competitionName": "DANI",
+          "eventDate": "2026-07-26T19:00:00.000+03:00",
+          "id": 91822,
+          "eventDescriptionFormatted": "AC Horsens\nNordsjælland"
+        },
+        {
+          "eventNo": 3,
+          "eventDescription": "Randers-Silkeborg",
+          "competitionName": "DANI",
+          "eventDate": "2026-07-27T20:00:00.000+03:00",
+          "id": 91833,
+          "eventDescriptionFormatted": "Randers\nSilkeborg"
+        },
+        {
+          "eventNo": 4,
+          "eventDescription": "Tampereen-Lahti",
+          "competitionName": "FIN",
+          "eventDate": "2026-07-26T15:00:00.000+03:00",
+          "id": 91827,
+          "eventDescriptionFormatted": "Tampereen\nLahti"
+        },
+        {
+          "eventNo": 5,
+          "eventDescription": "HJK Helsinki-TPS Turku",
+          "competitionName": "FIN",
+          "eventDate": "2026-07-26T17:00:00.000+03:00",
+          "id": 91828,
+          "eventDescriptionFormatted": "HJK Helsinki\nTPS Turku"
+        },
+        {
+          "eventNo": 6,
+          "eventDescription": "Vasteraas-Orgryte",
+          "competitionName": "ISVEÇ",
+          "eventDate": "2026-07-24T20:00:00.000+03:00",
+          "id": 91824,
+          "eventDescriptionFormatted": "Vasteraas\nOrgryte"
+        },
+        {
+          "eventNo": 7,
+          "eventDescription": "IK Sirius-IFK Göteborg",
+          "competitionName": "ISVEÇ",
+          "eventDate": "2026-07-26T15:00:00.000+03:00",
+          "id": 91825,
+          "eventDescriptionFormatted": "IK Sirius\nIFK Göteborg"
+        },
+        {
+          "eventNo": 8,
+          "eventDescription": "Malmö-IF Elfsborg",
+          "competitionName": "ISVEÇ",
+          "eventDate": "2026-07-26T17:30:00.000+03:00",
+          "id": 91834,
+          "eventDescriptionFormatted": "Malmö\nIF Elfsborg"
+        },
+        {
+          "eventNo": 9,
+          "eventDescription": "Kfum Oslo-Molde",
+          "competitionName": "NORV",
+          "eventDate": "2026-07-26T18:00:00.000+03:00",
+          "id": 91821,
+          "eventDescriptionFormatted": "Kfum Oslo\nMolde"
+        },
+        {
+          "eventNo": 10,
+          "eventDescription": "Sandefjord-Bodo Glimt",
+          "competitionName": "NORV",
+          "eventDate": "2026-07-26T18:00:00.000+03:00",
+          "id": 91826,
+          "eventDescriptionFormatted": "Sandefjord\nBodo Glimt"
+        },
+        {
+          "eventNo": 11,
+          "eventDescription": "Rosenborg-Fredrikstad",
+          "competitionName": "NORV",
+          "eventDate": "2026-07-27T20:00:00.000+03:00",
+          "id": 91829,
+          "eventDescriptionFormatted": "Rosenborg\nFredrikstad"
+        },
+        {
+          "eventNo": 12,
+          "eventDescription": "Pogon Szczecin-Legia Varsova",
+          "competitionName": "POLEK",
+          "eventDate": "2026-07-24T21:30:00.000+03:00",
+          "id": 91823,
+          "eventDescriptionFormatted": "Pogon Szczecin\nLegia Varsova"
+        },
+        {
+          "eventNo": 13,
+          "eventDescription": "Lech Poznan-Cracovia",
+          "competitionName": "POLEK",
+          "eventDate": "2026-07-25T21:15:00.000+03:00",
+          "id": 91832,
+          "eventDescriptionFormatted": "Lech Poznan\nCracovia"
+        },
+        {
+          "eventNo": 14,
+          "eventDescription": "Wisla Krakow-Katowice",
+          "competitionName": "POLEK",
+          "eventDate": "2026-07-26T21:15:00.000+03:00",
+          "id": 91831,
+          "eventDescriptionFormatted": "Wisla Krakow\nKatowice"
+        },
+        {
+          "eventNo": 15,
+          "eventDescription": "Zaglebie Lubin-Piast Gliwice",
+          "competitionName": "POLEK",
+          "eventDate": "2026-07-27T20:00:00.000+03:00",
+          "id": 91830,
+          "eventDescriptionFormatted": "Zaglebie Lubin\nPiast Gliwice"
+        }
+      ]
+    }
+  },
+  "playratio": {
+    "playRatioList": [
+      {
+        "gcNo": 350,
+        "eventNo": 1,
+        "count_1": 42.5,
+        "count_0": 34.0,
+        "count_2": 23.5
+      },
+      {
+        "gcNo": 350,
+        "eventNo": 2,
+        "count_1": 14.8,
+        "count_0": 25.5,
+        "count_2": 59.7
+      },
+      {
+        "gcNo": 350,
+        "eventNo": 3,
+        "count_1": 55.5,
+        "count_0": 25.2,
+        "count_2": 19.3
+      },
+      {
+        "gcNo": 350,
+        "eventNo": 4,
+        "count_1": 38.5,
+        "count_0": 33.6,
+        "count_2": 28.0
+      },
+      {
+        "gcNo": 350,
+        "eventNo": 5,
+        "count_1": 66.8,
+        "count_0": 20.1,
+        "count_2": 13.1
+      },
+      {
+        "gcNo": 350,
+        "eventNo": 6,
+        "count_1": 58.5,
+        "count_0": 28.3,
+        "count_2": 13.2
+      },
+      {
+        "gcNo": 350,
+        "eventNo": 7,
+        "count_1": 72.6,
+        "count_0": 17.2,
+        "count_2": 10.2
+      },
+      {
+        "gcNo": 350,
+        "eventNo": 8,
+        "count_1": 56.4,
+        "count_0": 29.8,
+        "count_2": 13.8
+      },
+      {
+        "gcNo": 350,
+        "eventNo": 9,
+        "count_1": 15.6,
+        "count_0": 24.4,
+        "count_2": 60.0
+      },
+      {
+        "gcNo": 350,
+        "eventNo": 10,
+        "count_1": 8.6,
+        "count_0": 12.1,
+        "count_2": 79.3
+      },
+      {
+        "gcNo": 350,
+        "eventNo": 11,
+        "count_1": 62.8,
+        "count_0": 26.0,
+        "count_2": 11.2
+      },
+      {
+        "gcNo": 350,
+        "eventNo": 12,
+        "count_1": 22.8,
+        "count_0": 34.7,
+        "count_2": 42.5
+      },
+      {
+        "gcNo": 350,
+        "eventNo": 13,
+        "count_1": 67.4,
+        "count_0": 19.7,
+        "count_2": 12.9
+      },
+      {
+        "gcNo": 350,
+        "eventNo": 14,
+        "count_1": 64.3,
+        "count_0": 19.9,
+        "count_2": 15.8
+      },
+      {
+        "gcNo": 350,
+        "eventNo": 15,
+        "count_1": 44.6,
+        "count_0": 33.8,
+        "count_2": 21.5
+      }
+    ]
+  }
+}

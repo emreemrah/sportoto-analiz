@@ -1,6 +1,11 @@
-# GERÇEK API anahtarı burada — asla paylaşıma/git'e gitmez
-.env
-
+# Backend üretilen/yerel veriler — repoya ve deploy paketine GİRMEZ.
 node_modules/
 cache/
-*.log
+data/
+public/
+.env
+
+# LEGACY TEKNİK YEDEK — eski radar/snapshot kayıtları (npm run archive:legacy).
+# Production build'e, Render deploy'una, runtime container'a ve bundle'a girmez;
+# API'den statik servis edilmez. Manifest ile birlikte yalnız yerel yedektir.
+legacy_archive/

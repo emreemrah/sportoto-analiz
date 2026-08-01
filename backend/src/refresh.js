@@ -6,15 +6,22 @@
 import { config, usingExampleKey } from './config.js';
 import { getLatestBulletin, getBulletinByRoundId } from './sources/sportoto.js';
 import { fetchSeason, fetchMatches, fetchLeagueNames, fetchTeamVenue, fetchMatchScore } from './sources/footystats.js';
+import { discoverSeasonIds } from './seasonDiscovery.js';
+import { attachVenueProfiles } from './analysis/opponentStrength.js';
 import { getWeather } from './weather.js';
 import { fetchLiveFixtures, findLiveFixture } from './sources/apifootball.js';
-import { findFootyMatch, normalizeName, hasFootyCandidate } from './matcher.js';
+import { findFootyMatch, normalizeName, hasFootyCandidate, hasFootyCandidateByTokens } from './matcher.js';
+import { harvestCrests, saveRegistry, indexRegistry, attachCrests, crestCoverage } from './crestRegistry.js';
 import { analyzeMatch, enrichSurprise } from './analysis/surprise.js';
 import { evaluateCriteriaSignals } from './analysis/criteriaEval.js';
 import { createExtrasCache, buildMatchStats } from './enrich.js';
 import { predict } from './analysis/prediction.js';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { attachAiComments, aiEnabled } from './analysis/aiComment.js';
 import { save, load } from './cache.js';
+import { archiveOnRefresh, archivePreSave } from './archive/worker.js';
 
 // İki bülten arasındaki resmi alan farkları (kilit sonrası "sessiz değişiklik"
 // tespiti için): roundId · hafta · maç sayısı · sıra no · takım adı · tarih-saat.
@@ -96,11 +103,18 @@ export async function refreshLiveFootyScores(footyMatchIds) {
   return { updated };
 }
 
-// GEÇMİŞ HAFTA TAHMİN BACKFILL — bir geçmiş round'un maç-başı SİSTEM TAHMİNİNİ
-// FootyStats'ın DONMUŞ maç-öncesi verisinden (oran/xG/ppg) yeniden üretip
-// snapshot'lar. Uydurma yok: veri yoksa o maç tahminsiz kalır. Zaten snapshot
-// varsa dokunmaz (canlıyken kaydedilmiş gerçek tahmini korur).
-export async function snapshotRoundPredictions(roundId) {
+// GEÇMİŞE DÖNÜK TAHMİN ÜRETİMİ — ⛔ VARSAYILAN OLARAK KAPALI.
+// Eski davranış: geçmiş hafta gezilince bu fonksiyon arka planda 'backfilled'
+// snapshot üretiyor ve karneleri kirletiyordu. Yeni kural (kesin):
+//  * Geçmiş haftayı GÖRÜNTÜLEMEK hiçbir tahmin/radar/kriter kaydı ÜRETMEZ.
+//  * Backfill AKTİF cache'e ASLA yazılamaz ve HİÇBİR karneye katılamaz.
+//  * Yalnız AÇIK kullanıcı/admin işlemiyle ({ manualRetrospective: true })
+//    çalışır ve çıktı provenanceType='retrospective_backtest' işaretiyle
+//    backend/legacy_archive/retrospective/ altına yazılır (aktif cache DEĞİL).
+export async function snapshotRoundPredictions(roundId, { manualRetrospective = false } = {}) {
+  if (!manualRetrospective) {
+    throw new Error('Geçmişe dönük tahmin üretimi kapalı — yalnız açık retrospektif test (manualRetrospective) ile ve legacy_archive/retrospective altına üretilebilir.');
+  }
   if (load(`snapshot-${roundId}`)?.data?.picks?.length) return -1; // zaten var
   const bulletin = await getBulletinByRoundId(roundId);
   const footyMatches = [];
@@ -119,7 +133,7 @@ export async function snapshotRoundPredictions(roundId) {
     const found = findFootyMatch(bm, footyMatches);
     const beforeUnix = unixOf(bm.date);
     let analysis, homeLogo = '', awayLogo = '', homeRec = null, awayRec = null;
-    if (found) {
+    if (found?.match) {                       // ambiguous → veri bağlanmaz
       const fm = found.match;
       const hId = found.swapped ? fm.awayId : fm.homeId;
       const aId = found.swapped ? fm.homeId : fm.awayId;
@@ -140,13 +154,27 @@ export async function snapshotRoundPredictions(roundId) {
     return {
       no: bm.no, symbol: prediction?.symbol ?? null, label: prediction?.label ?? null,
       homeLogo, awayLogo, homeRec, awayRec,
-      footyMatchId: found ? found.match.footyMatchId : null,   // geçici skor (FootyStats) için
+      footyMatchId: found?.match ? found.match.footyMatchId : null,   // geçici skor (FootyStats) için
       footySwapped: found ? found.swapped : false,
     };
   });
-  save(`snapshot-${roundId}`, { roundId, savedAt: new Date().toISOString(), backfilled: true, picks });
+  // RETROSPEKTİF DEPO: aktif cache'e DEĞİL, legacy_archive/retrospective altına
+  // açık provenance işaretleriyle yazılır — hiçbir karneye/radara katılamaz.
+  const retroDir = process.env.LEGACY_ARCHIVE_DIR
+    ? join(process.env.LEGACY_ARCHIVE_DIR, 'retrospective')
+    : join(dirname(fileURLToPath(import.meta.url)), '..', 'legacy_archive', 'retrospective');
+  mkdirSync(retroDir, { recursive: true });
+  const payload = {
+    savedAt: new Date().toISOString(),
+    data: {
+      roundId, savedAt: new Date().toISOString(),
+      backfilled: true, retrospective: true, provenanceType: 'retrospective_backtest',
+      isOfficialForward: false, picks,
+    },
+  };
+  writeFileSync(join(retroDir, `snapshot-${roundId}.json`), JSON.stringify(payload));
   const n = picks.filter((p) => p.symbol && p.symbol !== '-').length;
-  console.log(`[backfill] snapshot-${roundId}: ${n}/${picks.length} tahmin üretildi`);
+  console.log(`[retrospektif] legacy_archive/retrospective/snapshot-${roundId}: ${n}/${picks.length} tahmin (RESMÎ KARNEYE GİRMEZ)`);
   return n;
 }
 
@@ -226,10 +254,23 @@ export async function refreshAll() {
   }
 
   // 2) FootyStats sezonları → tek havuz (+ sezon bazlı, son 5 formu için)
+  // OTOMATİK SEZON KEŞFİ (dar kapsam): .env artık zorunlu doğruluk kaynağı
+  // DEĞİL — bootstrap/fallback. Kaynak panelinde seçili liglerin GÜNCEL
+  // sezonları TTL'li katalog metadata'sından otomatik seçilir (kadın/genç/
+  // rezerv hariç, üst sınırlı, fail-closed). Yeni lig/sezon bir sonraki
+  // otomatik döngüde kullanıcı müdahalesi olmadan kapsanır.
+  let seasonIds = [...new Set(config.seasonIds.map(Number))];
+  let discoveryMeta = null;
+  if (!usingExampleKey) {
+    const disc = await discoverSeasonIds({ envIds: config.seasonIds, roundId: bulletin.roundId });
+    seasonIds = disc.ids;
+    discoveryMeta = disc.meta;
+    console.log(`[refresh] sezon keşfi: catalog=${disc.meta.catalogCount ?? '?'}${disc.meta.catalogFromCache ? '(cache)' : ''}, dynamicSeasons=${disc.meta.dynamicCount}, totalSeasons=${seasonIds.length}${disc.meta.failClosed ? ` · FAIL-CLOSED(${disc.meta.reason})` : ''}`);
+  }
   const footyMatches = [];
   const matchesBySeason = new Map();
   const teamsBySeason = new Map();
-  for (const sid of config.seasonIds) {
+  for (const sid of seasonIds) {
     try {
       const season = await fetchSeason(sid);
       footyMatches.push(...season.matches);
@@ -242,23 +283,71 @@ export async function refreshAll() {
   }
   saveFootyScores(footyMatches);
 
-  // KAPSAM TEŞHİSİ için FootyStats takım adı havuzu (normalize).
-  const footyNorm = new Set();
-  for (const fmx of footyMatches) {
-    if (fmx.homeName) footyNorm.add(normalizeName(fmx.homeName));
-    if (fmx.awayName) footyNorm.add(normalizeName(fmx.awayName));
+  // 2a) ARMA KAYIT DEFTERİ — kulüp armasını fikstür eşleşmesinden AYIR.
+  // Bu haftanın sezon takım listelerindeki armalar kalıcı deftere işlenir.
+  // Defter kalıcı olduğu için bir lig sonraki haftalarda kapsam dışına düşse
+  // bile o kulüplerin arması korunur. Defter yazılamazsa akış BOZULMAZ; eldeki
+  // (eski) defterle devam edilir, o da yoksa armalar boş kalır (nötr ⚽).
+  let crestIndex = null;
+  try {
+    const h = harvestCrests(teamsBySeason);
+    saveRegistry(h.registry);
+    crestIndex = indexRegistry(h.registry);
+    console.log(`[refresh] arma defteri: ${h.total} takım (+${h.added} yeni · ${h.refreshed} tazelendi · bu hafta ${h.seen} kayıt tarandı)`);
+  } catch (e) {
+    console.warn(`[refresh] arma defteri güncellenemedi: ${e.message}`);
+    try { crestIndex = indexRegistry(); } catch { crestIndex = null; }
   }
+
+  // KAPSAM TEŞHİSİ için FootyStats takım adı havuzu (normalize + HAM).
+  // Ham adlar da tutulur: kelime kümesi kontrolü normalize edilmemiş ada bakar.
+  const footyNorm = new Set();
+  const footyRaw = new Set();
+  for (const fmx of footyMatches) {
+    if (fmx.homeName) { footyNorm.add(normalizeName(fmx.homeName)); footyRaw.add(fmx.homeName); }
+    if (fmx.awayName) { footyNorm.add(normalizeName(fmx.awayName)); footyRaw.add(fmx.awayName); }
+  }
+  // HAVUZA SEZON TAKIM LİSTELERİ DE GİRER. Yalnız fikstürlerden kurulan havuz,
+  // sezonu henüz başlamamış bir ligin takımını "kaynakta yok" gösterir — oysa
+  // takım kaynakta VARDIR, eksik olan yalnız o maçın fikstürüdür (ör. 31.07.2026'da
+  // Eredivisie fikstürü boştu ve "AZ Alkmaar bulunamadı" deniyordu). Bu ayrım
+  // önemli: "takım yok" ile "fikstür yok" farklı sebeplerdir ve kullanıcıya
+  // doğru olanı gösterilir.
+  for (const takimlar of teamsBySeason.values()) {
+    for (const t of takimlar || []) {
+      for (const ad of [t?.name, t?.cleanName]) {
+        if (ad) { footyNorm.add(normalizeName(ad)); footyRaw.add(ad); }
+      }
+    }
+  }
+  const footyRawList = [...footyRaw];
+
+  // TEŞHİS, EŞLEŞTİRİCİYLE AYNI KATMANLARI KULLANMALI.
+  // Eşleştirici (sideMatches) üç katmanlıdır: ad → logo → kelime kümesi.
+  // Teşhis yalnız ADA bakarsa, kelime kümesiyle bulunabilen bir takım için
+  // "takım bulunamadı" der ve kullanıcıya YANLIŞ sebep gösterir. Gerçek sebep
+  // fikstürün kaynakta olmamasıdır (ör. lig sezonlarında yer almayan kupa
+  // finalleri). Örnek: bülten "Union St.Gilloise" ↔ kaynak "Royal Union
+  // Saint-Gilloise", bülten "AZ Alkmaar" ↔ kaynak "Alkmaar Zaanstreek" —
+  // ikisi de kelime kümesiyle EŞLEŞİR, ada bakan kontrol ıskalar.
+  const takimKaynakta = (team) => hasFootyCandidate(team, footyNorm)
+    || hasFootyCandidateByTokens(team, footyRawList);
   // Eşleşmeyen maçın SEBEBİNİ sınıfla: lig kapsam dışı mı, takım yok mu, yoksa
-  // isim/tarih mi tutmadı (alias'la düzeltilebilir).
+  // isim/tarih mi tutmadı (alias'la düzeltilebilir). Uydurma veri ÜRETİLMEZ;
+  // maç listeden DÜŞMEZ — kart 'Yetersiz Veri' olarak korunur.
   const classifyCoverage = (bm, found) => {
-    if (found) return { ok: true, reason: null };
-    const homeIn = hasFootyCandidate(bm.home, footyNorm);
-    const awayIn = hasFootyCandidate(bm.away, footyNorm);
-    let reason;
-    if (!homeIn && !awayIn) reason = 'Bu lig şu an analiz kapsamı dışında';
-    else if (homeIn && awayIn) reason = 'Maç verisi eşleştirilemedi';
-    else reason = `${homeIn ? bm.away.name : bm.home.name} için analiz verisi bulunamadı`;
-    return { ok: false, reason, homeIn, awayIn };
+    if (found?.ambiguous) {
+      // Birden fazla aday fikstür — yanlış takıma bağlamaktansa reddet.
+      return { ok: false, reason: 'Birden fazla aday fikstür — güvenli eşleşme yapılamadı', code: 'ambiguous_team_match', homeIn: true, awayIn: true };
+    }
+    if (found) return { ok: true, reason: null, trace: found.trace ?? null };
+    const homeIn = takimKaynakta(bm.home);
+    const awayIn = takimKaynakta(bm.away);
+    let reason, code;
+    if (!homeIn && !awayIn) { reason = 'Bu lig için güncel kaynak verisi bulunamadı'; code = 'league_not_in_source'; }
+    else if (homeIn && awayIn) { reason = 'Maç verisi eşleştirilemedi'; code = 'fixture_not_matched'; }
+    else { reason = `${homeIn ? bm.away.name : bm.home.name} için analiz verisi bulunamadı`; code = 'team_not_in_source'; }
+    return { ok: false, reason, code, homeIn, awayIn };
   };
 
   // 3) Eşleştir + analiz et + zenginleştir (puan durumu, oyuncular, h2h)
@@ -304,6 +393,7 @@ export async function refreshAll() {
         analysis: prevSnap.analysis,
         stats: prevSnap.stats,
         prediction: prevSnap.prediction,
+        preOdds: prevSnap.preOdds ?? null,
         footyMatchId: prevSnap.footyMatchId ?? fm?.footyMatchId ?? null,
         footySwapped: prevSnap.footySwapped ?? found?.swapped ?? false,
         footySeasonId: prevSnap.footySeasonId ?? fm?.seasonId ?? null,
@@ -318,12 +408,14 @@ export async function refreshAll() {
     // odds/xG/ppg'yi maç anında dondurur; başlamış maçta bile bunlar "pre-match"
     // değerlerdir, yani YENİ analiz değil, sabit maç-öncesi analizdir. Bu ilk
     // hesap, sonraki refresh'lerde (kilit + aynı hafta) donmuş snapshot olur.
-    let analysis, stats = null;
+    let analysis, stats = null, preOdds = null;
     if (found) {
       matched++;
       const odds = found.swapped
         ? { home: fm.odds.away, draw: fm.odds.draw, away: fm.odds.home }
         : fm.odds;
+      // Kilit anındaki maç-öncesi oranlar arşiv snapshot'ına girer (kaynak: FootyStats).
+      preOdds = (odds && (odds.home || odds.draw || odds.away)) ? odds : null;
       const preXg = found.swapped
         ? { home: fm.preXg.away, away: fm.preXg.home }
         : fm.preXg;
@@ -335,6 +427,18 @@ export async function refreshAll() {
         stats = await buildMatchStats(found, getExtras);
         // Kader kriterleri (form/saha/savunma) ile sürpriz analizini derinleştir.
         analysis = enrichSurprise(analysis, stats);
+        // RAKİP SEVİYESİ & SAHA PROFİLİ (point-in-time) — Radar 1 için:
+        // ev YALNIZ ev, deplasman YALNIZ deplasman; rakip sınıfı o maçtan
+        // ÖNCEKİ tabloyla (bugünkü sıra geçmişe uygulanmaz).
+        try {
+          const vpSeason = matchesBySeason.get(fm.seasonId) || [];
+          attachVenueProfiles(stats, {
+            seasonMatches: vpSeason,
+            homeId: found.swapped ? fm.awayId : fm.homeId,
+            awayId: found.swapped ? fm.homeId : fm.awayId,
+            beforeUnix: unixOf(bm.date),
+          });
+        } catch (e) { console.warn(`[refresh] saha profili atlandı (#${bm.no}): ${e.message}`); }
       } catch (e) {
         console.warn(`[refresh] zenginleştirme atlandı (#${bm.no}): ${e.message}`);
       }
@@ -350,12 +454,26 @@ export async function refreshAll() {
       analysis,
       stats,
       prediction,
+      preOdds,
       footyMatchId: fm?.footyMatchId ?? null,
       footySwapped: found?.swapped ?? false,
       footySeasonId: fm?.seasonId ?? null,
       footyGameWeek: fm?.gameWeek ?? null,
       coverage,
     });
+  }
+
+  // 3a) TAKIM ARMALARI — her maçın İKİ takımı için ayrı ayrı karar verilir.
+  // Sıra: 1) bu maçın kendi kaynak eşleşmesinden gelen arma (en kesin),
+  //       2) yoksa arma kayıt defteri (fikstür eşleşmesine İHTİYAÇ DUYMAZ),
+  //       3) o da yoksa boş → ekranda nötr ⚽ (asla başka kulübün arması değil).
+  // NOT: m.home / m.away YENİ nesneyle değiştirilir; resmî bülten nesnesi
+  // (bulletin.matches[i].home) değişmeden kalır — imza/teyit akışı etkilenmez.
+  attachCrests(analyzedMatches, crestIndex);
+  const crestReport = crestCoverage(analyzedMatches);
+  console.log(`[refresh] arma kapsamı: ${crestReport.filled}/${crestReport.total} dolu (fikstürden ${crestReport.fromFixture} · defterden ${crestReport.fromRegistry})`);
+  if (crestReport.missing) {
+    console.warn(`[refresh] ⚠ ARMA: ${crestReport.missing} yer boş — ${crestReport.missingTeams.map((t) => `#${t.no} ${t.name}`).join(', ')}`);
   }
 
   const upcomingCount = analyzedMatches.filter((m) => !m.started).length;
@@ -368,6 +486,9 @@ export async function refreshAll() {
   const coverageReport = {
     generatedAt: new Date().toISOString(), roundId: bulletin.roundId, round: bulletin.round, year: bulletin.year,
     total: bulletin.matches.length, matched, uncoveredCount: uncovered.length, uncovered,
+    // ARMA KAPSAMI ayrı raporlanır: maç eşleşmesi tutmasa da arma dolabilir,
+    // dolayısıyla "eşleşmeyen maç" ile "armasız takım" aynı sayı DEĞİLDİR.
+    crest: crestReport,
   };
   save('coverage', coverageReport);
   if (uncovered.length) {
@@ -376,6 +497,8 @@ export async function refreshAll() {
   } else {
     console.log('[refresh] ✓ VERİ KAPSAMI: tüm maçlar eşleşti.');
   }
+  // OPERASYONEL ÖZET (yalnız backend logu — müşteri ekranına gitmez).
+  console.log(`[refresh] özet: catalog=${discoveryMeta?.catalogCount ?? '-'}, dynamicSeasons=${discoveryMeta?.dynamicCount ?? 0}, totalSeasons=${seasonIds.length}, matches=${bulletin.matches.length}, matched=${matched}`);
 
   // 3a) MAÇ BİLGİ KARTI — lig haftası + stadyum/şehir (ev sahibi) + hava (Open-Meteo).
   // Veri yoksa alan atlanır (uydurma yok). Stadyum takım-başına, şehir hava-başına cache'li.
@@ -480,14 +603,11 @@ export async function refreshAll() {
     // Donma anından önce: normal canlı akış (her refresh'te güncellenir).
     radar = buildRadar(false);
   }
-  // Mühürlü radarı HAFTA ARŞİVİNE yaz (bir kez) — geçmiş radar sekmeleri buradan okur.
-  if (radarFrozenAt && !load(`radar-${bulletin.roundId}`)) {
-    save(`radar-${bulletin.roundId}`, {
-      roundId: bulletin.roundId, round: bulletin.round, year: bulletin.year,
-      radarFrozenAt, radar,
-    });
-    console.log(`[refresh] 🗂 radar arşivlendi: radar-${bulletin.roundId} (${bulletin.round})`);
-  }
+  // ⛔ ESKİ radar-<roundId> DOSYA ARŞİVİ YAZILMIYOR (yeni başlangıç kararı):
+  // haftalık mühürlü radar artık YALNIZ kalıcı arşiv snapshot'ındaki Radar
+  // Merkezi çıktısıdır (hash'li, doğrulanabilir). Eski hash'siz dosya arşivi
+  // üretimden kaldırıldı; mevcut eski dosyalar `npm run archive:legacy` ile
+  // backend/legacy_archive/ altına taşınır ve hiçbir karneye katılmaz.
 
   // 4c) BÜLTEN ZORLUK SKORU — mevcut analizden türetilir (uydurma yok).
   // Denk maç (net favori yok) + beraberlik sinyali + sürprize açık + veri eksiği.
@@ -510,7 +630,7 @@ export async function refreshAll() {
     if (surpriseOpen) parts.push(`${surpriseOpen} maç sürprize açık`);
     if (noData) parts.push(`${noData} maçta veri eksik`);
     const text = parts.length
-      ? `${parts.join(' · ')}.${score >= 30 ? ' Banko sayısını sınırlı tutmak mantıklı.' : ''}`
+      ? `${parts.join(' · ')}.${score >= 30 ? ' Güçlü aday sayısını sınırlı tutmak mantıklı.' : ''}`
       : 'Analiz verisi yeterli, belirgin risk kümesi yok.';
     return { level, score, denk, drawRisk, surpriseOpen, noData, text };
   })();
@@ -528,7 +648,7 @@ export async function refreshAll() {
     const p = a.probabilities || null;
     const fav = a.favorite?.symbol || null;
     const awayWr = vRateOf(m.stats?.away?.standing?.away);
-    if (a.label === 'BANKO' && fav) tags.push({ t: 'Banko adayı', why: `Favori "${fav}" %${a.favorite.percent} ile açık önde.` });
+    if (a.label === 'BANKO' && fav) tags.push({ t: 'Güçlü aday', why: `Favori "${fav}" %${a.favorite.percent} ile açık önde.` });
     if (p && p['X'] >= 30) tags.push({ t: 'Beraberlik kokusu', why: `Beraberlik ihtimali %${p['X']} — X / çift ihtimal düşünülmeli.` });
     if ((a.label === 'DİKKAT' || a.label === 'SÜRPRİZE AÇIK') && fav) tags.push({ t: 'Riskli favori', why: `Favori var ama kanıtlar tartışmalı (sürpriz puanı ${a.surpriseScore}).` });
     if (fav === '1' && awayWr != null && awayWr >= 0.45) tags.push({ t: 'Deplasman tuzağı', why: `Deplasman dış sahada güçlü (galibiyet %${Math.round(awayWr * 100)}) — ev favorisi yanıltabilir.` });
@@ -579,6 +699,14 @@ export async function refreshAll() {
     difficulty,                              // bülten zorluk skoru
   };
 
+  // RADAR MERKEZİ + ARŞİV KAYIT AŞAMASI (cache yazılmadan önce):
+  // bülten/maç kimlikleri + gözlem zaman serisi arşive işlenir, Radar 1-5 +
+  // Master Radar merkezî olarak hesaplanır ve bülten verisine iliştirilir.
+  // Kilitli haftada önceki (mühürlü) radar sonucu AYNEN korunur.
+  const { radarCenter, analysisCenter } = await archivePreSave(result, { previous: previousBulletin, isLocked: isLocked && sameBulletin });
+  if (radarCenter) result.radarCenter = radarCenter;
+  if (analysisCenter) result.analysisCenter = analysisCenter;
+
   save('bulletin', result);
   // Bu haftanın maç-başı SİSTEM TAHMİNİ snapshot'ı (roundId ile) — hafta geçmişe
   // düşünce /api/history buradan "Sistem tahmini"ni gösterir (güncelle aynı satır).
@@ -591,7 +719,8 @@ export async function refreshAll() {
         const seasonMatches = matchesBySeason.get(m.footySeasonId) || [];
         return {
           no: m.no, symbol: m.prediction?.symbol ?? null, label: m.prediction?.label ?? null,
-          homeLogo: m.stats?.home?.logo || '', awayLogo: m.stats?.away?.logo || '',
+          // Arma: önce maçın kendi eşleşmesi, yoksa arma kayıt defteri (m.home.logo).
+          homeLogo: m.stats?.home?.logo || m.home?.logo || '', awayLogo: m.stats?.away?.logo || m.away?.logo || '',
           homeRec: recordBefore(hs?.teamId, seasonMatches, beforeUnix),
           awayRec: recordBefore(as?.teamId, seasonMatches, beforeUnix),
           footyMatchId: m.footyMatchId ?? null,
@@ -602,6 +731,12 @@ export async function refreshAll() {
       }),
     });
   } catch (e) { console.warn('[refresh] snapshot yazılamadı:', e.message); }
+
+  // KALICI ARŞİV ENTEGRASYONU — bülten + maç kimlikleri + gözlem zaman serisi
+  // (kilit öncesi) ve resmî sonuçlar (kilit sonrası) kalıcı arşive işlenir.
+  // Hata olursa refresh akışı BOZULMAZ (archiveOnRefresh içeride yutar/loglar).
+  await archiveOnRefresh(result);
+
   console.log(`[refresh] bitti, cache'e yazıldı. (teyit: ${verification.status} · imza ${String(verification.signature).slice(0, 10)}…)`);
   return result;
 }
