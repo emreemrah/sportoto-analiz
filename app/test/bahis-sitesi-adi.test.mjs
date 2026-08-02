@@ -57,3 +57,13 @@ test('uygulama kaynağında bahis sitesi adı GEÇMEZ (yorumlar hariç)', () => 
   assert.deepEqual(ihlaller, [],
     'Bahis sitesi adı uygulamada görünemez. Kaynaklar renk adıyla anılır (Sarı/Turuncu/Yeşil kaynak).');
 });
+
+test('etiket fonksiyonu HAM DEĞERİ geri döndüremez ("|| s" tuzağı)', () => {
+  // GERÇEK OLAY: providerLabel "PROVIDER_NAMES[s] || s" idi. Sunucu henüz
+  // güncellenmemişken ham kimlik gönderdi ve ekranda "nesine · misli" çıktı.
+  // Bu tarama, kaynağa yeniden aynı kalıbın girmesini engeller.
+  const src = readFileSync(join(KOK, 'components', 'RadarTabHeaders.js'), 'utf8');
+  const tehlikeli = /export const provider(Label|Color) = \([^)]*\) =>[^;]*\|\|\s*[a-zA-Z_$][\w$]*\s*;/;
+  assert.ok(!tehlikeli.test(src),
+    'providerLabel/providerColor bilinmeyen anahtarı OLDUĞU GİBİ döndürmemeli — bilinmeyen "k0"a düşmeli.');
+});

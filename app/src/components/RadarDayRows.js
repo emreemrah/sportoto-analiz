@@ -18,7 +18,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, spacing, radius } from '../theme';
-import { providerLabel, providerColor } from './RadarTabHeaders';
+import { providerLabel, providerColor, kaynakKodu } from './RadarTabHeaders';
 import PlayedDnaPanel from './PlayedDnaPanel';
 
 const fmtOdd = (v) => (v == null ? '—' : Number(v).toFixed(2));
@@ -108,7 +108,7 @@ export function MarketRow({ item, data, day }) {
 const PROVIDER_ORDER = ['k1', 'k2', 'k3', 'k4', 'k5'];
 export function aktifSaglayicilar(sources) {
   return (sources || []).slice()
-    .sort((a, b) => ((PROVIDER_ORDER.indexOf(a) + 1) || 99) - ((PROVIDER_ORDER.indexOf(b) + 1) || 99));
+    .sort((a, b) => ((PROVIDER_ORDER.indexOf(kaynakKodu(a)) + 1) || 99) - ((PROVIDER_ORDER.indexOf(kaynakKodu(b)) + 1) || 99));
 }
 
 /**
@@ -161,7 +161,7 @@ export function PublicRow({ item, data, day, openKey, onToggleDna, roundId, tick
               <View
                 style={[styles.provDot, { backgroundColor: providerColor(pv) }]}
                 accessibilityLabel={providerLabel(pv)}
-                testID={`kaynak-nokta-${pv}`}
+                testID={`kaynak-nokta-${kaynakKodu(pv)}`}
               />
               {c ? (
                 <View style={styles.provVals}>

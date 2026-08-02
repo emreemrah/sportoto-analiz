@@ -857,3 +857,62 @@ describe('Bahis sitesi adı ekranda geçmez', () => {
     expect(MARKALAR.test(nokta.props.accessibilityLabel)).toBe(false);
   });
 });
+
+// ESKİ SUNUCU KORUMASI — yayına alınmamış arka uç HAM KİMLİK gönderirse bile
+// ekranda marka adı ÇIKMAMALI.
+//
+// GERÇEK OLAY: kaynak etiketleri koda (k1/k2) geçirildi ama etiket fonksiyonu
+// "PROVIDER_NAMES[s] || s" idi — tanınmayan anahtarı OLDUĞU GİBİ basıyordu.
+// Sunucu henüz güncellenmediği için ekranda "nesine · misli" göründü.
+describe('Eski sunucu ham kimlik gönderse bile marka adı ekranda çıkmaz', () => {
+  const MARKALAR = /nesine|bilyoner|misli|oley|iddaa/i;
+  const GUN = { date: '2026-08-01', weekday: 'Cuma', label: 'Cuma 01.08', isMatchDay: true, withData: 1 };
+  const ONCEKI_GUN = { date: '2026-07-31', weekday: 'Perşembe', label: 'Perşembe 31.07', isMatchDay: false, withData: 1 };
+
+  test('HAM KİMLİKLİ yanıtta bile hiçbir metinde marka geçmez; renkler doğru çıkar', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      // Eski sunucu yanıtı: kod değil HAM KİMLİK.
+      '/api/radar/daily-played': {
+        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['nesine', 'misli'],
+        matches: [{
+          no: 1,
+          cells: { '2026-08-01': { bySource: {
+            nesine: { percentages: { '1': 68, X: 12, '2': 20 } },
+            misli: { percentages: { '1': 94, X: 1, '2': 5 } },
+          } } },
+        }],
+      },
+    });
+    const { toJSON } = render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Oynanma DNA'));
+    await screen.findByText(/Aktif kaynak/);
+
+    // Çizilen ağacın TÜM metinleri: marka adı OLAMAZ.
+    expect(metinleriTopla(toJSON()).filter((t) => MARKALAR.test(t))).toEqual([]);
+    // Ham kimlik de renk adına çevrilir (gri "bilinmiyor"a düşmez).
+    expect(screen.getByText('Sarı kaynak')).toBeTruthy();
+    expect(screen.getByText('Turuncu kaynak')).toBeTruthy();
+    // Nokta doğru rengi alır: sarı kaynak k1 rengidir.
+    const nokta = screen.getAllByTestId('kaynak-nokta-k1')[0];
+    expect(nokta.props.accessibilityLabel).toBe('Sarı kaynak');
+  });
+
+  test('TAMAMEN BİLİNMEYEN kaynak anahtarı da ham basılmaz', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      '/api/radar/daily-played': {
+        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['gizli-site-x'],
+        matches: [{ no: 1, cells: { '2026-08-01': { bySource: { 'gizli-site-x': { percentages: { '1': 50, X: 30, '2': 20 } } } } } }],
+      },
+    });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Oynanma DNA'));
+    await screen.findByText(/Aktif kaynak/);
+    // Anahtarın kendisi ASLA ekrana yazılmaz; nötr "Kaynak" görünür.
+    expect(screen.queryByText(/gizli-site-x/)).toBeNull();
+    expect(screen.getByText('Kaynak')).toBeTruthy();
+  });
+});

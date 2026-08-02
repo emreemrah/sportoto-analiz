@@ -28,7 +28,6 @@ const PROVIDER_NAMES = {
   k1: 'Sarı kaynak', k2: 'Turuncu kaynak', k3: 'Yeşil kaynak',
   k4: 'Mor kaynak', k5: 'Mavi kaynak', k0: 'Kaynak',
 };
-export const providerLabel = (s) => PROVIDER_NAMES[s] || s;
 
 export const PROVIDER_COLORS = {
   k1: '#E8B923',   // sarı
@@ -36,8 +35,29 @@ export const PROVIDER_COLORS = {
   k3: '#2FA96B',   // yeşil
   k4: '#7A6FF0',   // mor
   k5: '#3B82F6',   // mavi
+  k0: '#9AA3AF',   // bilinmeyen kaynak — gri
 };
-export const providerColor = (s) => PROVIDER_COLORS[s] || '#9AA3AF';
+
+// ESKİ SUNUCU KORUMASI. Arka uç kimliği koda çeviriyor, AMA yayına alınmamış
+// bir sunucu hâlâ ham kimlik gönderebilir. Bu eşleme onu koda çevirir; hem
+// doğru renk çıkar hem marka adı ekrana ULAŞAMAZ.
+const ESKI_KIMLIKLER = { nesine: 'k1', misli: 'k2', bilyoner: 'k3', oley: 'k4', iddaa: 'k5' };
+
+/**
+ * Gelen kaynak anahtarını GÜVENLİ koda çevirir.
+ * Tanınmayan her değer 'k0' olur — ham değer ASLA geri döndürülmez.
+ */
+export const kaynakKodu = (s) => {
+  const k = String(s ?? '').trim();
+  if (PROVIDER_NAMES[k]) return k;
+  return ESKI_KIMLIKLER[k.toLowerCase()] || 'k0';
+};
+
+// DİKKAT — burada "|| s" YAZILAMAZ. Eski hâli tanınmayan anahtarı OLDUĞU GİBİ
+// basıyordu; sunucu ham kimlik gönderince ekranda marka adı çıktı. Bilinmeyen
+// kaynak "Kaynak" olarak görünür, kimliği asla sızmaz.
+export const providerLabel = (s) => PROVIDER_NAMES[kaynakKodu(s)];
+export const providerColor = (s) => PROVIDER_COLORS[kaynakKodu(s)];
 
 /** Gün çipleri (Pazar→Cuma). Verisi olmayan gün soluk gösterilir, GİZLENMEZ. */
 export function DayChipsRow({ data, selected, onSelect }) {
