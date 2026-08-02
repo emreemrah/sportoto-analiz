@@ -15,24 +15,27 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-nati
 import { colors, spacing, radius } from '../theme';
 import { DNA_PERIODS } from '../radarScreenData';
 
-// Oynanma yüzdesi sağlayıcı adları (Radar 3 kaynağı = hangi bahis sitesi).
-// BAHİS SİTESİ ADI KULLANILMAZ (yasal/mağaza kısıtı: uygulama bahis sitesi
-// tanıtımı yapamaz). Kaynaklar RENK ADIYLA anılır; ekranda renkli nokta.
-// İç kimlik (nesine/misli/…) yalnız veriyi ayırmak için, ASLA gösterilmez.
-// Eşleme SABİT: aynı kaynak her hafta aynı renk, yoksa kıyas yapılamaz.
-const PROVIDER_NAMES = { nesine: 'Sarı kaynak', misli: 'Turuncu kaynak', bilyoner: 'Yeşil kaynak', oley: 'Mor kaynak' };
+// OYNANMA YÜZDESİ KAYNAKLARI — uygulama marka kimliğini HİÇ GÖRMEZ.
+//
+// Uygulama bahis sitesi tanıtımı yapamaz (yasal + mağaza kısıtı). Bu yüzden:
+//  * Arka uç kaynak kimliğini API sınırında NÖTR KODA çevirir (k1/k2/…) —
+//    bkz. backend/src/providers/kaynakKodu.js. Marka adı ne yanıtta ne burada.
+//  * Kullanıcı kaynakları RENK ADIYLA görür; maç satırında renkli nokta durur.
+//
+// EŞLEME SABİT (k1 sarı · k2 turuncu · k3 yeşil): aynı kaynak her hafta aynı
+// kod ve aynı renk olmalı, yoksa kullanıcı haftalar arasında kıyas yapamaz.
+const PROVIDER_NAMES = {
+  k1: 'Sarı kaynak', k2: 'Turuncu kaynak', k3: 'Yeşil kaynak',
+  k4: 'Mor kaynak', k5: 'Mavi kaynak', k0: 'Kaynak',
+};
 export const providerLabel = (s) => PROVIDER_NAMES[s] || s;
 
-// SAĞLAYICI RENKLERİ — maç satırlarında ad yerine renkli nokta gösterilir
-// (satır kısalır, 15 maç × 3 kaynak ekranda okunur kalır). Renkler yalnız
-// satır içindir; hangi rengin hangi site olduğu panel başlığındaki
-// "Aktif kaynak" satırında ADIYLA BİRLİKTE yazılır — renk tek başına
-// kaynağı gizlemez (kaynak şeffaflığı ürünün sözü).
 export const PROVIDER_COLORS = {
-  nesine: '#E8B923',     // sarı
-  misli: '#E8792B',      // turuncu
-  bilyoner: '#2FA96B',   // yeşil
-  oley: '#7A6FF0',       // mor (tanımlı değildi; kaynak eklenirse hazır)
+  k1: '#E8B923',   // sarı
+  k2: '#E8792B',   // turuncu
+  k3: '#2FA96B',   // yeşil
+  k4: '#7A6FF0',   // mor
+  k5: '#3B82F6',   // mavi
 };
 export const providerColor = (s) => PROVIDER_COLORS[s] || '#9AA3AF';
 

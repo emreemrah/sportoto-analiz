@@ -27,6 +27,7 @@ import {
   collectPlayedDnaRecords, weekdayOf, dayKeyOf, DNA_START_ROUND_ID,
 } from '../radar/playedDnaArchive.js';
 import { PUBLIC_BANDS } from '../radar/config.js';
+import { kaynakKodu, kaynakId, anahtarlariKodla } from '../providers/kaynakKodu.js';
 import { getHistoryStore } from '../history/historyStore.js';
 import { computePositionDna, positionStatsFromHistory, mergePositionStats, positionSummaryText, historyLearningFilter, positionMatchList } from '../history/positionDna.js';
 import { getPositionStats } from '../archive/resultsService.js';
@@ -39,16 +40,73 @@ const fail = (res, e) => {
   res.status(500).json({ error: 'Radar isteği işlenemedi.' });
 };
 
+// GÜNLÜK OYNANMA YANITINDA KAYNAK KİMLİĞİNİ NÖTRLE.
+// sources dizisi ve her hücrenin bySource anahtarları koda çevrilir; hücre
+// içindeki `source` alanı da koda döner. İç kimlik yanıta HİÇ yazılmaz.
+// (Radar 4 oran akışı tek kaynaklıdır ve marka değildir — dokunulmaz.)
+function kaynaklariKodla(view) {
+  if (!view || typeof view !== 'object') return view;
+  return {
+    ...view,
+    sources: Array.isArray(view.sources) ? view.sources.map(kaynakKodu) : view.sources,
+    // Gün satırındaki kaynak sayaçlarının ANAHTARLARI da koda çevrilir; bunlar
+    // gözden kaçmıştı (yanıt taraması yakaladı).
+    days: Array.isArray(view.days) ? view.days.map((d) => (
+      d?.bySourceCounts ? { ...d, bySourceCounts: anahtarlariKodla(d.bySourceCounts) } : d
+    )) : view.days,
+    matches: Array.isArray(view.matches) ? view.matches.map((m) => ({
+      ...m,
+      cells: m.cells && typeof m.cells === 'object'
+        ? Object.fromEntries(Object.entries(m.cells).map(([gun, hucre]) => [gun, {
+          ...hucre,
+          bySource: anahtarlariKodla(
+            hucre?.bySource && Object.fromEntries(Object.entries(hucre.bySource)
+              .map(([id, v]) => [id, { ...v, source: kaynakKodu(v?.source ?? id) }])),
+          ),
+        }]))
+        : m.cells,
+    })) : view.matches,
+  };
+}
+
+// RADAR YANITINDA KAYNAK KİMLİĞİNİ NÖTRLE (Radar 3 sağlayıcı listesi).
+// İç hesap ve MÜHÜRLÜ SNAPSHOT ham kimliği kullanır — benzer-DNA eşleşmesi ona
+// bağlıdır ve geçmiş mühürler değiştirilemez. Nötrleme yalnız HTTP sınırında.
+function radarKaynaklariniKodla(view) {
+  if (!view?.matches) return view;
+  return {
+    ...view,
+    matches: view.matches.map((m) => {
+      const r3 = m?.radars?.publicBetting;
+      const saglayicilar = r3?.details?.providers;
+      if (!Array.isArray(saglayicilar)) return m;
+      return {
+        ...m,
+        radars: {
+          ...m.radars,
+          publicBetting: {
+            ...r3,
+            details: {
+              ...r3.details,
+              providers: saglayicilar.map((p) => ({ ...p, providerId: kaynakKodu(p.providerId) })),
+            },
+          },
+        },
+      };
+    }),
+  };
+}
+
 // Legacy alanları yanıtla birleştir (eski RadarScreen istemcileri kırılmasın).
 function withLegacy(view) {
   if (!view) return view;
   const legacy = view.legacy || {};
-  return {
+  return radarKaynaklariniKodla({
     ...view,
     radar: legacy.radar || [],
     radarFrozenAt: legacy.radarFrozenAt ?? view.sealedAt ?? null,
     radarFreezeAt: view.radarFreezeAt ?? view.freezeAt ?? null,
-  };
+  });
 }
 
 // ---- GÜNCEL HAFTA -----------------------------------------------------------
@@ -236,10 +294,12 @@ router.get('/daily-played', async (req, res) => {
     const store = getArchiveStore();
     const ctx = await resolveDailyContext(req, store, load('bulletin')?.data || null);
     if (!ctx) return res.json({ hasData: false, days: [], matches: [], note: 'Güncel bülten yok.' });
-    res.json(buildDailyPlayed({
+    // KAYNAK KİMLİĞİ DIŞARI ÇIKMAZ: yanıtta yalnız nötr kod (k1/k2/…) görünür.
+    // İçeride kimlik aynen kalır — veri göçü yok (bkz. providers/kaynakKodu.js).
+    res.json(kaynaklariKodla(buildDailyPlayed({
       roundId: ctx.rid, round: ctx.round, matches: ctx.matches, observations: ctx.observations,
       firstKickoffMs: ctx.firstMs, freezeAt: ctx.freezeAt, sealed: ctx.sealed, now: Date.now(),
-    }));
+    })));
   } catch (e) { fail(res, e); }
 });
 
@@ -256,7 +316,9 @@ router.get('/played-dna', async (req, res) => {
     if (!ctx) return res.json({ hasData: false, note: 'Güncel bülten yok.' });
 
     const no = Number(req.query.no);
-    const source = String(req.query.source || '').trim();
+    // İstemci NÖTR KOD gönderir (k1/k2/…); içeride kimliğe çevrilir. Eski
+    // istemciler ham kimlik yollarsa da kabul edilir (kaynakId geriye uyumlu).
+    const source = kaynakId(String(req.query.source || '').trim());
     if (!Number.isFinite(no) || !source) {
       return res.status(400).json({ error: 'no ve source zorunlu' });
     }
@@ -299,7 +361,7 @@ router.get('/played-dna', async (req, res) => {
 
     if (!current) {
       return res.json({
-        hasData: false, source, position: no, day, matchLimit,
+        hasData: false, source: kaynakKodu(source), position: no, day, matchLimit,
         note: 'Bu gün için bu kaynaktan kayıt yok.',
       });
     }
@@ -324,7 +386,7 @@ router.get('/played-dna', async (req, res) => {
 
     res.json({
       hasData: true,
-      source, position: no, day, weekday: weekdayOf(day), matchLimit,
+      source: kaynakKodu(source), position: no, day, weekday: weekdayOf(day), matchLimit,
       current,
       // Arşivde resmî sonucu açıklanmış toplam maç sayısı (12 ise "Son 15" 12 kapsar).
       settledMatches: new Set(records.filter((r) => r.result).map((r) => `${r.roundId}|${r.matchKey}`)).size,

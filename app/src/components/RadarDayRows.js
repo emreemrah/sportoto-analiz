@@ -105,7 +105,7 @@ export function MarketRow({ item, data, day }) {
 
 // Bu hafta veri veren sağlayıcılar SABİT sırayla listelenir; sıra yanıttan
 // gelen rastgele diziliş olsaydı aynı maç her yenilemede farklı görünürdü.
-const PROVIDER_ORDER = ['nesine', 'misli', 'bilyoner', 'oley'];
+const PROVIDER_ORDER = ['k1', 'k2', 'k3', 'k4', 'k5'];
 export function aktifSaglayicilar(sources) {
   return (sources || []).slice()
     .sort((a, b) => ((PROVIDER_ORDER.indexOf(a) + 1) || 99) - ((PROVIDER_ORDER.indexOf(b) + 1) || 99));

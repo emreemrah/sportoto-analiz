@@ -255,13 +255,13 @@ describe('Radar Merkezi ekranı', () => {
     mockUclar({
       ...VARSAYILAN,
       '/api/radar/daily-played': {
-        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['nesine', 'misli'],
+        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['k1', 'k2'],
         matches: [
           {
             no: 1,
             cells: {
-              '2026-07-31': { bySource: { nesine: { percentages: { '1': 58, X: 24, '2': 18 } } } },
-              '2026-08-01': { bySource: { nesine: { percentages: { '1': 62, X: 21, '2': 17 } }, misli: { percentages: { '1': 60, X: 22, '2': 18 } } } },
+              '2026-07-31': { bySource: { k1: { percentages: { '1': 58, X: 24, '2': 18 } } } },
+              '2026-08-01': { bySource: { k1: { percentages: { '1': 62, X: 21, '2': 17 } }, k2: { percentages: { '1': 60, X: 22, '2': 18 } } } },
             },
           },
         ],
@@ -278,7 +278,7 @@ describe('Radar Merkezi ekranı', () => {
     expect(screen.getAllByText('Turuncu kaynak').length).toBeGreaterThan(0);
     // Maç satırında kaynak NOKTAYLA gösterilir; nokta kaynağın adını
     // erişilebilirlik etiketi olarak taşır (renk tek ayırt edici değil).
-    const noktalar = screen.getAllByTestId('kaynak-nokta-nesine');
+    const noktalar = screen.getAllByTestId('kaynak-nokta-k1');
     expect(noktalar.length).toBeGreaterThan(0);
     expect(noktalar[0].props.accessibilityLabel).toBe('Sarı kaynak');
     // Yüzde GERÇEKTEN çiziliyor (yalnız kaynak işareti değil).
@@ -289,10 +289,10 @@ describe('Radar Merkezi ekranı', () => {
     mockUclar({
       ...VARSAYILAN,
       '/api/radar/daily-played': {
-        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['nesine'],
+        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['k1'],
         matches: [{
           no: 1,
-          cells: { '2026-08-01': { bySource: { nesine: { percentages: { '1': 62, X: 21, '2': 17 } } } } },
+          cells: { '2026-08-01': { bySource: { k1: { percentages: { '1': 62, X: 21, '2': 17 } } } } },
         }],
       },
       '/api/radar/played-dna': {
@@ -311,7 +311,7 @@ describe('Radar Merkezi ekranı', () => {
     render(<RadarScreen navigation={nav} />);
     await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
     fireEvent.press(screen.getByText('Oynanma DNA'));
-    const kaynak = await screen.findAllByTestId('kaynak-nokta-nesine');
+    const kaynak = await screen.findAllByTestId('kaynak-nokta-k1');
     fireEvent.press(kaynak[0]);
 
     // Yakınlık seçimi KULLANICIYA aittir — otomatik genişleme yok.
@@ -321,7 +321,7 @@ describe('Radar Merkezi ekranı', () => {
     // PANELDE yoktur (ekranın başlığındaki "Tahmin güveni…" cümlesiyle
     // karışmasın diye kontrol panelle SINIRLANDIRILIR).
     expect(screen.getByText('18 kayıtta 8 kez 1, 5 kez X, 5 kez 2')).toBeTruthy();
-    const panel = within(screen.getByTestId('oynanma-dna-1-nesine'));
+    const panel = within(screen.getByTestId('oynanma-dna-1-k1'));
     expect(panel.queryByText(/güven|olasılık|ihtimal/i)).toBeNull();
     // Kapsam en sonda ve soluk.
     expect(screen.getByText(/arşivde 240 sonuçlanmış maç/)).toBeTruthy();
@@ -333,10 +333,10 @@ describe('Radar Merkezi ekranı', () => {
     mockUclar({
       ...VARSAYILAN,
       '/api/radar/daily-played': {
-        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['nesine'],
+        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['k1'],
         matches: [{
           no: 1,
-          cells: { '2026-08-01': { bySource: { nesine: { percentages: { '1': 44, X: 30, '2': 26 } } } } },
+          cells: { '2026-08-01': { bySource: { k1: { percentages: { '1': 44, X: 30, '2': 26 } } } } },
         }],
       },
       // Backend'in GERÇEK yükü (playedDna.findMovementDna → fallback alanı).
@@ -363,7 +363,7 @@ describe('Radar Merkezi ekranı', () => {
     render(<RadarScreen navigation={nav} />);
     await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
     fireEvent.press(screen.getByText('Oynanma DNA'));
-    const kaynak = await screen.findAllByTestId('kaynak-nokta-nesine');
+    const kaynak = await screen.findAllByTestId('kaynak-nokta-k1');
     fireEvent.press(kaynak[0]);
 
     // Birebir eşleşme yok mesajı DURUR (kova onu taklit etmez)…
@@ -814,13 +814,13 @@ describe('Bahis sitesi adı ekranda geçmez', () => {
     mockUclar({
       ...VARSAYILAN,
       '/api/radar/daily-played': {
-        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['nesine', 'misli', 'bilyoner'],
+        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['k1', 'k2', 'k3'],
         matches: [{
           no: 1,
           cells: { '2026-08-01': { bySource: {
-            nesine: { percentages: { '1': 62, X: 21, '2': 17 } },
-            misli: { percentages: { '1': 58, X: 24, '2': 18 } },
-            bilyoner: { percentages: { '1': 60, X: 22, '2': 18 } },
+            k1: { percentages: { '1': 62, X: 21, '2': 17 } },
+            k2: { percentages: { '1': 58, X: 24, '2': 18 } },
+            k3: { percentages: { '1': 60, X: 22, '2': 18 } },
           } } },
         }],
       },
@@ -845,14 +845,14 @@ describe('Bahis sitesi adı ekranda geçmez', () => {
     mockUclar({
       ...VARSAYILAN,
       '/api/radar/daily-played': {
-        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['nesine'],
-        matches: [{ no: 1, cells: { '2026-08-01': { bySource: { nesine: { percentages: { '1': 62, X: 21, '2': 17 } } } } } }],
+        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['k1'],
+        matches: [{ no: 1, cells: { '2026-08-01': { bySource: { k1: { percentages: { '1': 62, X: 21, '2': 17 } } } } } }],
       },
     });
     render(<RadarScreen navigation={nav} />);
     await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
     fireEvent.press(screen.getByText('Oynanma DNA'));
-    const nokta = (await screen.findAllByTestId('kaynak-nokta-nesine'))[0];
+    const nokta = (await screen.findAllByTestId('kaynak-nokta-k1'))[0];
     expect(nokta.props.accessibilityLabel).toBe('Sarı kaynak');
     expect(MARKALAR.test(nokta.props.accessibilityLabel)).toBe(false);
   });
