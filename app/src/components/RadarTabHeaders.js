@@ -157,32 +157,16 @@ export default function RadarTabHeader({
           <Text style={styles.tabBannerTxt}>
             Bu bir ORAN değildir — Radar 4 (Oran Takibi) gerçek oranı gösterir; Radar 3 oynanma yüzdesidir.
           </Text>
-          {dp ? (
-            dp.sources?.length ? (
-              /* KAYNAKLAR YALNIZ RENKLE — hiçbir ad yazılmaz.
-                 Kaç kaynak olduğu ve renkleri buradan görünür; maç satırındaki
-                 noktalar aynı renklerle eşleşir. Görünen metin kaynağı
-                 ADLANDIRMAZ. Ekran okuyucu için nokta kendi erişilebilirlik
-                 etiketini taşır (renk adı — marka değil, ekranda görünmez). */
-              <View style={styles.kaynakLejant}>
-                <Text style={styles.tabBannerTxt}>Kaynaklar:</Text>
-                {dp.sources.map((s) => (
-                  <View
-                    key={s}
-                    style={[styles.lejantNokta, { backgroundColor: providerColor(s) }]}
-                    accessibilityLabel={providerLabel(s)}
-                    testID={`lejant-nokta-${kaynakKodu(s)}`}
-                  />
-                ))}
-                {dp.sources.length < 3 ? (
-                  <Text style={styles.tabBannerTxt}>· bir kaynağa şu an erişilemiyor</Text>
-                ) : null}
-              </View>
-            ) : (
-              <Text style={styles.tabBannerTxt}>
-                Kaynak yok — veri bekleniyor (uydurma yüzde gösterilmez).
-              </Text>
-            )
+          {/* KAYNAK LEJANTI KALDIRILDI (kullanıcı kararı). Kaynaklar yalnız maç
+              satırındaki renkli noktalarla görünür; başlıkta ne ad ne sayaç ne
+              de "bir kaynağa erişilemiyor" satırı yazar.
+              VERİ YOKLUĞU NOTU DURUYOR: hiç kaynak yoksa ekranın neden boş
+              olduğu söylenmeli — bu bir süs değil, ürünün dürüstlük kuralı
+              ("veri yoksa sebebini yaz"). */}
+          {dp && !dp.sources?.length ? (
+            <Text style={styles.tabBannerTxt}>
+              Kaynak yok — veri bekleniyor (uydurma yüzde gösterilmez).
+            </Text>
           ) : null}
           <Text style={styles.tabBannerWarn}>Her günün yüzdesi 23:55'te (maç günü ilk maçtan 5 dk önce) mühürlenir ve sonradan değişmez. Kaynak yoksa uydurma yüzde gösterilmez.</Text>
         </View>
@@ -295,8 +279,6 @@ const styles = StyleSheet.create({
     paddingTop: 2,
     paddingBottom: 6,
   },
-  kaynakLejant: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 4 },
-  lejantNokta: { width: 12, height: 12, borderRadius: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' },
   dnaFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   dnaPeriodChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   dnaPeriodChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },

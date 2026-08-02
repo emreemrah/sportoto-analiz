@@ -273,11 +273,11 @@ describe('Radar Merkezi ekranı', () => {
 
     // Aktif kaynaklar RENK LEJANTINDA adıyla yazılır (hangi siteden geldiği
     // gizlenmez) — maç satırında yalnız renkli nokta var.
-    expect(await screen.findByText(/Kaynaklar:/)).toBeTruthy();
+    expect((await screen.findAllByTestId('kaynak-nokta-k1')).length).toBeGreaterThan(0);
     // Kaynak ADI hiç yazılmaz; yalnız renkli noktalar görünür.
     expect(screen.queryByText(/kaynak$/i)).toBeNull();
-    expect(screen.getAllByTestId('lejant-nokta-k1').length).toBe(1);
-    expect(screen.getAllByTestId('lejant-nokta-k2').length).toBe(1);
+    expect(screen.getAllByTestId('kaynak-nokta-k1').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('kaynak-nokta-k2').length).toBeGreaterThan(0);
     // Maç satırında kaynak NOKTAYLA gösterilir; nokta kaynağın adını
     // erişilebilirlik etiketi olarak taşır (renk tek ayırt edici değil).
     const noktalar = screen.getAllByTestId('kaynak-nokta-k1');
@@ -830,7 +830,7 @@ describe('Bahis sitesi adı ekranda geçmez', () => {
     const { toJSON } = render(<RadarScreen navigation={nav} />);
     await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
     fireEvent.press(screen.getByText('Oynanma DNA'));
-    await screen.findByText(/Kaynaklar:/);
+    await screen.findAllByTestId('kaynak-nokta-k1');
 
     // Çizilen ağacın TÜM metinleri taranır — hiçbirinde marka adı olamaz.
     const metinler = metinleriTopla(toJSON());
@@ -839,7 +839,7 @@ describe('Bahis sitesi adı ekranda geçmez', () => {
 
     // Olumlu karşılık: kaynaklar RENK ADIYLA gerçekten görünüyor.
     // Renk ADLARI da YAZILMAZ — yalnız nokta.
-    for (const k of ['k1', 'k2', 'k3']) expect(screen.getAllByTestId('lejant-nokta-' + k).length).toBe(1);
+    for (const k of ['k1', 'k2', 'k3']) expect(screen.getAllByTestId('kaynak-nokta-' + k).length).toBeGreaterThan(0);
   });
 
   test('kaynak noktası erişilebilirlik etiketi de RENK adıdır (marka değil)', async () => {
@@ -888,12 +888,12 @@ describe('Eski sunucu ham kimlik gönderse bile marka adı ekranda çıkmaz', ()
     const { toJSON } = render(<RadarScreen navigation={nav} />);
     await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
     fireEvent.press(screen.getByText('Oynanma DNA'));
-    await screen.findByText(/Kaynaklar:/);
+    await screen.findAllByTestId('kaynak-nokta-k1');
 
     // Çizilen ağacın TÜM metinleri: marka adı OLAMAZ.
     expect(metinleriTopla(toJSON()).filter((t) => MARKALAR.test(t))).toEqual([]);
     // Ham kimlik de renk adına çevrilir (gri "bilinmiyor"a düşmez).
-    for (const k of ['k1', 'k2']) expect(screen.getAllByTestId('lejant-nokta-' + k).length).toBe(1);
+    for (const k of ['k1', 'k2']) expect(screen.getAllByTestId('kaynak-nokta-' + k).length).toBeGreaterThan(0);
     // Nokta doğru rengi alır: sarı kaynak k1 rengidir.
     const nokta = screen.getAllByTestId('kaynak-nokta-k1')[0];
     expect(nokta.props.accessibilityLabel).toBe('Sarı kaynak');
@@ -910,10 +910,10 @@ describe('Eski sunucu ham kimlik gönderse bile marka adı ekranda çıkmaz', ()
     render(<RadarScreen navigation={nav} />);
     await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
     fireEvent.press(screen.getByText('Oynanma DNA'));
-    await screen.findByText(/Kaynaklar:/);
+    await screen.findAllByTestId('kaynak-nokta-k0');
     // Anahtarın kendisi ASLA ekrana yazılmaz; nötr "Kaynak" görünür.
     expect(screen.queryByText(/gizli-site-x/)).toBeNull();
-    expect(screen.getAllByTestId('lejant-nokta-k0').length).toBe(1);
+    expect(screen.getAllByTestId('kaynak-nokta-k0').length).toBeGreaterThan(0);
   });
 });
 
@@ -943,12 +943,11 @@ describe('Kaynak ekranda hiç adlandırılmaz (yalnız renk)', () => {
     const { toJSON } = render(<RadarScreen navigation={nav} />);
     await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
     fireEvent.press(screen.getByText('Oynanma DNA'));
-    await screen.findByText(/Kaynaklar:/);
+    await screen.findAllByTestId('kaynak-nokta-k1');
 
     expect(metinleriTopla(toJSON()).filter((t) => ADLAR.test(t))).toEqual([]);
     // Olumlu karşılık: üç kaynak da NOKTA olarak gerçekten çizilmiş.
     for (const k of ['k1', 'k2', 'k3']) {
-      expect(screen.getAllByTestId(`lejant-nokta-${k}`).length).toBe(1);
       expect(screen.getAllByTestId(`kaynak-nokta-${k}`).length).toBeGreaterThan(0);
     }
     // Yüzdeler yine görünür — veri gizlenmiyor, yalnız ad yok.
