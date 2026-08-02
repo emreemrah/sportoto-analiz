@@ -285,7 +285,7 @@ export function RadarTabCard({ item, radarId }) {
       </View>
       {lines.map((t, i) => <Text key={i} style={st.reasonTxt} numberOfLines={radarId === 'performance' ? 3 : 2}>• {t}</Text>)}
 
-      {/* OYNANMA DNA (Radar 3): gerçek Bilyoner cümlesi + benzer geçmiş sonuç. */}
+      {/* OYNANMA DNA (Radar 3): kaynak cümlesi + benzer geçmiş sonuç. */}
       {radarId === 'publicBetting' && r.details?.playedDna ? (
         <View style={st.dnaBox}>
           <Text style={st.dnaSentence}>💬 {r.details.playedDna.userSentence}</Text>

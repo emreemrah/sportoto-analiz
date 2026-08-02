@@ -799,7 +799,7 @@ const styles = StyleSheet.create({
   // Eksik oranın AYRINTILI gerekçesi (kapsam raporundan gelen gerçek cümle).
 
   // Radar 4 (Oran Takibi) — gün filtresi + günlük 1/X/2 oran satırı.
-  // Radar 3 — kaynak (site) bazlı satır: Nesine / Misli / Bilyoner ayrı ayrı.
+  // Radar 3 — kaynak bazlı satır: her kaynak (renk) ayrı ayrı gösterilir.
 
   // Oynanma DNA paneli (kaynak satırına dokununca açılır)
 

@@ -274,13 +274,13 @@ describe('Radar Merkezi ekranı', () => {
     // Aktif kaynaklar RENK LEJANTINDA adıyla yazılır (hangi siteden geldiği
     // gizlenmez) — maç satırında yalnız renkli nokta var.
     expect(await screen.findByText(/Aktif kaynak/)).toBeTruthy();
-    expect(screen.getAllByText('Nesine').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Misli').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Sarı kaynak').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Turuncu kaynak').length).toBeGreaterThan(0);
     // Maç satırında kaynak NOKTAYLA gösterilir; nokta kaynağın adını
     // erişilebilirlik etiketi olarak taşır (renk tek ayırt edici değil).
     const noktalar = screen.getAllByTestId('kaynak-nokta-nesine');
     expect(noktalar.length).toBeGreaterThan(0);
-    expect(noktalar[0].props.accessibilityLabel).toBe('Nesine');
+    expect(noktalar[0].props.accessibilityLabel).toBe('Sarı kaynak');
     // Yüzde GERÇEKTEN çiziliyor (yalnız kaynak işareti değil).
     expect(screen.getAllByText(/1 %62/).length).toBeGreaterThan(0);
   });
@@ -798,5 +798,62 @@ describe('Sekme koruması (yenilemede Master\'a atmaz)', () => {
     // Radar 5 AÇIK KALDI — Master listesine dönmedi.
     await waitFor(() => expect(screen.getByText(/Tüm Haftalar/)).toBeTruthy());
     expect(screen.getByText('52. Hafta')).toBeTruthy();
+  });
+});
+
+// BAHİS SİTESİ ADI EKRANDA GEÇMEZ — asıl koruma (render seviyesinde).
+// Uygulama bahis sitesi tanıtımı yapamaz (yasal + mağaza kısıtı). Kaynaklar
+// RENK ADIYLA anılır ve renkli noktayla gösterilir. Bu kural bir kez ihlal
+// edildi: adlar maç satırından kaldırılırken "lejant" diye başlığa geri kondu.
+describe('Bahis sitesi adı ekranda geçmez', () => {
+  const MARKALAR = /nesine|bilyoner|misli|oley|iddaa|i̇ddaa/i;
+  const GUN = { date: '2026-08-01', weekday: 'Cuma', label: 'Cuma 01.08', isMatchDay: true, withData: 1 };
+  const ONCEKI_GUN = { date: '2026-07-31', weekday: 'Perşembe', label: 'Perşembe 31.07', isMatchDay: false, withData: 1 };
+
+  test('Radar 3 ekranı gerçek kaynak verisiyle çizilirken marka adı GÖRÜNMEZ', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      '/api/radar/daily-played': {
+        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['nesine', 'misli', 'bilyoner'],
+        matches: [{
+          no: 1,
+          cells: { '2026-08-01': { bySource: {
+            nesine: { percentages: { '1': 62, X: 21, '2': 17 } },
+            misli: { percentages: { '1': 58, X: 24, '2': 18 } },
+            bilyoner: { percentages: { '1': 60, X: 22, '2': 18 } },
+          } } },
+        }],
+      },
+    });
+    const { toJSON } = render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Oynanma DNA'));
+    await screen.findByText(/Aktif kaynak/);
+
+    // Çizilen ağacın TÜM metinleri taranır — hiçbirinde marka adı olamaz.
+    const metinler = metinleriTopla(toJSON());
+    const ihlal = metinler.filter((t) => MARKALAR.test(t));
+    expect(ihlal).toEqual([]);
+
+    // Olumlu karşılık: kaynaklar RENK ADIYLA gerçekten görünüyor.
+    expect(screen.getByText('Sarı kaynak')).toBeTruthy();
+    expect(screen.getByText('Turuncu kaynak')).toBeTruthy();
+    expect(screen.getByText('Yeşil kaynak')).toBeTruthy();
+  });
+
+  test('kaynak noktası erişilebilirlik etiketi de RENK adıdır (marka değil)', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      '/api/radar/daily-played': {
+        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['nesine'],
+        matches: [{ no: 1, cells: { '2026-08-01': { bySource: { nesine: { percentages: { '1': 62, X: 21, '2': 17 } } } } } }],
+      },
+    });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Oynanma DNA'));
+    const nokta = (await screen.findAllByTestId('kaynak-nokta-nesine'))[0];
+    expect(nokta.props.accessibilityLabel).toBe('Sarı kaynak');
+    expect(MARKALAR.test(nokta.props.accessibilityLabel)).toBe(false);
   });
 });

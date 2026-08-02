@@ -80,6 +80,7 @@ export function computePublicBettingRadar(m, {
   const providerViews = [...byProvider.entries()].map(([k, list]) => {
     const sorted = list.slice().sort((x, y) => new Date(x.observedAt) - new Date(y.observedAt));
     const first = sorted[0], last = sorted[sorted.length - 1];
+    const o0 = sorted[0];
     // AÇILIŞ DÜRÜSTLÜĞÜ: yalnız kind==='opening' olan ilk gözlem gerçek açılıştır.
     // Sistem geç başladıysa (first_observed_late) açılış YOK sayılır — sahte
     // açılış üretilmez; kullanıcıya "ilk gözlem" olarak dürüstçe sunulur.
@@ -87,6 +88,12 @@ export function computePublicBettingRadar(m, {
     const opening = openingObs ? { ...openingObs.percentages, observedAt: openingObs.observedAt } : null;
     const openingBasis = opening || { ...first.percentages, observedAt: first.observedAt };
     return {
+      // providerId İÇ KİMLİK (nesine/misli/…): kaynakları ayırmak ve geçmiş
+      // DNA'da eşleştirmek için. provider ise KULLANICIYA GÖRÜNEN ad (renk).
+      // Eskiden eşleştirme görünen adın küçük harfi üzerinden yapılıyordu;
+      // ad değişince sessizce kopardı (bahis sitesi adları kaldırılınca tam
+      // olarak bu oldu). Artık kimlik ayrı taşınır.
+      providerId: o0.providerId || k,
       provider: last.providerName || k,
       first: { ...first.percentages, observedAt: first.observedAt },
       opening,                                   // gerçek açılış (yoksa null)
@@ -212,12 +219,14 @@ export function computePublicBettingRadar(m, {
 
   const dir = directionOf(scores, fav?.symbol);
 
-  // KULLANICI CÜMLESİ (Oynanma DNA): "Bilyoner'de ev sahibi tercihi şu anda %72.
-  // Açılışa göre +9 puan yükseldi." — gerçek açılış varsa hareket eklenir.
+  // KULLANICI CÜMLESİ (Oynanma DNA): "Sarı kaynakta ev sahibi tercihi şu anda
+  // %72. Açılışa göre +9 puan yükseldi." — gerçek açılış varsa hareket eklenir.
+  // KAYNAK ADI BAHİS SİTESİ DEĞİLDİR: renk adıyla anılır (bkz. radarService
+  // PROVIDER_DISPLAY) — uygulama bahis sitesi tanıtımı yapamaz.
   const primary = providerViews[0];
   const favSym = top.k;
   const sideWord = favSym === '1' ? 'ev sahibi' : favSym === '2' ? 'deplasman' : 'beraberlik';
-  let userSentence = `${primary.provider}'de ${sideWord} tercihi şu anda %${num(primary.last[favSym]) ?? 0}.`;
+  let userSentence = `${primary.provider}ta ${sideWord} tercihi şu anda %${num(primary.last[favSym]) ?? 0}.`;
   if (primary.opening) {
     const mv = round1((num(primary.last[favSym]) ?? 0) - (num(primary.opening[favSym]) ?? 0));
     if (Math.abs(mv) >= 1) userSentence += ` Açılışa göre ${mv > 0 ? '+' : ''}${mv} puan ${mv > 0 ? 'yükseldi' : 'düştü'}.`;
@@ -233,7 +242,7 @@ export function computePublicBettingRadar(m, {
   if (similarQuery && pctDnaRecords?.length) {
     try {
       const q = {
-        provider: primary.provider?.toLowerCase?.() || 'bilyoner',
+        provider: primary.providerId,   // İÇ KİMLİK (görünen ad değil)
         position: m.no, favoriteSymbol: favSym,
         closeValue: num(primary.last[favSym]) ?? 0,
         moveValue: primary.opening ? round1((num(primary.last[favSym]) ?? 0) - (num(primary.opening[favSym]) ?? 0)) : null,

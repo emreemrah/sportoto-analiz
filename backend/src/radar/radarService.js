@@ -20,13 +20,28 @@ import { computeSurpriseDna } from './surpriseDna.js';
 import { getHistoryStore } from '../history/historyStore.js';
 import { positionStatsFromHistory, mergePositionStats, historyLearningFilter } from '../history/positionDna.js';
 
-// Sağlayıcı id → kullanıcıya görünen ad (Radar 3 "Oynanma DNA" kaynağı).
-const PROVIDER_DISPLAY = { bilyoner: 'Bilyoner', nesine: 'Nesine', misli: 'Misli', oley: 'Oley', iddaa: 'iddaa' };
 import {
   METHODOLOGY_VERSION, BASE_WEIGHTS, RADAR_IDS, RADAR_META, GATES, CLASS_BANDS,
   PUBLIC_BANDS, SAMPLE_LADDER, CLASSIFICATION_LABELS, METHODOLOGY_NOTES, MEMORY_WEIGHT_CAP, MARKET_RULES,
 } from './config.js';
 import { masterDataQuality } from './dataQuality.js';
+
+// Sağlayıcı id → KULLANICIYA GÖRÜNEN AD.
+//
+// BAHİS SİTESİ ADI KULLANILMAZ. Uygulama bahis sitesi tanıtımı yapamaz
+// (yasal/mağaza kısıtı); bu yüzden kaynaklar RENK ADIYLA anılır ve ekranda
+// renkli noktayla gösterilir. Site kimliği (id) yalnız İÇERİDE, kaynakları
+// birbirine karıştırmamak için kullanılır — asla yanıta yazılmaz.
+// Eşleme SABİTTİR: aynı kaynak her hafta aynı renk, yoksa kullanıcı haftalar
+// arasında kıyas yapamaz.
+const PROVIDER_DISPLAY = {
+  nesine: 'Sarı kaynak',
+  misli: 'Turuncu kaynak',
+  bilyoner: 'Yeşil kaynak',
+  oley: 'Mor kaynak',
+  iddaa: 'Mavi kaynak',
+};
+const providerDisplay = (id) => PROVIDER_DISPLAY[id] || 'Kaynak';
 
 // ---------------------------------------------------------------------------
 // MERKEZİ HESAP — bir bültenin 15 maçı için Radar 1-5 + Master + DNA.
@@ -108,7 +123,7 @@ export async function computeRadarCenterForData(data, { store = getArchiveStore(
         .filter((o) => o.kind !== 'post_lock_research' && o.usableForPrediction !== false)
         .filter((o) => !freezeAt || String(o.observedAt) <= String(freezeAt))
         .map((o) => ({
-          providerId: o.source, providerName: PROVIDER_DISPLAY[o.source] || o.source,
+          providerId: o.source, providerName: providerDisplay(o.source),
           percentages: o.playedPct, observedAt: o.observedAt,
           kind: o.kind ?? null, firstObservedLate: o.firstObservedLate ?? null,
         }));

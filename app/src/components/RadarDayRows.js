@@ -154,12 +154,10 @@ export function PublicRow({ item, data, day, openKey, onToggleDna, roundId, tick
               disabled={!c}
               onPress={() => onToggleDna(acik ? null : key)}
             >
-              {/* KAYNAK ADI YERİNE RENKLİ NOKTA: sarı=Nesine, turuncu=Misli,
-                  yeşil=Bilyoner. Satır kısalır, 15 maç × 3 kaynak okunur kalır.
-                  Hangi rengin hangi site olduğu panel başlığındaki "Aktif
-                  kaynak" satırında ADIYLA yazılır — kaynak gizlenmez.
+              {/* KAYNAK RENKLİ NOKTAYLA GÖSTERİLİR. Bahis sitesi adı hiçbir
+                  yerde geçmez (yasal/mağaza kısıtı); satır da kısalır.
                   Erişilebilirlik: renk tek ayırt edici olmasın diye
-                  accessibilityLabel kaynağın ADINI söyler. */}
+                  accessibilityLabel kaynağın RENK ADINI söyler. */}
               <View
                 style={[styles.provDot, { backgroundColor: providerColor(pv) }]}
                 accessibilityLabel={providerLabel(pv)}

@@ -16,7 +16,11 @@ import { colors, spacing, radius } from '../theme';
 import { DNA_PERIODS } from '../radarScreenData';
 
 // Oynanma yüzdesi sağlayıcı adları (Radar 3 kaynağı = hangi bahis sitesi).
-const PROVIDER_NAMES = { nesine: 'Nesine', bilyoner: 'Bilyoner', misli: 'Misli', oley: 'Oley' };
+// BAHİS SİTESİ ADI KULLANILMAZ (yasal/mağaza kısıtı: uygulama bahis sitesi
+// tanıtımı yapamaz). Kaynaklar RENK ADIYLA anılır; ekranda renkli nokta.
+// İç kimlik (nesine/misli/…) yalnız veriyi ayırmak için, ASLA gösterilmez.
+// Eşleme SABİT: aynı kaynak her hafta aynı renk, yoksa kıyas yapılamaz.
+const PROVIDER_NAMES = { nesine: 'Sarı kaynak', misli: 'Turuncu kaynak', bilyoner: 'Yeşil kaynak', oley: 'Mor kaynak' };
 export const providerLabel = (s) => PROVIDER_NAMES[s] || s;
 
 // SAĞLAYICI RENKLERİ — maç satırlarında ad yerine renkli nokta gösterilir
@@ -145,7 +149,7 @@ export default function RadarTabHeader({
                   </View>
                 ))}
                 <Text style={styles.tabBannerTxt}>
-                  {dp.sources.includes('bilyoner') ? '' : '· Bilyoner erişim engelli (IP/WAF)'}
+                  {dp.sources.length < 3 ? '· bir kaynağa şu an erişilemiyor' : ''}
                 </Text>
               </View>
             ) : (

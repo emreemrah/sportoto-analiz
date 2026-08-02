@@ -42,7 +42,7 @@ function DnaSatir({ etiket, ozet }) {
 /**
  * @param roundId  gösterilen hafta
  * @param no       maç sırası (1-15)
- * @param source   sağlayıcı kimliği (nesine/misli/…)
+ * @param source   sağlayıcı İÇ kimliği (ekranda gösterilmez; renk noktasıyla anılır)
  * @param day      seçili gün — DNA seçili güne bağlıdır
  * @param tick     dışarıdan tetiklenen sessiz tazeleme sayacı (Radar 3'ün
  *                 60 sn'lik otomatik yenilemesiyle panel de tazelensin diye)

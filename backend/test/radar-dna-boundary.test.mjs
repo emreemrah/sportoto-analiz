@@ -62,7 +62,9 @@ test('1. MÜHÜR SINIRI: post_lock_research + donma sonrası gözlem Radar 3\'e 
   const view = await computeRadarCenterForData(mkData(), { store: storeWithObservations(obs), now: NOW });
   const r3 = view.matches[0].radars[RADAR_IDS.PUBLIC];
   assert.equal(r3.hasData, true);
-  const prov = r3.details.providers.find((p) => p.provider === 'prov');
+  // Arama İÇ KİMLİKLE yapılır: görünen ad artık renk adıdır (bahis sitesi adı
+  // uygulamada geçmez); bilinmeyen kimlikte görünen ad "Kaynak"a düşer.
+  const prov = r3.details.providers.find((p) => p.providerId === 'prov');
   assert.equal(prov.observations, 1, 'yalnız donma öncesi geçerli gözlem sayıldı');
   assert.deepEqual({ ...prov.last, observedAt: undefined }, { '1': 50, X: 30, '2': 20, observedAt: undefined }, 'post_lock %90 değeri karara SIZMADI');
 });

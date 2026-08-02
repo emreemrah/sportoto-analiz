@@ -170,14 +170,16 @@ test('12. Radar 3 Oynanma DNA: gerçek seri → kullanıcı cümlesi + dürüst 
   const t = (min) => new Date(Date.UTC(2026, 6, 22, 8, min)).toISOString();
   // Açılış %63 → güncel %72 (ev), gerçek 'opening' işaretli seri.
   const series = [
-    { providerId: 'bilyoner', providerName: 'Bilyoner', percentages: { '1': 63, X: 22, '2': 15 }, observedAt: t(0), kind: 'opening', firstObservedLate: false },
-    { providerId: 'bilyoner', providerName: 'Bilyoner', percentages: { '1': 72, X: 17, '2': 11 }, observedAt: t(60), kind: 'regular', firstObservedLate: false },
+    { providerId: 'bilyoner', providerName: 'Yeşil kaynak', percentages: { '1': 63, X: 22, '2': 15 }, observedAt: t(0), kind: 'opening', firstObservedLate: false },
+    { providerId: 'bilyoner', providerName: 'Yeşil kaynak', percentages: { '1': 72, X: 17, '2': 11 }, observedAt: t(60), kind: 'regular', firstObservedLate: false },
   ];
   const r3 = computePublicBettingRadar({ no: 7 }, { matchPublicData: series, observedAt: t(60) });
   assert.equal(r3.hasData, true);
   const dna = r3.details.playedDna;
-  assert.equal(dna.provider, 'Bilyoner');
-  assert.match(dna.userSentence, /Bilyoner'de ev sahibi tercihi şu anda %72\. Açılışa göre \+9 puan yükseldi\./);
+  assert.equal(dna.provider, 'Yeşil kaynak', 'kullanıcıya görünen ad RENK adıdır — bahis sitesi adı DEĞİL');
+  assert.match(dna.userSentence, /Yeşil kaynakta ev sahibi tercihi şu anda %72\. Açılışa göre \+9 puan yükseldi\./);
+  // Cümlede bahis sitesi adı GEÇMEZ (yasal/mağaza kısıtı).
+  assert.doesNotMatch(dna.userSentence, /nesine|bilyoner|misli|oley/i);
   assert.deepEqual(dna.opening, { '1': 63, X: 22, '2': 15, observedAt: t(0) });
   assert.equal(dna.current['1'], 72);
   assert.match(dna.note, /oran.*DEĞİLDİR/i);
@@ -190,8 +192,8 @@ test('13. Radar 3 Oynanma DNA: geç başlangıçta SAHTE açılış üretilmez',
   const { computePublicBettingRadar } = await import('../src/radar/publicBettingRadar.js');
   const t = (min) => new Date(Date.UTC(2026, 6, 22, 9, min)).toISOString();
   const series = [
-    { providerId: 'bilyoner', providerName: 'Bilyoner', percentages: { '1': 70, X: 18, '2': 12 }, observedAt: t(0), kind: 'regular', firstObservedLate: true },
-    { providerId: 'bilyoner', providerName: 'Bilyoner', percentages: { '1': 71, X: 18, '2': 11 }, observedAt: t(30), kind: 'pre_freeze', firstObservedLate: false },
+    { providerId: 'bilyoner', providerName: 'Yeşil kaynak', percentages: { '1': 70, X: 18, '2': 12 }, observedAt: t(0), kind: 'regular', firstObservedLate: true },
+    { providerId: 'bilyoner', providerName: 'Yeşil kaynak', percentages: { '1': 71, X: 18, '2': 11 }, observedAt: t(30), kind: 'pre_freeze', firstObservedLate: false },
   ];
   const r3 = computePublicBettingRadar({ no: 3 }, { matchPublicData: series, observedAt: t(30) });
   const dna = r3.details.playedDna;
@@ -203,7 +205,7 @@ test('13. Radar 3 Oynanma DNA: geç başlangıçta SAHTE açılış üretilmez',
 test('14. Radar 3 Oynanma DNA: yeterli geçmişte benzer sonuç cümlesi üretir', async () => {
   const { computePublicBettingRadar } = await import('../src/radar/publicBettingRadar.js');
   const t = (min) => new Date(Date.UTC(2026, 6, 22, 8, min)).toISOString();
-  const series = [{ providerId: 'bilyoner', providerName: 'Bilyoner', percentages: { '1': 72, X: 17, '2': 11 }, observedAt: t(0), kind: 'opening', firstObservedLate: false }];
+  const series = [{ providerId: 'bilyoner', providerName: 'Yeşil kaynak', percentages: { '1': 72, X: 17, '2': 11 }, observedAt: t(0), kind: 'opening', firstObservedLate: false }];
   // 12 doğrulanmış benzer kayıt (bilyoner + 7. sıra + %70-74 bandı): 6×1, 3×X, 3×2
   const rec = (result) => ({ provider: 'bilyoner', position: 7, result, favoriteSymbol: '1', closePct: { '1': 72, X: 17, '2': 11 } });
   const pctDnaRecords = [
