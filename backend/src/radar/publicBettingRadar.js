@@ -3,7 +3,7 @@
 // GERÇEK KAYNAK YOKSA: hasData=false, status='no_source', skora katkı SIFIR;
 // uydurma yüzde/geçmiş başarı ASLA gösterilmez (master kalan radarları
 // yeniden normalize eder). Kaynak bağlandığında tüm analiz otomatik çalışır.
-import { RADAR_IDS, RADAR_META, PUBLIC_BANDS, SIGNAL_FAMILIES as F, sampleConfidence } from './config.js';
+import { RADAR_IDS, RADAR_META, PUBLIC_BANDS, PUBLIC_MOVE_RULES, SIGNAL_FAMILIES as F, sampleConfidence } from './config.js';
 import { aggregateSignals, sidesToScores } from './signalFamilies.js';
 import { qualityFromParts } from './dataQuality.js';
 import { num, clamp, round1, radarOutput, favoriteOfScores, directionOf } from './util.js';
@@ -151,23 +151,49 @@ export function computePublicBettingRadar(m, {
   if (spread >= 8) negatives.push(`Kaynaklar arasında %${round1(spread)} puana varan yüzde farkı var — oynanma verisi tutarsız (sağlayıcı çelişkisi).`);
 
   // AÇILIŞ → KAPANIŞ HAREKETİ (Oynanma DNA): seri yalnız donma öncesi geçerli
-  // gözlemleri içerir (mühür filtresi radarService'te). ≥6 puanlık yön değişimi
-  // "geç para" sinyalidir; tek gözlemli seride hareket ÜRETİLMEZ.
+  // gözlemleri içerir (mühür filtresi radarService'te). Tek gözlemli seride
+  // hareket ÜRETİLMEZ.
+  //
+  // İKİ AYRI OKUMA yapılır (radar-center-1.3.0):
+  //  • YÜKSELİŞ: en çok yükselen taraf ≥ movePts ise o tarafa sinyal. Eski hâl
+  //    yalnız EN BÜYÜK MUTLAK hareketi alıyordu; büyük bir düşüş (ör. 1 −17)
+  //    beraberindeki yükselişleri (X +8, 2 +9) maskeliyor ve sinyal side:null
+  //    olarak ATILIYORDU — kalabalık hareketinin skora etkisi sıfırdı.
+  //  • DÜŞÜŞ: halkın FAVORİSİNDEKİ ≥ dropPts düşüş failureRisk'e katkı yapar
+  //    ("para favoriden kaçıyor"). Sadece metin değil, ölçülebilir risk.
+  //    Gerçek vaka: 52. Hafta Brugge–St.Gilloise, 1 %61→%44 — maç 1-1 bitti,
+  //    favori yattı; eski sistemde bu hareketin sayısal etkisi yoktu.
   const movers = providerViews.filter((p) => p.observations >= 2);
   if (movers.length) {
     const avgMove = (k) => round1(movers.reduce((s, p) => s + (num(p.change[k]) ?? 0), 0) / movers.length);
     const moves = { '1': avgMove('1'), X: avgMove('X'), '2': avgMove('2') };
-    const topMove = ['1', 'X', '2'].map((k) => ({ k, v: moves[k] })).sort((a, b) => Math.abs(b.v) - Math.abs(a.v))[0];
-    if (Math.abs(topMove.v) >= 6) {
-      const dirTxt = topMove.v > 0 ? 'yükseldi' : 'düştü';
+    const sirali = ['1', 'X', '2'].map((k) => ({ k, v: moves[k] }));
+    const topRise = sirali.filter((m) => m.v > 0).sort((a, b) => b.v - a.v)[0] || null;
+    const topDrop = sirali.filter((m) => m.v < 0).sort((a, b) => a.v - b.v)[0] || null;
+
+    if (topRise && topRise.v >= PUBLIC_MOVE_RULES.movePts) {
       signals.push({
-        key: 'publicMove', family: F.PUBLIC, label: `Oynanma hareketi: ${topMove.k} %${Math.abs(topMove.v)} ${dirTxt}`,
-        side: topMove.v > 0 ? sideOfSym[topMove.k] : null, weight: 3,
+        key: 'publicMove', family: F.PUBLIC, label: `Oynanma hareketi: ${topRise.k} %${Math.abs(topRise.v)} yükseldi`,
+        side: sideOfSym[topRise.k], weight: 3,
         note: 'Açılıştan kapanışa yüzde kayması', source: movers.map((p) => p.provider).join(', '),
         observedAt: observedAt || null,
       });
-      (topMove.v > 0 && topMove.k === top.k ? positives : negatives).push(
-        `Açılıştan bu yana ${topMove.k} oynanması %${Math.abs(topMove.v)} puan ${dirTxt} — geç eğilim ${topMove.v > 0 ? 'bu yönü destekliyor' : 'bu yönden uzaklaşıyor'}.`,
+      (topRise.k === top.k ? positives : negatives).push(
+        `Açılıştan bu yana ${topRise.k} oynanması %${Math.abs(topRise.v)} puan yükseldi — geç eğilim bu yönü destekliyor.`,
+      );
+    }
+    // Favori-düşüş riski: düşen taraf halkın HÂLÂ favorisi olmalı (top.k) —
+    // düşüş sonrası liderliği kaybettiyse zaten publicLean başka tarafı işaret
+    // ediyor, aynı bilgiyi iki kez saymayız.
+    if (topDrop && -topDrop.v >= PUBLIC_MOVE_RULES.dropPts && topDrop.k === top.k) {
+      failureBump += PUBLIC_MOVE_RULES.dropFailureBump;
+      negatives.push(
+        `Açılıştan bu yana ${topDrop.k} oynanması %${Math.abs(topDrop.v)} puan düştü — para halkın favorisinden kaçıyor (risk katkısı +${PUBLIC_MOVE_RULES.dropFailureBump}).`,
+      );
+    } else if (topDrop && -topDrop.v >= PUBLIC_MOVE_RULES.movePts) {
+      // Riske sayılmayan düşüş de dürüstçe yazılır (eski davranış korunur).
+      negatives.push(
+        `Açılıştan bu yana ${topDrop.k} oynanması %${Math.abs(topDrop.v)} puan düştü — geç eğilim bu yönden uzaklaşıyor.`,
       );
     }
   }

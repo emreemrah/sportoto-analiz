@@ -4,7 +4,12 @@
 
 // 1.2.0: Radar 5 (Bülten DNA) karar tabanından çıkarıldı — kupon sırasının
 // sonuçla nedensel bağı yoktur; kart yalnız bilgi panelidir (Ağustos 2026).
-export const METHODOLOGY_VERSION = 'radar-center-1.2.0';
+// 1.3.0: DÜŞEN-FAVORİ oynanma hareketi skora bağlandı (Ağustos 2026). Eskiden
+// yalnız YÜKSELEN hareket sinyal olabiliyordu; kalabalığın favoriden kaçışı
+// (ör. 1 %61→%44) sadece panel metniydi ve sayısal etkisi SIFIRDI. Artık:
+// (a) en büyük YÜKSELİŞ kendi tarafına sinyal verir (büyük bir düşüş artık
+// yükselişi maskelemez), (b) favorideki büyük düşüş failureRisk'e katkı yapar.
+export const METHODOLOGY_VERSION = 'radar-center-1.3.0';
 
 export const RADAR_IDS = {
   PERFORMANCE: 'performance',
@@ -91,6 +96,17 @@ export function sampleConfidence(n) {
   const row = SAMPLE_LADDER.find((r) => n >= r.min && n <= r.max) || SAMPLE_LADDER[0];
   return { n, label: row.label, usable: row.usable };
 }
+
+// Radar 3 oynanma HAREKETİ kuralları (açılış→mühür yüzde kayması).
+// Eşikler kaynak-ortalaması puan cinsindendir.
+export const PUBLIC_MOVE_RULES = {
+  movePts: 6,          // yükselen tarafın sinyal olması için asgari kayma
+  dropPts: 10,         // favorideki düşüşün RİSKE sayılması için asgari kayma
+  // Favori-düşüş risk katkısı Radar 4'ün oran-drift katkısıyla (+12) aynı
+  // büyüklükte tutulur: iki radar aynı olguyu (paranın favoriden kaçışı)
+  // farklı kaynaktan ölçer; biri diğerinden yapısal olarak baskın olmamalı.
+  dropFailureBump: 12,
+};
 
 // Radar 4 piyasa hareketi kuralları
 export const MARKET_RULES = {

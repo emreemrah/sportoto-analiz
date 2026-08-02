@@ -66,6 +66,40 @@ export function findSimilarDna(records, query, bands = PCT_BANDS) {
   return { hasData: false, reason: 'insufficient_sample', sample: best, note: 'Benzer doğrulanmış örnek henüz yetersiz (n<10) — sistem öğreniyor.' };
 }
 
+// GÜNLÜK DNA KAYITLARINDAN pct-DNA kayıtları üretir (findSimilarDna girdisi).
+// dailyRecords: playedDnaArchive.collectPlayedDnaRecords çıktısı —
+//   [{ source, roundId, matchKey, position, dayKey, pct, result }]
+// Aynı (kaynak, tur, maç) grubunun İLK günü açılış, SON günü kapanıştır.
+// Tek günlü maçta openPct null kalır (hareket UYDURULMAZ) — böyle kayıtlar
+// yalnız hareketsiz seviyelerde (provider+band) eşleşebilir. favoriteSymbol
+// kapanıştaki en yüksek pay: kaydın kendi halk favorisi.
+export function toPctDnaRecords(dailyRecords) {
+  const groups = new Map();
+  for (const r of dailyRecords || []) {
+    if (!r?.result || !r?.pct) continue;
+    const key = `${r.source}|${r.roundId}|${r.matchKey ?? r.position}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  }
+  const out = [];
+  for (const list of groups.values()) {
+    const gunler = list.slice().sort((a, b) => String(a.dayKey).localeCompare(String(b.dayKey)));
+    const son = gunler[gunler.length - 1];
+    const close = son.pct;
+    if (!close || ['1', 'X', '2'].some((k) => typeof close[k] !== 'number')) continue;
+    const favoriteSymbol = ['1', 'X', '2'].reduce((a, b) => (close[b] > close[a] ? b : a), '1');
+    out.push({
+      provider: son.source,
+      position: son.position,
+      result: son.result,
+      favoriteSymbol,
+      closePct: { ...close },
+      openPct: gunler.length >= 2 ? { ...gunler[0].pct } : null,
+    });
+  }
+  return out;
+}
+
 // Sağlayıcılar arası uzlaşma/çatışma (yalnız ortak analiz — ham veri ayrı kalır).
 export function providerConsensus(perProviderClose) {
   const entries = Object.entries(perProviderClose || {}).filter(([, p]) => p);

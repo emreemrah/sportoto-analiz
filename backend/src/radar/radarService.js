@@ -12,6 +12,7 @@ import { computePerformanceRadar } from './performanceRadar.js';
 import { computeExpectationRadar } from './expectationRadar.js';
 import { computePublicBettingRadar, computeBandHistory } from './publicBettingRadar.js';
 import { collectPlayedDnaRecords, buildBandHistoryRows } from './playedDnaArchive.js';
+import { toPctDnaRecords } from '../providers/percentageDna.js';
 import { computeMarketRadar } from './marketRadar.js';
 import { computeBulletinMemoryRadar, buildMemoryContext, MEMORY_DISCLAIMER } from './bulletinMemoryRadar.js';
 import { combineMaster } from './masterRadar.js';
@@ -80,9 +81,16 @@ export async function computeRadarCenterForData(data, { store = getArchiveStore(
   // toplanmadı, o turlar hiç okunmaz; geçmişe dönük yüzde ÜRETİLMEZ.
   // Arşiv boşsa hasData:false kalır (uydurma yok).
   let bandHistory;
+  // BENZER-DNA KAYITLARI: computePublicBettingRadar'ın findSimilarDna kancası
+  // bu parametreyi baştan beri kabul ediyordu ama hiç BAĞLANMAMIŞTI — benzer
+  // sonuç analizi her maçta "sistem öğreniyor" kalıyordu. Aynı arşiv verisi
+  // (öğrenme sınırı: yalnız bu haftadan ÖNCEKİ turlar) pct-DNA biçimine
+  // çevrilip radara verilir; n<10'da yine yön sinyali üretilmez.
+  let pctDnaRecords = [];
   try {
     const dnaRecords = await collectPlayedDnaRecords(store, { beforeRoundId: data.roundId, now });
     bandHistory = computeBandHistory(buildBandHistoryRows(dnaRecords));
+    pctDnaRecords = toPctDnaRecords(dnaRecords);
   } catch {
     bandHistory = computeBandHistory([]);
   }
@@ -107,7 +115,7 @@ export async function computeRadarCenterForData(data, { store = getArchiveStore(
 
       const r1 = computePerformanceRadar(m, { observedAt });
       const r2 = computeExpectationRadar(m, { observedAt });
-      const r3 = computePublicBettingRadar(m, { matchPublicData: publicSeries, bandHistory, observedAt });
+      const r3 = computePublicBettingRadar(m, { matchPublicData: publicSeries, bandHistory, observedAt, pctDnaRecords });
       const r4 = computeMarketRadar(m, { observations: obs, publicRadar: r3, lockAt: freezeAt, observedAt });
       const r5 = computeBulletinMemoryRadar(m, { memoryContext, observedAt });
 

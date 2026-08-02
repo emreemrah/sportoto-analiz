@@ -95,3 +95,38 @@ test('6. Sağlayıcı uzlaşması: medyan + fark + uzlaşma/çatışma bayrağı
   const single = providerConsensus({ bilyoner: { '1': 60, X: 25, '2': 15 } });
   assert.equal(single.hasData, false, 'tek sağlayıcıyla uzlaşma analizi yapılmaz');
 });
+
+// --- GÜNLÜK KAYIT → pct-DNA DÖNÜŞTÜRÜCÜ (kablolama adaptörü) ---------------
+const { toPctDnaRecords } = await import('../src/providers/percentageDna.js');
+
+test('toPctDnaRecords: ilk gün açılış, son gün kapanış, favori kapanıştan', () => {
+  const gunluk = [
+    { source: 'nesine', roundId: 1525, matchKey: 'm1', position: 3, dayKey: '2026-07-22', pct: { '1': 58, X: 24, '2': 18 }, result: 'X' },
+    { source: 'nesine', roundId: 1525, matchKey: 'm1', position: 3, dayKey: '2026-07-24', pct: { '1': 45, X: 30, '2': 25 }, result: 'X' },
+  ];
+  const [r] = toPctDnaRecords(gunluk);
+  assert.equal(r.provider, 'nesine');
+  assert.equal(r.position, 3);
+  assert.equal(r.result, 'X');
+  assert.deepEqual(r.openPct, { '1': 58, X: 24, '2': 18 });
+  assert.deepEqual(r.closePct, { '1': 45, X: 30, '2': 25 });
+  assert.equal(r.favoriteSymbol, '1', 'favori KAPANIŞTAKİ en yüksek pay');
+});
+
+test('toPctDnaRecords: tek günlü maçta açılış UYDURULMAZ (openPct null)', () => {
+  const [r] = toPctDnaRecords([
+    { source: 'misli', roundId: 1525, matchKey: 'm2', position: 1, dayKey: '2026-07-24', pct: { '1': 40, X: 35, '2': 25 }, result: '1' },
+  ]);
+  assert.equal(r.openPct, null);
+  assert.deepEqual(r.closePct, { '1': 40, X: 35, '2': 25 });
+});
+
+test('toPctDnaRecords: sonucu olmayan kayıt dönüşmez, kaynaklar ayrı kalır', () => {
+  const out = toPctDnaRecords([
+    { source: 'nesine', roundId: 1525, matchKey: 'm1', position: 1, dayKey: '2026-07-22', pct: { '1': 50, X: 30, '2': 20 }, result: null },
+    { source: 'nesine', roundId: 1525, matchKey: 'm3', position: 2, dayKey: '2026-07-22', pct: { '1': 50, X: 30, '2': 20 }, result: '1' },
+    { source: 'misli', roundId: 1525, matchKey: 'm3', position: 2, dayKey: '2026-07-22', pct: { '1': 48, X: 30, '2': 22 }, result: '1' },
+  ]);
+  assert.equal(out.length, 2, 'sonuçsuz kayıt girmez; aynı maçın iki kaynağı İKİ ayrı kayıttır');
+  assert.deepEqual(out.map((r) => r.provider).sort(), ['misli', 'nesine']);
+});

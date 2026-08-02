@@ -394,3 +394,79 @@ test('KRİTER KARNESİ: sinyal × lig + güç dengesi kuralı yalnız mühürlü
   // 6) DÜRÜSTLÜK: mühürsüz hafta kriter karnesine de GİRMEZ (tek hafta sayıldı).
   assert.equal(sc.roundsCounted, 1);
 });
+
+// --- OYNANMA HAREKETİ → SKOR (radar-center-1.3.0) ---------------------------
+// Gerçek vaka: 52. Hafta Brugge–St.Gilloise, Nesine 1 %61→%44 · X %22→%30 ·
+// 2 %17→%26; maç 1-1 bitti (favori yattı). Eski davranışta en büyük MUTLAK
+// hareket (1'in düşüşü) side:null sinyal oluyor, aggregateSignals atıyor ve
+// sayısal etki SIFIR kalıyordu; beraberindeki yükselişler de maskeleniyordu.
+const hrk = (pct, at, kind) => ({
+  providerId: 'nesine', providerName: 'Nesine', percentages: pct, observedAt: at, ...(kind ? { kind } : {}),
+});
+
+test('Radar 3 hareket: yükselen taraf sinyal olur — büyük düşüş onu MASKELEMEZ', () => {
+  const r3 = computePublicBettingRadar({ no: 1 }, {
+    matchPublicData: [
+      hrk({ '1': 61, X: 22, '2': 17 }, '2026-07-26T10:00:00Z', 'opening'),
+      hrk({ '1': 44, X: 30, '2': 26 }, '2026-07-31T10:00:00Z'),
+    ],
+  });
+  const mv = (r3.activeSignals || []).find((s) => s.key === 'publicMove');
+  assert.ok(mv, 'publicMove sinyali üretilmeli (2 +9 yükseldi)');
+  assert.equal(mv.side, 'away', 'sinyal EN ÇOK YÜKSELEN tarafa aittir');
+});
+
+test('Radar 3 hareket: favorideki ≥10 puan düşüş failureRisk katkısı yapar', () => {
+  const dusen = computePublicBettingRadar({ no: 1 }, {
+    matchPublicData: [
+      hrk({ '1': 61, X: 22, '2': 17 }, '2026-07-26T10:00:00Z', 'opening'),
+      hrk({ '1': 44, X: 30, '2': 26 }, '2026-07-31T10:00:00Z'),
+    ],
+  });
+  // Aynı KAPANIŞ seviyesi, hiç hareket yok — tek fark düşüşün kendisi.
+  const sabit = computePublicBettingRadar({ no: 1 }, {
+    matchPublicData: [
+      hrk({ '1': 44, X: 30, '2': 26 }, '2026-07-26T10:00:00Z', 'opening'),
+      hrk({ '1': 44, X: 30, '2': 26 }, '2026-07-31T10:00:00Z'),
+    ],
+  });
+  assert.ok(dusen.negatives.some((t) => t.includes('favorisinden kaçıyor')),
+    'risk katkısı kullanıcıya açıkça yazılmalı');
+  assert.ok(dusen.favoriteFailureRisk >= sabit.favoriteFailureRisk + 10,
+    `düşüş riski ölçülür olmalı (düşen ${dusen.favoriteFailureRisk} / sabit ${sabit.favoriteFailureRisk})`);
+});
+
+test('Radar 3 hareket: düşen taraf halkın favorisi DEĞİLSE risk katkısı yok', () => {
+  // 2 düşüyor (%29→%17) ama halkın favorisi 1 — aynı bilgiyi iki kez saymayız.
+  const r3 = computePublicBettingRadar({ no: 1 }, {
+    matchPublicData: [
+      hrk({ '1': 45, X: 26, '2': 29 }, '2026-07-26T10:00:00Z', 'opening'),
+      hrk({ '1': 52, X: 31, '2': 17 }, '2026-07-31T10:00:00Z'),
+    ],
+  });
+  assert.ok(!r3.negatives.some((t) => t.includes('favorisinden kaçıyor')));
+  // Düşüş yine dürüstçe yazılır (bilgi kaybolmaz).
+  assert.ok(r3.negatives.some((t) => t.includes('2 oynanması') && t.includes('düştü')));
+});
+
+test('Radar 3 benzer-DNA kancası: pctDnaRecords verilince n>=10 benzer maç konuşur', () => {
+  // Kanca (pctDnaRecords parametresi) baştan beri vardı ama radarService hiç
+  // bağlamamıştı — her maç "sistem öğreniyor"da kalıyordu. Kablo artık takılı.
+  const kayit = Array.from({ length: 12 }, (_, i) => ({
+    provider: 'nesine', position: 1, result: i < 5 ? '1' : i < 9 ? 'X' : '2',
+    favoriteSymbol: '1',
+    closePct: { '1': 45, X: 30, '2': 25 },
+    openPct: { '1': 58, X: 24, '2': 18 },      // hareket −13 → [-100,-8] bandı
+  }));
+  const r3 = computePublicBettingRadar({ no: 1 }, {
+    matchPublicData: [
+      hrk({ '1': 61, X: 22, '2': 17 }, '2026-07-26T10:00:00Z', 'opening'),
+      hrk({ '1': 44, X: 30, '2': 26 }, '2026-07-31T10:00:00Z'),
+    ],
+    pctDnaRecords: kayit,
+  });
+  const dna = r3.details.playedDna.similarDna;
+  assert.equal(dna.hasData, true, 'benzer DNA artık konuşmalı');
+  assert.equal(dna.sample, 12);
+  assert.ok(dna.sentence.includes('12 doğrulanmış maçta'));
+});
