@@ -86,11 +86,13 @@ export default function AboutScreen({ navigation }) {
           <TouchableOpacity style={styles.linkBtn} onPress={() => open(links.rules, 'Topluluk Kuralları')}>
             <Text style={styles.linkTxt}>📋  Topluluk Kuralları</Text>
           </TouchableOpacity>
-          {/* Sorumlu Oyun: yardım hattı (YEDAM 444 79 75) + kazanç garantisi
-              olmadığı beyanı. Mağaza incelemesi için uygulama dışından da
-              açılabilir bir sayfadır (backend/legal/sorumlu-oyun.html). */}
+          {/* Sorumlu Oyun sayfası: kazanç garantisi olmadığı beyanı. Mağaza
+              incelemesi için uygulama dışından da açılabilir bir sayfadır
+              (backend/legal/sorumlu-oyun.html).
+              Destek hattı numarası bağlantı METNİNDEN kaldırıldı (kullanıcı
+              kararı, 2 Ağustos 2026); sayfanın kendisi yerinde duruyor. */}
           <TouchableOpacity style={styles.linkBtn} onPress={() => open(links.responsibleGaming, 'Sorumlu Oyun')}>
-            <Text style={styles.linkTxt}>🛟  Sorumlu Oyun · YEDAM 444 79 75</Text>
+            <Text style={styles.linkTxt}>🛟  Sorumlu Oyun</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.linkBtn} onPress={() => navigation.navigate('DeleteAccount')}>
             <Text style={styles.linkTxt}>🗑️  Hesabımı Sil</Text>

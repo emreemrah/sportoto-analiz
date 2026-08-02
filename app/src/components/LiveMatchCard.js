@@ -29,7 +29,13 @@ export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'impor
   const p = matchPicks(match, userPick);
   const st = p.status;
   const meta = statusMeta(st, match);
-  const showScore = st !== 'notStarted' && st !== 'postponed' && st !== 'cancelled' && match.score;
+  // CANLI MAÇTA SKOR GÖSTERİLMEZ (kullanıcı kararı, 2 Ağustos 2026):
+  // "skoru gösterme, sadece maçın oynandığı belli olsun". Durum rozeti
+  // (meta.text) zaten "CANLI 34'" diyor. Anlık skor saniyede değişir ve
+  // resmî sonuçla karışma riski taşır — projenin "yalnız resmî 90 dakika
+  // sonucu kesindir" kuralıyla da aynı yönde.
+  const showScore = st !== 'notStarted' && st !== 'postponed' && st !== 'cancelled'
+    && st !== 'live' && match.score;
   const hidePicks = st === 'cancelled';
   const d = match.date ? matchDate(match.date) : null;
 
@@ -140,9 +146,9 @@ export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'impor
             </Text>
           )}
         </View>
-        {meta.refresh ? (
-          <TouchableOpacity onPress={onRefresh} style={s.refresh} hitSlop={8}><Text style={s.refreshTxt}>↻ Yenile</Text></TouchableOpacity>
-        ) : null}
+        {/* "↻ Yenile" düğmesi KALDIRILDI (kullanıcı kararı, 2 Ağustos 2026).
+            Ekran zaten 15 saniyede bir kendini yeniliyor; düğme aynı işi elle
+            tekrarlıyor ve her canlı satıra bir düğme daha ekliyordu. */}
       </View>
       {match.coverage && match.coverage.ok === false ? (
         <View style={s.coverWarn}>

@@ -392,7 +392,8 @@ export default function NotificationsScreen({ navigation }) {
         çalışır — sunucudan bildirim gönderilmez. Resmî sonuç dışındaki hiçbir
         veri kesin sayılmaz.
       </Text>
-      <Text style={st.age}>18 yaş altı kullanamaz. Bu uygulama analiz ve karar desteği sunar. Destek: YEDAM 444 79 75.</Text>
+      {/* Destek hattı cümlesi kaldırıldı (kullanıcı kararı, 2 Ağustos 2026). */}
+      <Text style={st.age}>18 yaş altı kullanamaz. Bu uygulama analiz ve karar desteği sunar.</Text>
     </ScrollView>
   );
 }

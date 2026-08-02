@@ -9,6 +9,9 @@ import { fileURLToPath } from 'url';
 import { config } from './config.js';
 import { load, has, listSnapshotRounds, listRadarRounds, CACHE_DIR } from './cache.js';
 import { crestTargetOf, crestFileNameOf, crestContentTypeOf, fetchCrest } from './crestProxy.js';
+import { takimFiksturunuGetir } from './takimFikstur.js';
+import { yanitOptimizasyonu, paketHazirla, paketiYolla } from './yanitOptimizasyonu.js';
+import { yanitBellegi } from './yanitBellegi.js';
 import { refreshLiveScores, refreshLiveFootyScores, getLiveFixtures } from './refresh.js';
 import { refreshCurrentBulletin, startAutoRefreshScheduler } from './autoRefresh.js';
 import { startHistoryAndObservationScheduler } from './history/scheduler.js';
@@ -36,6 +39,13 @@ import { yorumEklemeLimiti, kuponYazmaLimiti, avatarLimiti, backtestLimiti } fro
 import { syncCatalog } from './gamification/service.js';
 import { acilistaMigrationCalistir, migrationDurumu } from './migrate/index.js';
 
+// Bülten maç listesi belleği — gerekçe ve ölçüm: yanitBellegi.js
+const maclarBellegi = yanitBellegi(5000);
+// Hazır bülten paketi (dizilmiş + sıkıştırılmış) — sıcak yol, 15 sn yoklama.
+const bultenPaketi = yanitBellegi(5000);
+// Arşiv/mühür durumu — 116 ms'lik Supabase turu; dakikalar mertebesinde değişir.
+const arsivBellegi = yanitBellegi(30000);
+
 const app = express();
 // Render/ters vekil arkasında gerçek istemci IP'sini görmek için şart.
 // Bu olmadan req.ip herkes için vekilin IP'si olur: oran sınırlama tek
@@ -46,6 +56,10 @@ app.use(securityHeaders());
 // CORS artık listeli: ALLOWED_ORIGINS (.env) + geliştirmede localhost/LAN.
 // Origin'siz istekler (mobil uygulama) serbesttir — bkz. security/corsPolicy.js
 app.use(cors(buildCorsOptions()));
+// YANIT SIKIŞTIRMA + DOĞRULAMA — ölçekte belirleyici. /api/bulletin gövdesi
+// 615 KB ve istemci 15 sn'de bir yokluyor; sıkıştırma %97, 304 doğrulaması
+// neredeyse %100 kazanç sağlıyor. Ayrıntı: yanitOptimizasyonu.js
+app.use(yanitOptimizasyonu());
 app.use(express.json({ limit: '4mb' })); // avatar yüklemesi (dataURL) için yeterli
 
 // MALİYETLİ UÇLARIN ORAN SINIRLARI (security/limits.js) — rota kayıtlarından
@@ -180,18 +194,45 @@ app.get('/api/bulletin', async (req, res) => {
   const cached = load('bulletin');
   if (!cached?.data) return res.status(503).json({ error: 'Veri henüz hazır değil, birkaç saniye sonra tekrar dene.' });
   const data = cached.data;
-  const matches = data.matches.map((m) => {
+  // MAÇ LİSTESİ BELLEKTE: bu dönüşüm (kadro/lig tablosu ayıklama) 15 maç için
+  // her istekte yeniden yapılıyordu. İstemci 15 sn'de bir yokladığı için
+  // ölçekte doğrudan CPU tavanına vuruyor. Bültenin kendi damgası
+  // (updatedAt) değişmedikçe sonuç aynıdır.
+  const matches = maclarBellegi.al(() => data.matches.map((m) => {
     if (!m.stats) return m;
     const { leagueTable, ...restStats } = m.stats;
     const home = restStats.home ? { ...restStats.home, squad: undefined } : restStats.home;
     const away = restStats.away ? { ...restStats.away, squad: undefined } : restStats.away;
     return { ...m, stats: { ...restStats, home, away } };
-  });
+  }), `${data.updatedAt ?? ''}|${data.matches.length}`);
   // Arşiv/mühür durumu (freezeAt geri sayımı + "Mühürlü Analiz" rozeti için).
   // Arşiv okunamazsa bülten yine döner (mevcut akış bozulmaz).
+  // ARŞİV DURUMU BELLEKTE — ölçekte EN BÜYÜK kazanç.
+  // ÖLÇÜM: getArchiveStatus tek çağrıda 116 ms (Supabase'e ağ turu) ve bu
+  // HER istekte yapılıyordu. İstemci 15 sn'de bir yokladığı için 1.000
+  // eşzamanlı kullanıcı saniyede ~67 veritabanı sorgusu demekti — hem
+  // gecikme hem fatura. Mühür durumu dakikalar mertebesinde değişir;
+  // 30 saniyelik bayatlık kullanıcı için görünmez, yük için belirleyici.
   let archive = null;
-  try { archive = await getArchiveStatus(data.roundId); } catch { archive = null; }
-  res.json({ ...data, matches, archive, couponPricing: readCouponPricing() });
+  try {
+    archive = await arsivBellegi.al(
+      () => getArchiveStatus(data.roundId).catch(() => null),
+      String(data.roundId ?? ''),
+    );
+  } catch { archive = null; }
+
+  // HAZIR PAKET — ölçekteki asıl kazanç burada.
+  // Bu uç, istemci bülten ekranı açıkken 15 SANİYEDE BİR çağrılıyor. Yanıtı
+  // her istekte yeniden dizip sıkıştırmak istek başına ~3,1 ms CPU demekti
+  // (stringify 1,40 + gzip 1,71) ve tek çekirdekte ~90 istek/sn tavanı
+  // getiriyordu. Paket bir kez hazırlanır, TTL boyunca aynı baytlar servis
+  // edilir; yoklama maliyeti neredeyse sıfıra iner.
+  // TTL kısa (5 sn): canlı skor 45 sn'de tazeleniyor, bayatlık sınırlı kalmalı.
+  const paket = bultenPaketi.al(
+    () => paketHazirla({ ...data, matches, archive, couponPricing: readCouponPricing() }),
+    `${data.updatedAt ?? ''}|${archive?.status ?? ''}`,
+  );
+  paketiYolla(req, res, paket);
 });
 
 // BİRİM KOLON BEDELİ — KODA YAZILMAZ/UYDURULMAZ. Yalnız backend/data/
@@ -317,6 +358,24 @@ app.get('/api/match/:no', (req, res) => {
   if (!match) return res.status(404).json({ error: 'Maç bulunamadı.' });
   // Kupon taslağı için hafta bağlamı (roundId/season/hafta + teyit durumu).
   res.json({ ...match, roundId: cached.data.roundId, round: cached.data.round, year: cached.data.year, closeDate: cached.data.closeDate || null, verificationStatus: cached.data.verification?.status || null });
+});
+
+// TAKIM FİKSTÜRÜ — bir takımın sezondaki oynanmış + oynanacak tüm maçları.
+// Maç detayındaki takım kartından açılır. seasonId istemciden gelir: takımın
+// hangi ligde oynadığını bülten maçı bilir (footySeasonId).
+app.get('/api/team-fixtures/:teamId', async (req, res) => {
+  const { teamId } = req.params;
+  const seasonId = req.query.seasonId;
+  if (!/^\d+$/.test(String(teamId)) || !/^\d+$/.test(String(seasonId || ''))) {
+    return res.status(400).json({ error: 'teamId ve seasonId sayı olmalı.' });
+  }
+  try {
+    res.json(await takimFiksturunuGetir(teamId, seasonId));
+  } catch (e) {
+    // Sessizce boş liste DÖNÜLMEZ: "maçı yok" ile "veri alınamadı" farklı
+    // şeylerdir ve kullanıcı hangisi olduğunu bilmeli.
+    res.status(502).json({ error: `Fikstür alınamadı: ${e.message}` });
+  }
 });
 
 // Canlı maç detayı: GERÇEK canlı istatistik + olaylar (API-Football). Sadece

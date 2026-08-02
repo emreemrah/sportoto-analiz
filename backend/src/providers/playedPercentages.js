@@ -16,6 +16,8 @@ import { misliAdapter } from './misli.js';
 // Gün anahtarı (Europe/Istanbul) tek yerden gelir — iki ayrı tanım zamanla
 // birbirinden ayrışıp gün sınırlarını bozmasın.
 import { dayKeyOf } from '../radar/playedDnaArchive.js';
+import { load, save } from '../cache.js';
+import { denenebilir, durumuGuncelle } from './saglayiciTempo.js';
 
 export const PCT_METHODOLOGY_VERSION = 'played-pct-1.0.0';
 export const OPENING_WINDOW_MS = 12 * 3600e3;   // yayından ≤12 sa içindeki ilk gözlem 'opening'
@@ -116,6 +118,11 @@ let observeInFlight = false;
 export async function observePlayedPercentages({
   bulletinData, store, now = Date.now(),
   providers = enabledProviders(), log = console.log,
+  // TEMPO DURUMU — varsayılan: kalıcı cache (üretim davranışı).
+  // Bir nesne verilirse BELLEKTE kullanılır ve diske YAZILMAZ. Testler bunu
+  // kullanır: tempo durumu paylaşılan bir dosyada tutulduğu için, bir testin
+  // yazdığı bekleme süresi başka bir testi sessizce atlatabiliyordu.
+  tempoDurumu: tempoDisaridan = null,
 } = {}) {
   if (observeInFlight) return { skipped: true, reason: 'in-flight' };
   if (!bulletinData || bulletinData.pending || !bulletinData.matches?.length) {
@@ -130,11 +137,21 @@ export async function observePlayedPercentages({
       : bulletinData.updatedAt ? new Date(bulletinData.updatedAt).getTime() : null;
 
     const summary = { providers: {}, written: 0, duplicates: 0, invalid: 0, postLock: 0 };
+    // SAĞLAYICI TEMPOSU — bkz. saglayiciTempo.js. Hız sınırı olan kaynak
+    // 15 dakikalık tempoyla denendiğinde engel sürekli tazeleniyor ve kaynak
+    // HİÇ açılmıyor. Beklemesi dolmayan kaynak bu turda atlanır.
+    const tempoKalici = tempoDisaridan == null;
+    let tempoDurumu = tempoKalici ? (load('saglayiciTempo')?.data || {}) : { ...tempoDisaridan };
     for (const p of providers) {
       const s = { fetched: 0, written: 0, errors: null };
       summary.providers[p.id] = s;
+      if (!denenebilir(p.id, tempoDurumu, now)) {
+        s.atlandi = 'tempo';                       // hata DEĞİL: bilinçli bekleme
+        continue;
+      }
       try {
         const rows = await p.fetchPercentages(bulletinData);
+        tempoDurumu = durumuGuncelle(p.id, tempoDurumu, true, now);
         // EŞLEŞMEYEN/BELİRSİZ eventler: teknik trace (kullanıcıya gösterilmez).
         // Yüzdeleri hiçbir maça bağlanmaz — "başka maçın yüzdesini verme" kuralı.
         if (Array.isArray(rows) && rows._unmatched?.length) {
@@ -181,9 +198,13 @@ export async function observePlayedPercentages({
         }
       } catch (e) {
         s.errors = e.message;                                       // izolasyon: diğerleri devam
+        // Başarısızlık temposu uzatır (geri çekilme): kaynak kapalıysa
+        // dakika başı dövülmez, açılırsa makul sürede geri dönülür.
+        tempoDurumu = durumuGuncelle(p.id, tempoDurumu, false, now);
         log(`[oynanma] sağlayıcı ${p.id} hatası (izole): ${e.message}`);
       }
     }
+    if (tempoKalici) { try { save('saglayiciTempo', tempoDurumu); } catch { /* kayıt olmasa da akış sürsün */ } }
     return { ok: true, ...summary };
   } finally {
     observeInFlight = false;

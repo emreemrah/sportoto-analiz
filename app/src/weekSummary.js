@@ -73,8 +73,15 @@ export function buildWeekSummary(matches, { strongMax = 3, surpriseMax = 3, now 
   };
 }
 
+/**
+ * Tek takımın görünecek adı. Uzundan kısaya düşer; hiçbiri yoksa '?' —
+ * boş bırakmak yerine eksikliği GÖSTERİR.
+ * Ayrı dışa açıldı: ekranlar armayı takımın KENDİ adının yanına koyuyor,
+ * birleşik metin bunu imkânsız kılıyordu.
+ */
+export const takimAdi = (t) => t?.mediumName || t?.shortName || t?.name || '?';
+
 /** Görselde kullanılacak kısa takım metni: "Ev - Deplasman". */
 export function matchLine(m) {
-  const n = (t) => t?.mediumName || t?.shortName || t?.name || '?';
-  return `${n(m?.home)} - ${n(m?.away)}`;
+  return `${takimAdi(m?.home)} - ${takimAdi(m?.away)}`;
 }

@@ -14,7 +14,7 @@
 //
 // Sürüm notu için bkz. ekranlar.test.jsx (RNTL 13.x kullanılır, 14.x DEĞİL).
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
 
 import HomeScreen from '../src/screens/HomeScreen';
 
@@ -136,5 +136,131 @@ describe('Ana Sayfa', () => {
     // Etiketin kendisi sayıyı taşıyor; ekrandaki çıplak "3" metnini aramak
     // maç numaralarına takılıyor (ekranda birden çok "3" var).
     expect(await screen.findByLabelText('Bildirimler, 3 okunmamış')).toBeTruthy();
+  });
+
+  // --- LİG ŞERİDİ -----------------------------------------------------------
+  test('lig şeridi ana sayfaya BAĞLI — bültenin ligleri görünüyor', async () => {
+    // Bileşenin kendi testleri lig-seridi.test.jsx'te. Buradaki tek soru:
+    // ekrana gerçekten takılmış mı? Bileşen doğru olup bağlantı unutulabilir
+    // ve hiçbir test bunu yakalamaz.
+    mockUclar({
+      '/api/bulletin': BULTEN({
+        matches: [
+          mac(1, { league: 'Denmark Superliga', leagueImage: 'dk.png' }),
+          mac(2, { league: 'Sweden Allsvenskan', leagueImage: 'se.png' }),
+        ],
+      }),
+    });
+    render(<HomeScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText('1. Hafta').length).toBeGreaterThan(0));
+    expect(screen.getByTestId('lig-seridi')).toBeTruthy();
+    expect(screen.getAllByText('Denmark Superliga').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Sweden Allsvenskan').length).toBeGreaterThan(0);
+  });
+
+  // --- ÖNCEKİ HAFTADAN DEVAM EDEN MAÇLAR ------------------------------------
+  // Gerçek olay (2 Ağustos 2026): 53. Hafta yayındaydı, maçları 8-9 Ağustos'ta.
+  // Ama 52. Hafta'nın 11 maçı O GÜN oynanıyordu ve "Yaklaşan Maçlar"da hiç
+  // görünmüyordu — kullanıcıya en yakın maçlar gizleniyordu.
+  const ROUNDS = { currentRoundId: 1600, rounds: [{ id: 1599, name: '52. Hafta' }, { id: 1600, name: '1. Hafta' }] };
+
+  test('önceki haftanın oynanmamış maçı listede ve HAFTA ROZETİ taşıyor', async () => {
+    mockUclar({
+      '/api/rounds': ROUNDS,
+      '/api/history/1599': {
+        matches: [{
+          no: 9, date: '2026-08-02T15:00:00', status: 'upcoming',
+          home: { name: 'Gecen Ev' }, away: { name: 'Gecen Dep' }, league: 'X Ligi',
+        }],
+      },
+      '/api/bulletin': BULTEN(),   // maçları 2099'da — çok daha ileri tarihli
+    });
+    render(<HomeScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Gecen Ev/).length).toBeGreaterThan(0));
+    // Hangi haftaya ait olduğu YAZILMALI: liste iki haftayı karıştırıyor.
+    expect(screen.getAllByText('52. Hafta').length).toBeGreaterThan(0);
+  });
+
+  test('önceki hafta kartı MAÇ DETAYINA değil, o haftanın bültenine gidiyor', async () => {
+    // Maç detayı sıra numarasını GÜNCEL bültende arar; 52. Hafta'nın 9 numaralı
+    // maçıyla oraya gitmek BAŞKA bir maçı açardı. Sessiz ve ciddi bir hata.
+    mockUclar({
+      '/api/rounds': ROUNDS,
+      '/api/history/1599': {
+        matches: [{
+          no: 9, date: '2026-08-02T15:00:00', status: 'upcoming',
+          home: { name: 'Gecen Ev' }, away: { name: 'Gecen Dep' }, league: 'X Ligi',
+        }],
+      },
+      '/api/bulletin': BULTEN(),
+    });
+    render(<HomeScreen navigation={nav} />);
+    const kart = await screen.findAllByText(/Gecen Ev/);
+    nav.navigate.mockClear();
+    fireEvent.press(kart[0]);
+    expect(nav.navigate).toHaveBeenCalledWith('BulletinDetail', { bulletinId: 1599 });
+    expect(nav.navigate).not.toHaveBeenCalledWith('MatchDetail', expect.anything());
+  });
+
+  test('önceki hafta verisi ALINAMAZSA ana sayfa yine çiziliyor', async () => {
+    // Ek bir veri için asıl ekranı riske atmamalıyız.
+    mockUclar({ '/api/rounds': { __hata: 'olmadı' }, '/api/bulletin': BULTEN() });
+    render(<HomeScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText('1. Hafta').length).toBeGreaterThan(0));
+    expect(screen.getAllByText(/Ev 1/).length).toBeGreaterThan(0);
+  });
+
+  // --- HERO SAYAÇLARI -------------------------------------------------------
+  // Kullanıcı "14" görüp bültende 15 maç olunca veriyi eksik sandı. Sayaç
+  // doğruydu, ANLATIMI yanlıştı. Buradaki testler iki şeyi kilitler:
+  //  1) payda gösterilir — kapsanmayan maç varsa gizlenmez,
+  //  2) etiketteki eşik ile filtredeki eşik AYNI sayıdır.
+  // (2) asıl kritik olan: eşik kodda değişip etikette kalırsa ekran yalan
+  // söyler ve kullanıcı bunu hiçbir şekilde doğrulayamaz.
+
+  // Bir düğümün TÜM metnini toplar (iç içe <Text> dahil: "5" + "/6" → "5/6").
+  const metin = (dugum) => {
+    const topla = (n) => (typeof n === 'string' ? n
+      : (n?.children || []).map(topla).join(''));
+    return topla(dugum).trim();
+  };
+
+  const ESIKLI_BULTEN = () => ({
+    roundId: 1600, round: '1. Hafta', year: 2026,
+    verification: { status: 'confirmed' },
+    matches: [
+      mac(1, { analysis: { probabilities: { '1': 40, X: 30, '2': 30 }, surpriseScore: 85 } }),
+      mac(2, { analysis: { probabilities: { '1': 40, X: 30, '2': 30 }, surpriseScore: 65 } }), // sürpriz SINIRI
+      mac(3, { analysis: { probabilities: { '1': 40, X: 30, '2': 30 }, surpriseScore: 64 } }), // sınırın ALTI
+      mac(4, { analysis: { probabilities: { '1': 40, X: 30, '2': 30 }, surpriseScore: 45 } }), // öne çıkan SINIRI
+      mac(5, { analysis: { probabilities: { '1': 40, X: 30, '2': 30 }, surpriseScore: 44 } }), // sınırın ALTI
+      mac(6, { analysis: null }),                                                              // KAPSAM DIŞI
+    ],
+  });
+
+  test('kapsanmayan maç varsa sayaç paydayı gösteriyor (5/6)', async () => {
+    mockUclar({ '/api/bulletin': ESIKLI_BULTEN() });
+    render(<HomeScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText('1. Hafta').length).toBeGreaterThan(0));
+    // 6 maçın 5'inde analiz var. Yalnız "5" yazmak eksik veri izlenimi verirdi.
+    // Sayaç KUTUSU okunur — ekranda gezinen çıplak "5"ler (maç no, puan) değil.
+    expect(metin(screen.getByTestId('sayac-analiz'))).toBe('5/6');
+  });
+
+  test('etiketteki eşik ile sayılan eşik AYNI — sınır dahil sayılıyor', async () => {
+    mockUclar({ '/api/bulletin': ESIKLI_BULTEN() });
+    render(<HomeScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText('1. Hafta').length).toBeGreaterThan(0));
+
+    // Etiketler eşiği YAZIYOR — kullanıcı sayının neyi saydığını görebilmeli.
+    expect(screen.getByText('Öne Çıkan 45+')).toBeTruthy();
+    expect(screen.getByText('Sürpriz 65+')).toBeTruthy();
+
+    // Ve o eşikler GERÇEKTEN uygulanıyor:
+    //   85, 65, 64, 45, 44  →  45+ olanlar: 85, 65, 64, 45 = 4
+    //                          65+ olanlar: 85, 65         = 2
+    // 64 ve 44 SINIRIN ALTINDA; sayılırlarsa eşik kaymış demektir.
+    expect(metin(screen.getByTestId('sayac-one-cikan'))).toBe('4');
+    expect(metin(screen.getByTestId('sayac-surpriz'))).toBe('2');
   });
 });

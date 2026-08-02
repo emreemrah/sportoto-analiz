@@ -436,7 +436,7 @@ export function MatchHeader({ home, away, homeLogo, awayLogo, league, dateLabel,
         <TouchableOpacity style={s.mhTeam} onPress={onHomePress} disabled={!onHomePress} activeOpacity={0.7}>
           <Logo uri={homeLogo} name={home} size={50} />
           <Text style={s.mhTeamName} numberOfLines={2}>{home}</Text>
-          {onHomePress ? <Text style={s.mhStatHint}>istatistik ›</Text> : null}
+          {onHomePress ? <Text style={s.mhStatHint}>maçlar ›</Text> : null}
         </TouchableOpacity>
         <View style={s.mhCenter}>
           {league ? <Text style={s.mhLeague} numberOfLines={1}>{league}</Text> : null}
@@ -453,7 +453,7 @@ export function MatchHeader({ home, away, homeLogo, awayLogo, league, dateLabel,
         <TouchableOpacity style={s.mhTeam} onPress={onAwayPress} disabled={!onAwayPress} activeOpacity={0.7}>
           <Logo uri={awayLogo} name={away} size={50} />
           <Text style={s.mhTeamName} numberOfLines={2}>{away}</Text>
-          {onAwayPress ? <Text style={s.mhStatHint}>istatistik ›</Text> : null}
+          {onAwayPress ? <Text style={s.mhStatHint}>maçlar ›</Text> : null}
         </TouchableOpacity>
       </View>
     </View>

@@ -16,6 +16,9 @@ import { EmptyState, SkeletonCard, Logo } from '../ui';
 import { ProfileAvatar } from '../components';
 import { crestOf } from '../utils';
 import BulletinHeroVisual, { BulletinHeroBackdrop } from '../components/BulletinHeroVisual';
+import LigSeridi from '../components/LigSeridi';
+import KayanSerit from '../components/KayanSerit';
+import { yaklasanMaclar, oncekiRoundId } from '../yaklasanMaclar';
 import { loadNotifications } from '../services/notificationsService';
 
 
@@ -83,16 +86,27 @@ function Header({ data, navigation, unread = 0 }) {
   );
 }
 
+// SÜRPRİZ SKORU EŞİKLERİ — TEK KAYNAK. Hem filtreyi hem etiketi bunlar besler.
+// Ayrı yazılırlarsa biri değişip diğeri kalır ve ekran yalan söyler: "Öne Çıkan
+// 45+" yazıp aslında 50+ sayan bir sayaç, kullanıcının doğrulayamayacağı bir
+// hatadır. Bu yüzden sabit inline YAZILMAZ.
+const ONE_CIKAN_ESIK = 45;
+const SURPRIZ_ESIK = 65;
+
 function HeroCard({ data, loading, onPress, onSummary, onRecap }) {
   const matches = data?.matches || [];
   // Sayılar YALNIZ güncel bültenin GERÇEK analizinden. "Maç Analizi" = analizi
   // olan (kapsanan) maç sayısı; kapsam dışı maç varsa şişirmez, yanıltmaz.
+  // PAYDA GÖSTERİLİR (14/15): yalnız "14" yazınca bülten 15 maçlık olduğu için
+  // kullanıcı eksik veri sanıyordu — kapsanmayan maç varsa bu görünmeliydi.
   const analyzed = matches.filter((m) => m?.analysis && m.analysis.surpriseScore != null);
   const total = analyzed.length;
-  const featured = analyzed.filter((m) => Number(m.analysis.surpriseScore) >= 45).length;
-  const surprise = analyzed.filter((m) => Number(m.analysis.surpriseScore) >= 65).length;
+  const bulletinTotal = matches.length;
+  const featured = analyzed.filter((m) => Number(m.analysis.surpriseScore) >= ONE_CIKAN_ESIK).length;
+  const surprise = analyzed.filter((m) => Number(m.analysis.surpriseScore) >= SURPRIZ_ESIK).length;
   const leagues = new Set(matches.map((m) => m.league).filter(Boolean)).size;
-  const v = (n) => (loading || !data ? '–' : n);
+  const hazir = !loading && !!data;
+  const v = (n) => (hazir ? n : '–');
 
   return (
     <View style={styles.heroCard}>
@@ -119,18 +133,23 @@ function HeroCard({ data, loading, onPress, onSummary, onRecap }) {
       <View style={styles.heroBottomRow}>
         <View style={styles.heroStats}>
           <View style={styles.heroStatItem}>
-            <Text style={styles.heroStatValue}>{v(total)}</Text>
+            {/* Payda küçük punto: "14/15" dar telefonda dört sütuna sığsın diye
+                sayı 22pt kalır, "/15" 13pt'ye düşer — satır kırılmaz. */}
+            <Text style={styles.heroStatValue} numberOfLines={1} testID="sayac-analiz">
+              {v(total)}
+              {hazir ? <Text style={styles.heroStatValueSuffix}>/{bulletinTotal}</Text> : null}
+            </Text>
             <Text style={styles.heroStatLabel} numberOfLines={2}>Maç Analizi</Text>
           </View>
           <View style={styles.heroDivider} />
           <View style={styles.heroStatItem}>
-            <Text style={styles.heroStatValue}>{v(featured)}</Text>
-            <Text style={styles.heroStatLabel} numberOfLines={2}>Öne Çıkan</Text>
+            <Text style={styles.heroStatValue} testID="sayac-one-cikan">{v(featured)}</Text>
+            <Text style={styles.heroStatLabel} numberOfLines={2}>{`Öne Çıkan ${ONE_CIKAN_ESIK}+`}</Text>
           </View>
           <View style={styles.heroDivider} />
           <View style={styles.heroStatItem}>
-            <Text style={styles.heroStatValue}>{v(surprise)}</Text>
-            <Text style={styles.heroStatLabel} numberOfLines={2}>Sürpriz Maç</Text>
+            <Text style={styles.heroStatValue} testID="sayac-surpriz">{v(surprise)}</Text>
+            <Text style={styles.heroStatLabel} numberOfLines={2}>{`Sürpriz ${SURPRIZ_ESIK}+`}</Text>
           </View>
           <View style={styles.heroDivider} />
           <View style={styles.heroStatItem}>
@@ -253,16 +272,27 @@ function SurpriseCard({ match, navigation }) {
 }
 
 // Yaklaşan maç kartı — gerçek bülten verisi: gün + saat + takımlar + lig.
+// HAFTA ROZETİ yalnız ÖNCEKİ haftanın maçlarında görünür: liste iki haftayı
+// karıştırdığı için kullanıcının hangi bültene baktığını bilmesi gerekir.
+// TIKLAMA HEDEFİ de haftaya göre değişir — açıklaması yaklasanMaclar.js'te.
 function KickoffCard({ match, navigation }) {
   const d = match.date ? new Date(match.date) : null;
   const ok = d && !Number.isNaN(d.getTime());
   const day = ok ? d.toLocaleDateString('tr-TR', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+  const git = () => (match.oncekiHafta
+    ? navigation.navigate('BulletinDetail', { bulletinId: match.roundId })
+    : navigation.navigate('MatchDetail', { no: match.no }));
   return (
     <TouchableOpacity
       style={styles.kickCard}
       activeOpacity={0.86}
-      onPress={() => navigation.navigate('MatchDetail', { no: match.no })}
+      onPress={git}
     >
+      {match.oncekiHafta && match.haftaAdi ? (
+        <View style={styles.kickHaftaRozet}>
+          <Text style={styles.kickHaftaTxt} numberOfLines={1}>{match.haftaAdi}</Text>
+        </View>
+      ) : null}
       <View style={styles.kickTimeRow}>
         <Text style={styles.kickDay} numberOfLines={1}>{day}</Text>
         <Text style={styles.kickTime}>{ok ? matchTime(match.date) : '—'}</Text>
@@ -298,6 +328,11 @@ export default function HomeScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [unread, setUnread] = useState(0);
 
+  // ÖNCEKİ HAFTANIN DEVAM EDEN MAÇLARI. Ayrı bir istektir ve BAŞARISIZ OLMASI
+  // ana sayfayı BOZMAZ: bülten yine çizilir, liste yalnız güncel haftayı
+  // gösterir. Ek bir veri için asıl ekranı riske atmak doğru olmazdı.
+  const [onceki, setOnceki] = useState(null);
+
   const load = useCallback(async () => {
     try {
       setError(null);
@@ -308,9 +343,23 @@ export default function HomeScreen({ navigation }) {
     }
   }, []);
 
+  const oncekiHaftayiYukle = useCallback(async () => {
+    try {
+      const r = await api.rounds();
+      const id = oncekiRoundId(r);
+      if (id == null) { setOnceki(null); return; }
+      const h = await api.history(id);
+      const ad = (r.rounds || []).find((x) => x.id === id)?.name ?? null;
+      setOnceki({ roundId: id, round: ad, matches: h?.matches || [] });
+    } catch {
+      setOnceki(null);                      // sessiz geç — ana akış bozulmasın
+    }
+  }, []);
+
   useEffect(() => {
     load();
-  }, [load]);
+    oncekiHaftayiYukle();
+  }, [load, oncekiHaftayiYukle]);
 
   // Zil rozeti: gerçek okunmamış bildirim sayısı. Hata olursa rozet yok
   // (sayı uydurulmaz), ekran akışı da etkilenmez.
@@ -328,9 +377,9 @@ export default function HomeScreen({ navigation }) {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load();
+    await Promise.all([load(), oncekiHaftayiYukle()]);
     setRefreshing(false);
-  }, [load]);
+  }, [load, oncekiHaftayiYukle]);
 
   const matches = data?.matches || [];
 
@@ -352,13 +401,13 @@ export default function HomeScreen({ navigation }) {
   const displayAnalysis = topAnalysis.length ? topAnalysis : fallbackAnalysis;
   const displaySurprise = surpriseMatches.length ? surpriseMatches : matches.slice(0, 3);
 
-  // Yaklaşan maçlar — gerçek bülten tarihlerinden, en yakın önce.
-  const upcoming = useMemo(() => {
-    return [...matches]
-      .filter((m) => m.status !== 'finished' && m.date && !Number.isNaN(new Date(m.date).getTime()))
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
-      .slice(0, 6);
-  }, [matches]);
+  // Yaklaşan maçlar — GÜNCEL hafta + ÖNCEKİ haftadan henüz oynanmamışlar,
+  // tarihe göre en yakın önce. Birleştirme mantığı yaklasanMaclar.js'te
+  // (saf ve ayrıca test edilir).
+  const upcoming = useMemo(
+    () => yaklasanMaclar({ roundId: data?.roundId, round: data?.round, matches }, onceki),
+    [data?.roundId, data?.round, matches, onceki],
+  );
 
   return (
     <ScrollView
@@ -381,6 +430,10 @@ export default function HomeScreen({ navigation }) {
         onSummary={() => navigation.navigate('WeekSummary')}
         onRecap={() => navigation.navigate('WeekRecap')}
       />
+
+      {/* Bu haftanın ligleri: logo + ad, kayan tek satır. Bülten yokken
+          bileşen hiç çizilmez (boş çubuk bırakmaz). */}
+      <LigSeridi matches={data?.matches} />
 
       {/* Hızlı Erişim kullanıcı kararıyla KALDIRILDI ("hızlı erişim olmasın") —
           alt sekme çubuğu aynı sayfalara zaten götürüyor. */}
@@ -449,15 +502,20 @@ export default function HomeScreen({ navigation }) {
             right="Tümünü Gör ›"
             onPress={() => navigation.navigate('BulletinTab')}
           />
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.surpriseScroll}
+          {/* Lig şeridiyle AYNI mekanizma: sürekli döner, parmak değince
+              durur (hareket eden kartı isabetle tıklamak zordur), cihazda
+              "hareketi azalt" açıksa hiç kaymaz.
+              Anahtar hafta+no birlikte: iki haftanın maçları aynı listede ve
+              sıra numaraları çakışıyor — yalnız m.no ile anahtar çakışırdı. */}
+          <KayanSerit
+            testID="yaklasan-serit"
+            style={styles.surpriseScroll}
+            accessibilityLabel={`Yaklaşan maçlar: ${upcoming.length} karşılaşma`}
           >
             {upcoming.map((m) => (
-              <KickoffCard key={m.no} match={m} navigation={navigation} />
+              <KickoffCard key={`${m.roundId}-${m.no}`} match={m} navigation={navigation} />
             ))}
-          </ScrollView>
+          </KayanSerit>
         </>
       )}
     </ScrollView>
@@ -774,6 +832,21 @@ const styles = StyleSheet.create({
     ...shadows.soft,
   },
 
+  // Önceki hafta rozeti — kartın en üstünde, ayırt edici ama bağırmayan.
+  kickHaftaRozet: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.cardAlt,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginBottom: 4,
+  },
+  kickHaftaTxt: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: '800',
+  },
+
   kickTimeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -895,6 +968,12 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
     marginTop: 2,
+  },
+  // "/15" paydası: sayının kendisiyle yarışmasın, ama okunur kalsın.
+  heroStatValueSuffix: {
+    color: '#9fb0b3',
+    fontSize: 13,
+    fontWeight: '800',
   },
   heroStatLabel: {
     color: '#c1cacc',

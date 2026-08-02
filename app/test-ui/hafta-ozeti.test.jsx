@@ -88,7 +88,7 @@ describe('Hafta Özeti', () => {
     mockUclar({ roundId: 1600, matches: [mac(1)] });     // difficulty yok
     render(<WeekSummaryScreen navigation={nav} />);
     await waitFor(() => expect(screen.getByText('HAFTANIN ÖZETİ')).toBeTruthy());
-    expect(screen.queryByText('Bülten zorluğu')).toBeNull();
+    expect(screen.queryByText('BÜLTEN ZORLUĞU')).toBeNull();
   });
 
   test('zorluk verisi VARSA gösteriliyor (pozitif eş)', async () => {
@@ -97,8 +97,11 @@ describe('Hafta Özeti', () => {
       difficulty: { level: 'Zor', score: 68, text: 'Bu hafta denk maç çok.' },
     });
     render(<WeekSummaryScreen navigation={nav} />);
-    expect(await screen.findByText('Bülten zorluğu')).toBeTruthy();
-    expect(screen.getByText('Zor · 68/100')).toBeTruthy();
+    // Sunum yeniden tasarlandı (segmentli gösterge, seviye ve skor ayrı
+    // tipografide); ÖLÇÜLEN ŞEY AYNI: zorluk verisi varsa kullanıcıya ulaşıyor.
+    expect(await screen.findByText('BÜLTEN ZORLUĞU')).toBeTruthy();
+    expect(screen.getByText('Zor')).toBeTruthy();
+    expect(screen.getByText('Bu hafta denk maç çok.')).toBeTruthy();
   });
 
   test('sunucu hatası GİZLENMİYOR', async () => {

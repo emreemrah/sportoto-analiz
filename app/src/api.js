@@ -48,6 +48,8 @@ export const api = {
   live: (no) => req(`/api/live/${no}`),
   health: () => req('/api/health'),
   rounds: () => req('/api/rounds'),
+  // Takımın sezondaki oynanmış + oynanacak maçları (maç detayı → takım kartı).
+  teamFixtures: (teamId, seasonId) => req(`/api/team-fixtures/${teamId}?seasonId=${seasonId}`),
   history: (roundId, fresh = false) => req(`/api/history/${roundId}${fresh ? '?fresh=1' : ''}`),
   systemScorecard: () => req('/api/system-scorecard'),
   criteriaScorecard: () => req('/api/criteria-scorecard'),

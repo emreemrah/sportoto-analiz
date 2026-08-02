@@ -5,7 +5,7 @@
 // 4) Sonucu cache'e yazar (mobil uygulama buradan okur)
 import { config, usingExampleKey } from './config.js';
 import { getLatestBulletin, getBulletinByRoundId } from './sources/sportoto.js';
-import { fetchSeason, fetchMatches, fetchLeagueNames, fetchTeamVenue, fetchMatchScore } from './sources/footystats.js';
+import { fetchSeason, fetchMatches, fetchLeagueInfo, fetchTeamVenue, fetchMatchScore } from './sources/footystats.js';
 import { discoverSeasonIds } from './seasonDiscovery.js';
 import { attachVenueProfiles } from './analysis/opponentStrength.js';
 import { getWeather } from './weather.js';
@@ -22,6 +22,8 @@ import { fileURLToPath } from 'node:url';
 import { attachAiComments, aiEnabled } from './analysis/aiComment.js';
 import { save, load } from './cache.js';
 import { archiveOnRefresh, archivePreSave } from './archive/worker.js';
+import { kaynakTakimKimlikleri, fiksturIndeksi } from './takimFikstur.js';
+import { eslesenSayisi, kapsamGerilemesi } from './kapsamKorumasi.js';
 
 // İki bülten arasındaki resmi alan farkları (kilit sonrası "sessiz değişiklik"
 // tespiti için): roundId · hafta · maç sayısı · sıra no · takım adı · tarih-saat.
@@ -223,11 +225,13 @@ export async function refreshAll() {
 
   console.log(`[refresh] bülten: ${bulletin.year} ${bulletin.round} — ${bulletin.matchCount} maç`);
 
-  // 1c) Gerçek lig adları (seasonId → "Sweden Allsvenskan"…) — jenerik resmi
-  // etiketi ("2026 Sezonu") eşleşen FootyStats liginin gerçek adıyla değiştirmek için.
-  let leagueNames = new Map();
+  // 1c) Gerçek lig adı + logosu (seasonId → { name, image }). Ad, jenerik resmi
+  // etiketi ("2026 Sezonu") gerçek lig adıyla değiştirmek için; logo ise ana
+  // sayfadaki kayan lig şeridi için. Alınamazsa akış BOZULMAZ: resmi etiket
+  // olduğu gibi kalır, logo boş geçer (şerit nötr simge çizer).
+  let leagueInfo = new Map();
   try {
-    leagueNames = await fetchLeagueNames();
+    leagueInfo = await fetchLeagueInfo();
   } catch (e) {
     console.warn(`[refresh] lig adları alınamadı: ${e.message}`);
   }
@@ -270,16 +274,43 @@ export async function refreshAll() {
   const footyMatches = [];
   const matchesBySeason = new Map();
   const teamsBySeason = new Map();
+  // DÜŞEN SEZONLAR SAYILIR ve KAYDEDİLİR. Eskiden yalnız console.warn'a
+  // yazılıyordu: çalıştırmanın çıktısı hiçbir yerde durmadığı için, veri
+  // eksildiğinde NEDEN eksildiği sonradan hiç anlaşılamıyordu. Artık sebep
+  // durum dosyasına yazılır ve tek denemede pes edilmez.
+  const dusenSezonlar = [];
   for (const sid of seasonIds) {
-    try {
-      const season = await fetchSeason(sid);
-      footyMatches.push(...season.matches);
-      matchesBySeason.set(sid, season.matches);
-      teamsBySeason.set(sid, season.teams);
-      console.log(`[refresh] FootyStats sezon ${sid}: ${season.matches.length} maç`);
-    } catch (e) {
-      console.warn(`[refresh] FootyStats sezon ${sid} alınamadı: ${e.message}`);
+    let sonHata = null;
+    for (let deneme = 1; deneme <= 2; deneme++) {
+      try {
+        const season = await fetchSeason(sid);
+        footyMatches.push(...season.matches);
+        matchesBySeason.set(sid, season.matches);
+        teamsBySeason.set(sid, season.teams);
+        console.log(`[refresh] FootyStats sezon ${sid}: ${season.matches.length} maç${deneme > 1 ? ` (${deneme}. deneme)` : ''}`);
+        sonHata = null;
+        break;
+      } catch (e) {
+        sonHata = e.message;
+        // Geçici hatada (ağ dalgalanması) kısa bir bekleyip bir kez daha dene.
+        // Hız sınırında (429) ISRAR ETME — daha çok istek durumu kötüleştirir.
+        if (deneme === 1 && !/\b429\b/.test(e.message)) {
+          await new Promise((r) => setTimeout(r, 2000));
+        } else {
+          break;
+        }
+      }
     }
+    if (sonHata) {
+      dusenSezonlar.push({ seasonId: sid, error: sonHata });
+      console.warn(`[refresh] FootyStats sezon ${sid} alınamadı: ${sonHata}`);
+    }
+  }
+  if (dusenSezonlar.length) {
+    console.warn(`[refresh] ⚠ ${dusenSezonlar.length}/${seasonIds.length} sezon alınamadı — kapsam eksik olabilir.`);
+    // DİKKAT: `nowIso` bu dosyada ÇOK DAHA AŞAĞIDA tanımlı (const). Burada
+    // kullanmak çalışma anında ReferenceError verirdi — zamanı yerinde üret.
+    try { save('failedSeasons', { at: new Date().toISOString(), roundId: bulletin.roundId, toplam: seasonIds.length, dusen: dusenSezonlar }); } catch { /* kayıt olmasa da akış sürsün */ }
   }
   saveFootyScores(footyMatches);
 
@@ -367,10 +398,25 @@ export async function refreshAll() {
 
     // Jenerik resmi lig etiketini ("2026 Sezonu") eşleşen FootyStats liginin
     // GERÇEK adıyla değiştir. Eşleşme yoksa resmi etiket olduğu gibi kalır.
+    // Logo da buradan gelir: lig adı ile logo AYNI kayıttan okunur, böylece
+    // ekranda "Danimarka Superliga" yazıp yanına başka ligin arması düşemez.
     if (fm && fm.seasonId != null) {
-      const real = leagueNames.get(String(fm.seasonId));
-      if (real) bm.league = real;
+      const bilgi = leagueInfo.get(String(fm.seasonId));
+      if (bilgi?.name) bm.league = bilgi.name;
+      if (bilgi?.image) bm.leagueImage = bilgi.image;
     }
+    // KAYNAK TAKIM KİMLİKLERİ — takım fikstürü ekranı bunlarla çalışır.
+    // `home.externalTeamId` BAŞKA bir sağlayıcının kimliğidir ve buradaki
+    // sezon verisiyle EŞLEŞMEZ (ör. Randers: 2614 ≠ 2521); bu yüzden
+    // eşleşen maçın kendi kimlikleri ayrıca yazılır.
+    // `swapped`: bülten ev/deplasmanı ters listelemişse kimlikler de çevrilir,
+    // yoksa takım kartı rakibin fikstürünü açardı.
+    if (fm) {
+      const kimlik = kaynakTakimKimlikleri(fm, found.swapped);
+      bm.footyHomeId = kimlik.home;
+      bm.footyAwayId = kimlik.away;
+    }
+
     let score = bm.score || null;
     let isLive = false;
     if (started && fm && fm.score && (fm.status === 'live' || fm.status === 'finished')) {
@@ -497,6 +543,28 @@ export async function refreshAll() {
   } else {
     console.log('[refresh] ✓ VERİ KAPSAMI: tüm maçlar eşleşti.');
   }
+  // TAKIM FİKSTÜR İNDEKSİ — bültendeki takımların ELİMİZDEKİ TÜM turnuvalardaki
+  // maçları (lig + kupa + Avrupa; hesapta hangileri seçiliyse). Burada kurulur
+  // çünkü tüm sezonların maçları (footyMatches) yalnız bu noktada bir arada.
+  // Başarısız olursa akış BOZULMAZ: uç tek sezonluk yedeğe düşer ve bunu
+  // `kaynak: 'tek-sezon'` ile açıkça bildirir.
+  try {
+    const takimIdleri = [];
+    const adlar = new Map();
+    for (const am of analyzedMatches) {
+      if (am.footyHomeId != null) { takimIdleri.push(am.footyHomeId); adlar.set(String(am.footyHomeId), am.home?.name ?? null); }
+      if (am.footyAwayId != null) { takimIdleri.push(am.footyAwayId); adlar.set(String(am.footyAwayId), am.away?.name ?? null); }
+    }
+    const ham = fiksturIndeksi(takimIdleri, footyMatches, leagueInfo);
+    const indeks = {};
+    for (const [id, fikstur] of Object.entries(ham)) indeks[id] = { ad: adlar.get(id) ?? null, fikstur };
+    save('teamFixtures', indeks);
+    const turnuva = new Set(Object.values(ham).flat().map((f) => f.lig).filter(Boolean));
+    console.log(`[refresh] takım fikstürü: ${Object.keys(indeks).length} takım · ${turnuva.size} turnuva`);
+  } catch (e) {
+    console.warn(`[refresh] takım fikstür indeksi kurulamadı: ${e.message}`);
+  }
+
   // OPERASYONEL ÖZET (yalnız backend logu — müşteri ekranına gitmez).
   console.log(`[refresh] özet: catalog=${discoveryMeta?.catalogCount ?? '-'}, dynamicSeasons=${discoveryMeta?.dynamicCount ?? 0}, totalSeasons=${seasonIds.length}, matches=${bulletin.matches.length}, matched=${matched}`);
 
@@ -716,6 +784,30 @@ export async function refreshAll() {
   const { radarCenter, analysisCenter } = await archivePreSave(result, { previous: previousBulletin, isLocked: isLocked && sameBulletin });
   if (radarCenter) result.radarCenter = radarCenter;
   if (analysisCenter) result.analysisCenter = analysisCenter;
+
+  // ═══ GERİLEME KORUMASI — İYİ VERİYİ BOZUK VERİYLE EZME ═══
+  // GERÇEK OLAY (2 Ağustos 2026): kaynak HTTP 429 (hız sınırı) döndü, 57
+  // sezonun HEPSİ düştü, eşleşme 14/15 → 0/15 oldu. Sezon hataları yalnız
+  // console.warn'a yazıldığı için akış devam etti, dolu bülten TAMAMEN BOŞ
+  // bültenle ezildi ve durum `ok: true` kaydedildi. Kullanıcı verisiz bir
+  // ekranla kaldı; sistem kendini başarılı sanıyordu.
+  //
+  // KURAL: aynı hafta için elde ÇALIŞAN bir bülten varken, kapsamı ciddi
+  // biçimde DÜŞMÜŞ bir sonuç yazılmaz. Eski veri korunur ve durum HATA olarak
+  // bildirilir. Eski veriyi göstermek, boş ekran göstermekten iyidir; ikisi de
+  // olmazsa bari sessiz kalmasın.
+  const oncekiEslesen = sameBulletin ? eslesenSayisi(previousBulletin) : 0;
+  if (kapsamGerilemesi(oncekiEslesen, matched)) {
+    const mesaj = `kapsam çöktü: ${oncekiEslesen} → ${matched} (kaynak erişilemiyor olabilir) — ESKİ BÜLTEN KORUNDU`;
+    console.error(`[refresh] ⛔ ${mesaj}`);
+    save('autoRefreshStatus', {
+      lastTrigger: 'guard', startedAt: nowIso, finishedAt: new Date().toISOString(),
+      state: 'idle', ok: false, error: mesaj,
+      roundId: bulletin.roundId, matchedCount: matched, matchCount: bulletin.matches.length,
+      previousMatchedCount: oncekiEslesen,
+    });
+    throw new Error(mesaj);
+  }
 
   save('bulletin', result);
   // Bu haftanın maç-başı SİSTEM TAHMİNİ snapshot'ı (roundId ile) — hafta geçmişe

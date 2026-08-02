@@ -1,6 +1,7 @@
 // FootyStats API'sinden lig maçlarını (oran, xG, form) ve takım istatistiklerini çeker.
 // API anahtarı SADECE burada, .env'den okunan config üzerinden kullanılır.
 import { config } from '../config.js';
+import { kotayiIsle, kotaDurumu, istegeBagliYapilabilir } from './kotaBekcisi.js';
 
 const num = (v) => (typeof v === 'number' ? v : Number(v) || 0);
 // EKSİK VERİYİ KORUYAN sürüm: kaynakta olmayan alan 0 DEĞİL null olur.
@@ -17,28 +18,44 @@ export const numN = (v) => {
 };
 
 // Ham JSON'u (data + pager) döndürür — sayfalama için pager lazım.
-async function apiGetRaw(path, params) {
+//
+// `istegeBagli: true` → kota azaldığında bu çağrı YAPILMAZ. Kullanıcı
+// isteğiyle tetiklenen, olmasa da sistemin ayakta kaldığı çağrılar için
+// (canlı skor tazeleme, takım fikstürü yedeği). Zamanlanmış yenileme
+// ZORUNLUDUR ve bu bayrağı kullanmaz. Gerekçe: kotaBekcisi.js
+async function apiGetRaw(path, params, { istegeBagli = false } = {}) {
+  if (istegeBagli && !istegeBagliYapilabilir()) {
+    const { kalan } = kotaDurumu();
+    throw new Error(`FootyStats ${path}: kota korumasi (kalan ${kalan}) — isteğe bağlı çağrı atlandı`);
+  }
   const qs = new URLSearchParams({ key: config.footyStatsKey, ...params }).toString();
   const res = await fetch(`${config.footyStatsApi}/${path}?${qs}`);
   if (!res.ok) throw new Error(`FootyStats ${path}: HTTP ${res.status}`);
   const json = await res.json();
+  // Kalan hakkı API'nin kendi bildirdiği değerden öğren (tahmin değil).
+  kotayiIsle(json);
   if (!json.success) throw new Error(`FootyStats ${path}: ${json.message || 'başarısız'}`);
   return json;
 }
 
-async function apiGet(path, params) {
-  return (await apiGetRaw(path, params)).data;
+async function apiGet(path, params, secenek) {
+  return (await apiGetRaw(path, params, secenek)).data;
 }
 
-// seasonId → gerçek lig adı ("Sweden Allsvenskan", "China Chinese Super League"...)
-// FootyStats league-list'ten kurulur. Bülten maçının jenerik resmi etiketini
-// ("2026 Sezonu") eşleştiği FootyStats liginin GERÇEK adıyla değiştirmek için.
-export async function fetchLeagueNames() {
+// seasonId → { name, image } — gerçek lig adı ve lig logosu.
+// name : "Sweden Allsvenskan", "China Chinese Super League"… Bülten maçının
+//        jenerik resmi etiketini ("2026 Sezonu") gerçek lig adıyla değiştirir.
+// image: ligin kaynaktaki logo URL'si (ana sayfadaki kayan lig şeridi için).
+//        Kaynak logo vermiyorsa null — UYDURMA URL kurulmaz; istemci nötr
+//        simge çizer. Elde olmayan bir görseli varmış gibi göstermek, kırık
+//        resim kutusu olarak kullanıcıya döner.
+export async function fetchLeagueInfo() {
   const data = await apiGet('league-list', { chosen_leagues_only: 'true' });
   const map = new Map();
   for (const lg of data || []) {
+    const bilgi = { name: lg.name, image: lg.image || null };
     for (const s of lg.season || []) {
-      if (s?.id != null) map.set(String(s.id), lg.name);
+      if (s?.id != null) map.set(String(s.id), bilgi);
     }
   }
   return map;
@@ -242,7 +259,9 @@ export async function fetchLeaguePlayers(seasonId) {
 // Tek maçın ANLIK skoru + durumu (canlı/bitmiş) — geçmiş bültendeki başlamış
 // maçların geçici skorunu hedefli tazelemek için (tüm sezonu çekmeden).
 export async function fetchMatchScore(matchId) {
-  const m = await apiGet('match', { match_id: matchId });
+  // KULLANICI TETİKLİ: /api/history isteğiyle çağrılır. Kota azalınca atlanır —
+  // canlı skor tazelemesi durur ama bülten ayakta kalır (kotaBekcisi.js).
+  const m = await apiGet('match', { match_id: matchId }, { istegeBagli: true });
   const complete = m?.status === 'complete';
   const dateUnix = num(m?.date_unix);
   const started = dateUnix > 0 && dateUnix * 1000 <= Date.now();

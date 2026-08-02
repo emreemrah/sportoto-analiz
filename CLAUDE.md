@@ -79,3 +79,104 @@ kupon oluşturma ve **kullanıcı mantığı analiz motoru** (`app/src/userMatch
   genişliği: tek=Düşük, çifte=Orta, üçlü 1X2=Yüksek). Detay: `HANDOFF.md` §6.
 - `node_modules/`, `.git/`, `dist/`, `build/`, `app/.expo/`, `backend/cache/`,
   `backend/data/`, `backend/public/` üretilen/çıktı — okuma/düzenleme gerekmez.
+
+---
+
+# Çalışma Yöntemi
+
+> Buraya kadarki bölüm **bu projenin** kurallarıdır (ne yapılır, ne yapılmaz).
+> Buradan sonrası **nasıl çalışılacağıdır** ve her göreve uygulanır.
+
+## İş Akışı Orkestrasyonu
+
+### 1. Plan Modu Varsayılanı
+
+- Önemsiz olmayan HER görev için plan moduna gir (3+ adım veya mimari kararlar).
+- Bir şeyler ters giderse DUR ve hemen yeniden planla — zorlamaya devam etme.
+- Plan modunu yalnızca geliştirme için değil, doğrulama adımları için de kullan.
+- Belirsizliği azaltmak için ayrıntılı gereksinimleri en baştan yaz.
+
+### 2. Alt Ajan Stratejisi
+
+- Ana bağlam penceresini temiz tutmak için alt ajanları bolca kullan.
+- Araştırma, keşif ve paralel analiz işlerini alt ajanlara devret.
+- Karmaşık problemler için alt ajanlar aracılığıyla daha fazla işlem gücü kullan.
+- Odaklı yürütme için her alt ajana tek görev ver.
+
+### 3. Öz Gelişim Döngüsü
+
+- Kullanıcıdan gelen HER düzeltmeden sonra: kalıba göre `tasks/lessons.md`
+  dosyasını güncelle.
+- Aynı hatayı tekrarlamayı önleyecek kuralları kendin için yaz.
+- Hata oranı düşene kadar bu dersler üzerinde kararlılıkla yineleme yap.
+- İlgili projede oturuma başlarken dersleri gözden geçir.
+
+### 4. Bitirmeden Önce Doğrulama
+
+- Çalıştığını kanıtlamadan bir görevi asla tamamlandı olarak işaretleme.
+- Gerektiğinde ana sürüm ile kendi değişikliklerin arasındaki davranış farkını
+  karşılaştır.
+- Kendine şunu sor: "Kıdemli bir mühendis bunu onaylar mı?"
+- Testleri çalıştır, logları kontrol et, doğruluğu göster.
+
+### 5. Zarif Çözüm Arayışı (Dengeli)
+
+- Önemsiz olmayan değişikliklerde dur ve şunu sor: "Daha zarif bir yolu var mı?"
+- Bir çözüm yamalı görünüyorsa: "Şimdi bildiğim her şeyi bilerek, zarif çözümü
+  uygula."
+- Basit ve açık düzeltmelerde bunu atla — gereğinden fazla mühendislik yapma.
+- Sunmadan önce kendi işini eleştirel biçimde sorgula.
+
+### 6. Otonom Hata Düzeltme
+
+- Bir hata bildirimi verildiğinde: doğrudan düzelt. Adım adım yönlendirme isteme.
+- Logları, hataları ve başarısız testleri işaret et — sonra bunları çöz.
+- Kullanıcıdan sıfır bağlam değişimi gerektir.
+- Nasıl yapılacağı söylenmeden başarısız CI testlerini git ve düzelt.
+- Komutları kullanıcıya çalıştırma; sunucuyu yeniden başlatma, test koşturma,
+  cache yenileme gibi işleri KENDİN yap.
+
+## Görev Yönetimi
+
+- **Önce Planla:** Planı kontrol edilebilir maddelerle `tasks/todo.md` dosyasına
+  yaz.
+- **Planı Doğrula:** Uygulamaya başlamadan önce planı kontrol et.
+- **İlerlemeyi Takip Et:** İlerledikçe maddeleri tamamlandı olarak işaretle.
+- **Değişiklikleri Açıkla:** Her adımda üst düzey bir özet ver.
+- **Sonuçları Belgele:** `tasks/todo.md` dosyasına bir inceleme bölümü ekle.
+- **Dersleri Kaydet:** Düzeltmelerden sonra `tasks/lessons.md` dosyasını
+  güncelle.
+
+## Temel İlkeler
+
+- **Önce Sadelik:** Her değişikliği olabildiğince basit yap. Minimum kodu
+  etkile.
+- **Tembelliğe Yer Yok:** Kök nedenleri bul. Geçici düzeltme yapma. Kıdemli
+  geliştirici standartlarını uygula.
+- **Minimum Etki:** Değişiklikler yalnızca gerekli olan yerlere dokunmalı. Hata
+  eklemekten kaçın.
+
+## SINIR: otonomluk nerede biter
+
+**Varsayılan: SOR MA, YAP.** Eski "başla demeden başlama" kuralı kullanıcı
+kararıyla **İPTAL EDİLDİ** (2 Ağustos 2026). Ekran değişikliği, yeni bileşen,
+düzen değişikliği, bölüm ekleme/kaldırma — hiçbiri onay beklemez. İş istendiği
+anda başlanır, bitirilir ve sonuç kanıtıyla sunulur.
+
+- **BİLDİRİLEN HATA → sorma, düzelt.** Bozuk davranış, başarısız test, yanlış
+  sayı, çöken ekran. Teşhis et, düzelt, kanıtla.
+- **EKRAN / TASARIM / YENİ ÖZELLİK → sorma, yap.** İş bitince ne yaptığını ve
+  neyi doğruladığını anlat. Beğenilmezse geri alınır; kod geri alınabilir.
+- **Adım adım yönlendirme İSTEME.** "Şunu mu yapayım, bunu mu?" diye bölme.
+  Belirsizlik varsa makul olanı seç, seçimini tek satırla söyle ve devam et.
+- **Komutları kullanıcıya çalıştırma.** Sunucu, test, cache, yeniden başlatma —
+  kendin yap.
+
+Tek istisna, geri alınamayan ve dışa dönük işler:
+
+- **GERİ ALINAMAZ veya DIŞA DÖNÜK → yine de sor.** Push, PR, deploy, paket
+  kurma, veri/dosya silme, dışarıya mesaj, para harcama. Bunlar "beğenmezsek
+  geri alırız" kapsamına girmez.
+
+Kural: *kod geri alınabilir, o yüzden sorma; yayına çıkan geri alınamaz, o
+yüzden sor.*

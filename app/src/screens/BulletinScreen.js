@@ -428,10 +428,23 @@ export default function BulletinScreen({ navigation }) {
           </View>
 
           <View style={styles.mCenter}>
-            {resolved || prov ? (() => {
-              // Renk kodu: yeşil=resmi sonuç · sarı=henüz resmi değil · kırmızı=canlı
+            {/* CANLI MAÇTA SKOR GÖSTERİLMEZ (kullanıcı kararı, 2 Ağustos 2026).
+                Yalnız maçın oynanmakta olduğu belirtilir.
+                Projenin kendi kuralıyla aynı yönde: "yalnız resmî 90 dakika
+                sonucu kesindir; canlı ve geçici veriler kesin sayılmaz".
+                Anlık skor saniyede değişir ve resmî sonuçla karışma riski
+                taşır — ayrıca skordan türetilen 1/X/2 harfi de yazılmaz. */}
+            {(!resolved && prov?.live) ? (
+              <>
+                <Text style={styles.mCanli}>CANLI</Text>
+                <Text style={styles.mCanliAlt}>
+                  {prov.minute != null ? `${prov.minute}'` : 'oynanıyor'}
+                </Text>
+              </>
+            ) : resolved || prov ? (() => {
+              // Renk kodu: yeşil=resmi sonuç · sarı=bitti ama henüz resmi değil
               const sc = resolved ? item.score : prov.score;
-              const col = resolved ? colors.success : (prov.live ? colors.accent : colors.warning);
+              const col = resolved ? colors.success : colors.warning;
               const res = resolved ? item.result : (sc.home > sc.away ? '1' : sc.home < sc.away ? '2' : 'X');
               return (
                 <>
@@ -501,10 +514,13 @@ export default function BulletinScreen({ navigation }) {
             </Text>
           </View>
 
+          {/* "↻ Yenile" düğmesi KALDIRILDI (kullanıcı kararı, 2 Ağustos 2026).
+              Ekran zaten 15 saniyede bir kendini yeniliyordu; düğme aynı işi
+              elle tekrarlıyor ve her canlı maç satırına bir düğme daha
+              ekliyordu. "Düzeltme" rozeti AYRI bir şeydir (resmî sonuç
+              değişikliğini açıklar) ve yerinde duruyor. */}
           {corr ? (
             <TouchableOpacity onPress={() => setRefreshSheet({ correction: corr })} style={styles.corrBadge}><Text style={styles.corrTxt}>Düzeltme</Text></TouchableOpacity>
-          ) : (!resolved && !notStarted) ? (
-            <TouchableOpacity onPress={() => setRefreshSheet({ no: item.no })} style={styles.mRefresh}><Text style={styles.mRefreshTxt}>↻ Yenile</Text></TouchableOpacity>
           ) : null}
         </View>
       </View>
@@ -814,6 +830,9 @@ const styles = StyleSheet.create({
   mCenter: { minWidth: 64, alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 6 },
   mScore: { color: colors.text, fontSize: 18, fontWeight: '900', letterSpacing: 1 },
   mRes: { fontSize: 12, fontWeight: '900', marginTop: 1 },
+  // Canlı maçta skorun yerini alan gösterge — skor YAZILMAZ, yalnız durum.
+  mCanli: { color: colors.accent, fontSize: 15, fontWeight: '900', letterSpacing: 1.5 },
+  mCanliAlt: { color: colors.textSoft, fontSize: 11, fontWeight: '800', marginTop: 1 },
   mScoreTemp: { color: colors.textSoft, fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
   mTime: { color: colors.text, fontSize: 14, fontWeight: '800' },
   mDay: { color: colors.muted, fontSize: 10, fontWeight: '700' },
@@ -837,8 +856,7 @@ const styles = StyleSheet.create({
   mPickVal: { color: colors.textSoft, fontWeight: '700' },
   mPickValStrong: { color: colors.text, fontWeight: '900' },
   mPickDot: { color: colors.border },
-  mRefresh: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: radius.sm, backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.border },
-  mRefreshTxt: { color: colors.textSoft, fontSize: 11, fontWeight: '800' },
+  // mRefresh/mRefreshTxt kaldırıldı — "↻ Yenile" düğmesi artık çizilmiyor.
 
   // Geçmiş maç kartı (eski)
   hCard: { backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.border },

@@ -36,13 +36,20 @@ export const INDEPENDENCE_NOTICE =
 // Analiz dürüstlüğü bildirimi — paylaşılan her görselde ve sonuç ekranında geçer.
 export const NO_GUARANTEE_NOTICE = 'Kesin sonuç veya kazanç vaadi değildir.';
 
-// Sorumlu oyun yardım hattı — Yeşilay Danışmanlık Merkezi (ücretsiz, gizli).
-export const SUPPORT_HELPLINE = 'YEDAM 444 79 75';
+// DESTEK HATTI UYGULAMA İÇİNDEN KALDIRILDI (kullanıcı kararı, 2 Ağustos 2026).
+// Sabit KORUNUYOR ama boş: geriye dönük içe aktarmalar kırılmasın ve geri
+// getirilmek istendiğinde tek satır yetsin diye. Alt satır bu değer boşken
+// numarayı da "Destek:" ibaresini de HİÇ yazmaz.
+export const SUPPORT_HELPLINE = '';
 
 // BİRLEŞİK YASAL ALT SATIR — 18+ ibaresi taşıyan her ekran/paylaşım yüzeyi
 // bu SABİTİ kullanır; elle "18+ · ..." yazılmaz. Tek kaynak: metin değişirse
-// (ör. hat numarası) tek satır değişir, 7 kopya birbirinden ayrı düşmez.
-export const LEGAL_FOOTER = `18+ · ${NO_GUARANTEE_NOTICE} · Destek: ${SUPPORT_HELPLINE}`;
+// tek satır değişir, 7 kopya birbirinden ayrı düşmez.
+export const LEGAL_FOOTER = [
+  '18+',
+  NO_GUARANTEE_NOTICE,
+  SUPPORT_HELPLINE ? `Destek: ${SUPPORT_HELPLINE}` : null,
+].filter(Boolean).join(' · ');
 
 // Resmî sonuç bildirimi.
 export const OFFICIAL_RESULT_NOTICE =
@@ -63,7 +70,7 @@ export const DELETE_ACCOUNT_PATH = '/hesap-silme';
 // eşleşmeyi app/test/account-privacy.test.mjs ölçer.
 export const COMMUNITY_RULES_PATH = '/topluluk-kurallari';
 
-// SORUMLU OYUN — yardım hattı (YEDAM) + "kazanç garantisi değildir" beyanı.
+// SORUMLU OYUN — "kazanç garantisi değildir" beyanını taşıyan yasal sayfa.
 // Yol, backend/src/server.js içindeki rotayla BİREBİR aynı olmak zorundadır.
 export const RESPONSIBLE_GAMING_PATH = '/sorumlu-oyun';
 

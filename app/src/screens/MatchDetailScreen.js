@@ -14,6 +14,7 @@ import { statsFromLog, derivedStats } from '../analysis/criteria';
 import MasterAnalysisView from '../components/MasterAnalysisView';
 import CompareBars, { signalsFromStats } from '../components/CompareBars';
 import TeamCompareRadar from '../components/TeamCompareRadar';
+import TakimFiksturModal from '../components/TakimFiksturModal';
 import { crestUrlOf } from '../crestUrl';
 import { API_BASE } from '../config';
 
@@ -70,141 +71,9 @@ function VenueIcon({ result, isHome, size = 22 }) {
 }
 // Takım istatistik penceresi — logoya basınca açılır. Maçta zaten gelen
 // stats.home/away verisiyle (yeni backend gerekmez). Sadece o takımın verisi.
-function TSBox({ label, value, color }) {
-  return (
-    <View style={tm.box}>
-      <Text style={[tm.boxVal, color && { color }]}>{value}</Text>
-      <Text style={tm.boxLbl}>{label}</Text>
-    </View>
-  );
-}
-function TeamStatsModal({ visible, onClose, data }) {
-  if (!data) return null;
-  const { name, logo, league, stats } = data;
-  const st = stats?.standing || {};
-  const sn = stats?.season || {};
-  const av = sn.avg || {};
-  const hs = st.home || {}, as = st.away || {};
-  const detail = [...(stats?.last5detail || [])].reverse();
-  const ppg = st.ppg != null ? Number(st.ppg).toFixed(2) : '—';
-  const gd = st.goalDiff > 0 ? `+${st.goalDiff}` : `${st.goalDiff ?? 0}`;
-  const n1 = (v) => (v == null ? '—' : Number(v).toFixed(1));
-  const n2 = (v) => (v == null ? '—' : Number(v).toFixed(2));
-  const pc = (v) => (v == null ? '—' : `%${Math.round(v)}`);
-  const hasAvg = av && (av.shots || av.corners || av.possession || av.cards);
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={tm.overlay}>
-        <TouchableOpacity style={tm.backdrop} activeOpacity={1} onPress={onClose} />
-        <View style={tm.sheet}>
-          <View style={tm.head}>
-            <Logo uri={logo} name={name} size={40} />
-            <View style={{ flex: 1 }}>
-              <Text style={tm.name} numberOfLines={1}>{st.name || name}</Text>
-              <Text style={tm.sub} numberOfLines={1}>{league || ''}{st.position ? ` · ${st.position}. sıra` : ''}</Text>
-            </View>
-            <TouchableOpacity onPress={onClose} hitSlop={10}><Text style={tm.close}>✕</Text></TouchableOpacity>
-          </View>
-          <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }} showsVerticalScrollIndicator={false}>
-            <Text style={tm.section}>SEZON</Text>
-            <View style={tm.row}>
-              <TSBox label="O" value={st.played ?? '—'} />
-              <TSBox label="G" value={st.wins ?? '—'} color={colors.green} />
-              <TSBox label="B" value={st.draws ?? '—'} color={colors.yellow} />
-              <TSBox label="M" value={st.losses ?? '—'} color={colors.red} />
-              <TSBox label="Puan" value={st.points ?? '—'} />
-              <TSBox label="PPG" value={ppg} />
-            </View>
-            <Text style={tm.section}>GOLLER</Text>
-            <View style={tm.row}>
-              <TSBox label="Attığı" value={st.goalsFor ?? '—'} />
-              <TSBox label="Yediği" value={st.goalsAgainst ?? '—'} />
-              <TSBox label="Averaj" value={gd} />
-              <TSBox label="Gol/maç" value={n1(sn.goalsPerGame)} />
-              <TSBox label="Yediği/maç" value={n1(sn.concededPerGame)} />
-            </View>
-
-            <Text style={tm.section}>BEKLENTİ & EĞİLİM</Text>
-            <View style={tm.row}>
-              <TSBox label="xG (için)" value={n2(sn.xgFor)} color={colors.green} />
-              <TSBox label="xG (karşı)" value={n2(sn.xgAgainst)} color={colors.red} />
-              <TSBox label="2.5 Üst" value={pc(sn.over25Pct)} />
-              <TSBox label="KG Var" value={pc(sn.bttsPct)} />
-            </View>
-            <View style={tm.row}>
-              <TSBox label="Temiz kale" value={pc(sn.cleanSheetPct)} />
-              <TSBox label="Gol atamadı" value={pc(sn.failedToScorePct)} />
-            </View>
-
-            {hasAvg ? (
-              <>
-                <Text style={tm.section}>MAÇ BAŞI ORTALAMA</Text>
-                <View style={tm.row}>
-                  <TSBox label="Topla oynama" value={av.possession ? `%${Math.round(av.possession)}` : '—'} />
-                  <TSBox label="Şut" value={n1(av.shots)} />
-                  <TSBox label="İsabetli" value={n1(av.shotsOnTarget)} />
-                </View>
-                <View style={tm.row}>
-                  <TSBox label="Korner" value={n1(av.corners)} />
-                  <TSBox label="Faul" value={n1(av.fouls)} />
-                  <TSBox label="Kart" value={n1(av.cards)} />
-                </View>
-              </>
-            ) : null}
-
-            <Text style={tm.section}>İÇ SAHA / DEPLASMAN</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <View style={tm.split}>
-                <Text style={tm.splitTitle}>İç Saha</Text>
-                <Text style={tm.splitLine}>{hs.wins ?? 0}G · {hs.draws ?? 0}B · {hs.losses ?? 0}M</Text>
-                <Text style={tm.splitGoals}>AT {hs.goalsFor ?? 0} · YE {hs.goalsAgainst ?? 0}</Text>
-              </View>
-              <View style={tm.split}>
-                <Text style={tm.splitTitle}>Deplasman</Text>
-                <Text style={tm.splitLine}>{as.wins ?? 0}G · {as.draws ?? 0}B · {as.losses ?? 0}M</Text>
-                <Text style={tm.splitGoals}>AT {as.goalsFor ?? 0} · YE {as.goalsAgainst ?? 0}</Text>
-              </View>
-            </View>
-            {detail.length ? (
-              <>
-                <Text style={tm.section}>SON MAÇLAR</Text>
-                {detail.map((d, i) => (
-                  <View key={i} style={tm.mRow}>
-                    <Logo uri={d.oppLogo} name={d.oppName} size={18} />
-                    <Text style={tm.mOpp} numberOfLines={1}>{d.oppName || '—'}</Text>
-                    <Text style={[tm.mScore, { color: d.result === 'G' ? colors.green : d.result === 'M' ? colors.red : colors.textMuted }]}>{d.score}</Text>
-                    <VenueIcon result={d.result} isHome={d.isHome} size={20} />
-                  </View>
-                ))}
-              </>
-            ) : null}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-const tm = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheet: { maxHeight: '85%', backgroundColor: colors.bg, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, overflow: 'hidden' },
-  head: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: spacing.lg, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
-  name: { color: colors.text, fontSize: 16, fontWeight: '900' },
-  sub: { color: colors.textMuted, fontSize: 12, fontWeight: '700', marginTop: 1 },
-  close: { color: colors.textMuted, fontSize: 18, fontWeight: '900' },
-  section: { color: colors.textMuted, fontSize: 10.5, fontWeight: '900', letterSpacing: 0.4, marginTop: 2 },
-  row: { flexDirection: 'row', gap: 6 },
-  box: { flex: 1, backgroundColor: colors.card, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, alignItems: 'center' },
-  boxVal: { color: colors.text, fontSize: 16, fontWeight: '900' },
-  boxLbl: { color: colors.textMuted, fontSize: 10, fontWeight: '800', marginTop: 2 },
-  split: { flex: 1, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: 3 },
-  splitTitle: { color: colors.text, fontSize: 12.5, fontWeight: '900' },
-  splitLine: { color: colors.textSoft, fontSize: 12.5, fontWeight: '800', marginTop: 2 },
-  splitGoals: { color: colors.textMuted, fontSize: 11.5, fontWeight: '700' },
-  mRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.card, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, paddingVertical: 7 },
-  mOpp: { flex: 1, color: colors.text, fontSize: 12.5, fontWeight: '700' },
-  mScore: { fontSize: 12.5, fontWeight: '900' },
-});
+// NOT: takım kartındaki sezon istatistiği modalı (TeamStatsModal) kaldırıldı —
+// takım kartı artık fikstür açıyor (bkz. TakimFiksturModal). Sezon
+// istatistikleri "İstatistik" sekmesinde duruyor.
 // Son 5 şeridi (eski → yeni)
 function VenueForm({ detail }) {
   const arr = [...(detail || [])].reverse();
@@ -359,6 +228,13 @@ export default function MatchDetailScreen({ route, navigation }) {
   const s = m.stats || {};
   const homeName = m.home.mediumName;
   const awayName = m.away.mediumName;
+  // Fikstür, kaynak takım kimliği olmadan çekilemez. Kimlik yoksa takım
+  // adının altındaki bağlantı HİÇ çizilmez — tıklanıp boş açılan bir kart
+  // olmaz (kapsam dışı maçlarda bu kimlikler gelmiyor).
+  const fiksturVar = {
+    home: !!(m.footyHomeId && m.footySeasonId),
+    away: !!(m.footyAwayId && m.footySeasonId),
+  };
   const comment = m.aiComment || a.comment;
   const fromAI = !!m.aiComment;
   const sinyaller = buildSinyaller(m);
@@ -394,8 +270,8 @@ export default function MatchDetailScreen({ route, navigation }) {
         stadium={m.stadium || m.stadiumName || ''}
         onBack={() => navigation.goBack()}
         onShare={() => {}}
-        onHomePress={s.home?.standing ? () => setTeamModal('home') : undefined}
-        onAwayPress={s.away?.standing ? () => setTeamModal('away') : undefined}
+        onHomePress={fiksturVar.home ? () => setTeamModal('home') : undefined}
+        onAwayPress={fiksturVar.away ? () => setTeamModal('away') : undefined}
       />
       <Tabs tabs={TABS} active={tab} onChange={setTab} icons={{ 'Özet': '🕐', 'Analiz': '📈', 'İstatistik': '📊', 'Yorumlar': '💬' }} />
       {tab !== 'Yorumlar' && (
@@ -720,14 +596,18 @@ export default function MatchDetailScreen({ route, navigation }) {
 
       </ScrollView>
 
-      <TeamStatsModal
+      {/* Takım kartı artık İSTATİSTİK değil FİKSTÜR açar (kullanıcı kararı):
+          takımın oynadığı ve oynayacağı maçlar. Sezon istatistikleri
+          "İstatistik" sekmesinde zaten duruyor. */}
+      <TakimFiksturModal
         visible={!!teamModal}
         onClose={() => setTeamModal(null)}
-        data={teamModal ? {
+        takim={teamModal ? {
+          teamId: teamModal === 'home' ? m.footyHomeId : m.footyAwayId,
+          seasonId: m.footySeasonId,
           name: teamModal === 'home' ? homeName : awayName,
           logo: (teamModal === 'home' ? s.home : s.away)?.logo,
           league: m.league,
-          stats: teamModal === 'home' ? s.home : s.away,
         } : null}
       />
     </View>

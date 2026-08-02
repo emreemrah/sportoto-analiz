@@ -20,6 +20,7 @@ import LegacyRadarCard from '../components/LegacyRadarCard';
 import HaftaSecici from '../components/HaftaSecici';
 import { getDraft, setDraftPick } from '../coupon/store';
 import { OUTCOMES } from '../couponConfig';
+import { varsayilanGun } from '../radarGun';
 import {
   normalizeWeeks, resolveCurrentId, isCurrentWeek, deriveScreenState, screenStateMessage,
 } from '../radarScreenLogic';
@@ -240,9 +241,9 @@ export default function RadarScreen({ navigation }) {
     if (zatenCekildi(cekilenOran, rid)) return;
     api.radarDailyOdds(rid).then((d) => {
       setDailyOdds(d);
-      const withData = (d?.days || []).filter((day) => (d.matches || []).some((m) => m.cells?.[day.date]));
-      const pick = withData.length ? withData[withData.length - 1] : (d?.days || [])[(d?.days?.length || 1) - 1];
-      setOddsDay(pick?.date || null);
+      // Gün seçimi radarGun.js'te: gelecek günler elenir ve BOŞ HÜCRE veri
+      // sayılmaz. Bu iki kusur birlikte Radar 3'ü CUMA gününde kilitlemişti.
+      setOddsDay(varsayilanGun(d?.days, d?.matches));
     }).catch(() => { cekilenOran.current = null; });
   }, [tab, selectedId, view]);
 
@@ -260,9 +261,7 @@ export default function RadarScreen({ navigation }) {
       setPlayedDay((mevcut) => {
         const gunler = d?.days || [];
         if (!ilkYukleme && mevcut && gunler.some((g) => g.date === mevcut)) return mevcut;
-        const veriliGunler = gunler.filter((g) => (d?.matches || []).some((m) => m.cells?.[g.date]));
-        const sec = veriliGunler.length ? veriliGunler[veriliGunler.length - 1] : gunler[gunler.length - 1];
-        return sec?.date || null;
+        return varsayilanGun(gunler, d?.matches);
       });
       return true;
     } catch { return false; }   /* sessiz: son gerçek değer ekranda kalır */

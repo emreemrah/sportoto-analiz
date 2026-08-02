@@ -37,7 +37,7 @@ describe('Bülten ekranı', () => {
     expect(toJSON()).toBeTruthy();
   });
 
-  test('yasal alt satır (18+ · vaat yok · YEDAM) kullanıcıya ULAŞIYOR', async () => {
+  test('yasal alt satır (18+ · vaat yok) kullanıcıya ULAŞIYOR', async () => {
     render(<BulletinScreen navigation={nav} route={route} />);
     // LEGAL_FOOTER tek kaynaktan gelir (T7). Ekranda göründüğünü RENDER ile
     // doğruluyoruz — kaynak dosyada geçmesi yetmez, çizilmesi gerekir.
@@ -46,9 +46,19 @@ describe('Bülten ekranı', () => {
   });
 
   test('yasal alt satırın içeriği dürüstlük şartlarını taşıyor', () => {
+    // 18+ ve "kazanç vaadi değildir" DURUYOR — bunlar ürünün dürüstlük
+    // taahhüdü ve kaldırılmadı.
     expect(LEGAL_FOOTER).toContain('18+');
     expect(LEGAL_FOOTER).toMatch(/kazanç vaadi değildir/i);
-    expect(LEGAL_FOOTER).toMatch(/444 79 75/);
+  });
+
+  test('destek hattı uygulama içinde HİÇBİR yerde geçmiyor', () => {
+    // Kullanıcı kararı (2 Ağustos 2026): "her yerden kaldır". Test, satırın
+    // sessizce geri gelmesini engeller — sabit boş kaldığı sürece alt satırda
+    // ne numara ne de "Destek:" ibaresi oluşur.
+    expect(LEGAL_FOOTER).not.toMatch(/444\s?79\s?75/);
+    expect(LEGAL_FOOTER).not.toMatch(/YEDAM/i);
+    expect(LEGAL_FOOTER).not.toMatch(/Destek:/);
   });
 });
 
@@ -76,6 +86,62 @@ describe('Kullanıcıya görünen dil', () => {
 //   2. Sezon açılır seçimi (‹ › okları tek adım ilerliyor, arşiv için yetmiyor)
 // Ekranın geri kalanı (analiz kartları, maç listesi) DEĞİŞMEDİ.
 // ---------------------------------------------------------------------------
+describe('Canlı maç — skor GÖSTERİLMEZ', () => {
+  // KULLANICI KARARI (2 Ağustos 2026): "skoru gösterme, sadece maçın başladığı
+  // ve canlı oynandığı belli olsun; Yenile düğmesini kaldır."
+  //
+  // Projenin kendi kuralıyla da aynı yönde: "yalnız resmî 90 dakika sonucu
+  // kesindir; canlı ve geçici veriler kesin sayılmaz". Anlık skor saniyede
+  // değişir ve resmî sonuçla karışma riski taşır.
+  // Güncel bülten LiveBulletinView/LiveMatchCard ile çizilir; canlı durumu
+  // deriveStatus, maçın KENDİ `live`/`minute`/`score` alanlarından türetir
+  // (liveLogic.js). `provisional` ise geçmiş hafta görünümünün alanıdır —
+  // ikisi de aynı kurala tabi olmalı, bu yüzden ikisi de dolduruluyor.
+  const canliMac = {
+    no: 6,
+    home: { name: 'Brommapojkarna', mediumName: 'Brommapojkarna' },
+    away: { name: 'Malmö', mediumName: 'Malmö' },
+    date: '2020-01-01T15:00:00Z',        // geçmiş: maç başlamış sayılsın
+    live: true, minute: 34, score: { home: 0, away: 0 },
+    provisional: { score: { home: 0, away: 0 }, live: true, minute: 34 },
+    analysis: { probabilities: { '1': 40, X: 30, '2': 30 }, favorite: { symbol: '1', percent: 40 }, surpriseScore: 45 },
+  };
+
+  const cizdir = () => {
+    global.fetch.mockImplementation(async (url) => {
+      const u = String(url);
+      const g = u.includes('/api/bulletin')
+        ? { roundId: 1600, round: '53. Hafta', matches: [canliMac] }
+        : { rounds: [], currentRoundId: 1600 };
+      return { ok: true, status: 200, json: async () => g, text: async () => JSON.stringify(g) };
+    });
+    return render(<BulletinScreen navigation={nav} route={route} />);
+  };
+
+  test('canlı maçta SKOR ve skordan türetilen 1/X/2 harfi YAZILMIYOR', async () => {
+    cizdir();
+    await waitFor(() => expect(screen.getAllByText(/Brommapojkarna/).length).toBeGreaterThan(0));
+    // "0 - 0" hiçbir yerde geçmemeli.
+    expect(screen.queryByText('0 - 0')).toBeNull();
+    expect(screen.queryByText(/^\d+\s-\s\d+$/)).toBeNull();
+  });
+
+  test('canlı maçta OYNANDIĞI belli oluyor', async () => {
+    // Skor gizlenirken durum da gizlenirse kullanıcı maçın başlayıp
+    // başlamadığını anlayamaz — bu, skoru göstermekten daha kötü olurdu.
+    cizdir();
+    // Rozet metni dakikayı da taşır ("CANLI 34'"); aranan şey durumun
+    // GÖRÜNÜR olması, birebir dize değil.
+    expect(await screen.findByText(/CANLI/)).toBeTruthy();
+  });
+
+  test('"Yenile" düğmesi ÇİZİLMİYOR', async () => {
+    cizdir();
+    await waitFor(() => expect(screen.getAllByText(/Brommapojkarna/).length).toBeGreaterThan(0));
+    expect(screen.queryByText(/Yenile/)).toBeNull();
+  });
+});
+
 describe('Geçmiş hafta — resmî yazım ve sezon seçimi', () => {
   // İkramiye görünümünün VARSAYILANI 'table' (prefs.js). Resmî yazım LİSTE
   // görünümünde; testler kullanıcının yapacağını yapar ve "Liste"ye dokunur.
