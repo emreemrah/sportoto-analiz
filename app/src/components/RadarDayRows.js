@@ -18,7 +18,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, spacing, radius } from '../theme';
-import { providerLabel } from './RadarTabHeaders';
+import { providerLabel, providerColor } from './RadarTabHeaders';
 import PlayedDnaPanel from './PlayedDnaPanel';
 
 const fmtOdd = (v) => (v == null ? '—' : Number(v).toFixed(2));
@@ -154,7 +154,17 @@ export function PublicRow({ item, data, day, openKey, onToggleDna, roundId, tick
               disabled={!c}
               onPress={() => onToggleDna(acik ? null : key)}
             >
-              <Text style={styles.provTag}>{providerLabel(pv)}</Text>
+              {/* KAYNAK ADI YERİNE RENKLİ NOKTA: sarı=Nesine, turuncu=Misli,
+                  yeşil=Bilyoner. Satır kısalır, 15 maç × 3 kaynak okunur kalır.
+                  Hangi rengin hangi site olduğu panel başlığındaki "Aktif
+                  kaynak" satırında ADIYLA yazılır — kaynak gizlenmez.
+                  Erişilebilirlik: renk tek ayırt edici olmasın diye
+                  accessibilityLabel kaynağın ADINI söyler. */}
+              <View
+                style={[styles.provDot, { backgroundColor: providerColor(pv) }]}
+                accessibilityLabel={providerLabel(pv)}
+                testID={`kaynak-nokta-${pv}`}
+              />
               {c ? (
                 <View style={styles.provVals}>
                   {['1', 'X', '2'].map((k) => {
@@ -167,7 +177,7 @@ export function PublicRow({ item, data, day, openKey, onToggleDna, roundId, tick
                       </Text>
                     );
                   })}
-                  <Text style={styles.provChev}>{acik ? '⌄' : '›'}</Text>
+                  <Text style={styles.provChev}>{acik ? '▾' : '›'}</Text>
                 </View>
               ) : <Text style={styles.provNone}>bu gün kayıt yok</Text>}
             </TouchableOpacity>
@@ -198,7 +208,8 @@ const styles = StyleSheet.create({
   oddsHint: { color: colors.textMuted, fontSize: 10, fontWeight: '700', marginTop: 5 },
 
   provRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, marginLeft: 34, flexWrap: 'wrap' },
-  provTag: { color: colors.text, fontSize: 11, fontWeight: '900', minWidth: 62, backgroundColor: colors.surfaceSoft, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 7, paddingVertical: 3, textAlign: 'center' },
+  // Kaynak noktası: ad yerine renk. Çerçeve açık zeminde sarıyı görünür tutar.
+  provDot: { width: 11, height: 11, borderRadius: 6, borderWidth: 1, borderColor: 'rgba(0,0,0,0.18)' },
   provVals: { flexDirection: 'row', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' },
   provVal: { color: colors.textSoft, fontSize: 13, fontWeight: '800' },
   provNone: { color: colors.textMuted, fontSize: 11, fontStyle: 'italic' },

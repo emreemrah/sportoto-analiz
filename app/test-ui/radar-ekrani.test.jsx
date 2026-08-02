@@ -271,11 +271,17 @@ describe('Radar Merkezi ekranı', () => {
     await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
     fireEvent.press(screen.getByText('Oynanma DNA'));
 
-    // Aktif kaynaklar açıkça yazılır (hangi siteden geldiği gizlenmez).
-    expect(await screen.findByText(/Aktif kaynak: Nesine · Misli/)).toBeTruthy();
-    // Kaynak adı satırda da görünür — iki site karıştırılmaz.
+    // Aktif kaynaklar RENK LEJANTINDA adıyla yazılır (hangi siteden geldiği
+    // gizlenmez) — maç satırında yalnız renkli nokta var.
+    expect(await screen.findByText(/Aktif kaynak/)).toBeTruthy();
     expect(screen.getAllByText('Nesine').length).toBeGreaterThan(0);
-    // Yüzde GERÇEKTEN çiziliyor (yalnız kaynak etiketi değil).
+    expect(screen.getAllByText('Misli').length).toBeGreaterThan(0);
+    // Maç satırında kaynak NOKTAYLA gösterilir; nokta kaynağın adını
+    // erişilebilirlik etiketi olarak taşır (renk tek ayırt edici değil).
+    const noktalar = screen.getAllByTestId('kaynak-nokta-nesine');
+    expect(noktalar.length).toBeGreaterThan(0);
+    expect(noktalar[0].props.accessibilityLabel).toBe('Nesine');
+    // Yüzde GERÇEKTEN çiziliyor (yalnız kaynak işareti değil).
     expect(screen.getAllByText(/1 %62/).length).toBeGreaterThan(0);
   });
 
@@ -305,7 +311,7 @@ describe('Radar Merkezi ekranı', () => {
     render(<RadarScreen navigation={nav} />);
     await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
     fireEvent.press(screen.getByText('Oynanma DNA'));
-    const kaynak = await screen.findAllByText('Nesine');
+    const kaynak = await screen.findAllByTestId('kaynak-nokta-nesine');
     fireEvent.press(kaynak[0]);
 
     // Yakınlık seçimi KULLANICIYA aittir — otomatik genişleme yok.
@@ -357,7 +363,7 @@ describe('Radar Merkezi ekranı', () => {
     render(<RadarScreen navigation={nav} />);
     await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
     fireEvent.press(screen.getByText('Oynanma DNA'));
-    const kaynak = await screen.findAllByText('Nesine');
+    const kaynak = await screen.findAllByTestId('kaynak-nokta-nesine');
     fireEvent.press(kaynak[0]);
 
     // Birebir eşleşme yok mesajı DURUR (kova onu taklit etmez)…

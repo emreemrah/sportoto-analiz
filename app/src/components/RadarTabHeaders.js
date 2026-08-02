@@ -19,6 +19,19 @@ import { DNA_PERIODS } from '../radarScreenData';
 const PROVIDER_NAMES = { nesine: 'Nesine', bilyoner: 'Bilyoner', misli: 'Misli', oley: 'Oley' };
 export const providerLabel = (s) => PROVIDER_NAMES[s] || s;
 
+// SAĞLAYICI RENKLERİ — maç satırlarında ad yerine renkli nokta gösterilir
+// (satır kısalır, 15 maç × 3 kaynak ekranda okunur kalır). Renkler yalnız
+// satır içindir; hangi rengin hangi site olduğu panel başlığındaki
+// "Aktif kaynak" satırında ADIYLA BİRLİKTE yazılır — renk tek başına
+// kaynağı gizlemez (kaynak şeffaflığı ürünün sözü).
+export const PROVIDER_COLORS = {
+  nesine: '#E8B923',     // sarı
+  misli: '#E8792B',      // turuncu
+  bilyoner: '#2FA96B',   // yeşil
+  oley: '#7A6FF0',       // mor (tanımlı değildi; kaynak eklenirse hazır)
+};
+export const providerColor = (s) => PROVIDER_COLORS[s] || '#9AA3AF';
+
 /** Gün çipleri (Pazar→Cuma). Verisi olmayan gün soluk gösterilir, GİZLENMEZ. */
 export function DayChipsRow({ data, selected, onSelect }) {
   if (!data?.days?.length) return null;
@@ -118,11 +131,28 @@ export default function RadarTabHeader({
             Bu bir ORAN değildir — Radar 4 (Oran Takibi) gerçek oranı gösterir; Radar 3 oynanma yüzdesidir.
           </Text>
           {dp ? (
-            <Text style={styles.tabBannerTxt}>
-              {dp.sources?.length
-                ? `Aktif kaynak: ${dp.sources.map(providerLabel).join(' · ')}${dp.sources.includes('bilyoner') ? '' : ' · Bilyoner erişim engelli (IP/WAF)'} — her maçta kaynaklar ayrı ayrı gösterilir.`
-                : 'Aktif kaynak yok — sağlayıcı verisi bekleniyor (uydurma yüzde gösterilmez).'}
-            </Text>
+            dp.sources?.length ? (
+              /* RENK LEJANTI — maç satırlarında kaynak adı yerine renkli nokta
+                 var; hangi rengin hangi site olduğu BURADA adıyla yazılır.
+                 Kaynak şeffaflığı ürünün sözü: renk, adı gizlemek için değil
+                 satırı kısaltmak için. */
+              <View style={styles.kaynakLejant}>
+                <Text style={styles.tabBannerTxt}>Aktif kaynak:</Text>
+                {dp.sources.map((s) => (
+                  <View key={s} style={styles.lejantOge}>
+                    <View style={[styles.lejantNokta, { backgroundColor: providerColor(s) }]} />
+                    <Text style={styles.tabBannerTxt}>{providerLabel(s)}</Text>
+                  </View>
+                ))}
+                <Text style={styles.tabBannerTxt}>
+                  {dp.sources.includes('bilyoner') ? '' : '· Bilyoner erişim engelli (IP/WAF)'}
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.tabBannerTxt}>
+                Aktif kaynak yok — sağlayıcı verisi bekleniyor (uydurma yüzde gösterilmez).
+              </Text>
+            )
           ) : null}
           <Text style={styles.tabBannerWarn}>Her günün yüzdesi 23:55'te (maç günü ilk maçtan 5 dk önce) mühürlenir ve sonradan değişmez. Kaynak yoksa uydurma yüzde gösterilmez.</Text>
         </View>
@@ -235,6 +265,9 @@ const styles = StyleSheet.create({
     paddingTop: 2,
     paddingBottom: 6,
   },
+  kaynakLejant: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 4 },
+  lejantOge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  lejantNokta: { width: 10, height: 10, borderRadius: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' },
   dnaFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   dnaPeriodChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   dnaPeriodChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
