@@ -228,6 +228,30 @@ test('gün mührü: 23:55e kadarki SON gözlem alınır', () => {
   assert.equal(r[0].pct['1'], 45);
 });
 
+test('günlük mühür turunun KENDİ gözlemi (23:55:00.x) güne dahildir', () => {
+  // Gerçek hata: mühür turu tam 23:55'te koşup gözlemini 23:55:00.6'da
+  // yazıyordu; katı sınır bu gözlemi atıyordu (Bilyoner'in 45 kaydının tamamı
+  // DNA dışıydı). 23:55 sınırına 60 sn pay tanınır; 23:56 sonrası yine girmez.
+  // 23:55 Istanbul = 20:55 UTC.
+  const r = buildRoundDnaRecords({ roundId: 1519, matches, results, observations: [
+    obs({ observedAt: '2026-07-22T18:00:00Z', playedPct: { '1': 40, X: 30, '2': 30 } }),
+    obs({ observedAt: '2026-07-22T20:55:00.663Z', playedPct: { '1': 45, X: 29, '2': 26 } }),
+    obs({ observedAt: '2026-07-22T20:56:30Z', playedPct: { '1': 90, X: 5, '2': 5 } }),
+  ] });
+  assert.equal(r.length, 1);
+  assert.equal(r[0].pct['1'], 45, 'mühür turu gözlemi günün son değeri olmalı; 23:56 sonrası girmemeli');
+});
+
+test('donma sınırında PAY YOKTUR: donmadan 30 sn sonraki gözlem yine dışarıda', () => {
+  // İlk maç 16:00Z → donma 15:55Z. 23:55 payı donma sınırını GEVŞETMEZ.
+  const r = buildRoundDnaRecords({ roundId: 1519, matches, results, observations: [
+    obs({ observedAt: '2026-07-24T15:50:00Z', playedPct: { '1': 55, X: 25, '2': 20 } }),
+    obs({ observedAt: '2026-07-24T15:55:30Z', playedPct: { '1': 88, X: 6, '2': 6 } }),
+  ] });
+  assert.equal(r.length, 1);
+  assert.equal(r[0].pct['1'], 55);
+});
+
 test('maç günü: donma anından (ilk maç −5 dk) sonraki gözlem mühre girmez', () => {
   const r = buildRoundDnaRecords({ roundId: 1519, matches, results, observations: [
     obs({ observedAt: '2026-07-24T15:50:00Z', playedPct: { '1': 55, X: 25, '2': 20 } }),

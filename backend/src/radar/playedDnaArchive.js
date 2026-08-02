@@ -19,6 +19,14 @@ const TR_OFFSET_MS = 3 * 3600e3;
 const SEAL_HOUR = 23;
 const SEAL_MINUTE = 55;
 const FREEZE_BEFORE_KICKOFF_MS = 5 * 60e3;
+// 23:55 SINIRINA KÜÇÜK PAY. Günlük mühür turu tam 23:55'te koşar ve gözlemini
+// 23:55:00.x'te YAZAR; katı "at > cap" karşılaştırması bu gözlemi güne dahil
+// etmiyordu. Ölçülen gerçek: Bilyoner'in içeri alınan 45 kaydının damgası
+// 23:55:00.6–23:55:02 → TAMAMI DNA dışı kalıyordu; nesine/misli'nin 23:55
+// mühür gözlemleri de hiç sayılmıyordu. Pay yalnız 23:55 sınırına tanınır —
+// DONMA (ilk maç −5 dk) sınırı PAYSIZ kalır: donma sonrası veri tahmine
+// sızamaz (o kayıtlar zaten post_lock_research olarak da elenir).
+const SEAL_GRACE_MS = 60e3;
 
 // Varsayılan derinlik: maç filtrelerinin en genişi 15 maç → biraz pay bırakılır.
 export const DEFAULT_MAX_ROUNDS = 20;
@@ -98,8 +106,9 @@ export function buildRoundDnaRecords({
     if (at == null) continue;
 
     const dayKey = dayKeyOf(at);
-    // Bu günün mühür tavanı: 23:55 ile donma anının ERKENİ.
-    let cap = istanbulTimeToUtcMs(dayKey, SEAL_HOUR, SEAL_MINUTE);
+    // Bu günün mühür tavanı: 23:55 (+pay, bkz. SEAL_GRACE_MS) ile donma anının
+    // ERKENİ. Donma sınırına pay YOKTUR.
+    let cap = istanbulTimeToUtcMs(dayKey, SEAL_HOUR, SEAL_MINUTE) + SEAL_GRACE_MS;
     if (freezeMs != null && freezeMs < cap) cap = freezeMs;
     if (at > cap) continue;                       // mühürden sonraki değer sayılmaz
 
