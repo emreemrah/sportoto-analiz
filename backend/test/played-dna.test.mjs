@@ -437,3 +437,98 @@ test('dedup GÜN İÇİNDE kalır: yüzde değişmese de her günün ilk gözlem
   // Ham karşılaştırma davranışı korunuyor.
   assert.equal(isDuplicateOfLast(pazartesi, PCT), true);
 });
+
+// --- 2.2.0: MAÇ BAZLI EŞİK + YÖN KOVASI GEVŞEK EŞLEŞMESİ --------------------
+import { matchCountOf, movementFallback } from '../src/radar/playedDna.js';
+
+test('2.2.0 eşik: 12 kayıt TEK maçtan geliyorsa yüzde YİNE gösterilmez (sözde-tekrar)', () => {
+  // Aynı maçın 12 günü: eski kayıt-bazlı eşik n=12 diye yüzde gösterirdi.
+  const kayitlar = Array.from({ length: 12 }, (_, i) => ({
+    result: '1', roundId: 1525, matchKey: 'm1', dayKey: `2026-07-${String(i + 10).padStart(2, '0')}`,
+  }));
+  const s = summarize(kayitlar);
+  assert.equal(s.matches, 1);
+  assert.equal(s.insufficient, true, '12 kayıt ama 1 maç — kanıt değil');
+  assert.equal(s.pct, null);
+  assert.ok(s.text.includes('(1 maç)'), 'n eki neye dayandigini yazmali: ' + s.text);
+});
+
+test('2.2.0 eşik: 10 FARKLI maç yüzdeyi açar; kayıt=maç ise metin sade kalır', () => {
+  const on = Array.from({ length: 10 }, (_, i) => ({
+    result: i < 6 ? '1' : 'X', roundId: 1520 + i, matchKey: `m${i}`,
+  }));
+  const s = summarize(on);
+  assert.equal(s.matches, 10);
+  assert.equal(s.insufficient, false);
+  assert.equal(s.text, '10 benzer kayıt → 1: %60 · X: %40 (n=10)');
+});
+
+test('2.2.0 eşik: kayıt sayısı maçtan fazlaysa ikisi de yazılır', () => {
+  // 10 maç, 2'sinin ikişer günü var → 12 kayıt / 10 maç.
+  const kayitlar = [
+    ...Array.from({ length: 10 }, (_, i) => ({ result: '1', roundId: 1520 + i, matchKey: `m${i}`, dayKey: 'a' })),
+    { result: '1', roundId: 1520, matchKey: 'm0', dayKey: 'b' },
+    { result: '1', roundId: 1521, matchKey: 'm1', dayKey: 'b' },
+  ];
+  const s = summarize(kayitlar);
+  assert.ok(s.text.includes('n=12, 10 maç'), s.text);
+});
+
+test('yön kovası: birebir hareket eşleşmesi boşken GEVŞEK kova konuşur', () => {
+  // Arşiv: favorisi büyük düşüş yaşamış 3 maç + yatay 1 maç.
+  const hareket = (i, open1, close1, result) => ({
+    source: 'nesine', roundId: 1525, position: i, matchKey: `m${i}`,
+    openPct: { '1': open1, X: Math.round((100 - open1) / 2), '2': 100 - open1 - Math.round((100 - open1) / 2) },
+    closePct: { '1': close1, X: Math.round((100 - close1) / 2), '2': 100 - close1 - Math.round((100 - close1) / 2) },
+    movement: { '1': close1 - open1, X: 0, '2': 0 }, result,
+  });
+  const arsiv = [
+    hareket(1, 58, 45, 'X'),     // düşüş 13 → [-100,-8] kovası
+    hareket(2, 55, 44, '2'),     // düşüş 11 → aynı kova
+    hareket(3, 70, 58, 'X'),     // düşüş 12 → aynı kova
+    hareket(4, 50, 49, '1'),     // yatay → kova DIŞI
+  ];
+  const r = findMovementDna(arsiv, {
+    // Sorgu: Brugge vakası — 61→44 (düşüş 17, aynı kova). Birebir eşleşme yok.
+    current: { openPct: { '1': 61, X: 22, '2': 17 }, closePct: { '1': 44, X: 30, '2': 26 } },
+    source: 'nesine', position: 1,
+  });
+  assert.equal(r.hasData, false, 'birebir eşleşme yine yok — kova onu taklit etmez');
+  assert.ok(r.fallback, 'gevşek kova dönmeli');
+  assert.equal(r.fallback.level, 'gevşek eşleşme — yön kovası');
+  assert.equal(r.fallback.label, 'favorisi ≥8 puan düşen maçlar');
+  assert.equal(r.fallback.matched, 3, 'yatay maç kovaya girmez');
+  assert.equal(r.fallback.overall.insufficient, true, 'n=3 maç — yüzde yine gösterilmez');
+  assert.ok(r.fallback.samples.length === 3, 'künyeler şeffaf');
+});
+
+test('yön kovası: kovada da kayıt yoksa fallback üretilmez (uydurma yok)', () => {
+  const r = findMovementDna([], {
+    current: { openPct: { '1': 61, X: 22, '2': 17 }, closePct: { '1': 44, X: 30, '2': 26 } },
+    source: 'nesine', position: 1,
+  });
+  assert.equal(r.hasData, false);
+  assert.equal(r.fallback, undefined);
+});
+
+test('yön kovası: birebir eşleşme VARSA kova hiç devreye girmez', () => {
+  const arsiv = [{
+    source: 'nesine', roundId: 1525, position: 1, matchKey: 'm1',
+    openPct: { '1': 61, X: 22, '2': 17 }, closePct: { '1': 44, X: 30, '2': 26 },
+    movement: { '1': -17, X: 8, '2': 9 }, result: 'X',
+  }];
+  const r = findMovementDna(arsiv, {
+    current: { openPct: { '1': 61, X: 22, '2': 17 }, closePct: { '1': 44, X: 30, '2': 26 } },
+    source: 'nesine', position: 1, tolerances: [2],
+  });
+  assert.equal(r.hasData, true);
+  assert.equal(r.fallback, undefined, 'birebir varken gevşek kova sunulmaz');
+});
+
+test('matchCountOf: kimliksiz kayıt aynı maç SAYILMAZ (kanıtlanamaz)', () => {
+  assert.equal(matchCountOf([{ result: '1' }, { result: 'X' }]), 2);
+  assert.equal(matchCountOf([
+    { result: '1', roundId: 1, matchKey: 'a' },
+    { result: '1', roundId: 1, matchKey: 'a' },
+  ]), 1);
+});

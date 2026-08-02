@@ -323,6 +323,52 @@ describe('Radar Merkezi ekranı', () => {
     expect(screen.getByText('Bu harekete yakın geçmiş sonuç yok')).toBeTruthy();
   });
 
+  test('Oynanma DNA paneli: birebir hareket eşleşmesi yoksa GEVŞEK kova gösterilir', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      '/api/radar/daily-played': {
+        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['nesine'],
+        matches: [{
+          no: 1,
+          cells: { '2026-08-01': { bySource: { nesine: { percentages: { '1': 44, X: 30, '2': 26 } } } } },
+        }],
+      },
+      // Backend'in GERÇEK yükü (playedDna.findMovementDna → fallback alanı).
+      '/api/radar/played-dna': {
+        hasData: true, position: 1, weekday: 5, settledMatches: 15,
+        current: { '1': 44, X: 30, '2': 26 },
+        distribution: { hasData: false },
+        movement: {
+          words: '1 düştü · X yükseldi · 2 yükseldi',
+          openText: '1 %61 · X %22 · 2 %17', closeText: '1 %44 · X %30 · 2 %26',
+          hasData: false,
+          fallback: {
+            kind: 'moveBand', level: 'gevşek eşleşme — yön kovası',
+            label: 'favorisi ≥8 puan düşen maçlar',
+            matched: 3,
+            overall: { text: '3 benzer kayıt — örneklem yetersiz, yüzde gösterilmez (2 kez berabere bitti, 1 kez deplasman kazandı)' },
+            samples: [
+              { text: '51. Hafta · 4. sıra · Ilves – Lahti · 1 %58 · X %21 · 2 %21 → 1 %45 · X %28 · 2 %27 · → Berabere bitti' },
+            ],
+          },
+        },
+      },
+    });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Oynanma DNA'));
+    const kaynak = await screen.findAllByText('Nesine');
+    fireEvent.press(kaynak[0]);
+
+    // Birebir eşleşme yok mesajı DURUR (kova onu taklit etmez)…
+    expect(await screen.findByText('Bu harekete yakın geçmiş sonuç yok')).toBeTruthy();
+    // …ama gevşek kova, etiketi AÇIKÇA "gevşek" olarak gösterilir.
+    expect(screen.getByText(/Gevşek eşleşme · favorisi ≥8 puan düşen maçlar/)).toBeTruthy();
+    expect(screen.getByText(/2 kez berabere bitti/)).toBeTruthy();
+    // Kovadaki gerçek kayıtlar şeffaf.
+    expect(screen.getByText(/Ilves – Lahti/)).toBeTruthy();
+  });
+
   // LEGACY GÖRÜNÜM — Radar Merkezi ÖNCESİ haftalar.
   // Bu kod donmuş durumda: eski haftaların görüntüsü değişmemeli. Hiç testi
   // yoktu; kendi dosyasına taşınmadan önce yazıldı.

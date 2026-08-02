@@ -165,7 +165,29 @@ export default function PlayedDnaPanel({ roundId, no, source, day, tick = 0 }) {
                   ) : null}
                 </>
               ) : (
-                <Text style={styles.dnaMuted}>Bu harekete yakın geçmiş sonuç yok</Text>
+                <>
+                  <Text style={styles.dnaMuted}>Bu harekete yakın geçmiş sonuç yok</Text>
+                  {/* GEVŞEK EŞLEŞME (yön kovası): birebir dağılım eşleşmesi
+                      boşken aynı yön kovasındaki maçlar gösterilir. "Gevşek"
+                      olduğu AÇIKÇA yazılır — birebir eşleşme gibi sunulmaz.
+                      Küçük arşivde birebir eşleşme pratikte hiç tutmuyordu;
+                      kullanıcı yine de gerçek kayıtları görebilmeli. */}
+                  {hrk.fallback ? (
+                    <>
+                      <Text style={styles.dnaLineVal}>
+                        Gevşek eşleşme · {hrk.fallback.label}: {hrk.fallback.overall?.text}
+                      </Text>
+                      {hrk.fallback.samples?.length ? (
+                        <>
+                          <Text style={styles.dnaSub}>Kovadaki kayıtlar</Text>
+                          {hrk.fallback.samples.map((s, i) => (
+                            <Text key={i} style={styles.dnaSample}>• {s.text}</Text>
+                          ))}
+                        </>
+                      ) : null}
+                    </>
+                  ) : null}
+                </>
               )}
             </>
           ) : (

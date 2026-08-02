@@ -17,7 +17,13 @@
 //     bile %100 etiketi kullanıcıda olasılık yanılsaması yaratıyor (Ağustos
 //     2026 dürüstlük düzeltmesi). Küçük örneklemde yüzde yerine ADET yazılır.
 //  5) Alınmamış bir günün yüzdesi SONRADAN ÜRETİLMEZ (kayıt yoksa yoktur).
-export const PLAYED_DNA_VERSION = 'played-dna-2.1.0'; // 2.1.0: n<10 yüzde gösterilmez
+import { PCT_BANDS, bandOfMove } from '../providers/percentageDna.js';
+
+// 2.1.0: n<10 yüzde gösterilmez · 2.2.0: yüzde eşiği KAYIT değil MAÇ sayar
+// (aynı maçın üç günü üç kayıttır; 10 kayıt 4 maçtan gelebilir ve "n=10"
+// sözde-tekrar ile erken güven verirdi) + hareket eşleşmesi boşsa YÖN KOVASI
+// gevşek eşleşmesi sunulur (etiketinde "gevşek" olduğu açıkça yazar).
+export const PLAYED_DNA_VERSION = 'played-dna-2.2.0';
 
 // YAKINLIK FİLTRESİ — kullanıcı seçer, otomatik genişleme YOKTUR.
 //   0 = birebir aynı · 1 = ±1 · 2 = ±2 · 3 = ±3 (tavan)
@@ -106,35 +112,57 @@ function pctFromCounts(counts, total) {
 
 // ÖRNEKLEM EŞİĞİ: bu sayının altında TOPLU YÜZDE üretilmez (yüzde yanılsaması
 // önlemi). config.SAMPLE_LADDER'daki "Yetersiz" bandıyla (0-9) hizalıdır.
+// 2.2.0'dan itibaren eşik FARKLI MAÇ sayar, kayıt değil (bkz. matchCountOf).
 export const MIN_SAMPLE_FOR_PCT = 10;
+
+// Listedeki FARKLI MAÇ sayısı. Aynı maçın çarşamba+perşembe kaydı tek maçtır.
+// Kimliği (roundId/matchKey/position) olmayan kayıt aynı maç olduğu
+// KANITLANAMADIĞI için ayrı sayılır — üretim kayıtları daima kimlik taşır.
+export function matchCountOf(list) {
+  const ids = new Set();
+  let kimliksiz = 0;
+  for (const r of list || []) {
+    if (r == null) continue;
+    if (r.roundId != null || r.matchKey != null || r.position != null) ids.add(matchIdOf(r));
+    else kimliksiz += 1;
+  }
+  return ids.size + kimliksiz;
+}
 
 // Bir kayıt listesini adet (+ yeterli örneklemde yüzde) özetine ve DOĞAL
 // TÜRKÇE cümleye çevirir. Sonucu olmayan yön GÖSTERİLMEZ.
-// n < MIN_SAMPLE_FOR_PCT → pct: null, insufficient: true; metin yüzdesiz,
-// adet bazlı yazılır ("2 kez Ev sahibi kazandı" gibi) — "%100" yanılsaması yok.
+// EŞİK MAÇ BAZLIDIR (2.2.0): matches < MIN_SAMPLE_FOR_PCT → pct: null,
+// insufficient: true; metin yüzdesiz, adet bazlı yazılır. Eski kayıt-bazlı
+// eşik, aynı maçın günlerini bağımsız kanıt gibi sayıyordu (sözde-tekrar):
+// "n=10" fiilen 4 maç olabiliyordu. Maç sayısı kayıttan farklıysa metinde
+// ayrıca yazılır — kullanıcı n'in neye dayandığını görür.
 export function summarize(list) {
   const counts = { '1': 0, X: 0, '2': 0 };
   for (const r of list || []) {
     if (r?.result && counts[r.result] != null) counts[r.result] += 1;
   }
   const total = counts['1'] + counts.X + counts['2'];
-  const insufficient = total > 0 && total < MIN_SAMPLE_FOR_PCT;
+  const matches = matchCountOf((list || []).filter((r) => r?.result && counts[r.result] != null));
+  const insufficient = total > 0 && matches < MIN_SAMPLE_FOR_PCT;
   const pct = insufficient ? null : pctFromCounts(counts, total);
+  // Kayıt ≠ maç ise ek bilgi (yalnız farklıyken — aynıyken gürültü olur).
+  const macEki = matches !== total ? ` (${matches} maç)` : '';
+  const nEki = matches !== total ? `n=${total}, ${matches} maç` : `n=${total}`;
 
   let text = DNA_BUCKET_EMPTY;
   if (total && insufficient) {
     const present = KEYS.filter((k) => counts[k] > 0);
     const adetler = present.map((k) => `${counts[k]} kez ${OUTCOME_WORDS[k].toLowerCase()}`).join(', ');
-    text = `${total} benzer kayıt — örneklem yetersiz, yüzde gösterilmez (${adetler})`;
+    text = `${total} benzer kayıt${macEki} — örneklem yetersiz, yüzde gösterilmez (${adetler})`;
   } else if (total) {
     const present = KEYS.filter((k) => counts[k] > 0);
     text = present.length === 1
       // Tek yönde toplanmış: kod yerine cümle → "Deplasman kazandı (%100, n=12)"
-      ? `${total} benzer kayıt → ${OUTCOME_WORDS[present[0]]} (%100, n=${total})`
+      ? `${total} benzer kayıt → ${OUTCOME_WORDS[present[0]]} (%100, ${nEki})`
       // Birden çok yön: yalnız sonucu OLAN yönler listelenir (n her zaman görünür).
-      : `${total} benzer kayıt → ${present.map((k) => `${k}: %${pct[k]}`).join(' · ')} (n=${total})`;
+      : `${total} benzer kayıt → ${present.map((k) => `${k}: %${pct[k]}`).join(' · ')} (${nEki})`;
   }
-  return { total, counts, pct, insufficient, text };
+  return { total, matches, counts, pct, insufficient, text };
 }
 
 // Hareketin sözle anlatımı: "1 yükseldi · X değişmedi · 2 düştü".
@@ -298,6 +326,66 @@ export function buildMovementRecords(records) {
   return out;
 }
 
+// Hareket künyesi — hem birebir eşleşmede hem gevşek kovada aynı biçim.
+function movementSampleOf(r) {
+  return {
+    roundId: r.roundId, roundLabel: r.roundLabel || null, position: r.position,
+    home: r.home || null, away: r.away || null,
+    openPct: r.openPct, closePct: r.closePct, movement: r.movement, result: r.result,
+    // Künye de yüzde gösterir: hangi tablodan hangi tabloya gitmiş.
+    text: [
+      r.roundLabel || `Tur ${r.roundId}`,
+      `${r.position}. sıra`,
+      r.home && r.away ? `${r.home} – ${r.away}` : null,
+      `${pctText(r.openPct)} → ${pctText(r.closePct)}`,
+      `→ ${OUTCOME_WORDS[r.result] || r.result}`,
+    ].filter(Boolean).join(' · '),
+  };
+}
+
+// GEVŞEK EŞLEŞME KOVALARI (yön kovası) — percentageDna'nın SÜRÜMLÜ hareket
+// bantları kullanılır; ikinci bir bant tanımı türetilmez.
+const favoriOf = (p) => KEYS.reduce((a, b) => (p[b] > p[a] ? b : a), '1');
+const moveBandLabel = ([a, b]) => (
+  b <= -8 ? 'favorisi ≥8 puan düşen maçlar'
+    : b < 0 ? 'favorisi 3–8 puan düşen maçlar'
+      : a < 3 ? 'favorisi yatay kalan maçlar (±3)'
+        : b < 8 ? 'favorisi 3–8 puan yükselen maçlar'
+          : 'favorisi ≥8 puan yükselen maçlar'
+);
+
+// BİREBİR HAREKET EŞLEŞMESİ BOŞSA: aynı havuzda (kaynak + maç penceresi aynı)
+// FAVORİ-HAREKET YÖNÜ kovası denenir. 6 kısıtlı birebir eşleşme (açılış VE
+// kapanışın üç ekseni) küçük arşivde pratikte hiç tutmuyordu — 15 kayıtlık
+// havuzda ±3'te bile 0 eşleşme ölçüldü; kova aynı arşivle haftalar içinde
+// n≥10'a ulaşır. DÜRÜSTLÜK: sonuç "gevşek eşleşme" etiketiyle döner, birebir
+// eşleşmeymiş gibi sunulmaz; yüzde eşiği yine maç bazlı MIN_SAMPLE_FOR_PCT.
+export function movementFallback(pool, { openPct, closePct } = {}) {
+  if (!isValidDistribution(openPct) || !isValidDistribution(closePct)) return null;
+  const favQ = favoriOf(openPct);
+  const qMove = Math.round((closePct[favQ] - openPct[favQ]) * 10) / 10;
+  const band = bandOfMove(qMove);
+  if (!band) return null;
+  const cohort = (pool || []).filter((r) => {
+    const f = favoriOf(r.openPct);
+    const mv = r.closePct[f] - r.openPct[f];
+    return mv >= band[0] && mv <= band[1];
+  });
+  if (!cohort.length) return null;
+  return {
+    kind: 'moveBand',
+    level: 'gevşek eşleşme — yön kovası',
+    bandsVersion: PCT_BANDS.version,
+    band,
+    label: moveBandLabel(band),
+    queryFavorite: favQ,
+    queryMovePts: qMove,
+    matched: cohort.length,
+    overall: summarize(cohort),
+    samples: cohort.slice(0, MAX_SAMPLES).map(movementSampleOf),
+  };
+}
+
 // Güncel hareketi geçmiş hareketlerle eşleştirir (aynı ±2 → ±3 mantığı).
 // current: { openPct, closePct } — güncel maçın ilk ve son günkü dağılımı.
 // EŞLEŞME YÜZDE ÜZERİNDEN: hem başlangıç hem bitiş dağılımı tolerans içinde
@@ -331,7 +419,11 @@ export function findMovementDna(movementRecords, {
       && isSimilarDistribution(kapanis, r.closePct, tol));
     if (hit.length) { tolerance = tol; matched = hit; break; }
   }
-  if (!matched.length) return empty;
+  if (!matched.length) {
+    // Birebir eşleşme yok → aynı havuzda gevşek yön kovası denenir.
+    const kova = movementFallback(pool, { openPct: acilis, closePct: kapanis });
+    return kova ? { ...empty, fallback: kova } : empty;
+  }
 
   return {
     version: PLAYED_DNA_VERSION,
@@ -343,18 +435,6 @@ export function findMovementDna(movementRecords, {
     },
     overall: summarize(matched),
     // Eşleşen hareketlerin künyesi: hangi maç, değişim ne kadardı, nasıl bitti.
-    samples: matched.slice(0, MAX_SAMPLES).map((r) => ({
-      roundId: r.roundId, roundLabel: r.roundLabel || null, position: r.position,
-      home: r.home || null, away: r.away || null,
-      openPct: r.openPct, closePct: r.closePct, movement: r.movement, result: r.result,
-      // Künye de yüzde gösterir: hangi tablodan hangi tabloya gitmiş.
-      text: [
-        r.roundLabel || `Tur ${r.roundId}`,
-        `${r.position}. sıra`,
-        r.home && r.away ? `${r.home} – ${r.away}` : null,
-        `${pctText(r.openPct)} → ${pctText(r.closePct)}`,
-        `→ ${OUTCOME_WORDS[r.result] || r.result}`,
-      ].filter(Boolean).join(' · '),
-    })),
+    samples: matched.slice(0, MAX_SAMPLES).map(movementSampleOf),
   };
 }
