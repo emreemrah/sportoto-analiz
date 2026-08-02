@@ -201,7 +201,7 @@ describe('Radar Merkezi ekranı', () => {
 
     expect(await screen.findByText(/Oynanma DNA · Günlük 1\/X\/2 Yüzdeleri/)).toBeTruthy();
     expect(screen.getByText(/Bu bir ORAN değildir/)).toBeTruthy();
-    expect(screen.getByText(/Aktif kaynak yok — sağlayıcı verisi bekleniyor \(uydurma yüzde gösterilmez\)\./)).toBeTruthy();
+    expect(screen.getByText(/Kaynak yok — veri bekleniyor \(uydurma yüzde gösterilmez\)\./)).toBeTruthy();
   });
 
   test('Radar 5 paneli: dönem çipleri ve veri yokken dürüst not', async () => {
@@ -273,9 +273,11 @@ describe('Radar Merkezi ekranı', () => {
 
     // Aktif kaynaklar RENK LEJANTINDA adıyla yazılır (hangi siteden geldiği
     // gizlenmez) — maç satırında yalnız renkli nokta var.
-    expect(await screen.findByText(/Aktif kaynak/)).toBeTruthy();
-    expect(screen.getAllByText('Sarı kaynak').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Turuncu kaynak').length).toBeGreaterThan(0);
+    expect(await screen.findByText(/Kaynaklar:/)).toBeTruthy();
+    // Kaynak ADI hiç yazılmaz; yalnız renkli noktalar görünür.
+    expect(screen.queryByText(/kaynak$/i)).toBeNull();
+    expect(screen.getAllByTestId('lejant-nokta-k1').length).toBe(1);
+    expect(screen.getAllByTestId('lejant-nokta-k2').length).toBe(1);
     // Maç satırında kaynak NOKTAYLA gösterilir; nokta kaynağın adını
     // erişilebilirlik etiketi olarak taşır (renk tek ayırt edici değil).
     const noktalar = screen.getAllByTestId('kaynak-nokta-k1');
@@ -828,7 +830,7 @@ describe('Bahis sitesi adı ekranda geçmez', () => {
     const { toJSON } = render(<RadarScreen navigation={nav} />);
     await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
     fireEvent.press(screen.getByText('Oynanma DNA'));
-    await screen.findByText(/Aktif kaynak/);
+    await screen.findByText(/Kaynaklar:/);
 
     // Çizilen ağacın TÜM metinleri taranır — hiçbirinde marka adı olamaz.
     const metinler = metinleriTopla(toJSON());
@@ -836,9 +838,8 @@ describe('Bahis sitesi adı ekranda geçmez', () => {
     expect(ihlal).toEqual([]);
 
     // Olumlu karşılık: kaynaklar RENK ADIYLA gerçekten görünüyor.
-    expect(screen.getByText('Sarı kaynak')).toBeTruthy();
-    expect(screen.getByText('Turuncu kaynak')).toBeTruthy();
-    expect(screen.getByText('Yeşil kaynak')).toBeTruthy();
+    // Renk ADLARI da YAZILMAZ — yalnız nokta.
+    for (const k of ['k1', 'k2', 'k3']) expect(screen.getAllByTestId('lejant-nokta-' + k).length).toBe(1);
   });
 
   test('kaynak noktası erişilebilirlik etiketi de RENK adıdır (marka değil)', async () => {
@@ -887,13 +888,12 @@ describe('Eski sunucu ham kimlik gönderse bile marka adı ekranda çıkmaz', ()
     const { toJSON } = render(<RadarScreen navigation={nav} />);
     await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
     fireEvent.press(screen.getByText('Oynanma DNA'));
-    await screen.findByText(/Aktif kaynak/);
+    await screen.findByText(/Kaynaklar:/);
 
     // Çizilen ağacın TÜM metinleri: marka adı OLAMAZ.
     expect(metinleriTopla(toJSON()).filter((t) => MARKALAR.test(t))).toEqual([]);
     // Ham kimlik de renk adına çevrilir (gri "bilinmiyor"a düşmez).
-    expect(screen.getByText('Sarı kaynak')).toBeTruthy();
-    expect(screen.getByText('Turuncu kaynak')).toBeTruthy();
+    for (const k of ['k1', 'k2']) expect(screen.getAllByTestId('lejant-nokta-' + k).length).toBe(1);
     // Nokta doğru rengi alır: sarı kaynak k1 rengidir.
     const nokta = screen.getAllByTestId('kaynak-nokta-k1')[0];
     expect(nokta.props.accessibilityLabel).toBe('Sarı kaynak');
@@ -910,9 +910,66 @@ describe('Eski sunucu ham kimlik gönderse bile marka adı ekranda çıkmaz', ()
     render(<RadarScreen navigation={nav} />);
     await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
     fireEvent.press(screen.getByText('Oynanma DNA'));
-    await screen.findByText(/Aktif kaynak/);
+    await screen.findByText(/Kaynaklar:/);
     // Anahtarın kendisi ASLA ekrana yazılmaz; nötr "Kaynak" görünür.
     expect(screen.queryByText(/gizli-site-x/)).toBeNull();
-    expect(screen.getByText('Kaynak')).toBeTruthy();
+    expect(screen.getAllByTestId('lejant-nokta-k0').length).toBe(1);
+  });
+});
+
+// KAYNAK HİÇ ADLANDIRILMAZ — ne marka ne renk adı. Yalnız renkli nokta.
+// Kullanıcı kararı: "sarı kaynak vs de yazma".
+describe('Kaynak ekranda hiç adlandırılmaz (yalnız renk)', () => {
+  const GUN = { date: '2026-08-01', weekday: 'Cuma', label: 'Cuma 01.08', isMatchDay: true, withData: 1 };
+  const ONCEKI_GUN = { date: '2026-07-31', weekday: 'Perşembe', label: 'Perşembe 31.07', isMatchDay: false, withData: 1 };
+  // Ne marka adı ne de renk adı ekranda yazabilir.
+  const ADLAR = /nesine|bilyoner|misli|oley|iddaa|sarı kaynak|turuncu kaynak|yeşil kaynak|mor kaynak|mavi kaynak/i;
+
+  test('üç kaynaklı gerçek veride hiçbir metin kaynağı ADLANDIRMAZ', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      '/api/radar/daily-played': {
+        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['k1', 'k2', 'k3'],
+        matches: [{
+          no: 1,
+          cells: { '2026-08-01': { bySource: {
+            k1: { percentages: { '1': 68, X: 12, '2': 20 } },
+            k2: { percentages: { '1': 94, X: 1, '2': 5 } },
+            k3: { percentages: { '1': 70, X: 15, '2': 15 } },
+          } } },
+        }],
+      },
+    });
+    const { toJSON } = render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Oynanma DNA'));
+    await screen.findByText(/Kaynaklar:/);
+
+    expect(metinleriTopla(toJSON()).filter((t) => ADLAR.test(t))).toEqual([]);
+    // Olumlu karşılık: üç kaynak da NOKTA olarak gerçekten çizilmiş.
+    for (const k of ['k1', 'k2', 'k3']) {
+      expect(screen.getAllByTestId(`lejant-nokta-${k}`).length).toBe(1);
+      expect(screen.getAllByTestId(`kaynak-nokta-${k}`).length).toBeGreaterThan(0);
+    }
+    // Yüzdeler yine görünür — veri gizlenmiyor, yalnız ad yok.
+    expect(screen.getAllByText(/1 %68/).length).toBeGreaterThan(0);
+  });
+
+  test('erişilebilirlik etiketi renk adını taşır (ekranda görünmez, okuyucu için)', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      '/api/radar/daily-played': {
+        roundId: 1600, days: [ONCEKI_GUN, GUN], sources: ['k1'],
+        matches: [{ no: 1, cells: { '2026-08-01': { bySource: { k1: { percentages: { '1': 50, X: 30, '2': 20 } } } } } }],
+      },
+    });
+    const { toJSON } = render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Oynanma DNA'));
+    const nokta = (await screen.findAllByTestId('kaynak-nokta-k1'))[0];
+    // Etiket VAR (nokta ekran okuyucuda adsız kalmamalı)…
+    expect(nokta.props.accessibilityLabel).toBe('Sarı kaynak');
+    // …ama GÖRÜNEN metinlerin arasında değil.
+    expect(metinleriTopla(toJSON()).filter((t) => ADLAR.test(t))).toEqual([]);
   });
 });

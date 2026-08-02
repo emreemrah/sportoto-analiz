@@ -159,25 +159,28 @@ export default function RadarTabHeader({
           </Text>
           {dp ? (
             dp.sources?.length ? (
-              /* RENK LEJANTI — maç satırlarında kaynak adı yerine renkli nokta
-                 var; hangi rengin hangi site olduğu BURADA adıyla yazılır.
-                 Kaynak şeffaflığı ürünün sözü: renk, adı gizlemek için değil
-                 satırı kısaltmak için. */
+              /* KAYNAKLAR YALNIZ RENKLE — hiçbir ad yazılmaz.
+                 Kaç kaynak olduğu ve renkleri buradan görünür; maç satırındaki
+                 noktalar aynı renklerle eşleşir. Görünen metin kaynağı
+                 ADLANDIRMAZ. Ekran okuyucu için nokta kendi erişilebilirlik
+                 etiketini taşır (renk adı — marka değil, ekranda görünmez). */
               <View style={styles.kaynakLejant}>
-                <Text style={styles.tabBannerTxt}>Aktif kaynak:</Text>
+                <Text style={styles.tabBannerTxt}>Kaynaklar:</Text>
                 {dp.sources.map((s) => (
-                  <View key={s} style={styles.lejantOge}>
-                    <View style={[styles.lejantNokta, { backgroundColor: providerColor(s) }]} />
-                    <Text style={styles.tabBannerTxt}>{providerLabel(s)}</Text>
-                  </View>
+                  <View
+                    key={s}
+                    style={[styles.lejantNokta, { backgroundColor: providerColor(s) }]}
+                    accessibilityLabel={providerLabel(s)}
+                    testID={`lejant-nokta-${kaynakKodu(s)}`}
+                  />
                 ))}
-                <Text style={styles.tabBannerTxt}>
-                  {dp.sources.length < 3 ? '· bir kaynağa şu an erişilemiyor' : ''}
-                </Text>
+                {dp.sources.length < 3 ? (
+                  <Text style={styles.tabBannerTxt}>· bir kaynağa şu an erişilemiyor</Text>
+                ) : null}
               </View>
             ) : (
               <Text style={styles.tabBannerTxt}>
-                Aktif kaynak yok — sağlayıcı verisi bekleniyor (uydurma yüzde gösterilmez).
+                Kaynak yok — veri bekleniyor (uydurma yüzde gösterilmez).
               </Text>
             )
           ) : null}
@@ -293,8 +296,7 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   kaynakLejant: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 4 },
-  lejantOge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  lejantNokta: { width: 10, height: 10, borderRadius: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' },
+  lejantNokta: { width: 12, height: 12, borderRadius: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' },
   dnaFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   dnaPeriodChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   dnaPeriodChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
