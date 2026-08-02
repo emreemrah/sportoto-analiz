@@ -64,6 +64,37 @@ export function weekdayOf(dayKey) {
 
 const validPct = (p) => !!p && ['1', 'X', '2'].every((k) => typeof p[k] === 'number' && Number.isFinite(p[k]));
 
+// (maç, kaynak, gün) → o günün mühür anına kadarki SON gözlem.
+// buildRoundDnaRecords'un çekirdeği; snapshot mühürleme de AYNI kuralı
+// kullansın diye ayrı dışa verildi (iki ayrı gün-mühürleme tanımı olamaz:
+// arşivle mühür farklı değer seçerse kıyas bozulur).
+export function sealDailyPct({ observations = [], freezeMs = null } = {}) {
+  const sealed = new Map();
+  for (const o of observations) {
+    if (!o || !validPct(o.playedPct)) continue;
+    // Mühür sonrası araştırma / tahmine uygun olmayan gözlem girmez.
+    if (o.kind === 'post_lock_research') continue;
+    if (o.usableForPrediction === false) continue;
+    const at = msOf(o.observedAt);
+    if (at == null) continue;
+
+    const dayKey = dayKeyOf(at);
+    // Bu günün mühür tavanı: 23:55 (+pay, bkz. SEAL_GRACE_MS) ile donma anının
+    // ERKENİ. Donma sınırına pay YOKTUR.
+    let cap = istanbulTimeToUtcMs(dayKey, SEAL_HOUR, SEAL_MINUTE) + SEAL_GRACE_MS;
+    if (freezeMs != null && freezeMs < cap) cap = freezeMs;
+    if (at > cap) continue;                       // mühürden sonraki değer sayılmaz
+
+    const matchKey = String(o.matchId);
+    const key = `${matchKey}|${o.source}|${dayKey}`;
+    const prev = sealed.get(key);
+    if (!prev || at > prev.at) {
+      sealed.set(key, { at, matchKey, source: o.source, dayKey, pct: o.playedPct });
+    }
+  }
+  return [...sealed.values()];
+}
+
 // Tek turun günlük mühürlü kayıtlarını üretir (saf: veri dışarıdan verilir).
 // observations / results / matches: store'dan gelen ham listeler.
 export function buildRoundDnaRecords({
@@ -95,33 +126,11 @@ export function buildRoundDnaRecords({
   }
   const freezeMs = firstKickoffMs != null ? firstKickoffMs - FREEZE_BEFORE_KICKOFF_MS : null;
 
-  // (maç, kaynak, gün) → o günün mühür anına kadarki SON gözlemi.
-  const sealed = new Map();
-  for (const o of observations) {
-    if (!o || !validPct(o.playedPct)) continue;
-    // Mühür sonrası araştırma / tahmine uygun olmayan gözlem DNA'ya girmez.
-    if (o.kind === 'post_lock_research') continue;
-    if (o.usableForPrediction === false) continue;
-    const at = msOf(o.observedAt);
-    if (at == null) continue;
-
-    const dayKey = dayKeyOf(at);
-    // Bu günün mühür tavanı: 23:55 (+pay, bkz. SEAL_GRACE_MS) ile donma anının
-    // ERKENİ. Donma sınırına pay YOKTUR.
-    let cap = istanbulTimeToUtcMs(dayKey, SEAL_HOUR, SEAL_MINUTE) + SEAL_GRACE_MS;
-    if (freezeMs != null && freezeMs < cap) cap = freezeMs;
-    if (at > cap) continue;                       // mühürden sonraki değer sayılmaz
-
-    const matchKey = String(o.matchId);
-    const key = `${matchKey}|${o.source}|${dayKey}`;
-    const prev = sealed.get(key);
-    if (!prev || at > prev.at) {
-      sealed.set(key, { at, matchKey, source: o.source, dayKey, pct: o.playedPct });
-    }
-  }
+  // (maç, kaynak, gün) → günlük mühürlü değerler (ortak çekirdek: sealDailyPct).
+  const sealed = sealDailyPct({ observations, freezeMs });
 
   const out = [];
-  for (const s of sealed.values()) {
+  for (const s of sealed) {
     const result = resultByMatch.get(s.matchKey);
     if (!result) continue;                        // resmî sonuç yoksa kayıt yok
     const position = posByMatch.get(s.matchKey) ?? null;

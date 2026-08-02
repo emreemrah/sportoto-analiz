@@ -178,3 +178,87 @@ test('gözlemler kilide kadar toplanır; kilitten sonra yazılmaz', async () => 
   assert.equal(m1.observationSeries.count, 2);
   assert.ok(m1.observationSeries.ref.includes('/observations'));
 });
+
+// --- OYNANMA HAREKETİ MÜHRÜ (played-movement-1.0.0) -------------------------
+// "Para favoriden kaçtı" sinyali artık kilit anında snapshot'a mühürlenir;
+// karne (scorecard.criteria.playedMovement) yalnız bu mühürlü sinyali sayar.
+const { buildPlayedMovement } = await import('../src/archive/snapshotService.js');
+
+const pmObs = (dayIso, pct, o = {}) => ({
+  matchId: 'm1', source: 'nesine', observedAt: dayIso, playedPct: pct, ...o,
+});
+
+test('playedMovement: açılış favorisinin ≥10 puan düşüşü sinyal üretir (Brugge vakası)', () => {
+  const pm = buildPlayedMovement([
+    pmObs('2026-07-26T10:00:00Z', { '1': 61, X: 22, '2': 17 }),
+    pmObs('2026-07-28T10:00:00Z', { '1': 52, X: 26, '2': 22 }),
+    pmObs('2026-07-31T10:00:00Z', { '1': 44, X: 30, '2': 26 }),
+  ]);
+  assert.equal(pm.consensus.favoriteSymbol, '1', 'favori AÇILIŞTAKİ en yüksek pay');
+  assert.equal(pm.consensus.favoriteDropPts, 17);
+  assert.equal(pm.signal.active, true);
+  assert.equal(pm.signal.dropPts, 17);
+  // Gün sayısı gerçek mühürlü günlerden (3 gün).
+  assert.equal(pm.perSource.nesine.dayCount, 3);
+});
+
+test('playedMovement: eşik altı düşüş sinyal DEĞİL, veri yine mühürlenir', () => {
+  const pm = buildPlayedMovement([
+    pmObs('2026-07-26T10:00:00Z', { '1': 50, X: 28, '2': 22 }),
+    pmObs('2026-07-28T10:00:00Z', { '1': 44, X: 32, '2': 24 }),
+  ]);
+  assert.equal(pm.signal.active, false, '6 puan düşüş eşiğin (10) altında');
+  assert.equal(pm.consensus.favoriteDropPts, 6, 'hareket verisi yine kayıtlı — veri gizlenmez');
+});
+
+test('playedMovement: tek günlük seride hareket UYDURULMAZ', () => {
+  const pm = buildPlayedMovement([
+    pmObs('2026-07-26T10:00:00Z', { '1': 61, X: 22, '2': 17 }),
+  ]);
+  assert.equal(pm.signal, null);
+  assert.equal(pm.consensus, null);
+  assert.ok(pm.note.includes('en az iki günlük'));
+});
+
+test('playedMovement: donma sonrası gözlem harekete SIZAMAZ', () => {
+  const freezeMs = new Date('2026-07-28T16:55:00Z').getTime();
+  const pm = buildPlayedMovement([
+    pmObs('2026-07-26T10:00:00Z', { '1': 61, X: 22, '2': 17 }),
+    pmObs('2026-07-27T10:00:00Z', { '1': 55, X: 26, '2': 19 }),
+    pmObs('2026-07-28T17:30:00Z', { '1': 20, X: 40, '2': 40 }),   // donma SONRASI
+  ], { freezeMs });
+  assert.deepEqual(pm.consensus.closePct, { '1': 55, X: 26, '2': 19 },
+    'kapanış donma öncesi son mühürlü gün olmalı');
+});
+
+test('playedMovement: kaynak ortalaması — iki kaynağın açılış/kapanışı ortalanır', () => {
+  const pm = buildPlayedMovement([
+    pmObs('2026-07-26T10:00:00Z', { '1': 60, X: 22, '2': 18 }),
+    pmObs('2026-07-28T10:00:00Z', { '1': 44, X: 30, '2': 26 }),
+    pmObs('2026-07-26T11:00:00Z', { '1': 62, X: 22, '2': 16 }, { source: 'misli' }),
+    pmObs('2026-07-28T11:00:00Z', { '1': 46, X: 30, '2': 24 }, { source: 'misli' }),
+  ]);
+  assert.equal(pm.consensus.sources, 2);
+  assert.equal(pm.consensus.openPct['1'], 61);   // (60+62)/2
+  assert.equal(pm.consensus.closePct['1'], 45);  // (44+46)/2
+  assert.equal(pm.signal.active, true);          // düşüş 16 ≥ 10
+});
+
+test('snapshot payload her maça playedMovement alanını mühürler', async () => {
+  const store = tmpStore();
+  const data = makeBulletinData();
+  const m1Key = String(data.matches[0].sportotoMatchId ?? data.matches[0].no);
+  // İki günlük gözlem yaz (kilitten önce).
+  await store.addObservations(String(data.roundId), [
+    { matchId: m1Key, source: 'nesine', observedAt: '2026-07-23T10:00:00Z', playedPct: { '1': 61, X: 22, '2': 17 } },
+    { matchId: m1Key, source: 'nesine', observedAt: '2026-07-24T10:00:00Z', playedPct: { '1': 44, X: 30, '2': 26 } },
+  ]);
+  const payload = await buildSnapshotPayload(data, { store, now: FREEZE_MS, frozenAt: new Date(FREEZE_MS).toISOString() });
+  const m1 = payload.matches.find((m) => m.matchId === m1Key);
+  assert.equal(m1.playedMovement.signal.active, true);
+  assert.equal(m1.playedMovement.signal.favoriteSymbol, '1');
+  // Gözlemi olmayan maçta uydurma yok, dürüst not var.
+  const digerleri = payload.matches.filter((m) => m.matchId !== m1Key);
+  assert.ok(digerleri.every((m) => m.playedMovement.signal === null));
+  assert.ok(digerleri.every((m) => m.playedMovement.note.includes('bu maçta yok')));
+});

@@ -95,6 +95,11 @@ export async function buildRadarScorecard({ store = getArchiveStore() } = {}) {
   // Maç tipine göre Master başarı: sistem DENK maçlarda mı, sınıf farkı olan
   // maçlarda mı daha iyi? (lig kırılımının yanındaki İKİNCİ boyut — altın kural.)
   const byBalance = { homeStrong: newBucket(), awayStrong: newBucket(), even: newBucket() };
+  // OYNANMA KAÇIŞI karnesi: mühürlü playedMovement.signal.active maçlar.
+  // Başarı tanımı sürpriz-yakalamayla simetriktir: açılış favorisi ≥dropPts
+  // puan kaybettiyse maç favori DIŞI mı bitti? Eski snapshot'larda alan yok →
+  // n=0'dan dürüst başlar; geçmişe dönük sinyal üretilmez.
+  const playedMoveAgg = { total: 0, favoriteFailed: 0, results: { '1': 0, X: 0, '2': 0 } };
 
   const excludedByType = {};                                             // provenance şeffaflığı
   let excludedCount = 0;
@@ -128,6 +133,14 @@ export async function buildRadarScorecard({ store = getArchiveStore() } = {}) {
       const lg = m.league || 'Diğer';
       if (!byLeague.has(lg)) byLeague.set(lg, newBucket());
       feedBucket(byLeague.get(lg), m, official);
+
+      // Oynanma kaçışı: mühürlü sinyal × resmî sonuç.
+      const pmSig = m.playedMovement?.signal;
+      if (pmSig?.active && pmSig.favoriteSymbol) {
+        playedMoveAgg.total += 1;
+        if (playedMoveAgg.results[official.officialResult] != null) playedMoveAgg.results[official.officialResult] += 1;
+        if (official.officialResult !== pmSig.favoriteSymbol) playedMoveAgg.favoriteFailed += 1;
+      }
 
       // Maçın güç dengesi sınıfı (altın kural) — sinyal/kural kırılımları için.
       const sb = m.radarCenter.radars?.[RADAR_IDS.PERFORMANCE]?.details?.strengthBalance;
@@ -278,6 +291,16 @@ export async function buildRadarScorecard({ store = getArchiveStore() } = {}) {
           }])),
         }))
         .sort((a, b) => b.overall.total - a.overall.total),
+      // OYNANMA KAÇIŞI sinyalinin ileri-test karnesi: "açılış favorisi ≥10 puan
+      // kaybetti" mühürlendiğinde maç favori DIŞI mı bitti? (catchRate)
+      playedMovement: {
+        label: 'Oynanma kaçışı (açılış favorisi ≥10 puan düştü)',
+        total: playedMoveAgg.total,
+        favoriteFailed: playedMoveAgg.favoriteFailed,
+        catchRate: pct(playedMoveAgg.favoriteFailed, playedMoveAgg.total),
+        results: playedMoveAgg.results,
+        confidence: sampleConfidence(playedMoveAgg.total),
+      },
       // Güç dengesi kuralının ileri-test doğrulaması (fark ≥ 10 puan bandı).
       strengthRule: {
         label: 'Güç dengesi kuralı (gerçek puan farkı ≥ 10 → güçlü/zayıf, altı denk)',

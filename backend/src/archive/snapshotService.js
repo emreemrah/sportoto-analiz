@@ -17,6 +17,9 @@ import { evaluateCriteriaSignals, CRITERIA_LABELS } from '../analysis/criteriaEv
 import { getCriteriaPerformanceBefore } from './resultsService.js';
 import { getHistoryStore } from '../history/historyStore.js';
 import { computePositionDna, historyLearningFilter } from '../history/positionDna.js';
+import { sealDailyPct } from '../radar/playedDnaArchive.js';
+import { movementOf } from '../radar/playedDna.js';
+import { PUBLIC_MOVE_RULES } from '../radar/config.js';
 
 const iso = (v) => (v == null ? null : new Date(v).toISOString());
 
@@ -202,6 +205,81 @@ async function buildRadar5Snapshot(data, { store } = {}) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// OYNANMA HAREKETİ MÜHRÜ (played-movement-1.0.0)
+// "Para favoriden kaçtı mı?" sinyalinin kalıcı, mühürlü kaydı. Gün-mühürleme
+// kuralı DNA arşiviyle birebir aynıdır (sealDailyPct — iki ayrı tanım olamaz).
+//
+// SİNYAL TANIMI: kaynak-ortalaması AÇILIŞ dağılımının favorisi, kapanışa dek
+// >= PUBLIC_MOVE_RULES.dropPts puan kaybettiyse signal.active=true. Favori
+// AÇILIŞTAKİ favoridir — "para kimden kaçtı" sorusunun öznesi odur; kapanışta
+// liderliği kaybetmiş olsa da ölçülen olgu değişmez. (Radar 3'ün canlı risk
+// katkısı ise KAPANIŞ favorisine bakar; iki tanım bilinçli olarak farklıdır ve
+// ikisi de kendi yerinde belgelidir.)
+//
+// DÜRÜSTLÜK: <2 gerçek mühürlü gün → hareket ÜRETİLMEZ (null + neden). Karne
+// (scorecard) yalnız signal.active mühürlü maçları sayar; eski snapshot'larda
+// bu alan yoktur ve n=0'dan başlar — geçmişe dönük sinyal üretilmez.
+// ---------------------------------------------------------------------------
+export const PLAYED_MOVEMENT_VERSION = 'played-movement-1.0.0';
+
+export function buildPlayedMovement(observations, { freezeMs = null } = {}) {
+  const yuvarla = (v) => Math.round(v * 10) / 10;
+  const favoriOf = (p) => ['1', 'X', '2'].reduce((a, b) => (p[b] > p[a] ? b : a), '1');
+
+  const gunluk = sealDailyPct({ observations: observations || [], freezeMs });
+  const bySource = new Map();
+  for (const g of gunluk) {
+    if (!bySource.has(g.source)) bySource.set(g.source, []);
+    bySource.get(g.source).push({ dayKey: g.dayKey, pct: g.pct });
+  }
+
+  const perSource = {};
+  const hareketliler = [];
+  for (const [source, days] of bySource) {
+    const mv = movementOf(days);
+    if (!mv) continue;                            // <2 gerçek gün → uydurma yok
+    const fav = favoriOf(mv.openPct);
+    const kayit = {
+      openPct: mv.openPct, closePct: mv.closePct, delta: mv.delta,
+      dayCount: mv.dayCount, fromDayKey: mv.fromDayKey, toDayKey: mv.toDayKey,
+      favoriteSymbol: fav,
+      favoriteDropPts: yuvarla(mv.openPct[fav] - mv.closePct[fav]),
+    };
+    perSource[source] = kayit;
+    hareketliler.push(kayit);
+  }
+
+  if (!hareketliler.length) {
+    return {
+      version: PLAYED_MOVEMENT_VERSION,
+      rules: { ...PUBLIC_MOVE_RULES },
+      perSource: null, consensus: null, signal: null,
+      note: 'Hareket için en az iki günlük mühürlü oynanma gözlemi gerekir — bu maçta yok.',
+    };
+  }
+
+  // Kaynak ortalaması — Radar 3'ün publicMove hesabıyla aynı yöntem.
+  const ort = (al) => yuvarla(hareketliler.reduce((s, h) => s + al(h), 0) / hareketliler.length);
+  const openPct = { '1': ort((h) => h.openPct['1']), X: ort((h) => h.openPct.X), '2': ort((h) => h.openPct['2']) };
+  const closePct = { '1': ort((h) => h.closePct['1']), X: ort((h) => h.closePct.X), '2': ort((h) => h.closePct['2']) };
+  const favoriteSymbol = favoriOf(openPct);
+  const dropPts = yuvarla(openPct[favoriteSymbol] - closePct[favoriteSymbol]);
+
+  return {
+    version: PLAYED_MOVEMENT_VERSION,
+    rules: { ...PUBLIC_MOVE_RULES },
+    perSource,
+    consensus: { openPct, closePct, favoriteSymbol, favoriteDropPts: dropPts, sources: hareketliler.length },
+    signal: {
+      active: dropPts >= PUBLIC_MOVE_RULES.dropPts,
+      favoriteSymbol,
+      dropPts,
+      definition: `Açılış favorisinin oynanması kapanışa dek ≥${PUBLIC_MOVE_RULES.dropPts} puan düştü`,
+    },
+  };
+}
+
 export async function buildSnapshotPayload(data, {
   store = getArchiveStore(), now = Date.now(), frozenAt, late = false,
 } = {}) {
@@ -230,6 +308,9 @@ export async function buildSnapshotPayload(data, {
   // + resmî Master Analiz (officialMasterAnalysis) maç bazında MÜHÜRLENİR.
   const analysisCenterByNo = new Map((data.analysisCenter?.matches || []).map((r) => [r.no, r]));
   const obsCounts = new Map();
+  // Oynanma hareketi mührü için maç başına TAM gözlem listesi de tutulur
+  // (yalnız sayaç yetmez — açılış→kapanış hareketi gözlem serisinden hesaplanır).
+  const obsListByMatch = new Map();
   try {
     const allObs = await store.listObservations(id);
     for (const o of allObs) {
@@ -238,8 +319,11 @@ export async function buildSnapshotPayload(data, {
       cur.count += 1;
       if (!cur.lastObservedAt || o.observedAt > cur.lastObservedAt) cur.lastObservedAt = o.observedAt;
       obsCounts.set(k, cur);
+      if (!obsListByMatch.has(k)) obsListByMatch.set(k, []);
+      obsListByMatch.get(k).push(o);
     }
   } catch { /* gözlem yoksa sayaçlar boş kalır */ }
+  const freezeMsForSeal = freezeAt ? new Date(freezeAt).getTime() : null;
 
   const matches = (data.matches || [])
     .slice()
@@ -275,6 +359,10 @@ export async function buildSnapshotPayload(data, {
           lastObservedAt: obs.lastObservedAt,
           ref: `/api/bulletins/${id}/observations?matchId=${matchKey}`,
         },
+        // OYNANMA HAREKETİ MÜHRÜ — kilit anındaki açılış→kapanış yüzde kayması.
+        // Eskiden hareket yalnız istek anında hesaplanıyordu; mühürlenmediği
+        // için "para favoriden kaçtı" sinyalinin karnesi HİÇ birikemiyordu.
+        playedMovement: buildPlayedMovement(obsListByMatch.get(matchKey) || [], { freezeMs: freezeMsForSeal }),
         teamData: trimStats(m.stats),                    // form, puan durumu, iç/dış saha, xG, H2H (kilit anındaki hali)
         missingPlayers: null,                            // kaynak yok
         missingPlayersNote: 'Bu veri bulunamadı (eksik/cezalı oyuncu kaynağı yok).',

@@ -372,3 +372,35 @@ test('/api/scorecards/* uçları provenance alanlarıyla yanıt veriyor', async 
     assert.ok(prov.totalRecords >= 1 && 'countsByType' in prov);
   } finally { server.close(); }
 });
+
+// ---------------------------------------------------------------------------
+// OYNANMA KAÇIŞI KARNESİ — mühürlü playedMovement.signal × resmî sonuç.
+// ---------------------------------------------------------------------------
+test('22b. Oynanma kaçışı karnesi: yalnız mühürlü aktif sinyal sayılır; favori dışı bitiş yakalanır', async () => {
+  const pmMatch = (no, pm) => ({
+    no, matchId: String(no), league: 'Test',
+    radarCenter: { master: { mainPrediction: '1', classification: 'medium_risk', favorite: { symbol: '1' }, methodologyVersion: 'r1', dataQuality: 80 }, radars: {} },
+    playedMovement: pm,
+  });
+  const muhur = (fav, drop, active = true) => ({
+    version: 'played-movement-1.0.0',
+    signal: { active, favoriteSymbol: fav, dropPts: drop },
+  });
+  const rows = [{
+    bulletin: mkBulletin(730),
+    snap: mkSnap(730, [
+      pmMatch(1, muhur('1', 17)),          // aktif sinyal + maç X bitti → favori yattı (yakalandı)
+      pmMatch(2, muhur('1', 12)),          // aktif sinyal + favori kazandı (yakalanamadı)
+      pmMatch(3, muhur('1', 6, false)),    // eşik altı: aktif değil → SAYILMAZ
+      pmMatch(4, null),                    // eski snapshot: alan yok → SAYILMAZ (geçmişe dönük üretim yok)
+    ]),
+    results: [mkResult(1, 'X'), mkResult(2, '1'), mkResult(3, '2'), mkResult(4, 'X')],
+  }];
+  const rs = await buildRadarScorecard({ store: stubStore(rows) });
+  const pm = rs.criteria.playedMovement;
+  assert.equal(pm.total, 2, 'yalnız aktif mühürlü sinyaller');
+  assert.equal(pm.favoriteFailed, 1);
+  assert.equal(pm.catchRate, 50);
+  assert.deepEqual(pm.results, { '1': 1, X: 1, '2': 0 });
+  assert.equal(pm.confidence.usable, false, 'n=2 kanıt değildir — güven etiketi bunu söylemeli');
+});
