@@ -28,7 +28,7 @@ function fakeSb({ failSemantics = false } = {}) {
 test('1. 005 UYGULANMIŞ: semantik kolonlar (kind/usable/first_late) yazılır', async () => {
   const sb = fakeSb({ failSemantics: false });
   const store = new SupabaseStore(sb);
-  await store.addObservations('1525', [{ matchId: 'm1', source: 'bilyoner', playedPct: { '1': 50, X: 30, '2': 20 }, kind: 'opening', usableForPrediction: true, firstObservedLate: false, raw: { kind: 'opening' } }]);
+  await store.addObservations('1525', [{ matchId: 'm1', source: 'k3', playedPct: { '1': 50, X: 30, '2': 20 }, kind: 'opening', usableForPrediction: true, firstObservedLate: false, raw: { kind: 'opening' } }]);
   assert.equal(sb.inserted.length, 1);
   assert.equal(sb.inserted[0].kind, 'opening');
   assert.equal(sb.inserted[0].usable_for_prediction, true);
@@ -37,7 +37,7 @@ test('1. 005 UYGULANMIŞ: semantik kolonlar (kind/usable/first_late) yazılır',
 test('2. 005 ÖNCESİ: kolon yok hatası → semantiksiz tekrar yazılır (migration beklenmez)', async () => {
   const sb = fakeSb({ failSemantics: true });
   const store = new SupabaseStore(sb);
-  const n = await store.addObservations('1525', [{ matchId: 'm1', source: 'bilyoner', playedPct: { '1': 50, X: 30, '2': 20 }, kind: 'opening', usableForPrediction: true, firstObservedLate: false, raw: { kind: 'opening', usableForPrediction: true } }]);
+  const n = await store.addObservations('1525', [{ matchId: 'm1', source: 'k3', playedPct: { '1': 50, X: 30, '2': 20 }, kind: 'opening', usableForPrediction: true, firstObservedLate: false, raw: { kind: 'opening', usableForPrediction: true } }]);
   assert.equal(n, 1);
   assert.equal(sb.inserted.length, 1, 'ikinci (semantiksiz) yazma başarılı');
   assert.ok(!('kind' in sb.inserted[0]), 'semantik kolon düşürüldü');

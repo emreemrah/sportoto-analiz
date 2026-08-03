@@ -53,9 +53,10 @@ test('4. Etkin sağlayıcı yokken gözlem turu dürüst durum yazar (uydurma yo
   // aynı sözleşmeyi kullanır; sağlayıcısız akış orada test edildi (11. test).
   // Burada durum kaydının kullanıcı-diliyle yazıldığını doğrularız.
   const { enabledProviders } = await import('../src/providers/playedPercentages.js');
-  // Bilyoner gerçek açık/oturumsuz kaynağı doğrulandığı için ARTIK etkin (≥1).
-  assert.ok(enabledProviders().length >= 1, 'Bilyoner doğrulanmış açık kaynak olarak etkin');
-  assert.ok(enabledProviders().some((p) => p.id === 'bilyoner'));
+  // En az bir gerçek açık/anonim kaynak etkin olmalı; hiç kaynak kalmadıysa
+  // ekran sessizce boşalır ve bunu kimse fark etmez.
+  assert.ok(enabledProviders().length >= 1, 'en az bir açık kaynak etkin olmalı');
+  assert.deepEqual(enabledProviders().map((p) => p.id).sort(), ['nesine']);
   const st = load('playedObserveStatus')?.data;
   assert.ok(st == null || !JSON.stringify(st).match(/Error|stack|ECONN/i), 'durum kaydında teknik hata sızıntısı yok');
 });

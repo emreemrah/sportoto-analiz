@@ -5,18 +5,23 @@ yüzdesi** var mı · veri **açık ve oturumsuz** mu · **zaman damgalı otomat
 alınabilir mi · gösterilen değer **gerçek yüzde mi**, yoksa oran / popülerlik
 sırası / kupon sayısı mı?
 
-## ✅ Bilyoner — ETKİN (gerçek, açık, oturumsuz)
-- **Program:** `GET https://www.bilyoner.com/api/sto/programs/active`
-  → `gameCycleEntityModel.{ gcNo, payinEndDate, eventVOs[] }` (gcNo dinamik).
-- **Yüzdeler:** `GET https://www.bilyoner.com/api/sto/playratio?gcNo=<gcNo>`
-  → `playRatioList[{ eventNo, count_1, count_0, count_2 }]`
-  (count_1→1/ev, count_0→X, count_2→2/dep).
-- **Oturumsuz KANITI:** her iki uç da `fetch(..., {credentials:'omit'})` ile
-  (çerez/oturum GÖNDERİLMEDEN) **HTTP 200** ve tam veri döndürdü. gcNo halka
-  açık program kodudur; kullanıcı belirteci içermez.
-- **Değer türü:** gerçek 1/X/2 tercih yüzdesi (ekranda görünen değerlerle birebir:
-  1. maç %42.5/%34/%23.5). Toplam ≈100.
-- Adaptör: `bilyoner.js` — parser + bülten eşleştirme + doğrulama; `enabled:true`.
+## ❌ Üçüncü kaynak — KALDIRILDI (2 Ağustos 2026, kullanıcı kararı)
+- Kaynağın oynanma yüzdesi ucu Temmuz'da çalışıyordu, sonra erişilemez oldu:
+  sunucudan atılan isteklerin büyük kısmına `HTTP 400 / "giriş yap"` dönüyor,
+  aralarda rastgele başarılı oluyordu. Ölçüm (2 Ağu): aynı adrese saniyeler
+  arayla 400 · 400 · 200 — tarayıcı, curl ve Node aynı davranışı gördü.
+  Yani istemci farkı değil, ucun kendi dalgalanması.
+- Tempo/tekrar ayarlarıyla kısmen çalıştırılabiliyordu ama güvenilir değildi;
+  kullanıcı kaynağı tümüyle kaldırma kararı verdi.
+- Adaptörü, testleri, betikleri ve kayıt satırı SİLİNDİ. Ortak yardımcıları
+  (`assertAsciiHeaders`, `matchEventToBulletin`) kaynağa bağımlı olmadığı için
+  `saglayiciOrtak.js`e taşındı; Nesine ve Misli oradan kullanıyor.
+- Arşivdeki eski gözlemleri SİLİNMEDİ (geçmiş kayıt değiştirilmez). Kimlik
+  eşlemesi kalktığı için artık nötr `k0` kovasına düşerler — ham marka adı
+  hiçbir yanıtta görünmez.
+- Marka adı YALNIZ yasak listelerinde geçmeye devam ediyor (ekranda ve HTTP
+  yanıtında görünmediğini kanıtlayan testler). Oralardan silmek yasağı
+  zayıflatırdı.
 
 ## ⏸ Misli — GERÇEK yüzde VAR, ama akış oturumsuz REST DEĞİL
 - Program açık/oturumsuz REST'te: `GET https://apivx.misli.com/api/web/v1/sportoto/active`
@@ -24,7 +29,7 @@ sırası / kupon sayısı mı?
   (200, credentials:'omit'). Ancak burada **yüzde YOK**, yalnız maç listesi.
 - Yüzdeler `aggr.misli.com/ws/event-play-stats/info` üzerinden geliyor →
   yanıt `{"websocket":true,"cookie_needed":true}` = **SockJS/WebSocket** akışı,
-  **çerez gerektiriyor**. Bu, Bilyoner'in temiz oturumsuz REST'i gibi DEĞİL.
+  **çerez gerektiriyor**. Bu, temiz oturumsuz bir REST akışı DEĞİL.
 - **Karar:** Yüzdeler halka açık gösteriliyor (giriş yapılmadan görünür) fakat
   otomatik alım için WebSocket + çerez tokalaşması gerektiğinden, bu turda
   **etkinleştirilmedi**. İleride SockJS istemcisi + oturumsuzluk yeniden
@@ -46,7 +51,7 @@ sırası / kupon sayısı mı?
 
 ---
 **Kural:** Yalnız gerçek + açık + oturumsuz 1/X/2 yüzdesi doğrulanan kaynak
-etkinleştirilir (şu an: Bilyoner). "En çok oynanan maçlar" sıralaması, kupon
+etkinleştirilir. "En çok oynanan maçlar" sıralaması, kupon
 sayısı veya bahis oranı, 1/X/2 oynanma yüzdesi gibi KULLANILMAZ. Sağlayıcılar
 ham veride karışmaz; yalnız medyan/uzlaşma analizinde birlikte değerlendirilir.
 Kullanıcıya teknik hata metni gösterilmez.

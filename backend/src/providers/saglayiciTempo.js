@@ -4,12 +4,13 @@
 // aynı tempoda deniyor. Bir kaynak bu tempoyu kaldıramıyorsa, denemelerin
 // kendisi engeli sürekli tazeliyor ve kaynak hiç açılmıyor.
 //
-// ÖLÇÜM (2 Ağustos 2026, yeşil kaynak):
+// ÖLÇÜMLE ÖĞRENİLDİ (2 Ağustos 2026, o gün kaldırılan üçüncü kaynak üzerinde):
 //   • temiz başlangıçta İLK istek → HTTP 200, gerçek veri geldi
 //   • aynı dakikada 10 istek     → 10/10 HTTP 400
-//   • 1, 2 ve 3 dakika bekleme    → hâlâ 400
-// Yani kaynak erişilebilir ama çok düşük tempoda. Arşiv de bunu doğruluyor:
-// 28-30 Temmuz arasında 45 gözlem (kabaca saatte bir başarı).
+//   • dakikalarca bekleme         → bazen açılıyor, bazen değil
+// Yani denemenin KENDİSİ engeli tazeleyebiliyor. O kaynak projeden çıkarıldı
+// ama mekanizma duruyor: ileride hız sınırlı bir kaynak eklenirse TEMPO'ya bir
+// satır yazmak yeter, akış değişmez.
 //
 // KURAL: bir sağlayıcı için bekleme süresi dolmadıysa O TURDA HİÇ DENENMEZ.
 // Bu, kaynağa saygılı davranmanın da doğru yolu: hız sınırı gördüğünde daha
@@ -19,10 +20,14 @@
 // 6 saat). Kaynak kalıcı kapandıysa sistem onu dakika başı dövmeye devam
 // etmez; açılırsa da makul sürede geri döner.
 
-/** Sağlayıcı başına asgari deneme aralığı (ms). Yazılmayan kaynak: her tur. */
-export const TEMPO = {
-  bilyoner: 60 * 60e3,        // saatte bir — ölçülen tolerans bu
-};
+/** Sağlayıcı başına asgari deneme aralığı (ms). Yazılmayan kaynak: her tur.
+ *  Şu an hız sınırı olan kaynak YOK — hepsi normal tempoda çalışıyor. */
+export const TEMPO = {};
+
+/** Hata sonrası KISA aralık istisnası (ms). Kararsız (dalgalı) kaynaklar için:
+ *  hata üstel geri çekilme yerine sabit kısa aralıkla tekrar denenir. Şu an
+ *  kullanan kaynak yok; mekanizma ve testi duruyor. */
+export const HATA_SONRASI_TEMPO = {};
 
 export const GERI_CEKILME_CARPANI = 2;
 export const EN_UZUN_BEKLEME_MS = 6 * 3600e3;
@@ -33,8 +38,13 @@ export const EN_UZUN_BEKLEME_MS = 6 * 3600e3;
  * @param {object} durum     { [id]: { sonDeneme, ardisikHata } }
  * @param {number} simdi
  */
-export function denenebilir(id, durum, simdi = Date.now()) {
-  const temel = TEMPO[id];
+export function denenebilir(id, durum, simdi = Date.now(), tablolar = {}) {
+  // TABLOLAR DIŞARIDAN VERİLEBİLİR (yalnız test için). Üretimde şu an hız
+  // sınırlı kaynak yok, yani TEMPO boş; kuralı sınamak için sahte bir kaynak
+  // gerekiyor. Gerçek tabloya test verisi yazmaktansa parametre geçmek daha
+  // temiz — üretim davranışı hiç değişmiyor.
+  const { tempo = TEMPO, hataTempo = HATA_SONRASI_TEMPO } = tablolar;
+  const temel = tempo[id];
   if (!temel) return true;                        // temposu yazılmamış kaynak: her tur
   const d = durum?.[id];
   if (!d?.sonDeneme) return true;                 // hiç denenmemiş
@@ -44,6 +54,11 @@ export function denenebilir(id, durum, simdi = Date.now()) {
   // yanlış — geçici bir engel yüzünden yarım gün sessiz kalınıyordu. İlk
   // tekrar normal tempoda yapılır; ısrarlı hata varsa süre uzar.
   const hata = Math.max(0, Number(d.ardisikHata) || 0);
+  // KARARSIZ KAYNAK İSTİSNASI: son deneme başarısızsa ve bu kaynak için kısa
+  // bir hata aralığı tanımlıysa, üstel geri çekilme YERİNE o aralık kullanılır
+  // (gerekçe: HATA_SONRASI_TEMPO başlığı). Üst sınır yine geçerli.
+  const kisa = hata > 0 ? hataTempo[id] : null;
+  if (kisa) return simdi - d.sonDeneme >= Math.min(kisa, EN_UZUN_BEKLEME_MS);
   const us = Math.max(0, hata - 1);
   const bekleme = Math.min(temel * (GERI_CEKILME_CARPANI ** us), EN_UZUN_BEKLEME_MS);
   return simdi - d.sonDeneme >= bekleme;
@@ -57,11 +72,12 @@ export function denenebilir(id, durum, simdi = Date.now()) {
  * saglam…) oraya sızıyordu. Üretim durumunu test verisiyle kirletmek iki
  * yönden zararlı: dosya anlamsız satırlarla şişiyor ve bir testin sabit
  * tarihi gerçek bir kaynağın "son başarı" değeri gibi görünüyordu
- * (bilyoner'in 22 Temmuz kaydı tam olarak böyle oluşmuştu).
+ * (gerçek bir kaynağın "son başarı" değeri bir kez böyle bozulmuştu).
  * Temposu olmayan kaynak zaten hiç bekletilmiyor; kaydına da gerek yok.
  */
-export function durumuGuncelle(id, durum, basarili, simdi = Date.now()) {
-  if (!TEMPO[id]) return durum || {};
+export function durumuGuncelle(id, durum, basarili, simdi = Date.now(), tablolar = {}) {
+  const { tempo = TEMPO } = tablolar;
+  if (!tempo[id]) return durum || {};
   const onceki = durum?.[id] || {};
   return {
     ...(durum || {}),

@@ -15,6 +15,12 @@ process.env.ARCHIVE_DIR = mkdtempSync(join(tmpdir(), 'sportoto-dnab-arsiv-'));
 process.env.ARCHIVE_DRIVER = 'file';
 process.env.HISTORY_DIR = mkdtempSync(join(tmpdir(), 'sportoto-dnab-hist-'));
 process.env.HISTORY_DRIVER = 'file';
+// ARŞİV BAŞLANGICI BU DOSYANIN KONUSU DEĞİL. Buradaki tur numaraları (1400,
+// 1499, 1600) semboliktir ve gerçek takvimle ilgisizdir; sınanan şey GÜNCEL
+// haftanın ve sonrasının sızmamasıdır. Gerçek başlangıç sınırı (1525) burada
+// açık kalsaydı sembolik geçmiş turlar kesilir ve test kendi konusunu değil
+// kesimi ölçerdi. Kesimin KENDİ testi: radar5-kesim-tutarliligi.test.mjs.
+process.env.RADAR5_LISTE_BASLANGIC = '1';
 
 const { _resetArchiveStoreForTests, getArchiveStore } = await import('../src/archive/store.js');
 _resetArchiveStoreForTests();

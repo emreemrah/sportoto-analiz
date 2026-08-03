@@ -3,7 +3,7 @@
 // NEDEN ŞİMDİ, ρ BEKLENMEDEN:
 // ρ (ikramiyeye giden hasılat oranı) sonradan bulunabilir ve tüm geçmiş yeniden
 // hesaplanabilir. **Oynanma yüzdeleri bulunamaz.** Kalabalığın kilit anındaki
-// dağılımı o an kaydedilmezse sonsuza kadar kaybolur — Bilyoner/Nesine/Misli
+// dağılımı o an kaydedilmezse sonsuza kadar kaybolur — açık kaynaklar
 // geçmişe dönük kapanış yüzdesi vermez. Bu yüzden gölge kayıt, ρ'suz da olsa
 // BUGÜN başlamalıdır; birim TL değil "havuz payı" olur, o kadar.
 //

@@ -121,7 +121,7 @@ function ReportModal({ comment, busy, onCancel, onSubmit }) {
         <View style={styles.mdSheet}>
           <View style={styles.mdHead}>
             <Text style={styles.mdTitle}>Yorumu bildir</Text>
-            <TouchableOpacity onPress={onCancel}><Text style={styles.mdX}>✕</Text></TouchableOpacity>
+            <TouchableOpacity onPress={onCancel} accessibilityRole="button" accessibilityLabel="Kapat"><Text style={styles.mdX}>✕</Text></TouchableOpacity>
           </View>
           <Text style={styles.mdWho} numberOfLines={1}>
             {comment.author?.username || 'Kullanıcı'} · “{comment.text}”
@@ -344,7 +344,7 @@ export default function CommentsSection({ matchId }) {
           {replyTo && (
             <View style={styles.replyTag}>
               <Text style={styles.replyTagTxt} numberOfLines={1}>↳ {replyTo.author?.username} kullanıcısına cevap</Text>
-              <TouchableOpacity onPress={() => setReplyTo(null)}><Text style={styles.replyX}>✕</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => setReplyTo(null)} accessibilityRole="button" accessibilityLabel="Yanıtı iptal et"><Text style={styles.replyX}>✕</Text></TouchableOpacity>
             </View>
           )}
           <TextInput

@@ -23,7 +23,6 @@
 export const KAYNAK_KODLARI = {
   nesine: 'k1',
   misli: 'k2',
-  bilyoner: 'k3',
   oley: 'k4',
   iddaa: 'k5',
 };

@@ -230,7 +230,7 @@ test('gün mührü: 23:55e kadarki SON gözlem alınır', () => {
 
 test('günlük mühür turunun KENDİ gözlemi (23:55:00.x) güne dahildir', () => {
   // Gerçek hata: mühür turu tam 23:55'te koşup gözlemini 23:55:00.6'da
-  // yazıyordu; katı sınır bu gözlemi atıyordu (Bilyoner'in 45 kaydının tamamı
+  // yazıyordu; katı sınır bu gözlemi atıyordu (içeri alınan 45 kaydın tamamı
   // DNA dışıydı). 23:55 sınırına 60 sn pay tanınır; 23:56 sonrası yine girmez.
   // 23:55 Istanbul = 20:55 UTC.
   const r = buildRoundDnaRecords({ roundId: 1519, matches, results, observations: [

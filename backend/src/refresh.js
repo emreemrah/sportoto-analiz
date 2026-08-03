@@ -384,6 +384,8 @@ export async function refreshAll() {
   // 3) Eşleştir + analiz et + zenginleştir (puan durumu, oyuncular, h2h)
   let matched = 0;
   let frozenReused = 0; // kilit nedeniyle yeniden hesaplanmayıp donmuş halinden alınan maç sayısı
+  // Başlamış ama donmuş hâli olmayan maç sayısı — tahmin ÜRETİLMEDİ (bkz. aşağıdaki gerekçe).
+  let gecmisTahminUretilmedi = 0;
   const getExtras = createExtrasCache(matchesBySeason, teamsBySeason);
   const analyzedMatches = [];
   for (const bm of bulletin.matches) {
@@ -417,7 +419,20 @@ export async function refreshAll() {
       bm.footyAwayId = kimlik.away;
     }
 
-    let score = bm.score || null;
+    // RESMÎ SKOR ile HARİCİ SKOR AYRI ALANLARDA TUTULUR.
+    //
+    // NEDEN: `score` alanı EKRAN içindir ve başlamış maçlarda harici
+    // sağlayıcının canlı/bitmiş skoruyla EZİLİR. Aynı alan aşağıda arşive de
+    // gidiyordu (archiveOnRefresh → ingestOfficialResults) ve orada
+    // `resultSource: 'Spor Toto resmi API'` etiketiyle mühürleniyordu. Yani
+    // harici bir skor resmî kayıt gibi arşivlenebiliyordu — yanlış bir sonucun
+    // "kesin" görünmesi demek. Resmî sonuç HARFİ (1/X/2) doğru kalsa bile
+    // arşivlenen skor yanlış kaynaktan gelebiliyordu.
+    //
+    // Artık resmî skor `resmiSkor`ta DEĞİŞMEDEN durur; harici skor yalnız
+    // `score`a yazılır. Arşiv YALNIZ `resmiSkor` okur (bkz. archive/worker.js).
+    const resmiSkor = bm.score || null;
+    let score = resmiSkor;
     let isLive = false;
     if (started && fm && fm.score && (fm.status === 'live' || fm.status === 'finished')) {
       score = found.swapped ? { home: fm.score.away, away: fm.score.home } : fm.score;
@@ -446,6 +461,45 @@ export async function refreshAll() {
         footyGameWeek: fm?.gameWeek ?? prevSnap.footyGameWeek ?? null,
         coverage,
         ...(prevSnap.aiComment !== undefined ? { aiComment: prevSnap.aiComment } : {}),
+      });
+      continue;
+    }
+
+    // BAŞLAMIŞ MAÇA DONMUŞ HÂLİ YOKSA TAHMİN ÜRETİLMEZ.
+    //
+    // Yukarıdaki kilit yolu `prevSnap`e bağlıdır. Snapshot yoksa (önbellek
+    // temizlenmiş, sunucu boş cache ile açılmış, kilitten sonraki İLK yenileme)
+    // akış buraya düşüyor ve BAŞLAMIŞ bir maç için yeni analiz + tahmin
+    // hesaplanıp sistem tahmini gibi saklanıyordu.
+    //
+    // Bu, projenin en temel kuralını deliyor: karneye YALNIZ maç öncesi
+    // mühürlenmiş tahmin girer. Sonradan üretilmiş bir tahmin, maç-öncesi
+    // veriden hesaplansa bile "önceden bilinmiş" sayılamaz — üretildiği an
+    // maçtan sonradır ve doğrulanabilir bir mühürü yoktur.
+    //
+    // Bu yüzden: başlamış + donmuş hâli yok → maç listeye GİRER (skor, durum
+    // görünür) ama analiz/tahmin BOŞTUR ve sebebi yazılır. Uydurma yerine
+    // boşluk; projenin "veri yoksa sebebini yaz" kuralı.
+    if (started) {
+      gecmisTahminUretilmedi++;
+      analyzedMatches.push({
+        ...bm,
+        started,
+        live: isLive,
+        score,
+        resmiSkor,
+        analysis: null,
+        stats: null,
+        prediction: null,
+        preOdds: null,
+        footyMatchId: fm?.footyMatchId ?? null,
+        footySwapped: found?.swapped ?? false,
+        footySeasonId: fm?.seasonId ?? null,
+        coverage,
+        analysisAbsence: {
+          code: 'started_without_snapshot',
+          text: 'Maç başladıktan sonra tahmin üretilmez — bu maçın mühürlü analizi yok.',
+        },
       });
       continue;
     }
@@ -497,6 +551,7 @@ export async function refreshAll() {
       started,
       live: isLive,
       score,
+      resmiSkor,          // resmî kaynağın skoru — harici veriyle EZİLMEZ
       analysis,
       stats,
       prediction,
@@ -522,8 +577,21 @@ export async function refreshAll() {
     console.warn(`[refresh] ⚠ ARMA: ${crestReport.missing} yer boş — ${crestReport.missingTeams.map((t) => `#${t.no} ${t.name}`).join(', ')}`);
   }
 
+  // EŞLEŞME SAYISI SONUÇTAN OKUNUR, AKIŞ YOLUNDAN DEĞİL.
+  //
+  // `matched++` yalnız "yeniden hesaplanan" dalda çalışıyordu. KİLİTLİ haftada
+  // her maç donmuş snapshot yolundan `continue` ettiği için sayaç 0 kalıyor,
+  // aşağıdaki kapsam koruması da bunu "kapsam çöktü" sanıp yenilemeyi
+  // durduruyordu — veri gayet sağlamken. Aynı tuzak, başlamış ama mührü
+  // olmayan maç dalında da tekrarlanırdı.
+  //
+  // Sayaç artık üretilen bültenden hesaplanıyor: koruma neyi koruyorsa onu
+  // ölçüyor (önceki bülten için de AYNI fonksiyon kullanılıyor). Yeni bir akış
+  // dalı eklendiğinde sayacı güncellemeyi unutmak artık mümkün değil.
+  matched = eslesenSayisi({ matches: analyzedMatches });
+
   const upcomingCount = analyzedMatches.filter((m) => !m.started).length;
-  console.log(`[refresh] başlamamış maç: ${upcomingCount}/${bulletin.matchCount} · eşleşen: ${matched}${frozenReused ? ` · donmuş (kilit): ${frozenReused}` : ''}`);
+  console.log(`[refresh] başlamamış maç: ${upcomingCount}/${bulletin.matchCount} · eşleşen: ${matched}${frozenReused ? ` · donmuş (kilit): ${frozenReused}` : ''}${gecmisTahminUretilmedi ? ` · tahmin üretilmedi (başlamış, mühür yok): ${gecmisTahminUretilmedi}` : ''}`);
 
   // KAPSAM RAPORU — eşleşmeyen maçları sebebiyle kaydet + logla (kontrol mekanizması).
   const uncovered = analyzedMatches
@@ -917,6 +985,7 @@ export async function refreshLiveScores() {
       live,
       finalized,
       score,
+      resmiSkor,          // resmî kaynağın skoru — harici veriyle EZİLMEZ
       minute,
       liveStatus: f.statusShort || null,
       fixtureId: f.fixtureId ?? m.fixtureId ?? null,

@@ -55,14 +55,23 @@ async function checkSession(req, res, { user, viaCookie }) {
     res.status(401).json({ error: 'Oturum doğrulanamadı. Lütfen yeniden giriş yap.' });
     return false;
   }
-  if (sessionId) {
-    const v = await verifySession(sbAdmin, { userId: user.id, sessionId });
-    if (!v.ok) {
-      res.status(401).json({ error: 'Bu oturum kapatılmış. Lütfen yeniden giriş yap.' });
-      return false;
-    }
-    req.sessionId = sessionId;
+  // OTURUM DOĞRULAMASI KOŞULSUZDUR.
+  //
+  // ESKİ HÂL: `if (sessionId) { ... }` — istemci `x-session-id` başlığını HİÇ
+  // göndermezse doğrulama atlanıyor ve istek geçiyordu. "Tüm cihazlardan çıkış"
+  // böylece atlatılabiliyordu: uzaktan kapatılan cihaz başlığı düşürerek
+  // belirteç süresi dolana kadar çalışmayı sürdürüyordu.
+  //
+  // Artık başlık olmasa da verifySession çağrılır; o, oturum kimliği olmayan
+  // isteği reddeder. Supabase erişilemiyorsa verifySession zaten
+  // `{ok:true, degraded:true}` döner — oturum tablosu olmayan kurulumların
+  // çalışmaya devam etmesi BİLEREK korunuyor.
+  const v = await verifySession(sbAdmin, { userId: user.id, sessionId });
+  if (!v.ok) {
+    res.status(401).json({ error: 'Bu oturum kapatılmış. Lütfen yeniden giriş yap.' });
+    return false;
   }
+  if (sessionId) req.sessionId = sessionId;
   return true;
 }
 

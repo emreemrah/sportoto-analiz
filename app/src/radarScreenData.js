@@ -200,42 +200,12 @@ export function legacyFiltered(radar, legacyFilter) {
   return legacyFilter ? (radar || []).filter((r) => r.labelColor === legacyFilter) : (radar || []);
 }
 
-/**
- * Radar 5 dönem gücü: 15 sıranın her birindeki EN YÜKSEK gerçekleşen sonucun
- * ortalaması. Seçili dönemin baskın sonuç gücünü gösterir — kesin tahmin
- * DEĞİLDİR. Örneklem yoksa null (sıfır yazılmaz; sıfır "hiç olmadı" demektir,
- * "bilmiyoruz" değil).
- */
-export function radar5PeriodSuccess(positionDna) {
-  return Object.fromEntries(DNA_PERIODS.map(({ k }) => {
-    const values = (positionDna?.dna?.positions || []).map((p) => {
-      const pct = p.windows?.[k]?.pct;
-      return pct ? Math.max(Number(pct['1']) || 0, Number(pct.X) || 0, Number(pct['2']) || 0) : null;
-    }).filter((v) => v != null);
-    const average = values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : null;
-    return [k, average == null ? null : average.toFixed(1)];
-  }));
-}
-
-/**
- * Dönem eğilimi (▲/▼/—). Eşik 0,5 puandır: altındaki fark ölçüm gürültüsüdür
- * ve ok gösterilirse kullanıcı olmayan bir eğilim görür.
- */
-export function radar5PeriodTrend(success) {
-  return Object.fromEntries(DNA_PERIODS.map(({ k }) => {
-    if (k === 'allTime') return [k, { key: 'flat', symbol: '—' }];
-    if (success?.[k] == null || success?.allTime == null) return [k, null];
-    const delta = Number(success[k]) - Number(success.allTime);
-    if (Math.abs(delta) < 0.5) return [k, { key: 'flat', symbol: '—' }];
-    return [k, delta > 0 ? { key: 'up', symbol: '▲' } : { key: 'down', symbol: '▼' }];
-  }));
-}
-
-/** Tek satırın eğilimi — dönem yüzdesi ile tüm-zaman yüzdesi arasındaki fark. */
-export function rowTrend({ highest, allTimeHighest, dnaPeriod }) {
-  if (dnaPeriod === 'allTime') return { key: 'flat', symbol: '—' };
-  if (highest == null || allTimeHighest == null) return null;
-  const delta = highest - allTimeHighest;
-  if (Math.abs(delta) < 0.5) return { key: 'flat', symbol: '—' };
-  return delta > 0 ? { key: 'up', symbol: '▲' } : { key: 'down', symbol: '▼' };
-}
+// DÖNEM BAŞARISI / EĞİLİM HESAPLARI KALDIRILDI (kullanıcı kararı, 3 Ağustos
+// 2026: "kafa karıştırıyor"). Buradaki üç fonksiyon —`radar5PeriodSuccess`,
+// `radar5PeriodTrend`, `rowTrend`— yalnız o göstergeyi besliyordu:
+//   * çiplerde "Tüm Haftalar · %66.7" ve ▲▼— oku,
+//   * maç satırında "Dönem başarısı: X %100.0 ▲".
+// İkincisi, hemen üstündeki "Geçmiş N. sıra · 1/X/2" satırının EN YÜKSEĞİNİ
+// tekrar ediyordu; aynı sayıyı "başarı" adıyla ikinci kez göstermek okuyanı
+// yanıltıyordu. Gösterge kalkınca hesaplar da ölü koda döndü ve silindi.
+// Dönem çipleri FİLTRE olarak duruyor (DNA_PERIODS).

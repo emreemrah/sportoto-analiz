@@ -28,6 +28,9 @@ import {
 } from '../radar/playedDnaArchive.js';
 import { PUBLIC_BANDS } from '../radar/config.js';
 import { kaynakKodu, kaynakId, anahtarlariKodla } from '../providers/kaynakKodu.js';
+import { sonGunOynanmaIndeksi, oynanmaEkle, eskiHaftalariAt } from '../radar/siraOynanma.js';
+// Etkin oynanma sağlayıcıları — susan kaynağın satırı da görünsün diye.
+import { enabledProviders } from '../providers/playedPercentages.js';
 import { getHistoryStore } from '../history/historyStore.js';
 import { computePositionDna, positionStatsFromHistory, mergePositionStats, positionSummaryText, historyLearningFilter, positionMatchList } from '../history/positionDna.js';
 import { getPositionStats } from '../archive/resultsService.js';
@@ -296,10 +299,38 @@ router.get('/daily-played', async (req, res) => {
     if (!ctx) return res.json({ hasData: false, days: [], matches: [], note: 'Güncel bülten yok.' });
     // KAYNAK KİMLİĞİ DIŞARI ÇIKMAZ: yanıtta yalnız nötr kod (k1/k2/…) görünür.
     // İçeride kimlik aynen kalır — veri göçü yok (bkz. providers/kaynakKodu.js).
-    res.json(kaynaklariKodla(buildDailyPlayed({
+    const gorunum = kaynaklariKodla(buildDailyPlayed({
       roundId: ctx.rid, round: ctx.round, matches: ctx.matches, observations: ctx.observations,
       firstKickoffMs: ctx.firstMs, freezeAt: ctx.freezeAt, sealed: ctx.sealed, now: Date.now(),
-    })));
+    }));
+    // ETKİN SAĞLAYICILARIN TAMAMI listelenir — yalnız veri YAZMIŞ olanlar değil.
+    // Aksi hâlde bir sağlayıcı susunca satırı tümüyle kaybolur ve kullanıcı
+    // eksiği göremez; "üç kaynak vardı, ikisi görünüyor" fark edilmez olurdu.
+    // Boş kalan satır ekranda kendi sebebini yazar ("bu gün kayıt yok").
+    const beklenen = enabledProviders().map((p) => kaynakKodu(p.id));
+
+    // YALNIZ ETKİN KAYNAKLAR GÖSTERİLİR.
+    //
+    // Kaldırılan bir sağlayıcının ARŞİVDEKİ eski gözlemleri silinmez (geçmiş
+    // kayıt değiştirilmez) ama ekranda da görünmez: kullanıcı artık toplanmayan
+    // bir kaynağın satırını görüp onu güncel sanmamalı.
+    //
+    // Süzgeç `sources` ile YETİNMEZ, hücrelerin `bySource` anahtarlarını da
+    // temizler — yoksa liste boş olsa bile satırlar veriden yeniden doğardı.
+    const izinli = new Set(beklenen);
+    gorunum.sources = (gorunum.sources || []).filter((s) => izinli.has(s));
+    for (const m of gorunum.matches || []) {
+      for (const [gun, hucre] of Object.entries(m.cells || {})) {
+        if (!hucre?.bySource) continue;
+        const suzulmus = Object.fromEntries(
+          Object.entries(hucre.bySource).filter(([k]) => izinli.has(k)),
+        );
+        // Tek kaynağı olan bir hücre süzülünce boşalır: hücre `null` olur ki
+        // ekran "bu gün kayıt yok" desin, boş bir kutu göstermesin.
+        m.cells[gun] = Object.keys(suzulmus).length ? { ...hucre, bySource: suzulmus } : null;
+      }
+    }
+    res.json(gorunum);
   } catch (e) { fail(res, e); }
 });
 
@@ -525,12 +556,26 @@ router.get('/position-matches', async (req, res) => {
       } catch { /* arşiv okunamazsa yalnız statik geçmiş */ }
 
       const adlar = Object.fromEntries(allRounds.map((r) => [String(r.roundId), r.weekName || null]));
-      const kaynak = [...hist, ...arsiv]
+      // Oynanma kaydından ESKİ haftalar listeye hiç girmez (kullanıcı kararı).
+      // Kesme BURADA yapılır: 15 sıranın listesi zaten buradan üretiliyor, tek
+      // yerde kesilince count/playedCount da kırpılmış listeyle tutarlı kalır.
+      const kaynak = eskiHaftalariAt([...hist, ...arsiv])
         .filter((m) => cutRoundId == null || String(m.roundId) !== String(cutRoundId));
+
+      // GEÇMİŞ MAÇLARIN OYNANMA YÜZDESİ (haftanın son günü = Cuma).
+      // Tek seferde 15 sıranın tamamı için çıkarılır ve listeyle AYNI önbellekte
+      // durur; kullanıcı sıra değiştirdikçe arşiv yeniden taranmaz.
+      // Arşiv okunamazsa liste yine dönmeli — yüzde İKİNCİL bilgidir.
+      let oynanmaIx = new Map();
+      try {
+        const kayitlar = await collectPlayedDnaRecords(store, { maxRounds: 40 });
+        oynanmaIx = sonGunOynanmaIndeksi(kayitlar, 'nesine');
+      } catch { /* yüzde yoksa satırlar boş görünür, liste bozulmaz */ }
+
       _liste = {
         at: Date.now(), key,
         val: {
-          roundId: cutRoundId, season: aktifSezon,
+          roundId: cutRoundId, season: aktifSezon, oynanmaIx,
           // 15 sıranın tamamı bir kez hesaplanır; kullanıcı sıra değiştirdikçe
           // aynı önbellekten okunur (her dokunuşta arşiv taranmaz).
           byPosition: Object.fromEntries(Array.from({ length: 15 }, (_, i) => (
@@ -539,13 +584,19 @@ router.get('/position-matches', async (req, res) => {
         },
       };
     }
-    const matches = _liste.val.byPosition[position] || [];
+    const ham = _liste.val.byPosition[position] || [];
+    // Her satıra O HAFTANIN CUMA yüzdesi iliştirilir. Veri yoksa alan null'dır.
+    const { matches, yuzdeliSayi } = oynanmaEkle(ham, _liste.val.oynanmaIx || new Map(), position);
     res.json({
       hasData: matches.length > 0,
       position,
       roundId: _liste.val.roundId,
       season: _liste.val.season,
       count: matches.length,
+      // KAPSAM DÜRÜSTLÜĞÜ: oynanma arşivi 51. haftada başladı; daha eski
+      // satırlarda yüzde YOKTUR. Ekran bu sayıyı yazarak kaç satırın gerçekten
+      // veriye dayandığını gösterir — boşluk "veri yok" demek, "%0" demek değil.
+      playedCount: yuzdeliSayi,
       matches,
       note: matches.length ? null : 'Bu sıra için doğrulanmış geçmiş sonuç yok.',
     });
@@ -645,7 +696,12 @@ router.get('/position-dna', async (req, res) => {
       });
     } catch { /* arşiv okunamazsa yalnız statik geçmişle devam edilir */ }
 
-    const dna = computePositionDna([...histMatches, ...arsivMaclari], {
+    // OYNANMA KAYDINDAN ESKİ HAFTALAR YÜZDEYE DE GİRMEZ.
+    // Liste (/position-matches) `eskiHaftalariAt` ile 1525'ten kesiliyordu ama
+    // bu hesap kesilmiyordu: ekran "2 maç" derken yüzde 768 maçtan geliyor,
+    // dönem filtresi değiştikçe elde olmayan haftalara göre oynuyordu. İki uç
+    // AYNI kesimi kullanmazsa kullanıcı ekrandaki sayıyı doğrulayamaz.
+    const dna = computePositionDna(eskiHaftalariAt([...histMatches, ...arsivMaclari]), {
       excludeRoundId: cutRoundId,
       seasonYear: activeSeason,
     });

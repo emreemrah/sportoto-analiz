@@ -290,7 +290,7 @@ export default function BulletinScreen({ navigation }) {
   const Header = (
     <View style={styles.header}>
       <View style={styles.weekNav}>
-        <TouchableOpacity onPress={goPrev} disabled={!canPrev} style={[styles.navBtn, !canPrev && styles.navBtnOff]}>
+        <TouchableOpacity onPress={goPrev} disabled={!canPrev} accessibilityRole="button" accessibilityLabel="Önceki hafta" style={[styles.navBtn, !canPrev && styles.navBtnOff]}>
           <Text style={styles.navArrow}>‹</Text>
         </TouchableOpacity>
         <View style={styles.weekMid}>
@@ -352,7 +352,7 @@ export default function BulletinScreen({ navigation }) {
             </View>
           )}
         </View>
-        <TouchableOpacity onPress={goNext} disabled={!canNext} style={[styles.navBtn, !canNext && styles.navBtnOff]}>
+        <TouchableOpacity onPress={goNext} disabled={!canNext} accessibilityRole="button" accessibilityLabel="Sonraki hafta" style={[styles.navBtn, !canNext && styles.navBtnOff]}>
           <Text style={styles.navArrow}>›</Text>
         </TouchableOpacity>
       </View>
@@ -442,7 +442,13 @@ export default function BulletinScreen({ navigation }) {
                 </Text>
               </>
             ) : resolved || prov ? (() => {
-              // Renk kodu: yeşil=resmi sonuç · sarı=bitti ama henüz resmi değil
+              // RESMÎ ile GEÇİCİ sonuç ayrımı RENKLE YETİNMEZ, YAZIYLA da söylenir.
+              //
+              // Önceden fark yalnız renkti (yeşil=resmî, sarı=geçici). Renk tek
+              // ayırt ediciyken renk körü kullanıcı — ya da rengin anlamını
+              // bilmeyen herkes — harici sağlayıcıdan TÜRETİLMİŞ bir sonucu
+              // resmî sanıyordu. Resmî sonuç gelmeden "kesin" izlenimi vermek,
+              // projenin uydurma çıktı yasağı kapsamındadır.
               const sc = resolved ? item.score : prov.score;
               const col = resolved ? colors.success : colors.warning;
               const res = resolved ? item.result : (sc.home > sc.away ? '1' : sc.home < sc.away ? '2' : 'X');
@@ -450,6 +456,9 @@ export default function BulletinScreen({ navigation }) {
                 <>
                   <Text style={[styles.mScore, { color: col }]}>{sc.home} - {sc.away}</Text>
                   <Text style={[styles.mRes, { color: col }]}>{res}</Text>
+                  {!resolved ? (
+                    <Text style={styles.mGecici} numberOfLines={1}>geçici · resmî değil</Text>
+                  ) : null}
                 </>
               );
             })() : (
@@ -833,6 +842,8 @@ const styles = StyleSheet.create({
   // Canlı maçta skorun yerini alan gösterge — skor YAZILMAZ, yalnız durum.
   mCanli: { color: colors.accent, fontSize: 15, fontWeight: '900', letterSpacing: 1.5 },
   mCanliAlt: { color: colors.textSoft, fontSize: 11, fontWeight: '800', marginTop: 1 },
+  // Geçici sonuç uyarısı — renk tek ayırt edici olmasın diye YAZIYLA.
+  mGecici: { color: colors.warning, fontSize: 9.5, fontWeight: '800', marginTop: 1 },
   mScoreTemp: { color: colors.textSoft, fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
   mTime: { color: colors.text, fontSize: 14, fontWeight: '800' },
   mDay: { color: colors.muted, fontSize: 10, fontWeight: '700' },

@@ -137,12 +137,12 @@ export default function UserDashboardScreen({ navigation }) {
 
       {/* HAFTA GEZME */}
       <View style={styles.weekNav}>
-        <TouchableOpacity onPress={goPrev} disabled={!canPrev} style={[styles.arw, !canPrev && styles.arwOff]}><Text style={styles.arwTxt}>‹</Text></TouchableOpacity>
+        <TouchableOpacity onPress={goPrev} disabled={!canPrev} accessibilityRole="button" accessibilityLabel="Önceki hafta" style={[styles.arw, !canPrev && styles.arwOff]}><Text style={styles.arwTxt}>‹</Text></TouchableOpacity>
         <View style={styles.weekMid}>
           <Text style={styles.weekName}>{selMeta?.name || '—'}</Text>
           <Text style={styles.weekSeason}>{selMeta?.year || rounds?.rounds?.[0]?.year || ''} Sezonu</Text>
         </View>
-        <TouchableOpacity onPress={goNext} disabled={!canNext} style={[styles.arw, !canNext && styles.arwOff]}><Text style={styles.arwTxt}>›</Text></TouchableOpacity>
+        <TouchableOpacity onPress={goNext} disabled={!canNext} accessibilityRole="button" accessibilityLabel="Sonraki hafta" style={[styles.arw, !canNext && styles.arwOff]}><Text style={styles.arwTxt}>›</Text></TouchableOpacity>
       </View>
 
       <View style={styles.controls}>

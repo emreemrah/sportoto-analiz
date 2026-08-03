@@ -135,7 +135,7 @@ export default function LineupBuilder({ matchId, match, homeName, awayName, init
       <View style={st.wrap}>
         <View style={st.head}>
           <Text style={st.title}>📋 Kadro Tahmini</Text>
-          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Text style={st.x}>✕</Text></TouchableOpacity>
+          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Kapat"><Text style={st.x}>✕</Text></TouchableOpacity>
         </View>
 
         {/* Takım seçimi */}
@@ -211,11 +211,11 @@ export default function LineupBuilder({ matchId, match, homeName, awayName, init
         {modalSlot && (
           <Modal visible transparent animationType="fade" onRequestClose={() => setModalSlot(null)}>
             <View style={st.pmWrap}>
-              <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setModalSlot(null)} />
+              <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setModalSlot(null)} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
               <View style={st.pmSheet}>
                 <View style={st.pmHead}>
                   <Text style={st.pmTitle}>{modalSlot.label} · {ROLE_LABEL[modalSlot.role]}</Text>
-                  <TouchableOpacity onPress={() => setModalSlot(null)}><Text style={st.x}>✕</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={() => setModalSlot(null)} accessibilityRole="button" accessibilityLabel="Kapat"><Text style={st.x}>✕</Text></TouchableOpacity>
                 </View>
                 <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ padding: spacing.md }}>
                   {modalList.length === 0 ? (

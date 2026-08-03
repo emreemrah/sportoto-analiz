@@ -11,12 +11,20 @@ import assert from 'node:assert/strict';
 
 const { kaynakKodu, kaynakId, anahtarlariKodla, KAYNAK_KODLARI } = await import('../src/providers/kaynakKodu.js');
 
-test('kimlik → kod eşlemesi SABİT (renklerle hizalı: k1 sarı, k2 turuncu, k3 yeşil)', () => {
+test('kimlik → kod eşlemesi SABİT (renklerle hizalı: k1 sarı, k2 turuncu)', () => {
   assert.equal(kaynakKodu('nesine'), 'k1');
   assert.equal(kaynakKodu('misli'), 'k2');
-  assert.equal(kaynakKodu('bilyoner'), 'k3');
   // Sabitlik şart: kod değişirse kullanıcının haftalar arası kıyası kayar.
-  assert.deepEqual(Object.keys(KAYNAK_KODLARI).sort(), ['bilyoner', 'iddaa', 'misli', 'nesine', 'oley']);
+  // k3 kaldırıldı: o sağlayıcı projeden tümüyle çıkarıldı (kullanıcı kararı).
+  // Kalan kodlar KAYDIRILMADI — eski haftaların renkleri bozulmasın diye.
+  assert.deepEqual(Object.keys(KAYNAK_KODLARI).sort(), ['iddaa', 'misli', 'nesine', 'oley']);
+});
+
+test('kaldırılan sağlayıcının ARŞİVDEKİ kayıtları ham adla sızmıyor', () => {
+  // Geçmiş haftaların gözlemlerinde o kimlik hâlâ duruyor. Eşleme silindiği
+  // için artık bilinmeyen sayılır ve tek kovaya (k0) düşer — ekranda adsız,
+  // nötr bir kaynak olarak görünür. Ham marka adı yanıta ASLA çıkmaz.
+  assert.equal(kaynakKodu('bilyoner'), 'k0');
 });
 
 test('bilinmeyen kimlik kod UYDURMAZ (tek kovaya düşer)', () => {
@@ -28,7 +36,6 @@ test('bilinmeyen kimlik kod UYDURMAZ (tek kovaya düşer)', () => {
 
 test('kod → kimlik geri çevirir; eski istemcinin HAM kimliği de kabul edilir', () => {
   assert.equal(kaynakId('k1'), 'nesine');
-  assert.equal(kaynakId('k3'), 'bilyoner');
   // Geriye uyumluluk: yeni sürüm yayılana dek eski istemci ham kimlik yollar.
   assert.equal(kaynakId('nesine'), 'nesine');
   // Tanınmayan kod kimlik UYDURMAZ.

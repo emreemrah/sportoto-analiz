@@ -5,6 +5,8 @@
 //   api/GameMatch/GetGameMatches/?gameRoundId=<id>
 import { createHash } from 'node:crypto';
 import { config } from '../config.js';
+// Dış servis çağrılarında zaman aşımı — takılan kaynak akışı kilitlemesin.
+import { zamanAsimliFetch } from './zamanAsimi.js';
 
 const BASE = config.sportotoApi;
 
@@ -50,7 +52,7 @@ export function verifyOfficialBulletin(round, matches) {
 }
 
 async function get(path) {
-  const res = await fetch(BASE + path);
+  const res = await zamanAsimliFetch(BASE + path);
   if (!res.ok) throw new Error(`sportoto ${path}: HTTP ${res.status}`);
   const json = await res.json();
   if (json && json.isSucceed === false) throw new Error(`sportoto ${path}: ${json.message}`);

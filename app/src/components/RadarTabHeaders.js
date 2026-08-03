@@ -59,6 +59,30 @@ export const kaynakKodu = (s) => {
 export const providerLabel = (s) => PROVIDER_NAMES[kaynakKodu(s)];
 export const providerColor = (s) => PROVIDER_COLORS[kaynakKodu(s)];
 
+/**
+ * SEÇİLİ GÜNÜN ÇEKİM SAATİ — "bu günün sayıları kaynaktan kaçta alındı".
+ *
+ * İLK SÜRÜM YANLIŞTI: haftanın EN SON çekimini yazıyordu ("Son güncelleme:
+ * 22:39"). Kullanıcı Pazar sekmesine bakarken Pazartesi'nin saatini görüyordu
+ * ve haklı olarak "ne alaka" dedi. Ekranda TEK GÜN görünür; o yüzden buradaki
+ * saat de SEÇİLİ GÜNE ait olmalı.
+ *
+ * Saat SUNUCUDA İstanbul'a çevrilir (`days[].lastObservedLabel`); cihazın saat
+ * dilimi yanlışsa burada yanlış saat görünmesin diye biçimlendirme yapılmaz.
+ * O gün gözlem alınmamışsa saat UYDURULMAZ, sebebi yazılır.
+ */
+function GunCekimBilgisi({ data, day }) {
+  const d = (data?.days || []).find((x) => x.date === day);
+  if (!d || d.future) return null;          // gelecek günde çekim beklenmez
+  return (
+    <Text style={styles.tabBannerAge}>
+      {d.label} · {d.lastObservedLabel
+        ? `kaynaktan son çekim ${d.lastObservedLabel}`
+        : 'bu gün için kayıt alınamadı'}
+    </Text>
+  );
+}
+
 /** Gün çipleri (Pazar→Cuma). Verisi olmayan gün soluk gösterilir, GİZLENMEZ. */
 export function DayChipsRow({ data, selected, onSelect }) {
   if (!data?.days?.length) return null;
@@ -71,7 +95,14 @@ export function DayChipsRow({ data, selected, onSelect }) {
           <TouchableOpacity key={day.date} onPress={() => onSelect(day.date)}
             style={[styles.dnaPeriodChip, on && styles.dnaPeriodChipOn, !has && !on && styles.oddsChipEmpty]} activeOpacity={0.85}>
             <Text style={[styles.dnaPeriodTxt, on && styles.dnaPeriodTxtOn]}>{day.weekday}{day.isMatchDay ? ' ⚽' : ''}</Text>
-            <Text style={[styles.oddsChipSub, on && styles.dnaPeriodTxtOn]}>{(day.label.split(' ')[1] || '')}{has ? '' : ' · yok'}</Text>
+            {/* Alt satır: tarih + O GÜNÜN son çekim saati. Her gün ayrı
+                mühürlendiği için her günün kendi tazeliği vardır — Salı
+                23:52'de kapanmış, Çarşamba 14:03'te susmuş olabilir. Saat
+                yoksa (o gün gözlem alınamamış) "· yok" yazar; uydurulmaz. */}
+            <Text style={[styles.oddsChipSub, on && styles.dnaPeriodTxtOn]}>
+              {(day.label.split(' ')[1] || '')}
+              {day.lastObservedLabel ? ` · ${day.lastObservedLabel}` : (has ? '' : ' · yok')}
+            </Text>
           </TouchableOpacity>
         );
       })}
@@ -107,7 +138,6 @@ export default function RadarTabHeader({
   dailyOdds, oddsDay, onSelectOddsDay,
   dailyPlayed, playedDay, onSelectPlayedDay,
   positionDna, dnaPeriod, onSelectDnaPeriod,
-  donemGucu = {}, donemEgilimi = {},
   muhurluHafta, muhurluRadar5Yok, meta,
 }) {
   if (!centerMode || tab === 'master') return null;
@@ -134,6 +164,7 @@ export default function RadarTabHeader({
           <>
             <DayChipsRow data={dd} selected={oddsDay} onSelect={onSelectOddsDay} />
             <OddsCounter data={dd} day={oddsDay} />
+            <GunCekimBilgisi data={dd} day={oddsDay} />
           </>
         ) : (
           <Text style={styles.dnaHint}>{dd ? (dd.note || 'Bu hafta için oran kaydı yok.') : 'Oran kayıtları yükleniyor…'}</Text>
@@ -171,7 +202,13 @@ export default function RadarTabHeader({
           <Text style={styles.tabBannerWarn}>Her günün yüzdesi 23:55'te (maç günü ilk maçtan 5 dk önce) mühürlenir ve sonradan değişmez. Kaynak yoksa uydurma yüzde gösterilmez.</Text>
         </View>
         {dp?.days?.length ? (
-          <DayChipsRow data={dp} selected={playedDay} onSelect={onSelectPlayedDay} />
+          <>
+            <DayChipsRow data={dp} selected={playedDay} onSelect={onSelectPlayedDay} />
+            {/* Çekim saati çiplerin ALTINDA: hangi güne ait olduğu ancak gün
+                seçildikten sonra anlamlı. Başlıkta dururken haftanın en son
+                saatini gösteriyordu ve seçili günle ilgisizdi. */}
+            <GunCekimBilgisi data={dp} day={playedDay} />
+          </>
         ) : (
           <Text style={styles.dnaHint}>{dp ? (dp.note || 'Oynanma yüzdesi gözlemi yok — veri kaynağı bekleniyor.') : 'Yükleniyor…'}</Text>
         )}
@@ -206,21 +243,12 @@ export default function RadarTabHeader({
           {DNA_PERIODS.map((p) => {
             const on = dnaPeriod === p.k;
             return (
+              // ÇİP YALNIZ FİLTREDİR. Üzerinde "· %66.7" ve eğilim oku (▲▼—)
+              // duruyordu; kullanıcı kararıyla kaldırıldı ("dönem başarısı kafa
+              // karıştırıyor"). Aynı sayı maç satırında da tekrarlanıyordu.
               <TouchableOpacity key={p.k} onPress={() => onSelectDnaPeriod(p.k)}
                 style={[styles.dnaPeriodChip, on && styles.dnaPeriodChipOn]} activeOpacity={0.85}>
-                <View style={styles.dnaPeriodLabel}>
-                  <Text style={[styles.dnaPeriodTxt, on && styles.dnaPeriodTxtOn]}>
-                    {p.label}{donemGucu[p.k] != null ? ` · %${donemGucu[p.k]}` : ''}
-                  </Text>
-                  {donemEgilimi[p.k] ? (
-                    <Text style={[
-                      styles.dnaTrend,
-                      donemEgilimi[p.k].key === 'up' && styles.dnaTrendUp,
-                      donemEgilimi[p.k].key === 'down' && styles.dnaTrendDown,
-                      donemEgilimi[p.k].key === 'flat' && styles.dnaTrendFlat,
-                    ]}>{donemEgilimi[p.k].symbol}</Text>
-                  ) : null}
-                </View>
+                <Text style={[styles.dnaPeriodTxt, on && styles.dnaPeriodTxtOn]}>{p.label}</Text>
               </TouchableOpacity>
             );
           })}
@@ -269,6 +297,8 @@ const styles = StyleSheet.create({
   tabBannerTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
   tabBannerTxt: { color: colors.textSoft, fontSize: 11.5, lineHeight: 16, marginTop: 4 },
   tabBannerWarn: { color: colors.warning, fontSize: 11, fontWeight: '800', marginTop: 6, fontStyle: 'italic' },
+  // Verinin yaşı — uyarı değil, olgu. Bu yüzden uyarı sarısı değil sönük ton.
+  tabBannerAge: { color: colors.textMuted, fontSize: 11, fontWeight: '800', marginTop: 6 },
 
   // YAPIŞIK BAŞLIK ZEMİNİ: bu panel FlatList'te stickyHeaderIndices ile üstte
   // sabit kalıyor (bkz. RadarScreen). Zemin verilmezse altından kayan maç
@@ -282,13 +312,8 @@ const styles = StyleSheet.create({
   dnaFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   dnaPeriodChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   dnaPeriodChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-  dnaPeriodLabel: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   dnaPeriodTxt: { color: colors.textSoft, fontSize: 12, fontWeight: '800' },
   dnaPeriodTxtOn: { color: '#fff' },
-  dnaTrend: { fontSize: 11, fontWeight: '900' },
-  dnaTrendUp: { color: colors.success },
-  dnaTrendDown: { color: colors.danger },
-  dnaTrendFlat: { color: colors.warning },
   dnaHint: { color: colors.textMuted, fontSize: 11.5, lineHeight: 16, marginTop: 8 },
 
   oddsCount: { color: colors.textMuted, fontSize: 11.5, fontWeight: '700', marginTop: 6, marginBottom: 2 },

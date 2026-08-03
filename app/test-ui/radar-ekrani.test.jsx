@@ -216,7 +216,9 @@ describe('Radar Merkezi ekranı', () => {
     expect(await screen.findByText('Tüm Haftalar')).toBeTruthy();
     expect(screen.getByText('Son 15 Hafta')).toBeTruthy();
     expect(screen.getByText(/Resmî geçmiş arşiv birikiyor/)).toBeTruthy();
-    // Veri yokken uydurma yüzde çipe yazılmaz.
+    // Çipe HİÇBİR koşulda yüzde yazılmaz: önce "veri yoksa uydurma yüzde
+    // yazılmaz" kuralıydı, 3 Ağustos 2026'dan beri gösterge tümüyle kaldırıldı
+    // ("dönem başarısı kafa karıştırıyor"). Geri gelirse bu satır yakalar.
     expect(screen.queryByText(/Tüm Haftalar · %/)).toBeNull();
   });
 
@@ -249,6 +251,50 @@ describe('Radar Merkezi ekranı', () => {
     expect(screen.getByText('Bu maç seçili liglerde değil.')).toBeTruthy();
     // Sayaç arka uçtaki gerçek sayıyı veriyor.
     expect(screen.getByText(/3 maçın 1'inde oran var/)).toBeTruthy();
+  });
+
+  // ÇEKİM SAATİ SEÇİLİ GÜNE AİTTİR (kullanıcı düzeltmesi, 3 Ağustos 2026).
+  // İlk sürüm haftanın EN SON çekimini yazıyordu; kullanıcı Pazar sekmesindeyken
+  // Pazartesi'nin saatini görüyordu ("ne alaka"). Ekranda tek gün görünür,
+  // dolayısıyla saat de o güne ait olmalı.
+  test('Radar 3: SEÇİLİ GÜNÜN çekim saati yazar, gün değişince saat de değişir', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      '/api/radar/daily-played': {
+        roundId: 1600, sources: ['k1'], matches: [],
+        days: [
+          { ...ONCEKI_GUN, lastObservedLabel: '20:45' },
+          { ...GUN, lastObservedLabel: '22:35' },
+        ],
+      },
+    });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Oynanma DNA'));
+
+    // Varsayılan gün (Cuma 01.08) → kendi saati.
+    expect(await screen.findByText(/Cuma 01\.08 · kaynaktan son çekim 22:35/)).toBeTruthy();
+    // Başka güne geçilince O GÜNÜN saati gelir — haftanın en sonu değil.
+    fireEvent.press(screen.getByText('Perşembe'));
+    expect(await screen.findByText(/Perşembe 31\.07 · kaynaktan son çekim 20:45/)).toBeTruthy();
+    // Cuma'nın saati SATIRDAN düşer. (Çipinde durmaya devam eder — her çip
+    // kendi gününün saatini taşır; kullanıcı hepsini bir bakışta görür.)
+    expect(screen.queryByText(/kaynaktan son çekim 22:35/)).toBeNull();
+  });
+
+  test('Radar 3: o gün kayıt alınamadıysa UYDURMA saat yazılmaz', async () => {
+    mockUclar({
+      ...VARSAYILAN,
+      '/api/radar/daily-played': {
+        roundId: 1600, sources: [], matches: [],
+        days: [{ ...GUN, lastObservedLabel: null }],
+      },
+    });
+    render(<RadarScreen navigation={nav} />);
+    await waitFor(() => expect(screen.getAllByText(/Ev Takımı/).length).toBe(3));
+    fireEvent.press(screen.getByText('Oynanma DNA'));
+    expect(await screen.findByText(/kayıt alınamadı/)).toBeTruthy();
+    expect(screen.queryByText(/son çekim/)).toBeNull();
   });
 
   test('Radar 3 satırı: yüzde kaynağıyla birlikte, kaynak yoksa uydurulmuyor', async () => {
@@ -498,6 +544,81 @@ describe('Radar 5 satır açılımı (sıranın geçmiş maçları)', () => {
     await screen.findByText(/Tüm Haftalar/);
   };
 
+  // BUGÜNÜN OYNANMA YÜZDESİ (kullanıcı isteği, 3 Ağustos 2026): maçın yanında
+  // "hangi gündeysek o günün" yüzdeleri, GÜN ADIYLA birlikte. Gün yazılmazsa
+  // alttaki "Geçmiş N. sıra" satırıyla karışır — biri bu haftanın oynanması,
+  // öteki o sırada geçmişte çıkan sonuçlar.
+  const GUNLUK_OYNANMA = {
+    roundId: 1600,
+    sources: ['k1'],
+    days: [
+      { date: '2026-08-02', weekday: 'Pazar', label: 'Pazar 02.08', future: false },
+      { date: '2026-08-03', weekday: 'Pazartesi', label: 'Pazartesi 03.08', future: false },
+      { date: '2026-08-04', weekday: 'Salı', label: 'Salı 04.08', future: true },
+    ],
+    matches: [
+      {
+        no: 1,
+        cells: {
+          '2026-08-02': { bySource: { k1: { percentages: { '1': 71, X: 17, '2': 12 } } } },
+          '2026-08-03': { bySource: { k1: { percentages: { '1': 72, X: 16, '2': 12 } } } },
+          '2026-08-04': {},          // gelecek gün: BOŞ nesne (kaynak böyle gönderiyor)
+        },
+      },
+    ],
+  };
+
+  test('bugünün oynanma yüzdesi maçın YANINDA, gün adıyla yazar', async () => {
+    await radar5({ '/api/radar/daily-played': GUNLUK_OYNANMA });
+    // Gün adı KISALTILIR: satırda maçın yanında dar alan var ("altında değil
+    // yanında" kullanıcı kararı). Pazartesi → "Pzt".
+    expect(await screen.findByText('Pzt')).toBeTruthy();
+    // Yüzdeler ayrı kutularda; harf (1/X/2) kutunun dışında ve renksiz.
+    expect(screen.getByText('%72')).toBeTruthy();
+    expect(screen.getByText('%16')).toBeTruthy();
+    expect(screen.getByText('%12')).toBeTruthy();
+    // Kaynak yalnız renkli noktayla görünür; adı hiçbir yerde geçmez.
+    expect(screen.getByTestId('radar5-bugun-nokta-k1')).toBeTruthy();
+  });
+
+  test('GELECEK günün boş hücresi "bugün" sanılmaz', async () => {
+    // radarGun.js'teki doğrulanmış hata: boş nesne `{}` JavaScript'te doğrudur
+    // ve gelecek gün "verisi var" sayılıp seçiliyordu. Radar 5 de aynı seçiciyi
+    // kullanır; Salı'nın yüzdesi olmadığı için Pazartesi kalmalı.
+    await radar5({ '/api/radar/daily-played': GUNLUK_OYNANMA });
+    expect(await screen.findByText('Pzt')).toBeTruthy();
+    expect(screen.queryByText('Sal')).toBeNull();
+    // Salı seçilseydi hücresi boş olduğu için yüzde de değişirdi.
+    // Yüzdeler ayrı kutularda; harf (1/X/2) kutunun dışında ve renksiz.
+    expect(screen.getByText('%72')).toBeTruthy();
+    expect(screen.getByText('%16')).toBeTruthy();
+    expect(screen.getByText('%12')).toBeTruthy();
+  });
+
+  test('Pazar ile Pazartesi KISALTMADA karışmaz', async () => {
+    // "Paz" ilk üç harf kesmesi ikisini de aynı gösterirdi; açık eşleme var.
+    await radar5({
+      '/api/radar/daily-played': {
+        ...GUNLUK_OYNANMA,
+        days: [{ date: '2026-08-02', weekday: 'Pazar', label: 'Pazar 02.08', future: false }],
+        matches: [{
+          no: 1,
+          cells: { '2026-08-02': { bySource: { k1: { percentages: { '1': 71, X: 17, '2': 12 } } } } },
+        }],
+      },
+    });
+    expect(await screen.findByText('Paz')).toBeTruthy();
+    expect(screen.queryByText('Pzt')).toBeNull();
+  });
+
+  test('günlük oynanma verisi YOKSA satır hiç çizilmez (uydurma yüzde yok)', async () => {
+    await radar5({
+      '/api/radar/daily-played': { roundId: 1600, days: [], matches: [], sources: [] },
+    });
+    await screen.findByText(/Tüm Haftalar/);
+    expect(screen.queryByTestId('radar5-bugun-nokta-k1')).toBeNull();
+  });
+
   test('liste KAPALI başlar — maçlar kendiliğinden çizilmez', async () => {
     await radar5();
     // Satırlar duruyor (olumlu karşılık)…
@@ -510,7 +631,8 @@ describe('Radar 5 satır açılımı (sıranın geçmiş maçları)', () => {
   test('karşılaşmaya dokununca o sıranın maçları yeniden eskiye listelenir', async () => {
     await radar5();
     fireEvent.press(screen.getAllByText('Ev Takımı – Dep Takımı')[0]);
-    expect(await screen.findByText('Club Brugge – Union SG')).toBeTruthy();
+    // DÜZEN: hafta maçın BAŞINDA, skor iki takımın ORTASINDA (tire'nin yerinde).
+    expect(await screen.findByText(/Club Brugge 1-1 Union SG/)).toBeTruthy();
     // Sıra yeniden eskiye: 52 → 51 → 50 …
     expect(screen.getByText('52. Hafta')).toBeTruthy();
     expect(screen.getByText('51. Hafta')).toBeTruthy();
@@ -524,7 +646,9 @@ describe('Radar 5 satır açılımı (sıranın geçmiş maçları)', () => {
 
   test('liste SEÇİLİ DÖNEMLE sınırlanır (Son 5 Hafta → 5 maç)', async () => {
     await radar5();
-    fireEvent.press(screen.getByText(/Son 5 Hafta · %/));
+    // Çip artık YALNIZ dönem adıdır — "· %66.7" ve eğilim oku kullanıcı
+    // kararıyla kaldırıldı ("dönem başarısı kafa karıştırıyor").
+    fireEvent.press(screen.getByText('Son 5 Hafta'));
     fireEvent.press(screen.getAllByText('Ev Takımı – Dep Takımı')[0]);
     // İlk 5 maç görünür…
     expect(await screen.findByText('48. Hafta')).toBeTruthy();
@@ -549,6 +673,85 @@ describe('Radar 5 satır açılımı (sıranın geçmiş maçları)', () => {
     });
     fireEvent.press(screen.getAllByText('Ev Takımı – Dep Takımı')[0]);
     expect(await screen.findByText(/doğrulanmış geçmiş sonuç yok/)).toBeTruthy();
+  });
+
+  // MAÇIN ALTINDA O HAFTANIN OYNANMA YÜZDESİ (kullanıcı isteği).
+  // Yalnız haftanın SON günü (Cuma) yazılır; arşiv 51. haftada başladığı için
+  // eski maçlarda veri YOKTUR ve o satırlarda hiçbir şey çizilmemelidir.
+  const OYNANMALI = {
+    ...MACLAR,
+    playedCount: 2,
+    matches: MACLAR.matches.map((m, i) => ({
+      ...m,
+      played: i === 0 ? { gun: '2026-07-31', pct: { '1': 44, X: 30, '2': 26 }, favori: '1', favoriPct: 44 }
+        : i === 1 ? { gun: '2026-07-24', pct: { '1': 51, X: 29, '2': 20 }, favori: '1', favoriPct: 51 }
+          : null,
+    })),
+  };
+
+  // TABLO DÜZENİ — kullanıcının verdiği bülten tablosunun aynısı:
+  // KARŞILAŞMA | 1 · X · 2 (oynanma) | SONUÇ. Başlık BİR KEZ üstte.
+  test('oynanma yüzdeleri sütunlarda, sağında sonuç', async () => {
+    await radar5({ '/api/radar/position-matches': OYNANMALI });
+    fireEvent.press(screen.getAllByText('Ev Takımı – Dep Takımı')[0]);
+    // DÜZEN: hafta maçın BAŞINDA, skor iki takımın ORTASINDA (tire'nin yerinde).
+    expect(await screen.findByText(/Club Brugge 1-1 Union SG/)).toBeTruthy();
+    // Başlık satırı bir kez — her maçta tekrarlanmıyor.
+    expect(screen.getAllByText('KARŞILAŞMA').length).toBe(1);
+    expect(screen.getAllByText('SON').length).toBe(1);
+    // 52. haftanın hücreleri…
+    expect(screen.getByText('%44')).toBeTruthy();
+    expect(screen.getByText('%30')).toBeTruthy();
+    expect(screen.getByText('%26')).toBeTruthy();
+    // …51. haftanınkiler de. Hafta ve skor karşılaşma hücresinde yan yana.
+    expect(screen.getByText('%29')).toBeTruthy();
+    expect(screen.getByText('52. Hafta')).toBeTruthy();
+    expect(screen.getAllByText('1-1').length).toBe(2);
+  });
+
+  test('veri OLMAYAN maçta %0 YAZILMAZ — hücreye tire konur', async () => {
+    await radar5({ '/api/radar/position-matches': OYNANMALI });
+    fireEvent.press(screen.getAllByText('Ev Takımı – Dep Takımı')[0]);
+    expect(await screen.findByText('50. Hafta')).toBeTruthy();
+    // 7 maçın 5'i kayıtsız → 5×3 = 15 tire. Sıfır UYDURULMADI.
+    expect(screen.queryAllByText(/%0\b/).length).toBe(0);
+    expect(screen.getAllByText('–').length).toBe(15);
+    // Eksiklik alt bilgide de sayıyla söylenir.
+    expect(screen.getByText(/5 maçta oynanma kaydı yok/)).toBeTruthy();
+  });
+
+  test('hiç oynanma verisi yoksa tablo yine çizilir, hücreler tire', async () => {
+    await radar5({ '/api/radar/position-matches': { ...MACLAR, playedCount: 0 } });
+    fireEvent.press(screen.getAllByText('Ev Takımı – Dep Takımı')[0]);
+    // DÜZEN: hafta maçın BAŞINDA, skor iki takımın ORTASINDA (tire'nin yerinde).
+    expect(await screen.findByText(/Club Brugge 1-1 Union SG/)).toBeTruthy();
+    expect(screen.getAllByText('–').length).toBe(21);   // 7 maç × 3 sütun
+  });
+
+  // LİSTE KISALDI — 50. Hafta ve öncesi backend'de kesiliyor (kullanıcı kararı:
+  // "49. haftadan geriye doğru silelim" + "50 de dahil olsun veri yok").
+  // Ekran, listenin NEREDE başladığını ve yüzdenin ondan bağımsız hesaplandığını
+  // söylemek ZORUNDA: 2 maçlık listeye bakıp %54'ü doğrulamaya çalışan kullanıcı
+  // aksi hâlde ekranı bozuk sanır.
+  test('kısalan listenin başlangıcı ve yüzdenin kapsamı yazılır', async () => {
+    await radar5({
+      '/api/radar/position-matches': {
+        hasData: true, position: 1, count: 2, playedCount: 2,
+        matches: [
+          { roundId: '1526', week: '52. Hafta', home: 'Club Brugge', away: 'Union SG', score: '1-1', result: 'X', played: { gun: '2026-07-31', pct: { '1': 44, X: 30, '2': 26 } } },
+          { roundId: '1525', week: '51. Hafta', home: 'AGF Aarhus', away: 'Brondby', score: '1-1', result: 'X', played: { gun: '2026-07-24', pct: { '1': 51, X: 29, '2': 20 } } },
+        ],
+      },
+    });
+    fireEvent.press(screen.getAllByText('Ev Takımı – Dep Takımı')[0]);
+    // DÜZEN: hafta maçın BAŞINDA, skor iki takımın ORTASINDA (tire'nin yerinde).
+    expect(await screen.findByText(/Club Brugge 1-1 Union SG/)).toBeTruthy();
+    // Listenin en eskisi 51. Hafta → başlangıç olarak O yazılır (sabit değil).
+    expect(screen.getByText(/liste 51\. Hafta'ndan başlar/)).toBeTruthy();
+    expect(screen.getByText(/yüzde tüm haftalardan hesaplanır/)).toBeTruthy();
+    // Kesilen haftalar gerçekten yok.
+    expect(screen.queryByText('50. Hafta')).toBeNull();
+    expect(screen.queryByText('49. Hafta')).toBeNull();
   });
 });
 

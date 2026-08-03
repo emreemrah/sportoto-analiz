@@ -45,7 +45,15 @@ export default function CouponPickBlock({ m, navigation }) {
         <>
           <View style={s.row}>
             {OUT.map((o) => { const on = pick.includes(o); return (
-              <TouchableOpacity key={o} onPress={() => toggle(o)} activeOpacity={0.85} style={[s.btn, on && s.btnOn]}>
+              <TouchableOpacity
+                key={o}
+                onPress={() => toggle(o)}
+                activeOpacity={0.85}
+                style={[s.btn, on && s.btnOn]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                accessibilityLabel={`${o} işareti`}
+              >
                 {on ? <Text style={s.check}>✓</Text> : null}
                 <Text style={[s.txt, on && s.txtOn]}>{o}</Text>
               </TouchableOpacity>

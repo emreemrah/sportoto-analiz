@@ -146,15 +146,21 @@ test('9. summarizeSeries: post_lock hariç; geç başlangıçta opening=null + n
   assert.deepEqual(s2.delta, { '1': 12, X: -4, '2': -8 }, 'açılış → kapanış hareketi');
 });
 
-test('10. Bilyoner adaptörü GERÇEK açık/oturumsuz kaynakla ETKİN + doğru sözleşme', () => {
-  const bily = listProviders().find((p) => p.id === 'bilyoner');
-  assert.ok(bily, 'Bilyoner kayıtlı');
-  assert.equal(bily.enabled, true, 'doğrulanmış açık kaynak → etkin');
-  assert.ok(enabledProviders().some((p) => p.id === 'bilyoner'));
-  assert.match(bily.sourceUrl, /bilyoner\.com\/api\/sto/);
-  assert.equal(bily.sourceType, 'bilyoner-sto-webapi');
-  assert.ok(bily.parserVersion, 'parserVersion tanımlı');
-  assert.equal(typeof bily.fetchPercentages, 'function');
+test('10. Etkin sağlayıcılar KAYITLI ve sözleşmeye uygun', () => {
+  // İki sağlayıcı kullanıcı kararıyla çıkarıldı: üçüncüsü 2 Ağustos 2026'da
+  // (erişilemiyordu), Misli 3 Ağustos 2026'da. Kalan TEK kaynağın sözleşmesi
+  // burada bağlanıyor — o da sessizce devre dışı kalırsa test kırılır ve
+  // ekran sessizce boşalmaz.
+  const kayitli = listProviders().map((p) => p.id).sort();
+  assert.deepEqual(kayitli, ['nesine']);
+  for (const id of kayitli) {
+    const p = listProviders().find((x) => x.id === id);
+    assert.equal(p.enabled, true, id + ' etkin olmalı');
+    assert.ok(p.sourceUrl, id + ' sourceUrl tanımlı');
+    assert.ok(p.parserVersion, id + ' parserVersion tanımlı');
+    assert.equal(typeof p.fetchPercentages, 'function', id + ' fetchPercentages');
+  }
+  assert.equal(enabledProviders().length, 1);
 });
 
 test('11. Etkin sağlayıcı yokken gözlem turu sahte satır üretmez', async () => {
@@ -170,8 +176,8 @@ test('12. Radar 3 Oynanma DNA: gerçek seri → kullanıcı cümlesi + dürüst 
   const t = (min) => new Date(Date.UTC(2026, 6, 22, 8, min)).toISOString();
   // Açılış %63 → güncel %72 (ev), gerçek 'opening' işaretli seri.
   const series = [
-    { providerId: 'bilyoner', providerName: 'Yeşil kaynak', percentages: { '1': 63, X: 22, '2': 15 }, observedAt: t(0), kind: 'opening', firstObservedLate: false },
-    { providerId: 'bilyoner', providerName: 'Yeşil kaynak', percentages: { '1': 72, X: 17, '2': 11 }, observedAt: t(60), kind: 'regular', firstObservedLate: false },
+    { providerId: 'k3', providerName: 'Yeşil kaynak', percentages: { '1': 63, X: 22, '2': 15 }, observedAt: t(0), kind: 'opening', firstObservedLate: false },
+    { providerId: 'k3', providerName: 'Yeşil kaynak', percentages: { '1': 72, X: 17, '2': 11 }, observedAt: t(60), kind: 'regular', firstObservedLate: false },
   ];
   const r3 = computePublicBettingRadar({ no: 7 }, { matchPublicData: series, observedAt: t(60) });
   assert.equal(r3.hasData, true);
@@ -192,8 +198,8 @@ test('13. Radar 3 Oynanma DNA: geç başlangıçta SAHTE açılış üretilmez',
   const { computePublicBettingRadar } = await import('../src/radar/publicBettingRadar.js');
   const t = (min) => new Date(Date.UTC(2026, 6, 22, 9, min)).toISOString();
   const series = [
-    { providerId: 'bilyoner', providerName: 'Yeşil kaynak', percentages: { '1': 70, X: 18, '2': 12 }, observedAt: t(0), kind: 'regular', firstObservedLate: true },
-    { providerId: 'bilyoner', providerName: 'Yeşil kaynak', percentages: { '1': 71, X: 18, '2': 11 }, observedAt: t(30), kind: 'pre_freeze', firstObservedLate: false },
+    { providerId: 'k3', providerName: 'Yeşil kaynak', percentages: { '1': 70, X: 18, '2': 12 }, observedAt: t(0), kind: 'regular', firstObservedLate: true },
+    { providerId: 'k3', providerName: 'Yeşil kaynak', percentages: { '1': 71, X: 18, '2': 11 }, observedAt: t(30), kind: 'pre_freeze', firstObservedLate: false },
   ];
   const r3 = computePublicBettingRadar({ no: 3 }, { matchPublicData: series, observedAt: t(30) });
   const dna = r3.details.playedDna;
@@ -205,9 +211,9 @@ test('13. Radar 3 Oynanma DNA: geç başlangıçta SAHTE açılış üretilmez',
 test('14. Radar 3 Oynanma DNA: yeterli geçmişte benzer sonuç cümlesi üretir', async () => {
   const { computePublicBettingRadar } = await import('../src/radar/publicBettingRadar.js');
   const t = (min) => new Date(Date.UTC(2026, 6, 22, 8, min)).toISOString();
-  const series = [{ providerId: 'bilyoner', providerName: 'Yeşil kaynak', percentages: { '1': 72, X: 17, '2': 11 }, observedAt: t(0), kind: 'opening', firstObservedLate: false }];
-  // 12 doğrulanmış benzer kayıt (bilyoner + 7. sıra + %70-74 bandı): 6×1, 3×X, 3×2
-  const rec = (result) => ({ provider: 'bilyoner', position: 7, result, favoriteSymbol: '1', closePct: { '1': 72, X: 17, '2': 11 } });
+  const series = [{ providerId: 'k3', providerName: 'Yeşil kaynak', percentages: { '1': 72, X: 17, '2': 11 }, observedAt: t(0), kind: 'opening', firstObservedLate: false }];
+  // 12 doğrulanmış benzer kayıt (tek kaynak + 7. sıra + %70-74 bandı): 6×1, 3×X, 3×2
+  const rec = (result) => ({ provider: 'k3', position: 7, result, favoriteSymbol: '1', closePct: { '1': 72, X: 17, '2': 11 } });
   const pctDnaRecords = [
     ...Array.from({ length: 6 }, () => rec('1')),
     ...Array.from({ length: 3 }, () => rec('X')),

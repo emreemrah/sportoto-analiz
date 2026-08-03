@@ -126,3 +126,68 @@ elle çalıştırıp 9/15 → 14/15 farkını görünce anladım.
 
 **Nasıl uygulanır:** En ucuz sondayı en büyük bilinmeyene at. Kod okuyup
 çıkarım yapmadan önce veriyi çek ve bak.
+
+---
+
+## 8. "Kasıtlı tasarım" demeden önce iki ucun aynı kuralı uyguladığını doğrula
+
+**Kural:** İki uç aynı veriyi farklı gösteriyorsa, bunu "kasıtlı ayrım" diye
+açıklamadan önce ikisinin de aynı filtreden geçtiğini KODDA doğrula.
+
+**Neden:** Radar 5'te liste 2 maç gösterirken yüzdeler 768 maçtan geliyordu.
+Kullanıcıya bunu "kasıtlı — üstteki yüzde daha geniş tabandan hesaplanır" diye
+açıkladım ve ekrandaki "Üstteki yüzde tüm haftalardan hesaplanır" cümlesini
+kanıt gösterdim. Kullanıcı "hayır, bu hata" dedi ve haklıydı:
+`/position-matches` listeyi `eskiHaftalariAt` ile kesiyordu,
+`/position-dna` kesmiyordu. Üstelik `routes/radar.js` içindeki yorum sözleşmeyi
+zaten yazmıştı ("Kesim ve sezon kapsamı /position-dna İLE AYNI hesaplanır") —
+kod o sözü tutmuyordu. Ekrandaki açıklama cümlesi tasarımın kanıtı değil,
+tutarsızlığın üstünü örten bir yamaydı.
+
+**Nasıl uygulanır:** Bir davranışı "kasıtlı" diye savunmadan önce o kararın
+KODDAKİ yerini göster. Yorum satırı niyeti anlatır, davranışı kanıtlamaz —
+iki uç için de gerçek çağrı zincirini oku. Kullanıcı "bu hata" diyorsa,
+kendi açıklamanı savunmadan önce teşhisi baştan kur. Koruma:
+`backend/test/radar5-kesim-tutarliligi.test.mjs` (liste toplamı = yüzde tabanı).
+
+---
+
+## 9. Silme talebinin altındaki HEDEFİ ara — silme çoğu zaman yanlış araçtır
+
+**Kural:** "Şu veriyi sil" isteğinde önce hedefi sor: silme mi isteniyor, yoksa
+o verinin sonuca karışmaması mı? İkincisiyse çözüm okuma sınırıdır, silme değil.
+
+**Neden:** Kullanıcı "1525 öncesini sil" dedi. Gerçek hedefi "eski haftalar
+yüzdeye karışmasın"dı. Silmeye kalkıştım; `bulletin_snapshots` üzerindeki
+`trg_snapshot_no_delete` trigger'ı engelledi (001 migration'ı: kilitli
+snapshot'a UPDATE/DELETE tamamen yasak) ve elimde kısmi silinmiş bir arşiv
+kaldı — yedekten geri yükleyerek toparladım. Asıl neden kod hatasıydı; tek
+satırlık kesim düzeltmesi hedefi veri kaybı olmadan sağladı.
+
+**Nasıl uygulanır:** Silmeden önce sor: "bu veri hangi yoldan sonuca giriyor?"
+O yolu kapatmak yeterliyse veriye dokunma. Silmek zorunluysa önce yedek al,
+çocuktan ebeveyne sırala ve her adımda öncesi/sonrası say. Geri alınamaz
+işlemde kısmi başarısızlık en kötü durumdur — geri alma yolunu baştan hazırla.
+
+---
+
+## 10. Ekranda hangi bağlam görünüyorsa, sayı o bağlama ait olmalı
+
+**Kural:** Kullanıcı tek bir gün/hafta/maç seçmişken gösterilen her sayı O
+SEÇİME ait olmalı. Daha geniş kapsamlı bir "özet" değeri, dar bir bağlamın
+içinde yanlış okunur.
+
+**Neden:** Kullanıcı "oynanma oranları siteden kaçta çekildi" diye sordu.
+Panele haftanın EN SON çekimini yazdım: "Son güncelleme: 22:39". Ama Radar 3'te
+ekranda TEK GÜN görünür — kullanıcı Pazar sekmesindeyken Pazartesi'nin saatini
+görüyordu. Tepkisi netti: "ne alaka". Aynı hata Radar 5'te de olmuştu: liste 2
+maç gösterirken yüzde 768 maçtan geliyordu (bkz. §8). İki olayın ortak kökü
+aynı: gösterilen sayının kapsamı, ekranın kapsamından geniş.
+
+**Nasıl uygulanır:** Bir sayı eklemeden önce sor: "kullanıcı bu ekranda neyi
+seçmiş durumda?" Sayının kapsamı o seçimden genişse ya seçime daralt ya da
+kapsamı sayının yanında açıkça yaz. Gün seçiliyse `days[]` içinden, hafta
+seçiliyse o haftadan oku. Haftalık/genel özet alanı, gün bağlamında
+gösterilecekse hiç üretilme — üretilirse er geç yanlış yere basılır.
+Koruma: `backend/test/veri-yasi.test.mjs` ("HAFTALIK tek son çekim alanı
+YOKTUR") ve `app/test-ui/radar-ekrani.test.jsx` (gün değişince saat değişir).

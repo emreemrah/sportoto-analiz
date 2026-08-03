@@ -1,6 +1,6 @@
 // HALK OYNANMA YÜZDESİ SAĞLAYICI ARAYÜZÜ (provider/adaptör kaydı)
 // Radar 3'ün veri kaynağı katmanı. ŞU AN KAYITLI GERÇEK SAĞLAYICI YOK —
-// Nesine/Bilyoner/Misli/Oley gibi kaynaklar için resmî/izinli bir erişim
+// Açık oynanma yüzdesi kaynakları için resmî/izinli bir erişim
 // sağlandığında buraya bir adaptör eklenir; Radar 3 otomatik devreye girer.
 //
 // KURAL: Kullanım şartlarını ihlal eden, giriş aşan veya koruma atlatan
@@ -23,7 +23,7 @@ const providers = [];
 
 export function listPublicProviders() {
   // TEK DOĞRULUK KAYNAĞI: gerçek gözlem akışı providers/playedPercentages
-  // kaydından beslenir (Bilyoner vb.). Radar 3 "kaynak var mı?" durumu da
+  // kaydından beslenir. Radar 3 "kaynak var mı?" durumu da
   // oradan okunur; bu yerel liste yalnız ek/eski adaptörler içindir.
   const played = enabledPlayedProviders().map((p) => ({ id: p.id, name: p.name, enabled: true }));
   const local = providers.filter((p) => p && p.enabled !== false);

@@ -1,0 +1,29 @@
+# SATIR SONU NORMALLEŞTİRME
+# ---------------------------------------------------------------------------
+# NEDEN VAR (2 Ağustos 2026): depoda .gitattributes yoktu. Windows'ta bir
+# checkout/merge sonrası çalışma ağacındaki TÜM metin dosyaları CRLF'e döndü ve
+# metin ayrıştıran testler kırıldı — mağaza metni blokları okunamadı,
+# migration 003 SQL kalıp kontrolleri tutmadı. Kod değişmediği hâlde 5 test
+# kırmızıya döndü; sebebi bulmak zaman aldı çünkü hata mesajları içerikten
+# bahsediyordu, satır sonundan değil.
+#
+# KURAL: depoda ve çalışma ağacında metin HER ZAMAN LF. Böylece testler,
+# ayrıştırıcılar ve diff'ler işletim sisteminden bağımsız aynı davranır.
+* text=auto eol=lf
+
+# İkili dosyalar dönüştürülmez — dönüştürülürse BOZULURLAR.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.pdf   binary
+*.xlsx  binary
+*.xlsm  binary
+*.zip   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.keystore binary
+*.jks   binary

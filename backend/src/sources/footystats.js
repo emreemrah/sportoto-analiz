@@ -2,6 +2,8 @@
 // API anahtarı SADECE burada, .env'den okunan config üzerinden kullanılır.
 import { config } from '../config.js';
 import { kotayiIsle, kotaDurumu, istegeBagliYapilabilir } from './kotaBekcisi.js';
+// Dış servis çağrılarında zaman aşımı — takılan kaynak akışı kilitlemesin.
+import { zamanAsimliFetch } from './zamanAsimi.js';
 
 const num = (v) => (typeof v === 'number' ? v : Number(v) || 0);
 // EKSİK VERİYİ KORUYAN sürüm: kaynakta olmayan alan 0 DEĞİL null olur.
@@ -29,7 +31,7 @@ async function apiGetRaw(path, params, { istegeBagli = false } = {}) {
     throw new Error(`FootyStats ${path}: kota korumasi (kalan ${kalan}) — isteğe bağlı çağrı atlandı`);
   }
   const qs = new URLSearchParams({ key: config.footyStatsKey, ...params }).toString();
-  const res = await fetch(`${config.footyStatsApi}/${path}?${qs}`);
+  const res = await zamanAsimliFetch(`${config.footyStatsApi}/${path}?${qs}`);
   if (!res.ok) throw new Error(`FootyStats ${path}: HTTP ${res.status}`);
   const json = await res.json();
   // Kalan hakkı API'nin kendi bildirdiği değerden öğren (tahmin değil).

@@ -101,7 +101,7 @@ test('halk verisi yoksa Radar 3: hasData=false + no_source; API sahte veri dönm
   assert.equal(r3.hasData, false);
   assert.equal(r3.status, 'no_source');
   assert.equal(r3.homeScore, null);
-  // Bilyoner artık bağlı kaynak: bu maçta gözlem yoksa availability 'match_missing'
+  // Bağlı kaynak var: bu maçta gözlem yoksa availability 'match_missing'
   // ("bu maç için gözlem yok"); kaynak hiç yokken 'accumulating' ("bekleniyor").
   const miss = r3.missingSignals?.[0];
   assert.ok(['match_missing', 'accumulating'].includes(miss?.availability));

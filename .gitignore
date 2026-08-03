@@ -29,5 +29,9 @@ _sync/
 _audit_fresh/
 app/.audit-web-*/
 *env-yedek*
+# .env'in HER türevi (.env.yedek-0107, .env.bak, .env.local ...) — örnek dosya hariç
+.env.*
+!.env.example
+!backend/.env.example
 *.zip
 *.tar.gz

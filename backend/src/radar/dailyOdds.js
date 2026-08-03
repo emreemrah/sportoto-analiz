@@ -42,6 +42,11 @@ const TR_OFFSET_MS = 3 * 3600e3;
 const WEEKDAY_TR = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 const MS_DAY = 86400e3;
 
+// 23:55 MÜHÜR SINIRINA PAY. Günlük mühür turu tam 23:55te koşar ve kendi
+// gözlemini saniyeler sonra yazar; katı sınır o gözlemi atıyordu. Aynı sabit
+// playedDnaArchive.js içinde de var (SEAL_GRACE_MS) — iki yol aynı kuralda.
+const SEAL_GRACE_MS = 60e3;
+
 const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
 const validOdds = (o) => o && num(o.home) > 1 && num(o.draw) > 1 && num(o.away) > 1;
 // Oynanma yüzdesi geçerliliği: '1'/'X'/'2' mevcut, negatif değil, toplam ~100.
@@ -57,6 +62,16 @@ const validPct = (p) => {
 function istanbulParts(ms) {
   const d = new Date(ms + TR_OFFSET_MS);
   return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, day: d.getUTCDate(), weekday: d.getUTCDay() };
+}
+// UTC ms → İstanbul saat etiketi ('21:29'), gün farklıysa tarihli ('01.08 21:29').
+//
+// NEDEN BURADA: çeviri sunucuda yapılır, cihazda değil. Kullanıcının telefonu
+// başka bir saat diliminde ya da saati yanlışsa, "son güncelleme" saatini
+// yanlış görürdü — ve bu sayı verinin GÜVENİLİRLİĞİNİ anlatan bir bilgidir.
+function istanbulSaat(ms) {
+  if (!Number.isFinite(ms)) return null;
+  const d = new Date(ms + TR_OFFSET_MS);
+  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
 }
 // UTC ms → İstanbul gün anahtarı ('2026-07-19').
 function dayKeyOf(ms) {
@@ -92,15 +107,15 @@ const METRICS = {
   odds: {
     cellKey: 'odds',
     // Gün-sınırlı ÇOK KAYNAK: her kaynak o günün penceresinde AYRI mühürlenir.
-    // perSource (Radar 3) ile karıştırılmamalı — o, değeri günler arası TAŞIR;
-    // oranda taşıma YASAKTIR (bkz. başlıktaki kural).
+    // Taşıma YASAKTIR (bkz. başlıktaki kural). perSource (Radar 3) da artık
+    // taşımıyor — iki metrik aynı kuralda; fark yalnız kaynakların gösterimi.
     multiSource: true,
     extract: (o) => (validOdds(o?.odds)
       ? { home: num(o.odds.home), draw: num(o.odds.draw), away: num(o.odds.away) } : null),
   },
   played: {
     cellKey: 'percentages',
-    perSource: true,   // her sağlayıcı (Nesine/Misli/Bilyoner) AYRI gösterilir
+    perSource: true,   // her sağlayıcı AYRI gösterilir (ortalanmaz)
     extract: (o) => (validPct(o?.playedPct)
       ? { '1': num(o.playedPct['1']), X: num(o.playedPct.X), '2': num(o.playedPct['2']) } : null),
   },
@@ -161,10 +176,22 @@ export function buildDailySeries({
     : (firstKickoffMs ? firstKickoffMs - 5 * 60e3 : null);
   const matchDayKey = firstKickoffMs ? dayKeyOf(firstKickoffMs) : null;
 
-  // Gün meta + mühür sınırı. Mühür = min(o gün 23:55, freeze/ilk maç −5 dk).
+  // Gün meta + mühür sınırı. Mühür = min(o gün 23:55 + pay, freeze/ilk maç −5 dk).
+  //
+  // 23:55 SINIRINA PAY: günlük mühür turu tam 23:55'te koşar; kaynağı çekip
+  // arşive yazması saniyeler sürer, yani KENDİ gözlemi 23:55:00'dan SONRA
+  // damgalanır. Katı sınır, tam da o günün mührü olması gereken gözlemi
+  // atıyordu. ÖLÇÜM (arşiv, 1526. bülten): 29.07 son gözlem 23:55:51 ve
+  // 30.07 son gözlem 23:56:02 — ikisi de dışarıda kalmıştı.
+  //
+  // Aynı pay, DNA arşivinde (playedDnaArchive.SEAL_GRACE_MS) zaten vardı; bu
+  // dosya almamıştı ve iki yol birbiriyle çelişiyordu. Artık aynı kural.
+  //
+  // DONMA sınırına pay YOKTUR: maç başladıktan sonraki veri tahmine giremez.
+  // Bu yüzden pay yalnız 23:55'e eklenir, freeze ile karşılaştırma paysız yapılır.
   const days = buildDayWindow({ firstKickoffMs, now }).map((key) => {
-    const end2355 = istanbulTimeToUtcMs(key, 23, 55);
-    const capMs = (freezeMs != null && freezeMs < end2355) ? freezeMs : end2355;
+    const muhur = istanbulTimeToUtcMs(key, 23, 55) + SEAL_GRACE_MS;
+    const capMs = (freezeMs != null && freezeMs < muhur) ? freezeMs : muhur;
     const startMs = istanbulTimeToUtcMs(key, 0, 0);
     const p = istanbulParts(istanbulTimeToUtcMs(key, 12, 0));
     return {
@@ -199,22 +226,47 @@ export function buildDailySeries({
     const bosGunler = [];   // hücresi boş kalan günler — sebep sonra yazılır
     for (const d of days) {
       if (cfg.perSource) {
-        // Oynanma yüzdesi BİRİKİMLİ + değişmeyince kayıt yazılmaz (dedup). Bu
-        // yüzden her sağlayıcının o günkü mührü = mühür anına (cap) KADAR yazılmış
-        // SON değeridir (değişmediyse taşınır — uydurma değil, aynı değerin sürmesi).
-        // Sağlayıcının hiç gözlemi yoksa o gün için hücre boş kalır (kayıt yok).
+        // O GÜNE AİT gözlem yoksa hücre BOŞ kalır — önceki günden DEĞER TAŞINMAZ.
+        //
+        // Eskiden taşınıyordu. Gerekçe şuydu: "oynanma yüzdesi değişmeyince yeni
+        // satır yazılmaz, o yüzden satırın yokluğu 'değişmedi' demektir." O
+        // gerekçe ARTIK GEÇERSİZ: `playedPercentages.js` GÜN BAŞINA EN AZ BİR
+        // KAYIT garantisi verir — tekrar filtresi yalnız AYNI GÜN içinde
+        // uygulanır, değer günlerce sabit kalsa bile her günün İLK gözlemi
+        // yazılır.
+        //
+        // Dolayısıyla bir günün satırı YOKSA anlamı tektir: O GÜN GÖZLEM
+        // ALINAMADI (ör. veritabanı erişilemedi, süreç durdu). Böyle bir günde
+        // dünün yüzdesini göstermek, olmayan veriyi varmış gibi göstermektir.
+        // Kullanıcı bunu "pazar günü oranları pazarteside de var" diye bildirdi.
+        //
+        // Radar 4 (oran) zaten bu kuralı uyguluyordu; iki radar artık aynı
+        // dürüstlük kuralında: veri yoksa sebep yazılır, değer uydurulmaz.
         const bySource = {};
-        // GELECEK GÜNE veri basılmaz; taşıma yalnız ŞİMDİYE kadar (min(cap, now)).
         if (d._startMs <= now) {
           const capNow = Math.min(d._capMs, now);
           for (const s of series) {
-            if (s.at <= capNow) {
-              bySource[s.source || 'bilinmiyor'] = { [cfg.cellKey]: s.val, observedAt: new Date(s.at).toISOString(), source: s.source || null };
-            } else break;
+            if (s.at > capNow) break;
+            if (s.at < d._startMs) continue;              // önceki günler taşınmaz
+            if (dayKeyOf(s.at) !== d.date) continue;      // gün anahtarı da tutmalı
+            // Aynı gün içinde birden çok gözlem varsa SONUNCUSU geçerlidir.
+            bySource[s.source || 'bilinmiyor'] = {
+              [cfg.cellKey]: s.val,
+              observedAt: new Date(s.at).toISOString(),
+              source: s.source || null,
+            };
           }
         }
-        if (Object.keys(bySource).length) { cells[d.date] = { bySource }; hasAny = true; }
-        else { cells[d.date] = null; bosGunler.push(d); }
+        // HESAP YOK — hücre yalnız her kaynağın KENDİ yüzdesini taşır.
+        // Bir ara buraya kaynak ortalaması, "yayılım" göstergesi ve bir özet
+        // cümlesi ekleniyordu; kullanıcı hepsini kaldırttı: "formül hesaplama
+        // filan silinecek, sadece temiz oynanma yüzdeleri olacak".
+        // Kaynaklar ORTALANMAZ: iki site farklı yüzde veriyorsa bu bir bilgidir,
+        // tek sayıya indirilirse kaybolur.
+        if (Object.keys(bySource).length) {
+          cells[d.date] = { bySource };
+          hasAny = true;
+        } else { cells[d.date] = null; bosGunler.push(d); }
       } else if (cfg.multiSource) {
         // ÇOK KAYNAKLI GÜN MÜHRÜ (oran). Her kaynak için AYRI AYRI: o günün
         // penceresinde (00:00 İstanbul .. mühür) o kaynağın SON gözlemi.
@@ -324,10 +376,25 @@ export function buildDailySeries({
       const ids = c.bySource ? Object.keys(c.bySource) : (c.source ? [c.source] : []);
       for (const id of ids) perSourceCount[id] = (perSourceCount[id] || 0) + 1;
     }
+    // O GÜNÜN son çekim saati. Haftanın tek bir "son güncelleme"si yetmiyor:
+    // her gün AYRI mühürleniyor, dolayısıyla her günün kendi tazeliği var —
+    // Salı 23:52'de kapanmış olabilir, Çarşamba 14:03'te susmuş olabilir.
+    // Gün penceresi dışındaki gözlem sayılmaz: o günün hücresine giren veri
+    // hangi aralıktan geliyorsa saat de oradan gelmeli.
+    let gunSonMs = null;
+    for (const arr of byMatch.values()) {
+      for (const o of arr) {
+        if (o.at < _startMs || o.at > _capMs) continue;
+        if (gunSonMs == null || o.at > gunSonMs) gunSonMs = o.at;
+      }
+    }
     return {
       ...d,
       withData: outMatches.filter((m) => m.cells[d.date]).length,
       bySourceCounts: Object.keys(perSourceCount).length ? perSourceCount : null,
+      // Çipte tarih zaten yazıyor → YALNIZ saat. Gözlem yoksa null (uydurma yok).
+      lastObservedAt: gunSonMs != null ? new Date(gunSonMs).toISOString() : null,
+      lastObservedLabel: istanbulSaat(gunSonMs),
     };
   });
 
@@ -340,6 +407,10 @@ export function buildDailySeries({
     round,
     sealed: !!sealed,
     timezone: 'Europe/Istanbul',
+    // NOT: haftalık tek "son çekim" alanı KASTEN YOK. Bir dönem vardı ve
+    // ekranda "Son güncelleme: 22:39" diye gösteriliyordu; kullanıcı Pazar
+    // sekmesindeyken Pazartesi'nin saatini görüyordu. Ekranda TEK GÜN görünür,
+    // dolayısıyla çekim saati de GÜN BAZINDA anlamlıdır → days[].lastObservedAt.
     // Dahili alanları (_startMs/_capMs) sızdırma.
     days: outDays,
     matches: outMatches,

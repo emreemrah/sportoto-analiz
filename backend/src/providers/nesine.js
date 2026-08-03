@@ -8,10 +8,10 @@
 // * percentage1 → 1 (ev), percentage0 → X (beraberlik), percentage2 → 2 (deplasman).
 // * Captcha/giriş/koruma atlatma YOK; sitenin kendi açık ucu; makul hız (oturumsuz).
 // * OYNANMA YÜZDESİ ≠ ORAN — kullanıcının kupon TERCİH yüzdesidir.
-// * Bülten eşleştirme + belirsizlik reddi Bilyoner adaptörüyle ORTAK
-//   (matchEventToBulletin) — yanlış maça yüzde ASLA bağlanmaz; eşleşmeyen düşer.
+// * Bülten eşleştirme + belirsizlik reddi sağlayıcılar arasında ORTAK
+//   (saglayiciOrtak.js) — yanlış maça yüzde ASLA bağlanmaz; eşleşmeyen düşer.
 import { createHash } from 'node:crypto';
-import { matchEventToBulletin, assertAsciiHeaders } from './bilyoner.js';
+import { matchEventToBulletin, assertAsciiHeaders } from './saglayiciOrtak.js';
 
 export const NESINE_PARSER_VERSION = 'nesine-1.0.0';
 export const NESINE_SOURCE_TYPE = 'nesine-sto-v2';
@@ -63,7 +63,7 @@ async function getJson(url, { timeoutMs = 10000, fetchImpl = fetch } = {}) {
 }
 
 // --- ADAPTÖR SÖZLEŞMESİ: fetchPercentages(bulletinData) → satırlar ------------
-// Dönen satır Bilyoner ile AYNI şema (playedPercentages ortak işler): { matchKey,
+// Dönen satır tüm sağlayıcılarda AYNI şema (playedPercentages ortak işler): { matchKey,
 //   matchNo, pct:{'1','X','2'}, sourceMatchId, providerHome/Away, matchedBy, ... }.
 // Eşleşmeyen event listeden DÜŞER; yüzdesi başka maça verilmez.
 export function buildNesineAdapter({ fetchImpl = fetch, timeoutMs = 10000 } = {}) {

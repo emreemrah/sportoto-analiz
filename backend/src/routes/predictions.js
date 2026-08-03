@@ -9,6 +9,8 @@ import { requireAuth, optionalAuth } from '../mw.js';
 import { getBulletinByRoundId, getRoundsForNav } from '../sources/sportoto.js';
 import { awardParticipation, settleRoundAccuracy } from '../gamification/service.js';
 import { levelFromPoints } from '../gamification/catalog.js';
+// SUNUCU TARAFI TAHMİN KİLİDİ — maç başladıktan sonra tahmin/puan girilemez.
+import { tahminKapisiVeYanitla } from '../security/tahminKapisi.js';
 
 const router = Router();
 // /ms-summary muaf: bülten kartları için 15 maçta birden çağrılır ve kendi
@@ -25,6 +27,7 @@ router.get('/score', requireAuth, async (req, res) => {
 router.post('/score', requireAuth, async (req, res) => {
   const { matchId, fhHome, fhAway, ftHome, ftAway } = req.body || {};
   if (!matchId) return res.status(400).json({ error: 'matchId gerekli.' });
+  if (!tahminKapisiVeYanitla(req, res, matchId)) return;
   const clamp = (n) => Math.max(0, Math.min(20, Number(n) || 0));
   const row = {
     match_id: String(matchId), user_id: req.user.id,
@@ -46,6 +49,7 @@ router.get('/player', requireAuth, async (req, res) => {
 router.post('/player', requireAuth, async (req, res) => {
   const { matchId, teamId, teamName, playerId, playerName } = req.body || {};
   if (!matchId || !playerName) return res.status(400).json({ error: 'matchId ve oyuncu gerekli.' });
+  if (!tahminKapisiVeYanitla(req, res, matchId)) return;
   const row = {
     match_id: String(matchId), user_id: req.user.id,
     team_id: teamId ? String(teamId) : null, team_name: teamName || null,
@@ -68,6 +72,7 @@ router.get('/lineup', requireAuth, async (req, res) => {
 router.post('/lineup', requireAuth, async (req, res) => {
   const { matchId, teamId, teamName, formation, selectedPlayers } = req.body || {};
   if (!matchId || (teamId !== 'home' && teamId !== 'away')) return res.status(400).json({ error: 'matchId ve teamId (home/away) gerekli.' });
+  if (!tahminKapisiVeYanitla(req, res, matchId)) return;
   const players = Array.isArray(selectedPlayers) ? selectedPlayers.slice(0, 11) : [];
   const row = {
     match_id: String(matchId), user_id: req.user.id, team_id: teamId,
@@ -101,6 +106,7 @@ router.get('/poll', optionalAuth, async (req, res) => {
 router.post('/poll', requireAuth, async (req, res) => {
   const { matchId, pollKey, selectedOption } = req.body || {};
   if (!matchId || !pollKey || !selectedOption) return res.status(400).json({ error: 'matchId, pollKey ve seçim gerekli.' });
+  if (!tahminKapisiVeYanitla(req, res, matchId)) return;
   const row = {
     match_id: String(matchId), user_id: req.user.id,
     poll_key: String(pollKey), selected_option: String(selectedOption), updated_at: now(),

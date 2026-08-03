@@ -14,7 +14,7 @@ function Sheet({ onClose, title, children, footer }) {
         <View style={st.sheet}>
           <View style={st.sheetHead}>
             <Text style={st.sheetTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Text style={st.sheetX}>✕</Text></TouchableOpacity>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Kapat"><Text style={st.sheetX}>✕</Text></TouchableOpacity>
           </View>
           <ScrollView style={{ maxHeight: 440 }} contentContainerStyle={{ padding: spacing.lg }}>{children}</ScrollView>
           {footer ? <View style={st.sheetFooter}>{footer}</View> : null}

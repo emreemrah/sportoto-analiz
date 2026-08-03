@@ -1,6 +1,8 @@
 // API-Football (api-sports.io) — GERÇEK canlı skor + dakika.
 // Anahtar SADECE burada, .env'den okunan config üzerinden kullanılır.
 import { config } from '../config.js';
+// Dış servis çağrılarında zaman aşımı — takılan kaynak akışı kilitlemesin.
+import { zamanAsimliFetch } from './zamanAsimi.js';
 
 const num = (v) => (typeof v === 'number' ? v : Number(v) || 0);
 
@@ -12,7 +14,7 @@ const DONE_CODES = new Set(['FT', 'AET', 'PEN']);
 export async function fetchLiveFixtures() {
   const key = config.apiFootballKey;
   if (!key) return [];
-  const res = await fetch(`${config.apiFootballApi}/fixtures?live=all`, {
+  const res = await zamanAsimliFetch(`${config.apiFootballApi}/fixtures?live=all`, {
     headers: { 'x-apisports-key': key },
   });
   if (!res.ok) throw new Error(`API-Football HTTP ${res.status}`);
@@ -41,7 +43,7 @@ export async function fetchLiveFixtures() {
 export async function fetchFixturesByDate(date) {
   const key = config.apiFootballKey;
   if (!key || !date) return [];
-  const res = await fetch(`${config.apiFootballApi}/fixtures?date=${date}`, {
+  const res = await zamanAsimliFetch(`${config.apiFootballApi}/fixtures?date=${date}`, {
     headers: { 'x-apisports-key': key },
   });
   if (!res.ok) throw new Error(`API-Football date HTTP ${res.status}`);
@@ -68,7 +70,7 @@ export async function fetchFixturesByDate(date) {
 export async function fetchFixtureStatistics(fixtureId, swapped = false) {
   const key = config.apiFootballKey;
   if (!key || !fixtureId) return [];
-  const res = await fetch(`${config.apiFootballApi}/fixtures/statistics?fixture=${fixtureId}`, {
+  const res = await zamanAsimliFetch(`${config.apiFootballApi}/fixtures/statistics?fixture=${fixtureId}`, {
     headers: { 'x-apisports-key': key },
   });
   if (!res.ok) throw new Error(`API-Football stats HTTP ${res.status}`);
@@ -88,7 +90,7 @@ export async function fetchFixtureStatistics(fixtureId, swapped = false) {
 export async function fetchFixtureEvents(fixtureId, homeName, awayName) {
   const key = config.apiFootballKey;
   if (!key || !fixtureId) return [];
-  const res = await fetch(`${config.apiFootballApi}/fixtures/events?fixture=${fixtureId}`, {
+  const res = await zamanAsimliFetch(`${config.apiFootballApi}/fixtures/events?fixture=${fixtureId}`, {
     headers: { 'x-apisports-key': key },
   });
   if (!res.ok) throw new Error(`API-Football events HTTP ${res.status}`);

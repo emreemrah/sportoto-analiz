@@ -32,9 +32,21 @@ export async function tryRefresh() {
         }),
       });
       if (!res.ok) {
-        // Oturum kapatılmış ya da anahtar geçersiz → yerelde de temizle.
-        clearSession();
-        await clearPersisted();
+        // OTURUM YALNIZ KİMLİK REDDEDİLDİĞİNDE SİLİNİR.
+        //
+        // Eski hâl HER `!res.ok` durumunda yerel oturumu siliyordu. Sunucudan
+        // gelen GEÇİCİ bir hata — 500/502/503/504 (dağıtım, yeniden başlatma)
+        // ya da 429 (hız sınırı) — kullanıcıyı oturumdan atıyordu; oysa
+        // belirteç hâlâ geçerliydi ve birkaç saniye sonra çalışacaktı.
+        //
+        // Sunucu, oturum gerçekten geçersizse 401 döner (süresi doldu ya da
+        // kapatılmış); 400 de kalıcıdır (anahtar hiç gönderilmemiş). Diğer
+        // her durum GEÇİCİ sayılır → yerel oturum KORUNUR ve çağıran mevcut
+        // belirteçle devam etmeyi dener.
+        if (res.status === 400 || res.status === 401 || res.status === 403) {
+          clearSession();
+          await clearPersisted();
+        }
         return false;
       }
       const data = await res.json();

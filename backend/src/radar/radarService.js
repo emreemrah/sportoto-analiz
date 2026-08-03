@@ -37,7 +37,6 @@ import { masterDataQuality } from './dataQuality.js';
 const PROVIDER_DISPLAY = {
   nesine: 'Sarı kaynak',
   misli: 'Turuncu kaynak',
-  bilyoner: 'Yeşil kaynak',
   oley: 'Mor kaynak',
   iddaa: 'Mavi kaynak',
 };

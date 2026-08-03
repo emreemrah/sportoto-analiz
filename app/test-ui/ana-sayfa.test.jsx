@@ -162,6 +162,11 @@ describe('Ana Sayfa', () => {
   // Gerçek olay (2 Ağustos 2026): 53. Hafta yayındaydı, maçları 8-9 Ağustos'ta.
   // Ama 52. Hafta'nın 11 maçı O GÜN oynanıyordu ve "Yaklaşan Maçlar"da hiç
   // görünmüyordu — kullanıcıya en yakın maçlar gizleniyordu.
+  // TARİHLER GERÇEK SAATE BAĞLI OLMAMALI. İlk yazımda önceki hafta maçı
+  // '2026-08-02T15:00' idi; o gün geçince "başlama saati geçmiş maçı listeden
+  // düşür" kuralı devreye girdi ve test, kodda hiçbir şey bozulmadığı hâlde
+  // kendiliğinden kırmızıya döndü. Bkz. tasks/lessons.md §6.
+  // 2099 kullanılıyor: her koşuda gelecekte kalır, sıralama da sabit olur.
   const ROUNDS = { currentRoundId: 1600, rounds: [{ id: 1599, name: '52. Hafta' }, { id: 1600, name: '1. Hafta' }] };
 
   test('önceki haftanın oynanmamış maçı listede ve HAFTA ROZETİ taşıyor', async () => {
@@ -169,7 +174,7 @@ describe('Ana Sayfa', () => {
       '/api/rounds': ROUNDS,
       '/api/history/1599': {
         matches: [{
-          no: 9, date: '2026-08-02T15:00:00', status: 'upcoming',
+          no: 9, date: '2099-01-01T10:00:00Z', status: 'upcoming',
           home: { name: 'Gecen Ev' }, away: { name: 'Gecen Dep' }, league: 'X Ligi',
         }],
       },
@@ -188,7 +193,7 @@ describe('Ana Sayfa', () => {
       '/api/rounds': ROUNDS,
       '/api/history/1599': {
         matches: [{
-          no: 9, date: '2026-08-02T15:00:00', status: 'upcoming',
+          no: 9, date: '2099-01-01T10:00:00Z', status: 'upcoming',
           home: { name: 'Gecen Ev' }, away: { name: 'Gecen Dep' }, league: 'X Ligi',
         }],
       },

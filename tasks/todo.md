@@ -35,6 +35,178 @@ altına bir **İnceleme** bölümü eklenir.
 
 ## Tamamlananlar
 
+### 2026-08-03 · Radar 5: maç satırına BUGÜNÜN oynanma yüzdesi
+
+- [x] Maç adının **YANINDA**, oktan önce (kullanıcı kararı: "altında değil
+      yanında"): `1  Randers – Lyngby   Pzt ● 1:72 X:16 2:12   ▼`
+- [x] Gün adı KISALTILIYOR (yer dar). Kesme değil **açık eşleme** — "Pazar" ve
+      "Pazartesi" ilk üç harfte aynı ("Paz"), kesme ikisini karıştırırdı
+- [x] Kaynak Radar 3'ün günlük verisi (`dailyPlayed`) — **ayrı istek yok**
+- [x] Gün seçimi `varsayilanGun` ile: gerçek verisi olan en son geçmiş/bugün
+      günü; gelecek gün asla seçilmez (boş hücre `{}` tuzağı — `radarGun.js`)
+- [x] Kaynaklar ORTALANMAZ, her kaynak kendi satırında renkli noktasıyla
+      (Radar 3'ün kuralı); kaynak adı hiçbir yerde geçmez
+- [x] **Yakalanan hata:** günlük oynanma verisi yalnız `tab === 'publicBetting'`
+      iken çekiliyordu; Radar 5'e doğrudan girildiğinde `dailyPlayed` boş
+      kalıyor ve yüzdeler HİÇ görünmüyordu. Çekme koşuluna `bulletinMemory`
+      eklendi — aynı kilit iki sekmede geçerli olduğu için ek istek gitmez
+- [x] Testler: jest 3 yeni test (gün adıyla gösterim · gelecek gün seçilmez ·
+      veri yoksa satır çizilmez)
+- [x] Doğrulama: app **744 test** · jest **163 test** · 0 başarısız; bundle
+      `Exported: dist`. Canlı: sıra 1 Randers–Lyngby → `Pazartesi 03.08`,
+      `1 %72 · X %16 · 2 %12`
+
+**İnceleme.** Testi yazmasaydım eksik veri çekme hatası fark edilmezdi: ekran
+sessizce boş kalırdı, hiçbir hata vermeden. Test önce kırmızı verdi ("Pazartesi
+03.08 bulunamadı"), sebep aranınca `useEffect` koşulu çıktı.
+
+### 2026-08-03 · Radar 3/4: her GÜNÜN kendi çekim saati
+
+- [x] Backend: her `days[]` nesnesi kendi `lastObservedAt` (ISO) +
+      `lastObservedLabel` (İstanbul saati, `HH:MM`) alanını taşıyor
+- [x] Saat çevirimi SUNUCUDA (`istanbulSaat`): cihazın saat dilimi yanlışsa
+      kullanıcı yanlış saat görürdü
+- [x] Gün penceresi bağlayıcı: mühür (23:55+pay) sonrası gözlem o güne
+      yazılmaz; komşu günden saat TAŞINMAZ (gözlem yoksa null)
+- [x] Ekranda iki yerde: gün çipinin alt satırında (`02.08 · 20:45` — hepsi
+      bir bakışta) ve çiplerin altındaki satırda SEÇİLİ gün için
+      (`Pazar 02.08 · kaynaktan son çekim 20:45`)
+- [x] Haftalık tek "son çekim" alanı **kaldırıldı** + geri gelmesini engelleyen
+      test yazıldı
+- [x] Testler: backend `veri-yasi.test.mjs` (**10 test**) + jest 2 test
+- [x] Doğrulama: backend **975 test** · jest **160 test** · 0 başarısız;
+      bundle `Exported: dist`. Canlı: Pazar `20:45` · Pazartesi `22:39` ·
+      gelecek günler saatsiz
+
+**İnceleme.** İlk sürümü YANLIŞ yaptım: panele haftanın EN SON çekimini
+yazdım ("Son güncelleme: 22:39"). Kullanıcı Pazar sekmesindeyken Pazartesi'nin
+saatini görüyordu ve haklı olarak "ne alaka" dedi. Ekranda TEK GÜN görünür —
+o hâlde oradaki her sayı o güne ait olmalı. Haftalık alan kaldırıldı; yerine
+gün bazlı saat geldi. Ders: `lessons.md` §10.
+
+Ölçülen ayrım (ilk sürümde raporladığım): son *çalıştırma* 22:01:56 ama son
+*kaydedilen değişiklik* 21:29:20 — o turda `written: 0, unchanged: 15` olduğu
+için mükerrer satır yazılmamıştı. Ekranda verinin gerçek yaşı gösteriliyor.
+
+**İnceleme.** Kullanıcı "oynanma oranları en son saat kaçta çekildi" diye
+sordu; ekranda bu bilgi hiç yoktu — yalnız "23:55'te mühürlenir" yazıyordu ki o
+GELECEKTEKİ bir söz, geçmişteki çekim değil. Kaynak susarsa sayılar sessizce
+eskiyordu.
+
+İki "son" arasındaki fark ölçüldü ve önemli: son *çalıştırma* 22:01:56
+(`playedObserveStatus.json`), ama son *kaydedilen değişiklik* 21:29:20 —
+çünkü o turda `written: 0, unchanged: 15` (değerler aynıydı, mükerrer satır
+yazılmadı). Ekranda **verinin gerçek yaşı** gösteriliyor, çalıştırma saati
+değil; kullanıcının sorduğu da budur.
+
+Test yazarken Radar 4 gözlem şeklini yanlış kurdum (`{'1',X,'2'}` sanmıştım,
+gerçeği `{home,draw,away}`) — test kırmızı verince `METRICS.odds.extract`
+okunup düzeltildi.
+
+### 2026-08-03 · Radar 5: "dönem başarısı" göstergesi kaldırıldı
+
+- [x] Maç satırındaki `Dönem başarısı: X %100.0 ▲` bloğu kaldırıldı
+      (`RadarScreen.js`) — üstündeki `Geçmiş N. sıra · 1/X/2` satırının EN
+      YÜKSEĞİNİ tekrar ediyordu, aynı sayı "başarı" adıyla ikinci kez
+- [x] Dönem çiplerindeki `· %66.7` ve eğilim okları (▲▼—) kaldırıldı
+      (`RadarTabHeaders.js`). Çipler FİLTRE olarak duruyor
+- [x] Ölü kod temizliği: `radar5PeriodSuccess`, `radar5PeriodTrend`, `rowTrend`
+      (`radarScreenData.js`), `dnaStatsByPosition` haritası, 4 stil
+      (`memSuccessRow/memSuccess/memSuccessValue/memTrend`), 5 stil
+      (`dnaPeriodLabel/dnaTrend/dnaTrendUp/dnaTrendDown/dnaTrendFlat` × 2 dosya)
+- [x] Testler: silinen fonksiyonların 4 testi kaldırıldı; `radar-ekrani.test.jsx`
+      çip metni `/Son 5 Hafta · %/` → `'Son 5 Hafta'` olarak güncellendi
+- [x] Doğrulama: app **744 test** · jest **158 test** · 0 başarısız;
+      `expo export --platform web` → `Exported: dist`
+
+**İnceleme.** Gösterge iki yerde aynı hesaptan besleniyordu, o yüzden ikisi de
+kaldırıldı — biri kalsaydı kafa karışıklığı sürerdi. Kaldırma kod referansı
+bırakmadı (tarama temiz); geriye yalnız *neden kaldırıldığını* anlatan yorumlar
+kaldı, gösterge geri istenirse nereye döneceği belli olsun diye.
+
+### 2026-08-03 · HATA: Radar 5'te yüzde, listenin görmediği haftalardan geliyordu
+
+- [x] **Teşhis:** `/position-matches` listeyi `eskiHaftalariAt` ile 1525'ten
+      kesiyordu (`radar.js:562`), `/position-dna` kesmiyordu (`radar.js:699`).
+      Ekran "2 maç" derken yüzde **768 maçtan** hesaplanıyordu
+      (`cut.historyMatches: 755` + `archiveMatches: 13`)
+- [x] **Düzeltme:** `computePositionDna(eskiHaftalariAt([...]))` — tek satır,
+      veri kaybı yok
+- [x] Canlı sonuç: yüzde tabanı **768 → 28**, listedeki toplam maç sayısı da
+      **28** — iki uç artık birebir aynı
+- [x] Dönem filtresi (Son 5/10/15/25/50/Tüm) artık yüzdeyi **değiştirmiyor**
+- [x] Yeni regresyon testi: `test/radar5-kesim-tutarliligi.test.mjs` (4 test)
+- [x] `radar-dna-boundary.test.mjs`: sembolik tur numaraları (1400/1499) gerçek
+      sınıra takılmasın diye o dosyada `RADAR5_LISTE_BASLANGIC=1`
+- [x] Doğrulama: backend **965 test, 0 başarısız** (32 atlandı — canlı DB)
+
+**İnceleme.** Kullanıcı bu tutarsızlığı bir önceki turda bana sormuştu ve ben
+"kasıtlı" diye açıklamıştım; ekrandaki "Üstteki yüzde tüm haftalardan
+hesaplanır" cümlesini kanıt saydım. Yanlıştı — o cümle tasarım değil, hatanın
+üstünü örten bir yamaydı. `routes/radar.js:521`'deki yorum sözleşmeyi zaten
+yazmıştı ("Kesim ve sezon kapsamı /position-dna İLE AYNI hesaplanır"); kod
+tutmuyordu. Ders: `lessons.md` §8.
+
+Testin gerçekten koruduğu **bozarak** kanıtlandı: düzeltme geri alınınca 3 test
+kırmızıya döndü ("last10 penceresi farklı yüzde veriyor"). İlk test sürümünde
+dönem-filtresi testi bozuk kodda da geçiyordu (kurulumda 3 hafta varken `last5`
+hepsini kapsıyordu); kurulum 15 eski haftaya çıkarılıp ayırt edici hâle getirildi.
+
+### 2026-08-03 · 1525 öncesi arşiv temizliği — YAPILAMADI (veritabanı koruması)
+
+- [x] Envanter: 1525 öncesi bülten artığı = **1521 (49. Hafta)**, 30 satır
+      (`bulletins` 1 · `bulletin_matches` 15 · `bulletin_snapshots` 1 ·
+      `match_official_results` 13 · `bulletin_data_observations` **0**)
+- [x] Kullanıcı kararı: yalnız bülten artığı silinsin, **resmî Spor Toto
+      geçmişine dokunulmasın** (205 tur · 3.053 maç — Radar 5 yüzdelerinin tabanı)
+- [x] Yedek alındı → `backend/data/silinen-1521-yedek/`
+- [ ] ~~Silme~~ — `bulletin_snapshots` DB trigger'ına takıldı:
+      `IMMUTABLE_SNAPSHOT: kilitli snapshot silinemez (bulletin 1521)`
+- [x] Kısmi silme **geri alındı**: `match_official_results`'tan silinen 13 satır
+      yedekten geri yüklendi, sayım yeniden 13
+- [x] Regresyon: Radar 5 sıra 1 → 2 maç (51+52), `/api/history/1521` → 15 maç
+
+**İnceleme.** Silme mümkün değil ve bu bir kusur değil: `001_bulletin_archive.sql:162`
+kilitli snapshot'a UPDATE ve DELETE'i tamamen yasaklıyor, `003` de bu kuralı
+yazıyor — *"trg_snapshot_no_delete HİÇ kapatılmaz"*. Trigger'ı devre dışı bırakmak
+ürünün değişmezlik sözleşmesini kırardı, yapılmadı.
+
+**Zaten gerek yok:** iki okuma sınırı 1525'i hâlihazırda uyguluyor —
+`playedDnaArchive.js:38` (`DNA_START_ROUND_ID`) 1525 öncesini **hiç okumuyor**,
+`siraOynanma.js:33` (`LISTE_BASLANGIC_ROUND_ID`) Radar 5 listesini 51. Haftadan
+başlatıyor. 1521 verisi diskte duruyor ama hiçbir ekrana çıkmıyor.
+
+**Dokunulmadı:** `cache/radarCenter-1521.json` (yalnız önbellek, yeniden üretilebilir).
+
+### 2026-08-03 · Commit'lenmemiş yığının bütünlük doğrulaması
+
+- [x] Üç test paketi çalıştırıldı: backend **961** (0 kaldı, 32 atlandı),
+      app **748** (0 kaldı, 1 atlandı), jest **158** (0 kaldı)
+- [x] Silinen sağlayıcılara (`providers/bilyoner.js`, `providers/misli.js`)
+      **canlı import/referans kalmamış** — `playedPercentages.js:13` yalnız
+      `nesineAdapter` çekiyor. Kalan tek metin izi `HANDOFF.md:238` (belge)
+- [x] Web bundle derleniyor: `expo export --platform web` → 2,6 MB, `Exported: dist`
+- [x] **SIR SIZINTISI RİSKİ KAPATILDI** (aşağıda)
+
+**İnceleme.** Asıl görev testleri koşturmaktı; iş sırasında ondan önemli bir şey
+çıktı: `backend/.env.yedek-0107` dosyası **gitignore'a takılmıyordu**.
+`.gitignore:31`'deki desen `*env-yedek*` (tire), dosya adı `.env.yedek-0107`
+(nokta) — eşleşmiyordu. Dosya `FOOTYSTATS_API_KEY`, `APIFOOTBALL_API_KEY`,
+`SUPABASE_SECRET_KEY` ve `SUPABASE_DB_URL` içeriyor; bir `git add -A` bunları
+repoya sokardı. `.env.*` deseni + `!*.env.example` istisnası eklendi;
+`git check-ignore` artık `.gitignore:33` ile yakalıyor, `.env.example` takipte
+kalmaya devam ediyor. Git geçmişi kontrol edildi: **sızıntı olmamış**, yalnız
+risk vardı.
+
+**Atlanan 32 test — "atlandı, geçti değildir".** Hepsi canlı PostgreSQL isteyen
+migration + moderasyon testleri; koşul `MIGRATION_TEST_DB_URL`. Makinede
+127.0.0.1:5433'te gerçek bir `postgres.exe` dinliyor ve `livePg.mjs:43-49` her
+test için izole geçici veritabanı kuruyor (üretime dokunmaz), ama bağlantı
+parolası hiçbir yerde belgelenmemiş. **Yeni `009_profiles_predictions.sql`
+canlı olarak hiç uygulanmadı** — statik testi (`goc-tam-mi`, 5/5) `if not
+exists` / RLS / cascade'i doğruluyor, canlı davranışı doğrulamıyor.
+
+
 ### 2026-08-02 · OLAY: kapsam çöküşü + gerileme koruması
 
 - [x] Fikstür tüm turnuvalarda aranıyor (`fiksturIndeksi`), yalnız lig

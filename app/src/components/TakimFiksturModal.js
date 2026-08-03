@@ -107,7 +107,7 @@ export default function TakimFiksturModal({ visible, onClose, takim }) {
                 {veri ? ` · ${veri.oynanan}/${veri.toplam} maç oynandı` : ''}
               </Text>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={10}><Text style={st.kapat}>✕</Text></TouchableOpacity>
+            <TouchableOpacity onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Kapat"><Text style={st.kapat}>✕</Text></TouchableOpacity>
           </View>
 
           {yukleniyor ? (

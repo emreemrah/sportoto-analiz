@@ -20,11 +20,32 @@ const subs = new Set();
 const nowIso = () => new Date().toISOString();
 const rid = () => `prof-${Math.random().toString(36).slice(2, 10)}`;
 
+// KALICILIK: web'de localStorage · telefonda AsyncStorage · ikisi de yoksa bellek.
+//
+// Önceki hâl yalnız localStorage kullanıyordu. React Native'de localStorage
+// YOKTUR, dolayısıyla kullanıcının analiz profilleri (seçtiği kriterler,
+// ağırlıklar, filtreler) telefonda uygulama kapanınca kayboluyor; kullanıcı
+// kendi kurduğu profili her açılışta yeniden kuruyordu.
+const HAS_LS = typeof localStorage !== 'undefined';
+let AS = null;
+if (!HAS_LS) { try { AS = require('@react-native-async-storage/async-storage').default; } catch { AS = null; } }
+
+// Native'de son yazılan değer bellekte de tutulur: AsyncStorage eşzamansızdır,
+// okuma anında henüz dönmemiş olabilir.
+const bellek = new Map();
+
 function readStorage(key) {
-  try { return typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null; } catch { return null; }
+  try {
+    if (HAS_LS) return localStorage.getItem(key);
+  } catch { /* kota/gizli mod: belleğe düş */ }
+  return bellek.has(key) ? bellek.get(key) : null;
 }
 function writeStorage(key, val) {
-  try { if (typeof localStorage !== 'undefined') localStorage.setItem(key, val); } catch {}
+  bellek.set(key, val);
+  try { if (HAS_LS) localStorage.setItem(key, val); } catch {}
+  // Yazma hatası akışı BOZMAZ: bir profilin kaydedilememesi, ekranın
+  // çökmesinden iyidir.
+  if (AS) { try { AS.setItem(key, val).catch(() => {}); } catch {} }
 }
 
 function emptyState() {
@@ -60,6 +81,22 @@ function read() {
 function persist() {
   writeStorage(KEY_V2, JSON.stringify(cache));
   subs.forEach((fn) => { try { fn(getActiveProfile()); } catch {} });
+}
+
+// AÇILIŞTA DİSKTEN GERİ YÜKLEME (yalnız native).
+// AsyncStorage eşzamansız olduğu için ilk okumada bellek boştur. Diskten gelen
+// değer belleğe YALNIZ orada bir şey yoksa yazılır: kullanıcı bu arada profil
+// oluşturduysa geç gelen disk onun seçimini EZMEZ. Yükleme sonrası cache
+// sıfırlanır ki bir sonraki okuma diski görsün, aboneler de haberdar olsun.
+if (AS) {
+  for (const anahtar of [KEY_V1, KEY_V2]) {
+    AS.getItem(anahtar).then((raw) => {
+      if (raw == null || bellek.has(anahtar)) return;
+      bellek.set(anahtar, raw);
+      cache = undefined;
+      subs.forEach((fn) => { try { fn(getActiveProfile()); } catch {} });
+    }).catch(() => { /* disk okunamadı: varsayılanlarla devam */ });
+  }
 }
 
 /* ——— ÖNERİLEN VARSAYILAN PROFİL ———

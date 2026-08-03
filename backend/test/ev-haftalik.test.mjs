@@ -47,7 +47,7 @@ const gozlem = (i, source, pct, { dk = -60, kind = 'update', usable = true } = {
 });
 
 const tamGozlem = (pct = { '1': 60, X: 25, '2': 15 }) =>
-  Array.from({ length: 15 }, (_, k) => gozlem(k + 1, 'bilyoner', pct));
+  Array.from({ length: 15 }, (_, k) => gozlem(k + 1, 'k3', pct));
 
 // Sahte depo — gerçek store yüzeyinin kullanılan parçası.
 const depoYap = ({ snapshot = snapshotYap(), observations = [], results = [] } = {}) => ({
@@ -62,9 +62,9 @@ const depoYap = ({ snapshot = snapshotYap(), observations = [], results = [] } =
 
 test('KİLİT SONRASI gözlem tahmine GİREMEZ (sızıntı koruması)', () => {
   const c = crowdConsensus([
-    gozlem(1, 'bilyoner', { '1': 60, X: 25, '2': 15 }, { dk: -30 }),
+    gozlem(1, 'k3', { '1': 60, X: 25, '2': 15 }, { dk: -30 }),
     // Kilitten SONRA gelen, apayrı bir dağılım — alınırsa sonuç kirlenir.
-    gozlem(1, 'bilyoner', { '1': 10, X: 10, '2': 80 }, { dk: +30, kind: 'post_lock_research', usable: false }),
+    gozlem(1, 'k3', { '1': 10, X: 10, '2': 80 }, { dk: +30, kind: 'post_lock_research', usable: false }),
   ], { matchIds: [ID(1)], freezeAtMs: KILIT_MS });
   const m = c.marginals.get(ID(1));
   assert.ok(Math.abs(m['1'] - 0.60) < 1e-9, 'kilit öncesi değer kullanılmalı');
@@ -80,13 +80,13 @@ test('kilitten sonraki zaman damgası, türü "update" olsa bile alınmaz', () =
 
 test('her sağlayıcının KENDİ son gözlemi alınır, arası MEDYAN', () => {
   const c = crowdConsensus([
-    gozlem(1, 'bilyoner', { '1': 40, X: 30, '2': 30 }, { dk: -300 }),   // eski
-    gozlem(1, 'bilyoner', { '1': 50, X: 25, '2': 25 }, { dk: -10 }),    // güncel
+    gozlem(1, 'k3', { '1': 40, X: 30, '2': 30 }, { dk: -300 }),   // eski
+    gozlem(1, 'k3', { '1': 50, X: 25, '2': 25 }, { dk: -10 }),    // güncel
     gozlem(1, 'nesine', { '1': 60, X: 20, '2': 20 }, { dk: -10 }),
     gozlem(1, 'misli', { '1': 70, X: 15, '2': 15 }, { dk: -10 }),
   ], { matchIds: [ID(1)], freezeAtMs: KILIT_MS });
   const m = c.marginals.get(ID(1));
-  // 0.50 / 0.60 / 0.70 → medyan 0.60 (eski bilyoner satırı DEĞİL)
+  // 0.50 / 0.60 / 0.70 → medyan 0.60 (eski k3 satırı DEĞİL)
   assert.ok(Math.abs(m['1'] - 0.60) < 1e-9, `beklenen 0.60, gelen ${m['1']}`);
   assert.equal(c.perMatch.get(ID(1)).providers, 3);
   // Her zaman normalize: toplam 1.
@@ -94,7 +94,7 @@ test('her sağlayıcının KENDİ son gözlemi alınır, arası MEDYAN', () => {
 });
 
 test('veri olmayan maç için uydurulmaz — eksik kalır', () => {
-  const c = crowdConsensus([gozlem(1, 'bilyoner', { '1': 60, X: 25, '2': 15 })],
+  const c = crowdConsensus([gozlem(1, 'k3', { '1': 60, X: 25, '2': 15 })],
     { matchIds: [ID(1), ID(2)], freezeAtMs: KILIT_MS });
   assert.ok(c.marginals.has(ID(1)));
   assert.equal(c.marginals.has(ID(2)), false);

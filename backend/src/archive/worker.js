@@ -183,9 +183,18 @@ export async function archiveOnRefresh(data, { store = getArchiveStore(), now = 
       if (!snap) await freezeBulletinFromData(data, { store, now, trigger: 'refresh' });
     }
 
-    // Güncel bültende resmî sonuç alanları geldiyse (m.result + m.score) ayrı
-    // sonuç tablosuna işle — snapshot'a dokunulmaz.
-    const withOfficial = (data.matches || []).filter((m) => m.result && m.score);
+    // Güncel bültende RESMÎ sonuç alanları geldiyse ayrı sonuç tablosuna işle
+    // — snapshot'a dokunulmaz.
+    //
+    // YALNIZ `resmiSkor` OKUNUR, `score` DEĞİL. `score` bir EKRAN alanıdır ve
+    // maç başlayınca harici sağlayıcının canlı/bitmiş skoruyla eziliyor;
+    // buradan okunduğunda harici bir skor `resultSource: 'Spor Toto resmi API'`
+    // etiketiyle arşivleniyordu — yanlış sonucun "kesin" görünmesi demek.
+    // Arşiv, resmî kaynağın kendi verisinden başkasını kabul etmez.
+    // (Gerekçenin tamamı: refresh.js, resmiSkor tanımının üstü.)
+    const withOfficial = (data.matches || [])
+      .filter((m) => m.result && m.resmiSkor)
+      .map((m) => ({ ...m, score: m.resmiSkor }));
     if (withOfficial.length) {
       await ingestOfficialResults(String(data.roundId), withOfficial, { store, actor: 'refresh' });
       await maybeCompleteAndEvaluate(String(data.roundId), { store, now });

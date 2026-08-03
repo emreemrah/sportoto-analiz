@@ -49,6 +49,62 @@ function readAll() {
   return cache;
 }
 
+// ——— KULLANICI İZOLASYONU ———
+//
+// SORUN (doğrulandı): kupon anahtarları CİHAZA aitti, kullanıcıya değil.
+// `logout()` yalnız belirteç/oturum kaydını siliyordu (tokenStore.clearPersisted);
+// kupon deposuna dokunmuyordu. Sonuç: A çıkış yapıp B girdiğinde B, A'nın
+// kuponlarını GÖRÜYORDU — dahası ilk senkronda `putCoupons([...readAll()])`
+// onları B'NİN HESABINA yazıyordu.
+//
+// İKİ KATMANLI KORUMA:
+//  1. `yereliTemizle()` — çıkışta çağrılır (auth.js).
+//  2. `sahibiAyarla(userId)` — girişte çağrılır; depoda BAŞKA bir sahip
+//     yazılıysa veri silinir. Bu ikincisi, çıkışın hiç çalışmadığı durumları da
+//     kapatır (uygulama öldürüldü, çökme, eski sürümden yükseltme).
+const OKEY = 'sportoto.couponCenter.owner.v1';
+let ownerCache = null;                       // native tarafta bellekte tutulur
+
+function sahipOku() {
+  try { return HAS_LS ? localStorage.getItem(OKEY) : ownerCache; } catch { return ownerCache; }
+}
+
+function sahipYaz(id) {
+  ownerCache = id == null ? null : String(id);
+  try {
+    if (HAS_LS) {
+      if (id == null) localStorage.removeItem(OKEY); else localStorage.setItem(OKEY, String(id));
+    }
+  } catch {}
+  if (AS) {
+    try { (id == null ? AS.removeItem(OKEY) : AS.setItem(OKEY, String(id))).catch(() => {}); } catch {}
+  }
+}
+
+/** Yerel kupon + taslak verisini TAMAMEN siler. Çıkışta çağrılır. */
+export function yereliTemizle() {
+  cache = [];
+  dcache = { roundId: null, picks: {} };
+  serverLegacy = [];
+  try { if (HAS_LS) { localStorage.removeItem(KEY); localStorage.removeItem(DKEY); } } catch {}
+  if (AS) { try { AS.multiRemove([KEY, DKEY]).catch(() => {}); } catch {} }
+  sahipYaz(null);
+  emit();
+}
+
+/**
+ * Oturum sahibini işaretler. Depoda BAŞKA bir sahip yazılıysa yerel veri
+ * silinir — önceki kullanıcının kuponu yeni hesaba karışmaz.
+ * @returns {boolean} veri silindiyse true
+ */
+export function sahibiAyarla(userId) {
+  const yeni = userId == null ? null : String(userId);
+  const eski = sahipOku();
+  if (eski && yeni && eski !== yeni) { yereliTemizle(); sahipYaz(yeni); return true; }
+  sahipYaz(yeni);
+  return false;
+}
+
 function mergeById(a, b) {
   const map = new Map();
   for (const c of [...(a || []), ...(b || [])]) {

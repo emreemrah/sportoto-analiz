@@ -104,8 +104,21 @@ app.use('/api/scorecards', makeScorecardsRouter({ fetchBulletin: getBulletinByRo
 app.get('/api/health', (req, res) => {
   const cached = load('bulletin');
   const migration = migrationDurumu();
+
+  // `ok` GERÇEK DURUMDAN TÜRETİLİR — sabit `true` DEĞİL.
+  //
+  // Eski hâl koşulsuz `ok: true` yazıyordu: şema göçü başarısız olsa da,
+  // veritabanına hiç bağlanılamasa da uç "sağlıklıyım" diyordu. Sağlık
+  // kontrolü tam da bu durumları görmek için var; yalan söyleyen bir kontrol
+  // kontrol değildir.
+  //
+  // HTTP durumu 200 KALIYOR (bilerek): sunucu, sorunu /api/health üzerinden
+  // bildirebilmek için ayakta tutuluyor. 503 dönseydi platform örneği sürekli
+  // yeniden başlatır ve teşhis kaybolurdu. Doğru olan, gövdede doğruyu söylemek.
+  const semaBozuk = migration.ok === false;
   res.json({
-    ok: true,
+    ok: !semaBozuk,
+    durum: semaBozuk ? 'sema-hatasi' : (cached ? 'saglikli' : 'veri-yok'),
     hasData: !!cached,
     updatedAt: cached?.data?.updatedAt || null,
     // Şema durumu: hangi migration'lar uygulandı ve doğrulama geçti mi.

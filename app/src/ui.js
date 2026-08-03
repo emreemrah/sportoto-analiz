@@ -425,7 +425,7 @@ export function MatchHeader({ home, away, homeLogo, awayLogo, league, dateLabel,
   return (
     <View style={s.mh}>
       <View style={s.mhBar}>
-        <TouchableOpacity onPress={onBack} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Text style={s.mhIcon}>‹</Text></TouchableOpacity>
+        <TouchableOpacity onPress={onBack} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Geri"><Text style={s.mhIcon}>‹</Text></TouchableOpacity>
         <View style={{ alignItems: 'center' }}>
           <Text style={s.brandName}>⚽ {APP_NAME_UPPER}</Text>
           <Text style={s.brandSub}>BAĞIMSIZ ANALİZ UYGULAMASI</Text>

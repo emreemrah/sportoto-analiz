@@ -185,11 +185,11 @@ function WdlCarousel({ slides }) {
   return (
     <View style={styles.wdlCard}>
       <View style={styles.wdlTop}>
-        <TouchableOpacity onPress={() => go(-1)} style={styles.wdlArrow} activeOpacity={0.6} disabled={n < 2}>
+        <TouchableOpacity onPress={() => go(-1)} style={styles.wdlArrow} activeOpacity={0.6} disabled={n < 2} accessibilityRole="button" accessibilityLabel="Önceki istatistik">
           <Text style={styles.wdlArrowTxt}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.wdlTitle} numberOfLines={1}>{cur.title}</Text>
-        <TouchableOpacity onPress={() => go(1)} style={styles.wdlArrow} activeOpacity={0.6} disabled={n < 2}>
+        <TouchableOpacity onPress={() => go(1)} style={styles.wdlArrow} activeOpacity={0.6} disabled={n < 2} accessibilityRole="button" accessibilityLabel="Sonraki istatistik">
           <Text style={styles.wdlArrowTxt}>›</Text>
         </TouchableOpacity>
       </View>

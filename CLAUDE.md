@@ -7,7 +7,8 @@
 Resmi Spor Toto bültenini (sportoto.gov.tr) + FootyStats/API-Football verisini
 birleştirip her maça **kupon karar desteği** (analiz) sunan uygulama —
 **bahis/ödeme değil, analiz.** Güncel + geçmiş bülten, canlı skor, kapsam kontrolü,
-kupon oluşturma ve **kullanıcı mantığı analiz motoru** (`app/src/userMatchEngine.js`).
+kupon oluşturma ve **iki ayrı analiz motoru** (aşağıda; hangisinin nerede
+çalıştığı karıştırılmamalı).
 
 ## Yapı
 - **backend/** — Node.js (ESM) + Express API, port **4000**.
@@ -75,8 +76,15 @@ kupon oluşturma ve **kullanıcı mantığı analiz motoru** (`app/src/userMatch
 - Backend API mantığını gereksiz büyütme; mevcut akışı bozma. Takım adlarını/logoları
   koru. Minimum dosya değişikliği; iş sonunda değişenleri özetle; web bundle 200 doğrula.
 - **Yeni paket kurma ve sormadan push/PR/deploy yapma.**
-- Analiz motoru: `app/src/userMatchEngine.js` (6 kriter; risk = önerilen seçim
-  genişliği: tek=Düşük, çifte=Orta, üçlü 1X2=Yüksek). Detay: `HANDOFF.md` §6.
+- **İKİ MOTOR VAR — karıştırma:**
+  - `backend/src/analysis/masterEngine.js` — **ÜRÜN STANDARDI**. 40 kriterli
+    Master Analiz; `analysisService.js` üzerinden `/api/analysis` ve karne
+    uçlarını besler. Analiz ve Radar ekranlarında görünen budur.
+  - `app/src/userMatchEngine.js` — 6 kriterli hafif motor. YALNIZ
+    `broadcastStudio.js` (Haftanın Özeti ekranı) kullanır; ürünün ana analizi
+    DEĞİLDİR. (risk = seçim genişliği: tek=Düşük, çifte=Orta, üçlü=Yüksek)
+  - Belgeler bir dönem ikincisini ana motor gibi tarif ediyordu; bu satır o
+    karışıklığı kapatmak için var. Detay: `HANDOFF.md` §6.
 - `node_modules/`, `.git/`, `dist/`, `build/`, `app/.expo/`, `backend/cache/`,
   `backend/data/`, `backend/public/` üretilen/çıktı — okuma/düzenleme gerekmez.
 

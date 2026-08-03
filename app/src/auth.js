@@ -8,7 +8,7 @@
 //     kapatıldıysa yenileme reddedilir ve kullanıcı güvenle çıkışa düşer.
 import { useEffect, useState } from 'react';
 import { api } from './api';
-import { syncFromServer } from './coupon/store';
+import { syncFromServer, yereliTemizle, sahibiAyarla } from './coupon/store';
 import { setSession, clearSession, getSessionId } from './session/tokenState';
 import {
   loadPersisted, persistSession, clearPersisted,
@@ -70,6 +70,11 @@ async function adoptSession(resp) {
     cookieMode: !!resp.cookieMode,
   });
   set({ token: resp.token || (resp.cookieMode ? 'cookie' : null), user: resp.user });
+  // KULLANICI İZOLASYONU — senkrondan ÖNCE. Cihazda başka bir kullanıcının
+  // yerel kuponu kaldıysa (çıkış çalışmamış, uygulama öldürülmüş, eski sürüm)
+  // burada silinir. SIRA KRİTİK: syncFromServer yereli sunucuya yazıyor;
+  // önce temizlemezsek başkasının kuponu bu hesaba geçerdi.
+  try { sahibiAyarla(resp.user?.id ?? resp.user?.userId ?? null); } catch {}
   syncFromServer(); // hesaba bağlı kuponları çek/birleştir
 }
 
@@ -99,6 +104,8 @@ export async function logout() {
   try { await cancelAllOurNotifications(); } catch { /* çıkışı engellemesin */ }
   clearSession();
   await clearPersisted();
+  // Yerel kuponlar CİHAZDA kalıyordu; sonraki kullanıcı onları görüyordu.
+  try { yereliTemizle(); } catch {}
   set({ token: null, user: null });
 }
 
@@ -116,6 +123,8 @@ export async function handleSessionRevoked() {
   try { await cancelAllOurNotifications(); } catch { /* temizliği engellemesin */ }
   clearSession();
   await clearPersisted();
+  // Yerel kuponlar CİHAZDA kalıyordu; sonraki kullanıcı onları görüyordu.
+  try { yereliTemizle(); } catch {}
   set({ token: null, user: null });
 }
 

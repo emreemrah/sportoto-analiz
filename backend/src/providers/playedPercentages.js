@@ -1,6 +1,6 @@
 // OYNANMA YÜZDESİ SAĞLAYICI ÇERÇEVESİ — adaptörler + doğrulama + gözlem semantiği.
 // ---------------------------------------------------------------------------
-// * Her sağlayıcı AYRI tutulur (Bilyoner ile Misli ham veride karışmaz).
+// * Her sağlayıcı AYRI tutulur — iki kaynak ham veride birbirine karışmaz.
 // * Yüzde toplamı doğrulanır (yuvarlama toleransı ±2, bozuk veri REDDEDİLİR).
 // * OYNANMA YÜZDESİ ≠ BAHİS ORANI — oran asla yüzde olarak sunulmaz.
 // * Açılış dürüstlüğü: sistem haftaya geç başladıysa ilk gözlem 'opening'
@@ -10,9 +10,7 @@
 //   snapshot'a, karneye ve DNA 'kapanış' alanına GİREMEZ.
 // * Değer değişmediyse tekrar satır üretilmez (gereksiz zaman serisi şişmez).
 import { createHash } from 'node:crypto';
-import { bilyonerAdapter } from './bilyoner.js';
 import { nesineAdapter } from './nesine.js';
-import { misliAdapter } from './misli.js';
 // Gün anahtarı (Europe/Istanbul) tek yerden gelir — iki ayrı tanım zamanla
 // birbirinden ayrışıp gün sınırlarını bozmasın.
 import { dayKeyOf } from '../radar/playedDnaArchive.js';
@@ -38,21 +36,17 @@ export function listProviders() { return [...registry.values()]; }
 export function enabledProviders() { return listProviders().filter((p) => p.enabled === true); }
 export function _clearProvidersForTests() { registry.clear(); }
 
-// BİLYONER — GERÇEK açık/oturumsuz kaynak DOĞRULANDI (22 Tem 2026):
-//   /api/sto/programs/active + /api/sto/playratio?gcNo=<gcNo> (credentials:'omit'
-//   ile HTTP 200; çerez/oturum gerekmez). Adaptör gerçek parser + bülten
-//   eşleştirme + doğrulama ile bilyoner.js'te; burada yalnız KAYIT edilir.
-registerProvider(bilyonerAdapter);
-
 // NESİNE — GERÇEK açık/anonim kaynak DOĞRULANDI (22 Tem 2026):
 //   GET https://st.nesine.com/v2/Program (kimlik/oturum/çerez YOK, HTTP 200).
 //   d.matches[].percentage1/0/2 → 1/X/2. Adaptör + bülten eşleştirme nesine.js'te.
 registerProvider(nesineAdapter);
 
-// MİSLİ — GERÇEK açık/anonim kaynak DOĞRULANDI (23 Tem 2026):
-//   GET https://apivx.misli.com/api/web/v1/sportoto/active (UA zorunlu, auth YOK).
-//   Tek çağrıda program + playRatio (selection name 0=X/1=1/2=2). Adaptör misli.js.
-registerProvider(misliAdapter);
+// MİSLİ — KALDIRILDI (3 Ağustos 2026, kullanıcı kararı).
+//   Toplama durduruldu; adaptör dosyası silindi. Arşivdeki ESKİ gözlemleri
+//   SİLİNMEDİ ve kimlik eşlemesi (k2) kaynakKodu.js'te DURUYOR — iki kaynak
+//   aynı koda düşerse veriler sessizce birbirini ezer (bkz. anahtarlariKodla).
+//   Ekranda görünmemesi ayrı bir süzgeçle sağlanır (routes/radar.js).
+
 
 // ---------------------------------------------------------------------------
 // DOĞRULAMA + SEMANTİK (saf, test edilebilir)

@@ -91,12 +91,12 @@ export default function WeekRecapScreen({ route, navigation }) {
     <ScrollView style={st.container} contentContainerStyle={st.pad}>
       {/* HAFTA GEZME */}
       <View style={st.weekNav}>
-        <TouchableOpacity onPress={() => canPrev && setRoundId(navRounds[selIdx - 1].id)} disabled={!canPrev} style={[st.arw, !canPrev && st.arwOff]}><Text style={st.arwTxt}>‹</Text></TouchableOpacity>
+        <TouchableOpacity onPress={() => canPrev && setRoundId(navRounds[selIdx - 1].id)} disabled={!canPrev} accessibilityRole="button" accessibilityLabel="Önceki hafta" style={[st.arw, !canPrev && st.arwOff]}><Text style={st.arwTxt}>‹</Text></TouchableOpacity>
         <View style={st.weekMid}>
           <Text style={st.weekName}>{selMeta?.name || '—'}</Text>
           <Text style={st.weekSeason}>{selMeta?.year || ''} Sezonu</Text>
         </View>
-        <TouchableOpacity onPress={() => canNext && setRoundId(navRounds[selIdx + 1].id)} disabled={!canNext} style={[st.arw, !canNext && st.arwOff]}><Text style={st.arwTxt}>›</Text></TouchableOpacity>
+        <TouchableOpacity onPress={() => canNext && setRoundId(navRounds[selIdx + 1].id)} disabled={!canNext} accessibilityRole="button" accessibilityLabel="Sonraki hafta" style={[st.arw, !canNext && st.arwOff]}><Text style={st.arwTxt}>›</Text></TouchableOpacity>
       </View>
 
       {/* STÜDYO KARTI */}

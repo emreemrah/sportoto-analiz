@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import {
   roundPct100, ord, wdl, num1, birOndalik,
   classCountsOf, filterMaster, sortMaster, freezeMinutes,
-  legacyCountsOf, legacyFiltered, radar5PeriodSuccess, radar5PeriodTrend, rowTrend,
+  legacyCountsOf, legacyFiltered,
 } from '../src/radarScreenData.js';
 
 const mac = (no, master) => ({ no, master });
@@ -128,44 +128,10 @@ test('legacy sayaç ve filtre', () => {
   assert.equal(legacyFiltered(null, 'red').length, 0);
 });
 
-test('dönem gücü: örneklem yoksa SIFIR değil null döner', () => {
-  // Sıfır "hiç olmadı" demektir; burada kastedilen "bilmiyoruz".
-  const bos = radar5PeriodSuccess({ dna: { positions: [] } });
-  assert.equal(bos.allTime, null);
-  assert.equal(radar5PeriodSuccess(null).last5, null);
-});
-
-test('dönem gücü: sıraların en yüksek yüzdesinin ortalaması', () => {
-  const s = radar5PeriodSuccess({
-    dna: {
-      positions: [
-        { windows: { allTime: { pct: { '1': 50, X: 30, '2': 20 } } } },   // en yüksek 50
-        { windows: { allTime: { pct: { '1': 20, X: 60, '2': 20 } } } },   // en yüksek 60
-        { windows: { last5: { pct: { '1': 90, X: 5, '2': 5 } } } },       // allTime penceresi yok
-      ],
-    },
-  });
-  assert.equal(s.allTime, '55.0');       // (50+60)/2
-  assert.equal(s.last5, '90.0');
-});
-
-test('eğilim eşiği 0,5 puan — altındaki fark OK GÖSTERMEZ', () => {
-  const t = radar5PeriodTrend({ allTime: '50.0', last5: '50.4', last10: '50.6', last15: '49.0' });
-  assert.equal(t.allTime.symbol, '—', 'referansın kendisi düz');
-  assert.equal(t.last5.key, 'flat', '0,4 puan gürültüdür');
-  assert.equal(t.last10.key, 'up');
-  assert.equal(t.last15.key, 'down');
-  // Veri yoksa ok da yok (uydurma eğilim gösterilmez).
-  assert.equal(radar5PeriodTrend({ allTime: null, last5: '50.0' }).last5, null);
-});
-
-test('satır eğilimi dönem seçimine göre davranır', () => {
-  assert.equal(rowTrend({ highest: 60, allTimeHighest: 50, dnaPeriod: 'allTime' }).key, 'flat',
-    'tüm zamanlar seçiliyken kendisiyle kıyaslanmaz');
-  assert.equal(rowTrend({ highest: 60, allTimeHighest: 50, dnaPeriod: 'last5' }).key, 'up');
-  assert.equal(rowTrend({ highest: 50.3, allTimeHighest: 50, dnaPeriod: 'last5' }).key, 'flat');
-  assert.equal(rowTrend({ highest: null, allTimeHighest: 50, dnaPeriod: 'last5' }), null);
-});
+// DÖNEM GÜCÜ / EĞİLİM TESTLERİ KALDIRILDI (3 Ağustos 2026). Sınadıkları üç
+// fonksiyon (`radar5PeriodSuccess`, `radar5PeriodTrend`, `rowTrend`) ekrandan
+// "dönem başarısı" göstergesiyle birlikte silindi; bkz. radarScreenData.js.
+// Gösterge geri gelirse testleri de geri gelmeli — bu satır o yüzden duruyor.
 
 // ---------------------------------------------------------------------------
 // SEZON GEÇİŞİ HAZIRLIĞI — 53. haftadan sonra yeni sezon 1. haftayla başlar.

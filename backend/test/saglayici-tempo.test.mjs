@@ -1,111 +1,128 @@
 // SAĞLAYICI TEMPOSU TESTLERİ.
 //
 // NEDEN VAR: gözlem döngüsü 15 dakikada bir çalışıyor ve tüm kaynakları aynı
-// tempoda deniyordu. Yeşil kaynak bu tempoyu kaldırmıyor — ÖLÇÜM (2 Ağustos
-// 2026): temiz başlangıçta ilk istek HTTP 200 ve gerçek veri, aynı dakikada
-// 10 istek 10/10 HTTP 400, 3 dakika bekleme bile açmıyor. Yani DENEMELERİN
-// KENDİSİ engeli tazeliyordu ve kaynak hiç açılmıyordu.
+// tempoda deniyordu. Hız sınırlı bir kaynak bunu kaldırmaz; denemelerin
+// KENDİSİ engeli tazeler ve kaynak hiç açılmaz. Ölçümle görüldü (2 Ağustos
+// 2026, o gün projeden çıkarılan üçüncü kaynak üzerinde): temiz başlangıçta
+// ilk istek 200, aynı dakikada 10 istek 10/10 400.
 //
 // İki uç da hatalı:
-//   * tempo yoksa → kaynak sürekli engelli kalır (yaşanan durum),
+//   * tempo yoksa → kaynak sürekli engelli kalır,
 //   * tempo fazla uzarsa → kaynak açıkken bile veri gelmez (sessiz kayıp).
+//
+// ÜRETİMDE ŞU AN HIZ SINIRLI KAYNAK YOK (TEMPO boş). Kuralı sınamak için
+// tablolar parametreyle veriliyor — gerçek tabloya test verisi yazmak,
+// üretim önbelleğini kirlettiği için geçmişte gerçek bir hataya yol açmıştı.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  denenebilir, durumuGuncelle, TEMPO, EN_UZUN_BEKLEME_MS,
+  denenebilir, durumuGuncelle, TEMPO, HATA_SONRASI_TEMPO, EN_UZUN_BEKLEME_MS,
 } from '../src/providers/saglayiciTempo.js';
 
 const T0 = 1_000_000_000_000;
+const SAAT = 3600e3;
+
+// Sahte kaynaklar — üretim tablolarına DOKUNMADAN kuralı sınamak için.
+const YAVAS = { tempo: { yavas: SAAT } };                                  // hız sınırlı
+const DALGALI = { tempo: { dalgali: SAAT }, hataTempo: { dalgali: 10 * 60e3 } }; // kararsız
 
 describe('denenebilir', () => {
-  test('temposu YAZILMAYAN kaynak her turda denenir', () => {
-    // Sarı/turuncu kaynak 15 dk temposunu sorunsuz kaldırıyor; onları
-    // yavaşlatmak veri kaybı olurdu.
-    assert.equal(denenebilir('nesine', {}, T0), true);
-    assert.equal(denenebilir('nesine', { nesine: { sonDeneme: T0 } }, T0 + 1000), true);
+  test('temposu OLMAYAN kaynak her tur denenir', () => {
+    assert.equal(denenebilir('serbest', {}, T0), true);
+    assert.equal(denenebilir('serbest', { serbest: { sonDeneme: T0 } }, T0 + 1000), true);
   });
 
-  test('hiç denenmemiş kaynak DENENİR', () => {
-    assert.equal(denenebilir('bilyoner', {}, T0), true);
+  test('üretimde hiçbir kaynak bekletilmiyor (TEMPO boş)', () => {
+    // Bu, "hız sınırlı kaynak kalmadı" kararının kayda geçmiş hâli. İleride
+    // biri eklenirse bu test kırılır ve gerekçesi burada yazılı olur.
+    assert.deepEqual(TEMPO, {});
+    assert.deepEqual(HATA_SONRASI_TEMPO, {});
+  });
+
+  test('hiç denenmemiş kaynak hemen denenir', () => {
+    assert.equal(denenebilir('yavas', {}, T0, YAVAS), true);
   });
 
   test('bekleme dolmadan TEKRAR denenmez', () => {
-    const d = { bilyoner: { sonDeneme: T0, ardisikHata: 0 } };
-    assert.equal(denenebilir('bilyoner', d, T0 + 15 * 60e3), false, '15 dk sonra denenmemeliydi');
-    assert.equal(denenebilir('bilyoner', d, T0 + 59 * 60e3), false);
-  });
-
-  test('bekleme dolunca denenir', () => {
-    const d = { bilyoner: { sonDeneme: T0, ardisikHata: 0 } };
-    assert.equal(denenebilir('bilyoner', d, T0 + TEMPO.bilyoner), true);
+    const d = { yavas: { sonDeneme: T0, ardisikHata: 0 } };
+    assert.equal(denenebilir('yavas', d, T0 + 30 * 60e3, YAVAS), false);
+    assert.equal(denenebilir('yavas', d, T0 + SAAT, YAVAS), true);
   });
 
   test('İLK hata beklemeyi UZATMIYOR — geçici engel yarım gün sessizlik yapmasın', () => {
-    // İlk sürümde üs doğrudan hata sayısıydı ve tek bir başarısızlık
-    // beklemeyi 1 saatten 2 saate çıkarıyordu. Hız sınırına takılan bir
-    // kaynakta bu, geçici bir engeli saatlerce uzatıyordu.
-    const bir = { bilyoner: { sonDeneme: T0, ardisikHata: 1 } };
-    assert.equal(denenebilir('bilyoner', bir, T0 + TEMPO.bilyoner), true);
+    // İlk sürümde üs doğrudan hata sayısıydı ve tek bir başarısızlık beklemeyi
+    // 1 saatten 2 saate çıkarıyordu. Hız sınırına takılan bir kaynakta bu,
+    // geçici bir engeli saatlerce uzatıyordu.
+    const bir = { yavas: { sonDeneme: T0, ardisikHata: 1 } };
+    assert.equal(denenebilir('yavas', bir, T0 + SAAT, YAVAS), true);
   });
 
-  test('ISRARLI hatada bekleme uzuyor (geri çekilme)', () => {
-    const uc = { bilyoner: { sonDeneme: T0, ardisikHata: 3 } };   // 1sa × 2² = 4sa
-    assert.equal(denenebilir('bilyoner', uc, T0 + 2 * 3600e3), false);
-    assert.equal(denenebilir('bilyoner', uc, T0 + 4 * 3600e3), true);
+  test('ISRARLI hatada bekleme uzuyor (üstel geri çekilme)', () => {
+    const uc = { yavas: { sonDeneme: T0, ardisikHata: 3 } };   // 1sa × 2² = 4sa
+    assert.equal(denenebilir('yavas', uc, T0 + 2 * SAAT, YAVAS), false);
+    assert.equal(denenebilir('yavas', uc, T0 + 4 * SAAT, YAVAS), true);
   });
 
   test('bekleme SINIRSIZ uzamıyor — kaynak açılırsa geri dönülür', () => {
     // Üst sınır olmasaydı 20 hatadan sonra bekleme yıllara çıkar ve kaynak
     // açıldığında sistem bunu hiç fark etmezdi.
-    const cok = { bilyoner: { sonDeneme: T0, ardisikHata: 20 } };
-    assert.equal(denenebilir('bilyoner', cok, T0 + EN_UZUN_BEKLEME_MS), true);
+    const cok = { yavas: { sonDeneme: T0, ardisikHata: 20 } };
+    assert.equal(denenebilir('yavas', cok, T0 + EN_UZUN_BEKLEME_MS, YAVAS), true);
+  });
+
+  test('KARARSIZ kaynakta hatadan sonra KISA aralıkla tekrar denenir', () => {
+    // Dalgalı bir uç için üstel geri çekilme TERS çalışır: tek bir 400 yüzünden
+    // saatlerce susulur ve veri hiç gelmez. Bu kaynaklarda hata sonrası sabit
+    // kısa aralık kullanılır.
+    const uc = { dalgali: { sonDeneme: T0, ardisikHata: 3 } };
+    assert.equal(denenebilir('dalgali', uc, T0 + 5 * 60e3, DALGALI), false);
+    assert.equal(denenebilir('dalgali', uc, T0 + 10 * 60e3, DALGALI), true);
+    // Israrlı hata bu aralığı UZATMAZ — kaynak dalgalı, kapalı değil.
+    const cok = { dalgali: { sonDeneme: T0, ardisikHata: 20 } };
+    assert.equal(denenebilir('dalgali', cok, T0 + 10 * 60e3, DALGALI), true);
+  });
+
+  test('kararsız kaynak BAŞARIDAN sonra normal tempoya döner', () => {
+    const iyi = { dalgali: { sonDeneme: T0, ardisikHata: 0 } };
+    assert.equal(denenebilir('dalgali', iyi, T0 + 30 * 60e3, DALGALI), false);
+    assert.equal(denenebilir('dalgali', iyi, T0 + SAAT, DALGALI), true);
   });
 });
 
 describe('durumuGuncelle', () => {
   test('başarıda hata sayacı SIFIRLANIR', () => {
-    const d = durumuGuncelle('bilyoner', { bilyoner: { ardisikHata: 5 } }, true, T0);
-    assert.equal(d.bilyoner.ardisikHata, 0);
-    assert.equal(d.bilyoner.sonDeneme, T0);
-    assert.equal(d.bilyoner.sonBasari, T0);
+    const once = { yavas: { sonDeneme: T0 - SAAT, ardisikHata: 3 } };
+    const sonra = durumuGuncelle('yavas', once, true, T0, YAVAS);
+    assert.equal(sonra.yavas.ardisikHata, 0);
+    assert.equal(sonra.yavas.sonBasari, T0);
+    assert.equal(sonra.yavas.sonDeneme, T0);
   });
 
   test('hatada sayaç ARTAR ve son başarı korunur', () => {
-    const onceki = { bilyoner: { ardisikHata: 1, sonBasari: T0 - 5000 } };
-    const d = durumuGuncelle('bilyoner', onceki, false, T0);
-    assert.equal(d.bilyoner.ardisikHata, 2);
-    assert.equal(d.bilyoner.sonBasari, T0 - 5000, 'son başarı zamanı kaybolmamalı');
-  });
-
-  test('başka kaynakların durumu bozulmuyor', () => {
-    const d = durumuGuncelle('bilyoner', { nesine: { sonDeneme: 5 } }, true, T0);
-    assert.equal(d.nesine.sonDeneme, 5);
+    const once = { yavas: { sonDeneme: T0 - SAAT, ardisikHata: 1, sonBasari: T0 - 5 * SAAT } };
+    const sonra = durumuGuncelle('yavas', once, false, T0, YAVAS);
+    assert.equal(sonra.yavas.ardisikHata, 2);
+    assert.equal(sonra.yavas.sonBasari, T0 - 5 * SAAT);   // geçmiş başarı silinmez
   });
 
   test('boş durumla çağrılabilir', () => {
-    assert.equal(durumuGuncelle('bilyoner', null, false, T0).bilyoner.ardisikHata, 1);
+    const sonra = durumuGuncelle('yavas', undefined, true, T0, YAVAS);
+    assert.equal(sonra.yavas.ardisikHata, 0);
   });
 });
 
 describe('kalıcı durum kirliliği', () => {
-  // GERÇEK OLAY (2 Ağustos 2026): tempo durumu üretim cache'inde tutulduğu için
-  // testlerin uydurma sağlayıcıları (testprov, bozuk, saglam, p1) oraya yazıldı.
-  // Daha kötüsü: bir testin sabit tarihi (22 Temmuz), bilyoner'in GERÇEK
-  // "son başarı" değeriymiş gibi kaydedildi ve durumu yanlış gösterdi.
-  test('temposu OLMAYAN sağlayıcı kalıcı duruma YAZILMIYOR', () => {
-    const d = durumuGuncelle('testprov', {}, true, T0);
-    assert.deepEqual(d, {}, 'test sağlayıcısı üretim durumuna sızmamalı');
-  });
-
-  test('temposu olmayan kaynak mevcut durumu BOZMUYOR', () => {
-    const onceki = { bilyoner: { sonDeneme: T0, ardisikHata: 0, sonBasari: T0 } };
-    const d = durumuGuncelle('nesine', onceki, false, T0 + 5000);
-    assert.deepEqual(d, onceki, 'başka kaynakların kaydı olduğu gibi kalmalı');
+  test('TEMPOSU OLMAYAN sağlayıcı duruma HİÇ yazılmaz', () => {
+    // Testlerin uydurma sağlayıcıları (testprov, bozuk, saglam…) kalıcı cache
+    // dosyasına sızıyordu: dosya şişiyor ve bir testin sabit tarihi gerçek bir
+    // kaynağın "son başarı" değeri gibi görünüyordu.
+    const sonra = durumuGuncelle('testprov', {}, false, T0, YAVAS);
+    assert.deepEqual(sonra, {});
   });
 
   test('temposu OLAN sağlayıcı normal şekilde kaydediliyor', () => {
-    // Negatifin pozitif eşi: koruma, gerçek kaydı da engellememeli.
-    assert.equal(durumuGuncelle('bilyoner', {}, true, T0).bilyoner.sonDeneme, T0);
+    const sonra = durumuGuncelle('yavas', {}, false, T0, YAVAS);
+    assert.equal(sonra.yavas.ardisikHata, 1);
   });
 });
