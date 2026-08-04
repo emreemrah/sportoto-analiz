@@ -10,6 +10,7 @@ import { Logo } from '../ui';
 import { RecordBadges, SurpriseBadge, FormStrip } from '../components';
 import { favoriteSide } from '../favoriteTeam';
 import { useAuth } from '../auth';
+import UlkeEtiketi from './UlkeEtiketi';
 
 const MARK = { correct: '✅', wrong: '❌', pending: '⏳', none: '' };
 
@@ -65,6 +66,8 @@ export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'impor
 
   return (
     <TouchableOpacity style={s.card} activeOpacity={0.85} onPress={onPress}>
+      {/* Ülke satırı — hangi ülkenin maçı (kullanıcı isteği, 2026-08-04). */}
+      <UlkeEtiketi league={match.league} style={s.ulke} />
       <View style={s.row}>
         <Text style={s.no}>{match.no}</Text>
 
@@ -161,6 +164,7 @@ export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'impor
 
 const s = StyleSheet.create({
   card: { backgroundColor: 'rgba(255,255,255,0.86)', borderRadius: radius.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: colors.border, ...shadow.soft },
+  ulke: { marginBottom: 7 },
   row: { flexDirection: 'row', alignItems: 'center' },
   no: { color: colors.muted, fontSize: 11, fontWeight: '900', width: 16, textAlign: 'center', marginRight: 4 },
   team: { flex: 1, gap: 6, minWidth: 0 },

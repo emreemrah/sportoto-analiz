@@ -16,6 +16,7 @@ import { analyzeMatch, enrichSurprise } from './analysis/surprise.js';
 import { evaluateCriteriaSignals } from './analysis/criteriaEval.js';
 import { createExtrasCache, buildMatchStats } from './enrich.js';
 import { predict } from './analysis/prediction.js';
+import { applyRadarGuardsToBulletin } from './analysis/radarGuards.js';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -852,6 +853,13 @@ export async function refreshAll() {
   const { radarCenter, analysisCenter } = await archivePreSave(result, { previous: previousBulletin, isLocked: isLocked && sameBulletin });
   if (radarCenter) result.radarCenter = radarCenter;
   if (analysisCenter) result.analysisCenter = analysisCenter;
+
+  // RADAR KORUMALARI (1525/1526 hafta analizlerinin düzeltmesi): kupon önerisi
+  // Radar Merkezi sinyalleriyle çelişiyorsa yalnız GENİŞLETİLİR (motor çelişkisi,
+  // yüksek yatma riski, yüksek sürpriz DNA, ters radar yönü). Kilitli haftada
+  // hiçbir tahmine dokunulmaz — mühür ve karne bütünlüğü korunur.
+  const korunan = applyRadarGuardsToBulletin(result, { isLocked: isLocked && sameBulletin });
+  if (korunan) console.log(`[refresh] radar koruması ${korunan} maçın önerisini genişletti`);
 
   // ═══ GERİLEME KORUMASI — İYİ VERİYİ BOZUK VERİYLE EZME ═══
   // GERÇEK OLAY (2 Ağustos 2026): kaynak HTTP 429 (hız sınırı) döndü, 57

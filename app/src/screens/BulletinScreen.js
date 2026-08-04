@@ -17,6 +17,7 @@ import SnapshotSealBanner from '../components/SnapshotSealBanner';
 import LiveBulletinView from '../components/LiveBulletinView';
 import BultenBackdrop from '../components/BultenBackdrop';
 import BultenEmptyState from '../components/BultenEmptyState';
+import UlkeEtiketi from '../components/UlkeEtiketi';
 
 const MARK = { correct: '✅', wrong: '❌', pending: '⏳', none: '' };
 
@@ -416,6 +417,10 @@ export default function BulletinScreen({ navigation }) {
     const rec = (r, align) => (r ? <RecordBadges wins={r.w} draws={r.d} losses={r.l} played={r.p} align={align} /> : null);
     return (
       <View style={[styles.mCard, corr && styles.mCardCorr]}>
+        {/* Ülke satırı (kullanıcı isteği, 2026-08-04). Geçmiş bültende lig alanı
+            "Final" gibi tur adı olabilir — ülke çıkarılamıyorsa satır çizilmez,
+            ülke uydurulmaz (gizleTanimsiz). */}
+        <UlkeEtiketi league={item.league} gizleTanimsiz style={styles.mUlke} />
         <View style={styles.mRow}>
           <Text style={styles.mNo}>{item.no}</Text>
 
@@ -827,6 +832,7 @@ const styles = StyleSheet.create({
 
   // ——— Modern maç kartı ———
   mCard: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: colors.border, ...shadow.soft },
+  mUlke: { marginBottom: 7 },
   mCardCorr: { borderColor: colors.warning },
   mRow: { flexDirection: 'row', alignItems: 'center' },
   mNo: { color: colors.muted, fontSize: 11, fontWeight: '900', width: 16, textAlign: 'center', marginRight: 4 },

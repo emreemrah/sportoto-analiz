@@ -17,6 +17,7 @@ import { ProfileAvatar } from '../components';
 import { crestOf } from '../utils';
 import BulletinHeroVisual, { BulletinHeroBackdrop } from '../components/BulletinHeroVisual';
 import LigSeridi from '../components/LigSeridi';
+import UlkeEtiketi from '../components/UlkeEtiketi';
 import KayanSerit from '../components/KayanSerit';
 import { yaklasanMaclar, oncekiRoundId } from '../yaklasanMaclar';
 import { loadNotifications } from '../services/notificationsService';
@@ -108,6 +109,17 @@ function HeroCard({ data, loading, onPress, onSummary, onRecap }) {
   const hazir = !loading && !!data;
   const v = (n) => (hazir ? n : '–');
 
+  // Haftanın GERÇEK karakteri (kullanıcı isteği, 2026-08-04): sabit tanıtım
+  // cümlesi yerine backend'in zorluk özeti + ilk maç zamanı. Veri yoksa eski
+  // genel cümleye düşülür — uydurma yok.
+  const zorluk = data?.difficulty || null;
+  const zorlukRenk = zorluk?.level === 'Zor' ? colors.accent : zorluk?.level === 'Orta' ? colors.warning : colors.success;
+  const ilkTarih = matches.length
+    ? matches.reduce((en, m) => (m.date && (!en || m.date < en) ? m.date : en), null)
+    : null;
+  const ilkD = ilkTarih ? new Date(ilkTarih) : null;
+  const ilkOk = ilkD && !Number.isNaN(ilkD.getTime());
+
   return (
     <View style={styles.heroCard}>
       <BulletinHeroBackdrop />
@@ -115,13 +127,23 @@ function HeroCard({ data, loading, onPress, onSummary, onRecap }) {
       <View style={styles.heroWeekRow}>
         <View style={styles.heroWeekDot} />
         <Text style={styles.heroWeekText}>{data?.round || '—'}</Text>
+        {hazir && zorluk?.level ? (
+          <View style={[styles.heroZorluk, { borderColor: zorlukRenk }]}>
+            <Text style={[styles.heroZorlukTxt, { color: zorlukRenk }]}>Zorluk: {zorluk.level}</Text>
+          </View>
+        ) : null}
+        {hazir && ilkOk ? (
+          <Text style={styles.heroIlkMac}>
+            İlk maç: {ilkD.toLocaleDateString('tr-TR', { weekday: 'short' })} {matchTime(ilkTarih)}
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.heroTopRow}>
         <View style={styles.heroTextBlock}>
           <Text style={styles.heroTitle}>Bu Haftanın Bülteni</Text>
           <Text style={styles.heroDesc}>
-            Veriler hazır, analizler tamam. Haftaya dair öne çıkanlar burada.
+            {zorluk?.text || 'Veriler hazır, analizler tamam. Haftaya dair öne çıkanlar burada.'}
           </Text>
         </View>
         <BulletinHeroVisual width={128} height={92} />
@@ -144,12 +166,14 @@ function HeroCard({ data, loading, onPress, onSummary, onRecap }) {
           <View style={styles.heroDivider} />
           <View style={styles.heroStatItem}>
             <Text style={styles.heroStatValue} testID="sayac-one-cikan">{v(featured)}</Text>
-            <Text style={styles.heroStatLabel} numberOfLines={2}>{`Öne Çıkan ${ONE_CIKAN_ESIK}+`}</Text>
+            {/* Eşik sayısı (45+/65+) etiketten çıkarıldı — kafa karıştırıyordu
+                (kullanıcı geri bildirimi, 2026-08-04). Eşikler hesapta duruyor. */}
+            <Text style={styles.heroStatLabel} numberOfLines={2}>Öne Çıkan</Text>
           </View>
           <View style={styles.heroDivider} />
           <View style={styles.heroStatItem}>
             <Text style={styles.heroStatValue} testID="sayac-surpriz">{v(surprise)}</Text>
-            <Text style={styles.heroStatLabel} numberOfLines={2}>{`Sürpriz ${SURPRIZ_ESIK}+`}</Text>
+            <Text style={styles.heroStatLabel} numberOfLines={2}>Sürpriz Adayı</Text>
           </View>
           <View style={styles.heroDivider} />
           <View style={styles.heroStatItem}>
@@ -195,44 +219,87 @@ function SectionHead({ title, right, onPress }) {
 }
 
 function AnalysisCard({ match, tag, color, navigation }) {
+  // Üst düzey kart (kullanıcı isteği, 2026-08-04): takım adları logoların
+  // altında, ortada VS + saat, GERÇEK 1/X/2 ihtimal çubuğu (veri yoksa çubuk
+  // hiç çizilmez — uydurma yüzde yok), altta tam genişlik buton.
+  const probs = match.analysis?.probabilities || null;
+  const fav = match.analysis?.favorite?.symbol ? String(match.analysis.favorite.symbol).replace('0', 'X') : null;
+  const d = match.date ? new Date(match.date) : null;
+  const dOk = d && !Number.isNaN(d.getTime());
+  const segs = probs ? [
+    { k: '1', v: Number(probs['1']) || 0 },
+    { k: 'X', v: Number(probs.X ?? probs['0']) || 0 },
+    { k: '2', v: Number(probs['2']) || 0 },
+  ] : [];
   return (
     <TouchableOpacity
       style={styles.analysisCard}
       activeOpacity={0.88}
       onPress={() => navigation.navigate('MatchDetail', { no: match.no })}
     >
-      <View style={[styles.tagPill, { backgroundColor: color + '26' }]}>
-        <Text style={[styles.tagText, { color }]}>{tag}</Text>
+      <View style={styles.analysisTagRow}>
+        <View style={[styles.tagPill, { backgroundColor: color + '26' }]}>
+          <Text style={[styles.tagText, { color }]}>{tag}</Text>
+        </View>
+        {/* Hangi ülkenin maçı (kullanıcı isteği, 2026-08-04). */}
+        <UlkeEtiketi league={match.league} ligGoster={false} />
       </View>
 
       <View style={styles.analysisTeams}>
         <View style={styles.teamBlock}>
-          <Logo uri={crestOf(match, 'home')} name={match.home?.name} size={42} />
+          <Logo uri={crestOf(match, 'home')} name={match.home?.name} size={46} />
+          {/* TEK satır — ad uzunsa kısalır; kart yükseklikleri simetrik kalır. */}
+          <Text style={styles.teamName} numberOfLines={1}>{shortTeam(match.home?.name)}</Text>
         </View>
 
-        <Text style={styles.vsText}>VS</Text>
+        <View style={styles.vsBlock}>
+          <View style={styles.vsCircle}>
+            <Text style={styles.vsText}>VS</Text>
+          </View>
+          {dOk ? (
+            <Text style={styles.vsTime}>
+              {d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} · {matchTime(match.date)}
+            </Text>
+          ) : null}
+        </View>
 
         <View style={styles.teamBlock}>
-          <Logo uri={crestOf(match, 'away')} name={match.away?.name} size={42} />
+          <Logo uri={crestOf(match, 'away')} name={match.away?.name} size={46} />
+          <Text style={styles.teamName} numberOfLines={1}>{shortTeam(match.away?.name)}</Text>
         </View>
       </View>
 
-      <Text style={styles.analysisTitle} numberOfLines={1}>
-        {shortTeam(match.home?.name)} - {shortTeam(match.away?.name)}
-      </Text>
+      {/* GERÇEK ihtimaller — her seçenek kendi kutusunda, favori dolgulu.
+          (İlk sürümdeki ince çubuk "net anlaşılmıyor" bulundu, kutulara çevrildi.)
+          Veri yoksa bu bölüm hiç çizilmez — uydurma yüzde yok. */}
+      {segs.length ? (
+        <View style={styles.probRow}>
+          {segs.map((s) => {
+            const favMi = s.k === fav;
+            return (
+              <View key={s.k} style={[styles.probBox, favMi && styles.probBoxFav]}>
+                <Text style={[styles.probSym, favMi && styles.probSymFav]}>{s.k}</Text>
+                <Text style={[styles.probPct, favMi && styles.probPctFav]}>
+                  %{s.v}{match.analysis?.estimated ? '≈' : ''}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      ) : null}
 
       <Text style={styles.analysisDesc} numberOfLines={2}>
         {match.analysis?.comment || match.aiComment || 'Form ve istatistik verileri birlikte değerlendiriliyor.'}
       </Text>
 
-      <View style={styles.analysisLinkRow}>
-        <View style={styles.smallTrend}>
-          <View style={styles.smallTrendA} />
-          <View style={styles.smallTrendB} />
-        </View>
-        <Text style={styles.analysisLink}>Analiz Detayı</Text>
-        <Text style={styles.analysisChevron}>›</Text>
-      </View>
+      <TouchableOpacity
+        style={styles.analysisBtn}
+        activeOpacity={0.85}
+        onPress={() => navigation.navigate('MatchDetail', { no: match.no })}
+      >
+        <Text style={styles.analysisBtnTxt}>Analiz Detayı</Text>
+        <Text style={styles.analysisBtnArrow}>›</Text>
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 }
@@ -251,6 +318,8 @@ function SurpriseCard({ match, navigation }) {
       activeOpacity={0.86}
       onPress={() => navigation.navigate('MatchDetail', { no: match.no })}
     >
+      {/* Hangi ülkenin maçı (kullanıcı isteği, 2026-08-04). */}
+      <UlkeEtiketi league={match.league} ligGoster={false} style={styles.surpriseUlke} />
       <View style={styles.surpriseLogos}>
         <Logo uri={crestOf(match, 'home')} name={match.home?.name} size={30} />
         <Text style={styles.surpriseVs}>VS</Text>
@@ -305,7 +374,8 @@ function KickoffCard({ match, navigation }) {
         <Logo uri={crestOf(match, 'away')} name={match.away?.name} size={22} />
         <Text style={styles.kickTeam} numberOfLines={1}>{shortTeam(match.away?.name)}</Text>
       </View>
-      <Text style={styles.kickLeague} numberOfLines={1}>{match.league || ''}</Text>
+      {/* Lig adı yerine bayrak + ülke (kullanıcı isteği, 2026-08-04). */}
+      <UlkeEtiketi league={match.league} style={styles.kickUlke} />
     </TouchableOpacity>
   );
 }
@@ -658,6 +728,14 @@ const styles = StyleSheet.create({
     ...shadows.soft,
   },
 
+  analysisTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  surpriseUlke: {
+    marginBottom: 6,
+  },
   tagPill: {
     alignSelf: 'flex-start',
     borderRadius: 999,
@@ -670,23 +748,29 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
 
+  // SİMETRİ (kullanıcı isteği, 2026-08-04): yan yana iki kartın satırları
+  // hizalı kalsın diye takım bölümü SABİT yükseklikte, adlar tek satır,
+  // açıklama alanı tam iki satırlık yer kaplar.
   analysisTeams: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 12,
     marginBottom: 8,
+    height: 78,
   },
 
   teamBlock: {
-    width: 48,
+    flex: 1,
     alignItems: 'center',
+    minWidth: 0,
   },
 
   vsText: {
-    color: colors.textMuted,
-    fontSize: 12,
+    color: '#fff',
+    fontSize: 11,
     fontWeight: '900',
+    letterSpacing: 0.5,
   },
 
   analysisTitle: {
@@ -700,58 +784,106 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 12.2,
     lineHeight: 16,
-    marginTop: 7,
+    marginTop: 10,
+    marginBottom: 10,
+    height: 32, // tam 2 satır — kartlar arası hiza bozulmaz
   },
 
-  analysisLinkRow: {
+  // ÜST DÜZEY KART parçaları (2026-08-04 yenilemesi)
+  teamName: {
+    color: colors.text,
+    fontSize: 11.5,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginTop: 6,
+  },
+
+  vsBlock: {
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+  },
+
+  vsCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  vsTime: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: '800',
+  },
+
+  probRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 10,
+  },
+
+  probBox: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 6,
+  },
+
+  probBoxFav: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+
+  probSym: {
+    color: colors.textSoft,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+
+  probSymFav: {
+    color: '#fff',
+  },
+
+  probPct: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 1,
+  },
+
+  probPctFav: {
+    color: '#fff',
+  },
+
+  analysisBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 10,
     marginTop: 'auto',
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    gap: 6,
   },
 
-  smallTrend: {
-    width: 22,
-    height: 16,
-    marginRight: 8,
-    position: 'relative',
-  },
-
-  smallTrendA: {
-    position: 'absolute',
-    left: 1,
-    bottom: 2,
-    width: 13,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: colors.field,
-    transform: [{ rotate: '-35deg' }],
-  },
-
-  smallTrendB: {
-    position: 'absolute',
-    right: 0,
-    top: 4,
-    width: 13,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: colors.field,
-    transform: [{ rotate: '-35deg' }],
-  },
-
-  analysisLink: {
-    color: colors.field,
+  analysisBtnTxt: {
+    color: '#fff',
     fontSize: 12.5,
     fontWeight: '900',
-    flex: 1,
+    letterSpacing: 0.3,
   },
 
-  analysisChevron: {
-    color: colors.field,
-    fontSize: 20,
+  analysisBtnArrow: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '900',
+    marginTop: -1,
   },
 
   surpriseScroll: {
@@ -883,10 +1015,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  kickLeague: {
-    color: colors.textMuted,
-    fontSize: 10,
-    fontWeight: '700',
+  kickUlke: {
     marginTop: 8,
   },
 
@@ -918,6 +1047,23 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: '800',
     letterSpacing: 0.2,
+  },
+  heroZorluk: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginLeft: 10,
+  },
+  heroZorlukTxt: {
+    fontSize: 10.5,
+    fontWeight: '900',
+  },
+  heroIlkMac: {
+    color: '#cdd8e6',
+    fontSize: 11,
+    fontWeight: '700',
+    marginLeft: 'auto',
   },
   heroTopRow: {
     flexDirection: 'row',

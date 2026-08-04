@@ -1,62 +1,59 @@
-// ANA SAYFA LİG ŞERİDİ — bu haftanın bültenindeki liglerin logosu + adı,
+// ANA SAYFA ÜLKE ŞERİDİ — bu haftanın bültenindeki ÜLKELER: bayrak + ad,
 // soldan sağa kayan tek satır.
 // ---------------------------------------------------------------------------
-// Kayma/döngü/erişilebilirlik mekaniğinin tamamı KayanSerit'te; burada yalnız
-// "hangi ligler ve nasıl görünürler" sorusu var.
+// Eskiden lig logosu + lig adı gösteriyordu; kullanıcı isteğiyle (2026-08-04)
+// ülke bayrağı + BÜYÜK HARF ülke adına çevrildi ("Danimarka · Kulüp ·
+// Finlandiya · İsveç · Norveç · Polonya" düzeni). Ülke çıkarma mantığı saf
+// modülde: src/ulkeSeridi.js (ayrıca test edilir).
 //
-// LOGO YOKSA: uydurma URL kurulmaz. Logo alanı boşsa Logo bileşeni nötr ⚽
-// çizer. "Kulüp Maçları" bizim kendi etiketimizdir (kapsam dışı maçlar için),
-// kaynakta karşılığı yoktur ve hep nötr simgeyle görünür — bu bir hata değil.
+// BAYRAK YOKSA: uydurma URL kurulmaz. "Kulüp" (kapsam dışı maçlar) ve
+// tanınmayan ülkeler nötr ⚽ simgesiyle görünür — bu bir hata değil.
+// Bayrak görselleri flagcdn'den gelir; aynı kaynak kadro ekranında da
+// kullanılıyor (MatchDetailScreen).
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 
 import { colors, spacing, radius } from '../theme';
 import { Logo } from '../ui';
 import KayanSerit from './KayanSerit';
+import { ulkeListesi } from '../ulkeSeridi';
 
-/**
- * Bültenden TEKİL lig listesi çıkarır (bültendeki ilk görülme sırasıyla).
- * Aynı lig hem logolu hem logosuz maçta geçebilir (biri kapsam dışı kalmışsa);
- * bu durumda logolu olan kazanır — bulunan bir görseli kaybetmeyiz.
- * Saf fonksiyon: ayrıca test edilir.
- */
-export function ligListesi(matches) {
-  const gorulen = new Map();
-  for (const m of matches || []) {
-    const ad = m?.league;
-    if (!ad) continue;
-    const mevcut = gorulen.get(ad);
-    if (!mevcut) {
-      gorulen.set(ad, { name: ad, image: m.leagueImage || null });
-    } else if (!mevcut.image && m.leagueImage) {
-      mevcut.image = m.leagueImage;
-    }
-  }
-  return [...gorulen.values()];
-}
+export { ulkeListesi }; // geriye dönük içe aktarım kolaylığı
 
-function LigRozeti({ lig }) {
+function UlkeRozeti({ ulke }) {
   return (
     <View style={styles.rozet}>
-      <Logo uri={lig.image} name={lig.name} size={22} />
-      <Text style={styles.rozetAd} numberOfLines={1}>{lig.name}</Text>
+      {ulke.code ? (
+        <Image
+          source={{ uri: `https://flagcdn.com/48x36/${ulke.code}.png` }}
+          style={styles.bayrak}
+          resizeMode="cover"
+        />
+      ) : (
+        <Logo uri={null} name={ulke.name} size={20} />
+      )}
+      <Text style={styles.rozetAd} numberOfLines={1}>{ulke.name.toLocaleUpperCase('tr-TR')}</Text>
+      {/* Maç sayısı rozeti (kullanıcı isteği, 2026-08-04). */}
+      <View style={styles.sayiRozet}>
+        <Text style={styles.sayiTxt}>{ulke.count}</Text>
+      </View>
     </View>
   );
 }
 
 export default function LigSeridi({ matches }) {
-  const ligler = useMemo(() => ligListesi(matches), [matches]);
+  const ulkeler = useMemo(() => ulkeListesi(matches), [matches]);
 
-  // Lig yoksa boş bir çubuk çizilmez — bülten gelmeden şerit hiç görünmez.
-  if (!ligler.length) return null;
+  // Ülke yoksa boş bir çubuk çizilmez — bülten gelmeden şerit hiç görünmez.
+  if (!ulkeler.length) return null;
 
   return (
     <KayanSerit
       testID="lig-seridi"
       style={styles.serit}
-      accessibilityLabel={`Bu haftanın ligleri: ${ligler.map((l) => l.name).join(', ')}`}
+      accessibilityLabel={`Bu haftanın ülkeleri: ${ulkeler.map((u) => u.name).join(', ')}`}
     >
-      {ligler.map((l) => <LigRozeti key={l.name} lig={l} />)}
+      {ulkeler.map((u) => <UlkeRozeti key={u.name} ulke={u} />)}
     </KayanSerit>
   );
 }
@@ -71,14 +68,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.cardAlt,
     borderRadius: radius.md,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: colors.line ?? 'rgba(255,255,255,0.08)',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
     marginRight: 8,
+  },
+  bayrak: {
+    width: 22,
+    height: 16,
+    borderRadius: 3,
   },
   rozetAd: {
     color: colors.text,
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 12.5,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    letterSpacing: 0.6,
     marginLeft: 8,
+  },
+  sayiRozet: {
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    marginLeft: 7,
+  },
+  sayiTxt: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '900',
   },
 });
