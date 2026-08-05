@@ -12,7 +12,10 @@ import { colors, spacing, radius, labelColors } from '../theme';
 import { SurpriseBadge, FormStrip } from '../components';
 import VenueMark from '../components/VenueMark';
 import NoInternetScreen, { isNetworkError } from '../components/NoInternetScreen';
-import ScreenBackdrop from '../components/ScreenBackdrop';
+// Hareketli arka plan (ScreenBackdrop) kullanıcı isteğiyle KALDIRILDI
+// (2026-08-04): zeminde yalnız takım logosu filigranı kalır.
+import { View as DuzZemin } from 'react-native';
+import TakimLogoZemin from '../components/TakimLogoZemin';
 import { MasterMatchCard, RadarTabCard, RADAR_TAB_DEFS } from '../components/RadarCenterCards';
 import RadarTabHeader, { providerLabel, providerColor, kaynakKodu } from '../components/RadarTabHeaders';
 import { MarketRow, PublicRow } from '../components/RadarDayRows';
@@ -627,7 +630,9 @@ export default function RadarScreen({ navigation }) {
     : renderLegacyItem;
 
   return (
-    <ScreenBackdrop>
+    <DuzZemin style={{ flex: 1, backgroundColor: colors.bg }}>
+    {/* Favori takım arması zeminde soluk filigran (kullanıcı isteği). */}
+    <TakimLogoZemin />
     <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       {/* SADE BAŞLIK — yeşil saha paneli (AnalysisHeader) ve alt başlık
           kaldırıldı; geriye yalnız hangi haftaya bakıldığı kalıyor.
@@ -794,7 +799,7 @@ export default function RadarScreen({ navigation }) {
         }
       />
     </View>
-    </ScreenBackdrop>
+    </DuzZemin>
   );
 }
 

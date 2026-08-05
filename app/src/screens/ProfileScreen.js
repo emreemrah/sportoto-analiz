@@ -3,13 +3,21 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Activi
 import { uyari } from '../components/Uyari';
 import { colors, spacing, radius } from '../theme';
 import { ProfileAvatar } from '../components';
-import ScreenBackdrop from '../components/ScreenBackdrop';
+import { Logo } from '../ui';
+// Hareketli arka plan (ScreenBackdrop) kullanıcı isteğiyle KALDIRILDI
+// (2026-08-04): zeminde yalnız takım logosu filigranı kalır.
+import { View as DuzZemin } from 'react-native';
+import TakimLogoZemin from '../components/TakimLogoZemin';
 import { api } from '../api';
 import { useAuth, logout, refreshUser } from '../auth';
 import { COPYRIGHT, INDEPENDENCE_NOTICE } from '../brand';
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const OK_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+// Geliştirme derlemesi mi? (App.js:70 ile aynı okuma.) Metro yayın derlemesinde
+// `__DEV__` false'a sabitlenir, bu yüzden yayında bu kapı DAİMA kapalıdır.
+const IS_DEV_BUILD = typeof __DEV__ !== 'undefined' ? __DEV__ : false;
 
 // Kendi resmini yükle (web): tür+boyut doğrula, 256px JPEG'e küçült, sunucuya gönder.
 function ImageUploadButton({ onDone }) {
@@ -75,78 +83,18 @@ function LoggedOut({ navigation }) {
   );
 }
 
-// İlerleme bölümü: puan, seviye, başarılar, görevler — TÜMÜ sunucudan gelir;
-// istemci hiçbir puanı kendisi hesaplamaz/yazamaz.
-function ProgressSection() {
-  const [progress, setProgress] = useState(null);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    let alive = true;
-    api.progress()
-      .then((p) => { if (alive) setProgress(p); })
-      .catch(() => { /* ilerleme yüklenemezse bölüm sessizce gizlenir */ })
-      .finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
-  }, []);
-
-  if (loading) return <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} />;
-  if (!progress) return null;
-  if (progress.available === false) {
-    return <Text style={styles.progressNote}>{progress.note}</Text>;
-  }
-  const lvl = progress.level || {};
-  const earned = (progress.achievements || []).filter((a) => a.earned);
-  const tasks = progress.tasks || [];
-  const doneTasks = tasks.filter((t) => t.completedAt).length;
-  return (
-    <View style={styles.progressWrap}>
-      {/* Seviye + puan kartı */}
-      <View style={styles.levelCard}>
-        <View style={styles.levelBadge}><Text style={styles.levelBadgeTxt}>{lvl.level ?? 1}</Text></View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.levelTitle}>Seviye {lvl.level ?? 1} · {progress.points ?? 0} puan</Text>
-          <View style={styles.levelTrack}>
-            <View style={[styles.levelFill, { width: `${lvl.progressPct ?? 0}%` }]} />
-          </View>
-          <Text style={styles.levelSub}>
-            {lvl.nextAt != null ? `Sonraki seviye: ${lvl.nextAt} puan (%${lvl.progressPct ?? 0})` : 'En üst seviye'}
-          </Text>
-        </View>
-      </View>
-
-      {/* Başarılar */}
-      <Text style={styles.sectionTitle}>🏅 Başarılar ({earned.length}/{(progress.achievements || []).length})</Text>
-      <View style={styles.badgeRowLeft}>
-        {(progress.achievements || []).map((a) => (
-          <View key={a.key} style={[styles.achBadge, !a.earned && styles.achBadgeLocked]}>
-            <Text style={[styles.achBadgeTxt, !a.earned && styles.achBadgeTxtLocked]}>{a.icon} {a.title}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Görevler + genel ilerleme */}
-      <Text style={styles.sectionTitle}>📋 Görevler ({doneTasks}/{tasks.length})</Text>
-      {tasks.map((t) => (
-        <View key={t.key} style={styles.taskRow}>
-          <Text style={styles.taskIcon}>{t.completedAt ? '✅' : t.icon}</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.taskTitle, t.completedAt && styles.taskDone]}>{t.title} <Text style={styles.taskPts}>+{t.points}p</Text></Text>
-            <View style={styles.taskTrack}>
-              <View style={[styles.taskFill, { width: `${Math.min(100, Math.round((t.progress / t.target) * 100))}%` }]} />
-            </View>
-          </View>
-          <Text style={styles.taskCount}>{Math.min(t.progress, t.target)}/{t.target}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
+// (ProgressSection — puan/seviye/başarı/görev — TAMAMEN SİLİNDİ.
+//  Oyunlaştırma sistemi kullanıcı kararıyla söküldü, 2026-08-06.)
 
 export default function ProfileScreen({ navigation }) {
   const { user, token, ready } = useAuth();
   const [name, setName] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [fav, setFav] = useState(null);
+  // Takım arması (kullanıcı isteği, 2026-08-04): ad → arma eşlemesi takım
+  // kataloğundan yapılır (backend 7 gün cache'ler). Bulunamazsa nötr ⚽ kalır
+  // — başka kulübün arması ASLA konmaz (proje kuralı).
+  const [favLogo, setFavLogo] = useState(null);
   const [savingFav, setSavingFav] = useState(false);
   const [operator, setOperator] = useState(false);
 
@@ -167,6 +115,26 @@ export default function ProfileScreen({ navigation }) {
       .catch(() => { if (!iptal) setOperator(false); }); // yetki bilinmiyorsa GÖSTERME
     return () => { iptal = true; };
   }, [token]);
+
+  // Takım adı → arma (katalogdan; büyük/küçük harf duyarsız). Bulunamazsa null.
+  const favAd = user?.favorite_team || '';
+  useEffect(() => {
+    let iptal = false;
+    if (!favAd) { setFavLogo(null); return undefined; }
+    api.favoriteTeams()
+      .then((d) => {
+        if (iptal) return;
+        const kucuk = favAd.toLocaleLowerCase('tr-TR');
+        for (const lig of d?.leagues || []) {
+          const t = (lig.teams || []).find((x) => x.name.toLocaleLowerCase('tr-TR') === kucuk
+            || (x.cleanName || '').toLocaleLowerCase('tr-TR') === kucuk);
+          if (t) { setFavLogo(t.image || null); return; }
+        }
+        setFavLogo(null); // eşleşme yoksa arma konmaz — benzeri görsel yasak
+      })
+      .catch(() => { if (!iptal) setFavLogo(null); });
+    return () => { iptal = true; };
+  }, [favAd]);
 
   if (!ready) return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
   if (!token || !user) return <LoggedOut navigation={navigation} />;
@@ -191,7 +159,9 @@ export default function ProfileScreen({ navigation }) {
   };
 
   return (
-    <ScreenBackdrop>
+    <DuzZemin style={{ flex: 1, backgroundColor: colors.bg }}>
+    {/* Favori takım arması zeminde soluk filigran (kullanıcı isteği). */}
+    <TakimLogoZemin />
     <ScrollView style={[styles.container, { backgroundColor: 'transparent' }]} contentContainerStyle={{ padding: spacing.lg }}>
       <Text style={styles.title}>Profil</Text>
 
@@ -217,27 +187,26 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.stat}>🎯 {user.total_predictions ?? 0} tahmin</Text>
         </View>
 
+        {/* Takım artık YAZILMAZ, listeden SEÇİLİR (kullanıcı isteği, 2026-08-04).
+            Seçim ekranı: TeamPicker (Süper Lig, Premier League, La Liga, ...). */}
         <View style={styles.favRow}>
-          <Text style={styles.favLabel}>⚽ Takımım:</Text>
-          <TextInput style={styles.favInput} value={displayFav} onChangeText={setFav} placeholder="Desteklediğin takım" placeholderTextColor={colors.textMuted} maxLength={40} />
-          {favChanged && (
-            <TouchableOpacity style={styles.nameSave} onPress={saveFav} disabled={savingFav}>
-              <Text style={styles.nameSaveTxt}>{savingFav ? '…' : 'Kaydet'}</Text>
-            </TouchableOpacity>
-          )}
+          {/* Etiketteki ⚽ yerine de takım arması (kullanıcı isteği). Arma yoksa ⚽ kalır. */}
+          {favLogo ? <Logo uri={favLogo} name={user.favorite_team} size={18} /> : null}
+          <Text style={styles.favLabel}>{favLogo ? 'Takımım:' : '⚽ Takımım:'}</Text>
+          <TouchableOpacity style={styles.favPick} activeOpacity={0.85} onPress={() => navigation.navigate('TeamPicker')}>
+            {user.favorite_team ? <Logo uri={favLogo} name={user.favorite_team} size={20} /> : null}
+            <Text style={[styles.favPickTxt, !user.favorite_team && { color: colors.textMuted }]} numberOfLines={1}>
+              {user.favorite_team || 'Takımını seç'}
+            </Text>
+            <Text style={styles.favPickOk}>›</Text>
+          </TouchableOpacity>
         </View>
 
-        {user.badges?.length > 0 && (
-          <View style={styles.badgeRow}>
-            {user.badges.map((b) => (
-              <View key={b.key} style={styles.badge}><Text style={styles.badgeTxt}>{b.icon} {b.label}</Text></View>
-            ))}
-          </View>
-        )}
+        {/* Rozet satırı + puan/seviye/başarı/görev paneli KALDIRILDI
+            (kullanıcı kararı, 2026-08-04: "başarım, rozetler, seviye vs
+            kaldır"). Kod duruyor (ProgressSection + badgeRow stilleri),
+            yalnız çizilmiyor — istenirse tek satırla geri gelir. */}
       </View>
-
-      {/* Puan · seviye · başarılar · görevler (sunucu doğrulamalı) */}
-      <ProgressSection />
 
       <ImageUploadButton />
       <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => navigation.navigate('AvatarPicker')}>
@@ -257,9 +226,7 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.btnLeaderTxt}>🧩  Analiz Kriterlerim</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.btn, styles.btnLeader]} onPress={() => navigation.navigate('Leaderboard')}>
-        <Text style={styles.btnLeaderTxt}>🏆  Tahmin Sıralaması</Text>
-      </TouchableOpacity>
+      {/* "Tahmin Sıralaması" (puan tabanlı liderlik) oyunlaştırmayla birlikte kaldırıldı. */}
 
       {/* Güvenlik: şifre/e-posta değiştirme, güvenlik olayları, bağlı cihazlar */}
       <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => navigation.navigate('SecuritySettings')}>
@@ -286,6 +253,21 @@ export default function ProfileScreen({ navigation }) {
         </TouchableOpacity>
       )}
 
+      {/* SİSTEM KARNESİ — Master Analiz'in tekli 1/X/2 tahmininin resmî
+          karnesi. Normal kullanıcıya GÖSTERİLMEZ: uygulamadaki "Sistem"
+          sütunu kupon kapsamasıdır (çoklu tercih dahil), bu ise tekli ana
+          tahmin — ikisi aynı hafta için farklı yüzde verir.
+          KAPI: operatör YA DA geliştirme derlemesi. `operator` tek başına
+          yetmez: sunucuda operatör listesi tanımlı değilken kapı fail-closed
+          olduğu için (backend/src/moderatorGate.js) giriş hiç çizilmezdi.
+          Yayın derlemesinde `__DEV__` false olduğu için orada yalnız
+          operatör görür. */}
+      {(operator || IS_DEV_BUILD) && (
+        <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => navigation.navigate('SystemScorecard')}>
+          <Text style={styles.btnAltTxt}>📊  Sistem Karnesi (Master analiz)</Text>
+        </TouchableOpacity>
+      )}
+
       <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => navigation.navigate('About')}>
         <Text style={styles.btnAltTxt}>ℹ️  Hakkında ve Gizlilik</Text>
       </TouchableOpacity>
@@ -304,7 +286,7 @@ export default function ProfileScreen({ navigation }) {
       <Text style={styles.legalNote}>{INDEPENDENCE_NOTICE}</Text>
       <Text style={styles.copyright}>{COPYRIGHT}</Text>
     </ScrollView>
-    </ScreenBackdrop>
+    </DuzZemin>
   );
 }
 
@@ -351,7 +333,13 @@ const styles = StyleSheet.create({
   stat: { color: colors.textMuted, fontSize: 13, fontWeight: '700' },
   favRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
   favLabel: { color: colors.textMuted, fontSize: 13, fontWeight: '700' },
-  favInput: { color: colors.text, fontSize: 14, fontWeight: '700', borderBottomWidth: 1, borderBottomColor: colors.border, minWidth: 120, paddingVertical: 3, textAlign: 'center' },
+  favPick: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 7, maxWidth: 220,
+  },
+  favPickTxt: { color: colors.text, fontSize: 13.5, fontWeight: '800', flexShrink: 1 },
+  favPickOk: { color: colors.accent, fontSize: 15, fontWeight: '900' },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 7, marginTop: 14 },
   badge: { backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accent, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
   badgeTxt: { color: colors.accent, fontSize: 11.5, fontWeight: '800' },

@@ -57,15 +57,26 @@ export function couponShareFileNameOf({ roundId, weekNumber } = {}) {
   return `sportoto-kupon${hafta ? `-hafta-${hafta}` : ''}.png`;
 }
 
-export function couponShareTitleOf({ roundId } = {}) {
-  return roundId != null ? `Hafta ${roundId} kuponu` : 'Kupon';
+// HAFTA METNİ — kullanıcıya "Hafta 1527" (iç kayıt numarası) GÖSTERİLMEZ
+// (hata bildirimi, 2026-08-06). Öncelik: resmî hafta adı ("53. Hafta") →
+// hafta numarası → nötr metin. roundId yalnız son çare olarak, "Hafta" ön eki
+// OLMADAN kullanılmaz — yanıltıcı olurdu.
+function haftaMetniOf({ roundName, weekNumber } = {}) {
+  if (roundName) return String(roundName);
+  if (weekNumber != null) return `${weekNumber}. Hafta`;
+  return null;
+}
+
+export function couponShareTitleOf(p = {}) {
+  const hafta = haftaMetniOf(p);
+  return hafta ? `${hafta} kuponu` : 'Kupon';
 }
 
 // Kolon sayısı kuponun ölçüsüdür, kişisel veri değildir; bilinmiyorsa yazılmaz.
 // Marka adı ve dürüstlük bildirimi yine brand.js'ten gelir, elle yazılmaz.
-export function couponShareCaptionOf({ roundId, columnCount } = {}) {
-  const hafta = roundId != null ? `Hafta ${roundId}` : 'Haftalık kupon';
-  const kolon = columnCount > 0 ? ` · ${columnCount} kolon` : '';
+export function couponShareCaptionOf(p = {}) {
+  const hafta = haftaMetniOf(p) || 'Haftalık kupon';
+  const kolon = p.columnCount > 0 ? ` · ${p.columnCount} kolon` : '';
   return `${hafta}${kolon} — ${APP_NAME}. ${NO_GUARANTEE_NOTICE}`;
 }
 
@@ -142,8 +153,12 @@ export function tabularOff() {
 // sınırı var; aşılırsa tuval SESSİZCE boş döner — yani "kaliteli olsun" derken
 // hiç görsel çıkmayabilir. Bu yüzden ölçek, karenin gerçek ölçüsüne göre
 // kırpılır. 1'in altına asla inilmez: ekrandakinden kötü bir kare üretmeyiz.
-export const CAPTURE_MIN_SCALE = 2;
-export const CAPTURE_MAX_SCALE = 3;
+// KALİTE YÜKSELTMESİ (kullanıcı isteği, 2026-08-04): taban 2→3, tavan 3→4.
+// Normal masaüstünde (dpr 1) paylaşılan görsel artık 3x çekilir — yazılar ve
+// armalar mesaj uygulamalarında sıkıştırılınca bile net kalır. MAX_KENAR ve
+// MAX_PIKSEL bellek korumaları aynen geçerli; büyük kartlarda ölçek kendini kısar.
+export const CAPTURE_MIN_SCALE = 3;
+export const CAPTURE_MAX_SCALE = 4;
 const MAX_KENAR = 8192;      // tarayıcı tuvalinin dayandığı en büyük kenar (px)
 const MAX_PIKSEL = 24e6;     // ~24 MP — bellek üst sınırı
 

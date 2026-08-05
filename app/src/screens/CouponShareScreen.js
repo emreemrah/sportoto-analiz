@@ -104,8 +104,10 @@ export default function CouponShareScreen({ route }) {
   }
 
   const seasonTxt = season ? `${season} Sezonu` : '';
+  // İç kayıt numarası ("Hafta 1527") görsele YAZILMAZ (hata düzeltmesi,
+  // 2026-08-06) — resmî ad yoksa hafta numarası, o da yoksa boş kalır.
   const headSub = [seasonTxt, roundName].filter(Boolean).join(' · ')
-    || (roundId != null ? `Hafta ${roundId}` : '');
+    || (hist?.weekNumber != null ? `${hist.weekNumber}. Hafta` : '');
   const playedLine = coupon.playedMarkedAt
     ? 'Tahmin kilitlendi — kullanıcı beyanı, bağımsız olarak doğrulanmamıştır'
     : null;
@@ -206,11 +208,11 @@ export default function CouponShareScreen({ route }) {
         if (tabularGeri) tabularGeri();
       }
       const dosyaAdi = couponShareFileNameOf({ roundId, weekNumber: hist?.weekNumber });
-      const yazi = couponShareCaptionOf({ roundId, columnCount: v.columnCount });
+      const yazi = couponShareCaptionOf({ roundName, weekNumber: hist?.weekNumber, columnCount: v.columnCount });
       if (web) {
         setDone(shareDoneTextOf(await sharePngOnWeb(goruntu, dosyaAdi, yazi)));
       } else if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(goruntu, { mimeType: SHARE_MIME, dialogTitle: couponShareTitleOf({ roundId }) });
+        await Sharing.shareAsync(goruntu, { mimeType: SHARE_MIME, dialogTitle: couponShareTitleOf({ roundName, weekNumber: hist?.weekNumber }) });
         setDone(shareDoneTextOf('shared'));
       } else {
         // Görsel paylaşımı açılamıyorsa kuponun METNİ yine gider; özellik
@@ -274,6 +276,10 @@ export default function CouponShareScreen({ route }) {
         <Text style={[st.sonuc, fontOf(600, f), { fontSize: t.kucuk }]} testID="kupon-paylas-mesaj">{done}</Text>
       ) : null}
 
+      {/* Hızlı paylaş (WhatsApp/Telegram metin düğmeleri) eklendi ve aynı gün
+          kullanıcı isteğiyle kaldırıldı (2026-08-06) — ana paylaşım düğmesi
+          görselle birlikte tüm uygulamalara zaten ulaşıyor. */}
+
       <Not
         k={k}
         text={'Görselde hesap bilgisi, e-posta veya kişisel veri BULUNMAZ — yalnız sezon/hafta, seçimler ve kolon bilgisi. '
@@ -287,6 +293,9 @@ export default function CouponShareScreen({ route }) {
 const st = StyleSheet.create({
   root: { flex: 1, backgroundColor: S.bg },
   body: { padding: SP.lg, paddingBottom: SP.xl * 2, alignItems: 'center', gap: SP.md },
+  hizliSatir: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
+  hizliBtn: { borderWidth: 1, borderColor: S.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
+  hizliTxt: { color: S.text },
 
   // Kare: tablonun etrafına yalnız iki şerit — üstte marka + hafta, altta yaş
   // ve dürüstlük bildirimi. Zemin stüdyonun zemini ki kare ekranla aynı çıksın.

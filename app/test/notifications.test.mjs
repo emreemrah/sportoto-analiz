@@ -80,16 +80,11 @@ test('pencere dışındaki ve başlamış maçlar bildirilmez', () => {
   assert.equal(items.filter((i) => i.kind === 'match-starting').length, 0);
 });
 
-test('puan bildirimi YALNIZ sunucu toplamı artınca çıkar', () => {
-  const yok = buildNotifications({ now: NOW, progress: { points: 120 }, state: { lastPoints: 120 } });
-  assert.equal(yok.items.length, 0, 'değişmediyse bildirim yok');
-
-  const dus = buildNotifications({ now: NOW, progress: { points: 100 }, state: { lastPoints: 120 } });
-  assert.equal(dus.items.length, 0, 'azaldıysa bildirim yok');
-
+test('puan/başarı bildirimi ARTIK HİÇ üretilmez — oyunlaştırma söküldü (2026-08-06)', () => {
+  // Eski sistem puan artışında ve yeni başarıda bildirim üretirdi; kullanıcı
+  // rozet sistemini TAMAMEN kaldırttı. progress verilse bile bildirim çıkmaz.
   const art = buildNotifications({ now: NOW, progress: { points: 145 }, state: { lastPoints: 120 } });
-  assert.equal(art.items.length, 1);
-  assert.equal(art.items[0].title, '+25 puan kazandın');
+  assert.equal(art.items.length, 0, 'puan bildirimi geri gelmiş — sistem söküktü');
 });
 
 test('ilk açılışta (önceki durum yok) puan/başarı yağmuru olmaz', () => {
@@ -102,19 +97,16 @@ test('ilk açılışta (önceki durum yok) puan/başarı yağmuru olmaz', () => 
   assert.deepEqual(durum.lastAchievements, ['a1']);
 });
 
-test('yeni başarı bildirilir, eskisi tekrar bildirilmez', () => {
+test('başarı bildirimi ARTIK HİÇ üretilmez — oyunlaştırma söküldü (2026-08-06)', () => {
   const progress = {
     points: 100,
     achievements: [
       { key: 'a1', title: 'İlk kupon', icon: '🎫', earned: true },
       { key: 'a2', title: 'Beş hafta üst üste', icon: '🔥', earned: true },
-      { key: 'a3', title: 'Kilitli', earned: false },
     ],
   };
   const { items } = buildNotifications({ now: NOW, progress, state: { lastPoints: 100, lastAchievements: ['a1'] } });
-  assert.equal(items.length, 1);
-  assert.match(items[0].body, /Beş hafta üst üste/);
-  assert.equal(items[0].icon, '🔥');
+  assert.equal(items.length, 0, 'başarı bildirimi geri gelmiş — sistem söküktü');
 });
 
 test('bülten "round" alanı METİN olduğunda hafta adı doğru okunur (gerçek API biçimi)', () => {
@@ -176,7 +168,7 @@ test('hiçbir bildirimde iddialı dil yok', () => {
     coupons: kupon(11, [1]),
     state: { lastPoints: 100, lastAchievements: [], knownRoundIds: ['10'] },
   });
-  assert.ok(items.length >= 4, 'tüm türler üretilmeli');
+  assert.ok(items.length >= 2, 'kalan türler (maç/sonuç/hafta) üretilmeli — puan/başarı türleri söküldü');
   const metin = items.map((i) => `${i.title} ${i.body}`).join(' ');
   for (const kotu of [/kesin/i, /garanti/i, /banko/i, /yanılmaz/i, /net favori/i]) {
     assert.ok(!kotu.test(metin), `iddialı dil bulundu: ${kotu}`);

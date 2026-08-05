@@ -38,11 +38,12 @@ async function safe(p) {
 export async function loadNotifications({ now = Date.now() } = {}) {
   const state = readState();
 
-  const [bulletin, roundsRes, progress] = await Promise.all([
+  // (api.progress kaldırıldı — oyunlaştırma söküldü, 2026-08-06)
+  const [bulletin, roundsRes] = await Promise.all([
     safe(api.bulletin()),
     safe(api.rounds()),
-    safe(api.progress()),
   ]);
+  const progress = null;
 
   // Kapanan hafta: hafta listesindeki güncel haftadan bir öncesi.
   let history = null;

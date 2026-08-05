@@ -155,42 +155,12 @@ export function buildNotifications({ now = 0, bulletin = null, history = null, c
     }
   }
 
-  // 4) PUAN — YALNIZ sunucudaki toplam artmışsa. Fark istemcide hesaplanır
-  //    ama kaynak sunucudur; istemci puan üretmez.
-  const puan = Number.isFinite(progress?.points) ? progress.points : null;
-  const oncekiPuan = Number.isFinite(state?.lastPoints) ? state.lastPoints : null;
-  if (puan != null && oncekiPuan != null && puan > oncekiPuan) {
-    ekle({
-      id: `points:${puan}`,
-      kind: 'points',
-      icon: '⭐',
-      title: `+${puan - oncekiPuan} puan kazandın`,
-      body: `Toplam puanın ${puan}. Ayrıntı için profiline bak.`,
-      at: now,
-      target: { tab: 'ProfileTab', screen: 'Profile' },
-    });
-  }
-
-  // 5) BAŞARI — sunucunun "earned" işaretlediği ve daha önce görülmeyenler.
-  const kazanilan = (progress?.achievements || []).filter((a) => a && a.earned && a.key);
-  const eskiBasari = new Set(Array.isArray(state?.lastAchievements) ? state.lastAchievements : []);
-  if (eskiBasari.size || oncekiPuan != null) {
-    for (const a of kazanilan) {
-      if (eskiBasari.has(a.key)) continue;
-      ekle({
-        id: `achv:${a.key}`,
-        kind: 'achievement',
-        icon: a.icon || '🏅',
-        title: 'Yeni başarı',
-        body: `${a.title || a.key} açıldı.`,
-        at: now,
-        target: { tab: 'ProfileTab', screen: 'Profile' },
-      });
-    }
-  }
+  // 4-5) PUAN ve BAŞARI bildirimleri KALDIRILDI (oyunlaştırma söküldü,
+  //      kullanıcı kararı 2026-08-06). progress parametresi geriye uyum için
+  //      kabul edilir ama artık hiçbir bildirim üretmez.
 
   // En yeni üstte; eşitlikte kararlı sıra (tür önceliği).
-  const oncelik = { 'match-starting': 0, 'result-official': 1, 'new-round': 2, achievement: 3, points: 4 };
+  const oncelik = { 'match-starting': 0, 'result-official': 1, 'new-round': 2 };
   items.sort((a, b) => (b.at - a.at) || ((oncelik[a.kind] ?? 9) - (oncelik[b.kind] ?? 9)));
 
   const seenAt = Number.isFinite(state?.seenAt) ? state.seenAt : 0;

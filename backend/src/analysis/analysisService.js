@@ -217,8 +217,10 @@ export async function buildCriterionScorecard({ store = getArchiveStore(), upToR
   };
 
   const criteria = [...rows.values()].map((row) => {
+    const last1 = windowOf(row.recent, 1);   // son hafta (kullanıcı isteği, 2026-08-06)
     const last5 = windowOf(row.recent, 5);
     const last10 = windowOf(row.recent, 10);
+    const last15 = windowOf(row.recent, 15); // son 15 hafta (kullanıcı isteği)
     const last25 = windowOf(row.recent, 25);
     const accuracy = rate(row.hits, row.signals);
     const shrunk = row.signals ? shrunkRate(row.hits, row.signals) : null;
@@ -242,7 +244,7 @@ export async function buildCriterionScorecard({ store = getArchiveStore(), upToR
       byDirection: { '1': dir('1'), X: dir('X'), '2': dir('2') },
       byOpponentTier: Object.fromEntries(Object.entries(row.byOpponentTier).map(([k, v]) => [k, { ...v, rate: rate(v.hits, v.total) }])),
       byLeague: Object.entries(row.byLeague).map(([league, v]) => ({ league, ...v, rate: rate(v.hits, v.total) })).sort((x, y) => y.total - x.total).slice(0, 8),
-      windows: { last5, last10, last25, allTime: { hits: row.hits, total: row.signals, rate: accuracy } },
+      windows: { last1, last5, last10, last15, last25, allTime: { hits: row.hits, total: row.signals, rate: accuracy } },
       trend,
       methodologyVersion: ANALYSIS_METHODOLOGY_VERSION,
     };

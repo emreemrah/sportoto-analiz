@@ -18,6 +18,7 @@ import { crestOf } from '../utils';
 import BulletinHeroVisual, { BulletinHeroBackdrop } from '../components/BulletinHeroVisual';
 import LigSeridi from '../components/LigSeridi';
 import UlkeEtiketi from '../components/UlkeEtiketi';
+import TakimLogoZemin from '../components/TakimLogoZemin';
 import KayanSerit from '../components/KayanSerit';
 import { yaklasanMaclar, oncekiRoundId } from '../yaklasanMaclar';
 import { loadNotifications } from '../services/notificationsService';
@@ -480,8 +481,12 @@ export default function HomeScreen({ navigation }) {
   );
 
   return (
+    // Favori takım arması zeminde soluk filigran olarak durur (kullanıcı
+    // isteği). Takım yoksa/arma bulunamazsa hiçbir şey çizilmez.
+    <View style={styles.kokSarmal}>
+    <TakimLogoZemin />
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: 'transparent' }]}
       contentContainerStyle={{ paddingBottom: spacing.xl + 12 }}
       refreshControl={
         <RefreshControl
@@ -589,10 +594,15 @@ export default function HomeScreen({ navigation }) {
         </>
       )}
     </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  kokSarmal: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.bg,

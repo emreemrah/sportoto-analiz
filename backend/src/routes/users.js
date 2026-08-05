@@ -9,29 +9,14 @@ import { sbAdmin, supabaseEnabled, getProfile, getProfiles } from '../supabase.j
 import { uyelikKapisi } from '../security/supabaseGuard.js';
 import { requireAuth } from '../mw.js';
 import { zatenVarMi, gecersizHedefMi } from '../moderation.js';
-import { evaluateProgress, settleRoundAccuracy, totalPoints, gamificationEnabled } from '../gamification/service.js';
-import { levelFromPoints } from '../gamification/catalog.js';
+// OYUNLAŞTIRMA TAMAMEN KALDIRILDI (kullanıcı kararı, 2026-08-06): puan,
+// seviye, rozet ve /me/progress ucu söküldü. Profil yalnız gerçek sayaçları
+// (yorum/beğeni/tahmin) döndürür.
 import { countCoupons } from '../couponStore.js';
 import { getRoundsForNav, getBulletinByRoundId } from '../sources/sportoto.js';
 
 const router = Router();
 router.use(uyelikKapisi(supabaseEnabled));
-
-// Resmî sonuçları açıklanmış son haftaların isabet puanlarını tembelce yazar.
-// settleRoundAccuracy kendi içinde 10 dk kısıtlıdır ve tamamen idempotenttir.
-async function lazySettle() {
-  try {
-    const nav = await getRoundsForNav();
-    // Güncel hafta + ondan önceki hafta (sonuçları yeni açıklanmış olabilir).
-    const list = nav?.rounds || [];
-    const idx = list.findIndex((r) => r.id === nav?.currentRoundId);
-    const ids = [nav?.currentRoundId, idx > 0 ? list[idx - 1]?.id : null].filter(Boolean);
-    for (const roundId of ids) {
-      const b = await getBulletinByRoundId(roundId).catch(() => null);
-      if (b?.matches?.length) await settleRoundAccuracy(sbAdmin, { roundId, matches: b.matches });
-    }
-  } catch { /* puanlama fırsatçıdır; profil görüntülemeyi asla engellemez */ }
-}
 
 // Kendi profilim (+ sayaçlar)
 router.get('/me', requireAuth, async (req, res) => {
@@ -55,59 +40,14 @@ router.get('/me', requireAuth, async (req, res) => {
     sbAdmin.from('community_poll_votes').select('id', { count: 'exact', head: true }).eq('user_id', uid),
   ]);
   const totalPredictions = (c1.count || 0) + (c2.count || 0) + (c3.count || 0) + (c4.count || 0);
-  const badges = [];
-  if ((totalComments || 0) >= 1) badges.push({ key: 'first_comment', label: 'İlk Yorum', icon: '💬' });
-  if ((totalComments || 0) >= 10) badges.push({ key: 'commenter', label: 'Yorumcu', icon: '🗣️' });
-  if (totalPredictions >= 1) badges.push({ key: 'predictor', label: 'Tahminci', icon: '🎯' });
-  if (totalPredictions >= 10) badges.push({ key: 'analyst', label: 'Analist', icon: '📊' });
-  if ((c3.count || 0) >= 1) badges.push({ key: 'tactician', label: 'Taktikçi', icon: '📋' });
-  if (totalLikes >= 10) badges.push({ key: 'loved', label: 'Beğenilen', icon: '❤️' });
-
-  // Puan + seviye (defterden; migration 006 yoksa 0/1 döner — dürüst düşüş).
-  const points = await totalPoints(sbAdmin, uid);
-  const level = levelFromPoints(points);
-
   res.json({
     ...profile,
     email: req.user.email,
     email_verified: !!req.user.email_confirmed_at,
-    points,
-    level: level.level,
-    level_progress_pct: level.progressPct,
     total_comments: totalComments || 0,
     total_likes_received: totalLikes,
     total_predictions: totalPredictions,
-    badges,
   });
-});
-
-// ---------------------------------------------------------------------------
-// İLERLEME — puan, seviye, başarılar, görevler. TÜM doğrulama sunucudadır:
-//   • istemciden puan/başarı YAZDIRAN hiçbir uç yoktur;
-//   • isabet puanları yalnız resmî sonuçla (lazySettle → settleRoundAccuracy);
-//   • mükerrer ödül veritabanı kısıtıyla imkânsızdır;
-//   • kullanıcı yalnız KENDİ ilerlemesini görür (req.user.id — beyandan değil).
-// ---------------------------------------------------------------------------
-router.get('/me/progress', requireAuth, async (req, res) => {
-  const profile = await getProfile(req.user.id);
-  if (!profile) return res.status(404).json({ error: 'Profil bulunamadı.' });
-  await lazySettle();
-  let couponCount = 0;
-  try {
-    couponCount = await countCoupons(req.user.id);
-  } catch { /* kupon deposu okunamazsa görev ilerlemesi 0 görünür */ }
-  const progress = await evaluateProgress(sbAdmin, { userId: req.user.id, profile, couponCount });
-  if (!progress) {
-    return res.json({
-      available: false,
-      note: 'İlerleme sistemi için veritabanı migration 006 gerekli. Uygulanınca puan, başarı ve görevler burada görünecek.',
-      points: 0,
-      level: levelFromPoints(0),
-      achievements: [],
-      tasks: [],
-    });
-  }
-  res.json({ available: gamificationEnabled(), ...progress });
 });
 
 // Profil güncelle: username / hazır avatar / varsayılan

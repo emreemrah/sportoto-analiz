@@ -15,9 +15,12 @@ import { API_BASE } from '../config';
 import ScoreLegend from '../components/ScoreLegend';
 import SnapshotSealBanner from '../components/SnapshotSealBanner';
 import LiveBulletinView from '../components/LiveBulletinView';
-import BultenBackdrop from '../components/BultenBackdrop';
+// Hareketli arka plan (BultenBackdrop) kullanıcı isteğiyle KALDIRILDI
+// (2026-08-04): zeminde yalnız takım logosu filigranı kalır.
+import { View as DuzZemin } from 'react-native';
 import BultenEmptyState from '../components/BultenEmptyState';
 import UlkeEtiketi from '../components/UlkeEtiketi';
+import TakimLogoZemin from '../components/TakimLogoZemin';
 
 const MARK = { correct: '✅', wrong: '❌', pending: '⏳', none: '' };
 
@@ -706,7 +709,9 @@ export default function BulletinScreen({ navigation }) {
   }
 
   return (
-    <BultenBackdrop>
+    <DuzZemin style={{ flex: 1, backgroundColor: colors.bg }}>
+    {/* Favori takım arması zeminde soluk filigran (kullanıcı isteği). */}
+    <TakimLogoZemin />
     <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       {Header}
       {body}
@@ -746,7 +751,7 @@ export default function BulletinScreen({ navigation }) {
 
       {toast && <View style={styles.toast}><Text style={styles.toastTxt}>{toast}</Text></View>}
     </View>
-    </BultenBackdrop>
+    </DuzZemin>
   );
 }
 

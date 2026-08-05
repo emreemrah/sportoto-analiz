@@ -6,7 +6,7 @@
 //   "resmî başarıdan ayrılmıştır" notu vardır. Karneler sıfırdan başlar.
 // * Resmî veri yoksa dürüst boş durum gösterilir — sahte yüzde üretilmez.
 import React, { useState, useCallback } from 'react';
-import { ScrollView, View, Text, StyleSheet } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api';
 import { colors, spacing, radius, shadow } from '../theme';
@@ -38,7 +38,8 @@ export default function SystemScorecardScreen({ navigation }) {
   const [cal, setCal] = useState(null);        // kalibrasyon (olasılık kalitesi)
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [section, setSection] = useState('official');
+  const [section, setSection] = useState('ozet'); // sade özet varsayılan (2026-08-06)
+  const [critDonem, setCritDonem] = useState('allTime'); // kriter dönem penceresi
 
   const load = useCallback(async () => {
     try {
@@ -79,6 +80,64 @@ export default function SystemScorecardScreen({ navigation }) {
       />
 
       <FilterBar options={SECTIONS} value={section} onChange={setSection} />
+
+      {/* 0) ÖZET — sıradan kullanıcı için sade Türkçe (2026-08-06). Sayılar
+          birebir resmî karneden gelir; burada YENİ hesap yapılmaz. */}
+      {section === 'ozet' && (official ? (() => {
+        const sonHafta = (sc.weeks || []).filter((w) => w.status !== 'pending').slice(-1)[0] || null;
+        const yanlislar = (sc.errors || []).slice(0, 6);
+        return (
+          <>
+            <View style={styles.card}>
+              <Text style={styles.ozetBuyuk}>
+                Sistem şimdiye kadar <Text style={styles.ozetVurgu}>{head.total}</Text> tahminin{' '}
+                <Text style={[styles.ozetVurgu, { color: colors.success }]}>{head.correct}</Text>'ini bildi
+                {' '}(<Text style={styles.ozetVurgu}>%{head.accuracy}</Text>).
+              </Text>
+              {sonHafta ? (
+                <Text style={styles.ozetSatir}>
+                  Son hafta ({sonHafta.round || `#${sonHafta.roundId}`}): {weekRecordLabel(sonHafta)} doğru · %{sonHafta.accuracy}
+                </Text>
+              ) : null}
+              <Text style={styles.ozetAciklama}>
+                Buradaki her tahmin maç başlamadan önce kilitlenip mühürlenir —
+                sonradan değiştirilemez. Sonuçlar yalnız resmî Spor Toto
+                verisiyle karşılaştırılır. Yani bu sayılar şişirilemez; sistemin
+                gerçek, kanıtlı isabetidir.
+              </Text>
+            </View>
+
+            {yanlislar.length ? (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Sistemin bilemedikleri (son {yanlislar.length})</Text>
+                {yanlislar.map((e) => (
+                  <Text key={`${e.roundId}-${e.no}`} style={styles.ozetSatir}>
+                    {e.home} - {e.away}: sistem <Text style={styles.errSys}>{String(e.system).replace('0', 'X')}</Text> dedi,
+                    {' '}maç <Text style={styles.errRes}>{e.result}</Text> bitti{e.score ? ` (${e.score})` : ''}.
+                  </Text>
+                ))}
+                <Text style={styles.ozetAciklama}>
+                  Yanlışları saklamıyoruz — dürüst ölçümün gereği bu.
+                </Text>
+              </View>
+            ) : null}
+
+            <Text style={styles.honestNote}>
+              Daha fazla ayrıntı isteyen için üstteki sekmeler var: hafta hafta
+              dökümler, 1/X/2 kırılımı ve teknik ölçümler. Geçmiş ölçümdür,
+              gelecek sonuç vaadi değildir.
+            </Text>
+          </>
+        );
+      })() : (
+        <DashboardEmpty
+          icon="🔏"
+          title={OFFICIAL_EMPTY_TITLE}
+          message={OFFICIAL_EMPTY_MESSAGE}
+          actionLabel="Bültenleri Gör"
+          onAction={() => navigation.navigate('BulletinTab')}
+        />
+      ))}
 
       {/* 1) RESMÎ KARNE */}
       {section === 'official' && (official ? (
@@ -136,9 +195,9 @@ export default function SystemScorecardScreen({ navigation }) {
       {section === 'byResult' && (official ? (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Resmî sonuca göre tekli isabet</Text>
-          <MetricBar label={`1 · Ev sahibi (n=${sc.byResult['1'].t})`} value={sc.byResult['1'].rate} color={colors.primary} />
-          <MetricBar label={`X · Beraberlik (n=${sc.byResult.X.t})`} value={sc.byResult.X.rate} color={colors.gray} />
-          <MetricBar label={`2 · Deplasman (n=${sc.byResult['2'].t})`} value={sc.byResult['2'].rate} color={colors.warning} />
+          <MetricBar label={`1 · Ev sahibi (${sc.byResult['1'].t} maç)`} value={sc.byResult['1'].rate} color={colors.primary} />
+          <MetricBar label={`X · Beraberlik (${sc.byResult.X.t} maç)`} value={sc.byResult.X.rate} color={colors.gray} />
+          <MetricBar label={`2 · Deplasman (${sc.byResult['2'].t} maç)`} value={sc.byResult['2'].rate} color={colors.warning} />
           {sc.errors?.length ? (
             <>
               <Text style={[styles.cardTitle, { marginTop: 10 }]}>Sistemin yanlışları ({sc.errors.length})</Text>
@@ -158,9 +217,9 @@ export default function SystemScorecardScreen({ navigation }) {
           <DashboardSection title="Kapsama Başarısı" sub="Mühürlü kupon tercihlerinin (tek/çift/üçlü) resmî sonucu kapsama oranı." />
           {sc?.coverage?.hasData ? (
             <View style={styles.card}>
-              <MetricBar label={`Genel kapsama (n=${sc.coverage.total})`} value={sc.coverage.rate} suffix="%" />
-              <MetricBar label={`Tekli tercihler (n=${sc.coverage.single.total})`} value={sc.coverage.single.rate} color={colors.primary} />
-              <MetricBar label={`Çoklu tercihler 1X/X2/12/1X2 (n=${sc.coverage.multi.total})`} value={sc.coverage.multi.rate} color={colors.warning} />
+              <MetricBar label={`Genel kapsama (${sc.coverage.total} maç)`} value={sc.coverage.rate} suffix="%" />
+              <MetricBar label={`Tekli tercihler (${sc.coverage.single.total} maç)`} value={sc.coverage.single.rate} color={colors.primary} />
+              <MetricBar label={`Çoklu tercihler 1X/X2/12/1X2 (${sc.coverage.multi.total} maç)`} value={sc.coverage.multi.rate} color={colors.warning} />
             </View>
           ) : <EmptyLine text="Resmî kapsama verisi yok." />}
           <Text style={styles.warnNote}>{COVERAGE_NOTE}</Text>
@@ -171,10 +230,10 @@ export default function SystemScorecardScreen({ navigation }) {
       {section === 'radar' && (radar?.hasData ? (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Resmî Radar Karnesi (mühürlü ileri-test)</Text>
-          <MetricBar label={`Ana tahmin (n=${radar.master.allTime.mainAccuracy.total})`} value={radar.master.allTime.mainAccuracy.rate ?? 0} suffix="%" />
-          <MetricBar label={`Güçlü aday (n=${radar.master.allTime.strongCandidate.total})`} value={radar.master.allTime.strongCandidate.rate ?? 0} color={colors.success} />
-          <MetricBar label={`Sürpriz yakalama (n=${radar.master.allTime.surpriseCandidate.total})`} value={radar.master.allTime.surpriseCandidate.catchRate ?? 0} color={colors.danger} />
-          <MetricBar label={`Kesin sürpriz yönü (n=${radar.master.allTime.surpriseCandidate.total})`} value={radar.master.allTime.surpriseCandidate.exactRate ?? 0} color={colors.warning} />
+          <MetricBar label={`Ana tahmin (${radar.master.allTime.mainAccuracy.total} maç)`} value={radar.master.allTime.mainAccuracy.rate ?? 0} suffix="%" />
+          <MetricBar label={`Güçlü aday (${radar.master.allTime.strongCandidate.total} maç)`} value={radar.master.allTime.strongCandidate.rate ?? 0} color={colors.success} />
+          <MetricBar label={`Sürpriz yakalama (${radar.master.allTime.surpriseCandidate.total} maç)`} value={radar.master.allTime.surpriseCandidate.catchRate ?? 0} color={colors.danger} />
+          <MetricBar label={`Kesin sürpriz yönü (${radar.master.allTime.surpriseCandidate.total} maç)`} value={radar.master.allTime.surpriseCandidate.exactRate ?? 0} color={colors.warning} />
           <Row k="Hafta / hariç tutulan" v={`${radar.includedCount ?? radar.roundsCounted} / ${radar.excludedCount ?? 0}`} />
           <Row k="Metodoloji" v={(radar.methodologyVersions || []).join(', ') || '—'} last />
           {radar.note ? <Text style={styles.honestNote}>{radar.note}</Text> : null}
@@ -186,13 +245,57 @@ export default function SystemScorecardScreen({ navigation }) {
       {/* 6) KRİTER KARNESİ (resmî) */}
       {section === 'criteria' && (crit?.hasData ? (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Resmî Kriter Karnesi (mühürlü değerlendirme × resmî sonuç)</Text>
-          {crit.criteria.filter((c) => !c.informational && c.signals > 0).slice(0, 12).map((c) => (
-            <View key={c.key} style={styles.critRow}>
-              <Text style={styles.critName} numberOfLines={1}>{c.label}</Text>
-              <Text style={styles.critVal}>%{c.accuracy ?? 0} · n={c.signals}{c.sample?.usable ? '' : ' · az örnek'}</Text>
-            </View>
-          ))}
+          <Text style={styles.cardTitle}>Kriter Başarıları</Text>
+          {/* DÖNEM SEÇİCİ (kullanıcı isteği, 2026-08-06): Genel / Son Hafta /
+              Son 5 / Son 10 / Son 15. Pencereler backend'den mühürlü veriyle
+              gelir; arşiv büyüdükçe kendiliğinden dolar. */}
+          <View style={styles.donemSatir}>
+            {[['allTime', 'Genel'], ['last1', 'Son Hafta'], ['last5', 'Son 5'], ['last10', 'Son 10'], ['last15', 'Son 15']].map(([kk, etiket]) => (
+              <TouchableOpacity
+                key={kk}
+                style={[styles.donemBtn, critDonem === kk && styles.donemBtnAcik]}
+                onPress={() => setCritDonem(kk)}
+              >
+                <Text style={[styles.donemTxt, critDonem === kk && styles.donemTxtAcik]}>{etiket}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {/* DÖNEM UYARISI: arşivde pencereden az hafta varsa dönemler aynı
+              veriyi gösterir — kullanıcı bunu "bozuk" sanmasın (2026-08-06). */}
+          {Number(crit.includedCount) > 0 && Number(crit.includedCount) < 5 ? (
+            <Text style={styles.ozetAciklama}>
+              ℹ️ Arşivde şu an {crit.includedCount} resmî hafta var — bu yüzden
+              tüm dönemler aynı sayıları gösterir. Haftalar mühürlenip
+              sonuçlandıkça Son 5/10/15 pencereleri kendiliğinden ayrışacak.
+            </Text>
+          ) : null}
+          {/* TÜM kriterler (kullanıcı isteği): sinyal üretmeyenler de listede,
+              dürüstçe "sinyal yok" der — gizlenmez, oran uydurulmaz. */}
+          {[...crit.criteria]
+            .filter((c) => !c.informational)
+            .sort((a, b) => (b.windows?.[critDonem]?.total || 0) - (a.windows?.[critDonem]?.total || 0))
+            .map((c) => {
+              const w = c.windows?.[critDonem] || { rate: null, hits: 0, total: 0 };
+              return (
+                <View key={c.key} style={styles.critRow}>
+                  <Text style={styles.critName} numberOfLines={1}>{c.label}</Text>
+                  {/* "1008 maçta 809 başarı" biçimi (kullanıcı isteği, 2026-08-06):
+                      yüzdenin yanında ham sayılar da görünür — n tek başına
+                      soyut kalıyordu. */}
+                  <Text style={[styles.critVal, w.rate == null && { color: colors.textMuted }]}>
+                    {w.rate != null
+                      ? `${w.total} maçta ${w.hits} başarı · %${w.rate}`
+                      : (c.noData >= c.evaluated ? 'veri yok' : 'sinyal yok')}
+                  </Text>
+                </View>
+              );
+            })}
+          <Text style={styles.honestNote}>
+            "X maçta Y başarı" = kriterin yön gösterdiği maç sayısı ve doğru
+            çıkan yön sayısı. Az maçta yüzde yanıltıcı olabilir — sayılarla
+            birlikte okunmalı. "Sinyal yok": kriter o dönemde yön göstermedi;
+            "veri yok": kaynak veri hiç yoktu.
+          </Text>
           {crit.note ? <Text style={styles.honestNote}>{crit.note}</Text> : null}
         </View>
       ) : (
@@ -242,7 +345,7 @@ export default function SystemScorecardScreen({ navigation }) {
             if (!t) return null;
             return (
               <View style={styles.calNotice}>
-                <Text style={styles.calNoticeTitle}>{t.title} · n={t.n}</Text>
+                <Text style={styles.calNoticeTitle}>{t.title} · {t.n} maç</Text>
                 <Text style={styles.calNoticeBody}>{t.body}</Text>
               </View>
             );
@@ -253,7 +356,7 @@ export default function SystemScorecardScreen({ navigation }) {
           {scoreRows(cal).map((r) => (
             <View key={r.ad} style={styles.critRow}>
               <Text style={styles.critName} numberOfLines={1}>{r.ad}{r.not ? ` · ${r.not}` : ''}</Text>
-              <Text style={styles.critVal}>log-loss {r.logLoss ?? '—'} · Brier {r.brier ?? '—'}{r.n ? ` · n=${r.n}` : ''}</Text>
+              <Text style={styles.critVal}>log-loss {r.logLoss ?? '—'} · Brier {r.brier ?? '—'}{r.n ? ` · ${r.n}` : ''}</Text>
             </View>
           ))}
 
@@ -322,6 +425,11 @@ const styles = StyleSheet.create({
   rowK: { color: colors.textMuted, fontSize: 12, fontWeight: '700', flexShrink: 0 },
   rowV: { flex: 1, color: colors.text, fontSize: 12, fontWeight: '800', textAlign: 'right' },
   honestNote: { color: colors.textMuted, fontSize: 10.5, fontWeight: '600', marginTop: 8, lineHeight: 15 },
+  // Özet sekmesi (sade dil, 2026-08-06)
+  ozetBuyuk: { color: colors.text, fontSize: 17, fontWeight: '800', lineHeight: 24 },
+  ozetVurgu: { fontWeight: '900' },
+  ozetSatir: { color: colors.textSoft, fontSize: 13, fontWeight: '600', marginTop: 8, lineHeight: 18 },
+  ozetAciklama: { color: colors.textMuted, fontSize: 12, lineHeight: 17, marginTop: 10 },
   warnNote: { color: colors.warning, fontSize: 11, fontWeight: '800', marginTop: 8, lineHeight: 15 },
   emptyTxt: { color: colors.textMuted, fontSize: 12.5, fontWeight: '700', lineHeight: 18 },
 
@@ -339,6 +447,11 @@ const styles = StyleSheet.create({
   errSys: { color: colors.danger, fontWeight: '900' },
   errRes: { color: colors.success, fontWeight: '900' },
 
+  donemSatir: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8, marginBottom: 10 },
+  donemBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: colors.surfaceSoft },
+  donemBtnAcik: { backgroundColor: colors.primary, borderColor: colors.primary },
+  donemTxt: { color: colors.textSoft, fontSize: 11.5, fontWeight: '800' },
+  donemTxtAcik: { color: '#fff' },
   critRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border },
   critName: { flex: 1, color: colors.text, fontSize: 12.5, fontWeight: '700' },
   critVal: { color: colors.textSoft, fontSize: 12, fontWeight: '900' },

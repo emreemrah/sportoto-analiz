@@ -27,6 +27,7 @@ import {
 import { OUTCOMES, columnCount, costOf, validPricing, COUPON_MAX_COLUMNS, lockAtOf, lockMapOf } from '../couponConfig';
 import { getCoupon, finalVersion, createCoupon, addVersion, renameCoupon, getDraft, clearDraft } from '../coupon/store';
 import { buildSmartCoupon, diffSelections, proposalFrom, signalsOf } from '../coupon/smart';
+import { getActiveProfile, countOn } from '../analysisProfile';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 // Backend etiketi ('BANKO' gibi) EKRANA HAM BASILMAZ; sözlükten geçirilir.
@@ -42,6 +43,8 @@ export default function CouponEditorScreen({ route, navigation }) {
   const [name, setName] = useState('');
   const [openNo, setOpenNo] = useState(null);       // detay açık maç
   const [importState, setImportState] = useState(null); // { title, changes, proposed, notes }
+  const [kriterSecim, setKriterSecim] = useState(false); // tekli/geniş seçim penceresi
+  const [kriterYukleniyor, setKriterYukleniyor] = useState(false);
   const [smartOpen, setSmartOpen] = useState(false);
   const [budgetTxt, setBudgetTxt] = useState('');
   const [target, setTarget] = useState(13);
@@ -150,6 +153,66 @@ export default function CouponEditorScreen({ route, navigation }) {
     setImportState(null);
   };
 
+  // ——— KRİTER: kullanıcının SEÇTİĞİ kriterlerle hesap (tekli / geniş). ———
+  const kriterAktar = async (genis) => {
+    setKriterSecim(false);
+    const profil = getActiveProfile();
+    if (!profil || !countOn(profil)) {
+      uyari.alert('Kriter seti yok', 'Önce "Analiz Kriterlerim" ekranından kriterlerini seç — kriter aktarımı senin setinle hesaplanır, uydurulmaz.');
+      return;
+    }
+    setKriterYukleniyor(true);
+    try {
+      const calc = await api.analysisCalcBulletin(data.roundId, { profile: profil });
+      const proposed = {};
+      for (const cm of calc?.matches || []) {
+        const master = cm.master || {};
+        // Tekli: ana tahmin. Geniş: kapalı tahmin (varsa) yoksa ana+alternatif.
+        let semboller = [];
+        if (genis) {
+          if (master.closedPrediction) semboller = String(master.closedPrediction).split('');
+          else semboller = [master.mainPrediction, master.alternativePrediction].filter(Boolean);
+        } else if (master.mainPrediction) {
+          semboller = [master.mainPrediction];
+        }
+        const arr = OUTCOMES.filter((o) => semboller.map((s) => (s === '0' ? 'X' : s)).includes(o));
+        if (arr.length && !lockedNos.has(Number(cm.no))) proposed[cm.no] = arr;
+      }
+      if (!Object.keys(proposed).length) {
+        uyari.alert('Veri yok', 'Kriter setinle hesaplanan tahmin bulunamadı.');
+        return;
+      }
+      const changes = diffSelections(picks, proposed);
+      if (!changes.length) { uyari.alert('Fark yok', 'Kriter önerisi, mevcut seçimlerinle zaten aynı.'); return; }
+      setImportState({
+        title: genis ? 'Kriter analizinden aktar (geniş)' : 'Kriter analizinden aktar (tekli)',
+        changes, proposed,
+      });
+    } catch (e) {
+      uyari.alert('Hesaplanamadı', e.message);
+    } finally {
+      setKriterYukleniyor(false);
+    }
+  };
+
+  // ——— SEÇİMİM: elle seçim — kilitli olmayan tüm seçimleri temizler. ———
+  const secimimTemizle = () => {
+    const doluAcik = Object.keys(picks).filter((no) => !lockedNos.has(Number(no)));
+    if (!doluAcik.length) { uyari.alert('Zaten boş', 'Seçimler boş — maç satırlarından 1/X/2 işaretleyerek kendi kuponunu kur.'); return; }
+    uyari.alert(
+      'Kendi seçimini yap',
+      `${doluAcik.length} maçın seçimi temizlenecek (kilitli maçlara dokunulmaz). Sonra 1/X/2 kutularından kendin işaretlersin.`,
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'Temizle',
+          style: 'destructive',
+          onPress: () => setPicks((p) => Object.fromEntries(Object.entries(p).filter(([no]) => lockedNos.has(Number(no))))),
+        },
+      ],
+    );
+  };
+
   // ——— AKILLI KUPON ———
   const runSmart = () => {
     let budgetColumns = COUPON_MAX_COLUMNS;
@@ -176,7 +239,24 @@ export default function CouponEditorScreen({ route, navigation }) {
   const save = () => {
     if (allLocked) { uyari.alert('Kilitli', 'Tüm maçlar başladı — bu hafta kupon kaydedilemez/değiştirilemez.'); return; }
     if (!complete) { uyari.alert('Eksik seçim', `${openMatches.filter((m) => !(picks[m.no] || []).length).length} açık maçta seçim yok — başlamamış maçların hepsi işaretlenmeli.`); return; }
-    if (overLimit) { uyari.alert('Kolon sınırı', `Kolon sayısı ${cols} — resmi sınır ${COUPON_MAX_COLUMNS}. Seçimleri daralt.`); return; }
+    // KOLON SINIRI ARTIK KAYDI ENGELLEMEZ (kullanıcı kararı, 2026-08-04):
+    // resmî sınırın (2500) üstünde de kayıt yapılır; kullanıcı yalnız açıkça
+    // UYARILIR ve kararı kendisi verir. Uyarı metni sınırı söylemeye devam
+    // eder — bilgi saklanmaz.
+    if (overLimit) {
+      uyari.alert(
+        'Kolon sınırı aşılıyor',
+        `Kolon sayısı ${cols} — resmî oyun sınırı ${COUPON_MAX_COLUMNS}. Bu kupon kaydedilir ama bu genişlikte resmî oyunda oynanamaz. Yine de kaydedilsin mi?`,
+        [
+          { text: 'Vazgeç', style: 'cancel' },
+          { text: 'Yine de Kaydet', onPress: () => saveOnaydan() },
+        ],
+      );
+      return;
+    }
+    saveOnaydan();
+  };
+  const saveOnaydan = () => {
     const doSave = () => {
       setSaving(true);
       const versionData = { selections: matches.map((m) => ({ no: m.no, selectedOutcomes: picks[m.no] || [] })) };
@@ -320,16 +400,22 @@ export default function CouponEditorScreen({ route, navigation }) {
 
       {!allLocked ? (
         <View style={st.footer}>
-          <Dugme k={k} text="⚙ Sistemden" onPress={() => startImport('system')} style={{ flex: 1 }} />
-          <Dugme k={k} text="📡 Radardan" onPress={() => startImport('radar')} style={{ flex: 1 }} />
-          <Dugme k={k} text="🧠 Akıllı" onPress={() => { setSmartPreview(null); setSmartOpen(true); }} style={{ flex: 1 }} />
+          {/* AKTARIM SEÇENEKLERİ YENİLENDİ (kullanıcı kararı, 2026-08-04):
+              "Sistemden/Radardan/Akıllı" yerine üç seçenek:
+              • Sistem  → bülten maç kartındaki tahminler (m.prediction)
+              • Kriter  → kullanıcının SEÇTİĞİ kriterlerle hesap (tekli/geniş)
+              • Seçimim → elle seçim: otomatik dolguları temizler
+              Akıllı Kupon kodu ve testleri duruyor; yalnız düğmesi kaldırıldı. */}
+          <Dugme k={k} text="⚙ Sistem" onPress={() => startImport('system')} style={{ flex: 1 }} />
+          <Dugme k={k} text="🎛 Kriter" onPress={() => setKriterSecim(true)} style={{ flex: 1 }} />
+          <Dugme k={k} text="✍️ Seçimim" onPress={secimimTemizle} style={{ flex: 1 }} />
           <Dugme
             k={k}
             ana
             text={saving ? '…' : 'Kaydet'}
             onPress={save}
             disabled={saving}
-            style={[{ flex: 1 }, (!complete || overLimit) && { opacity: 0.5 }]}
+            style={[{ flex: 1 }, !complete && { opacity: 0.5 }]}
           />
         </View>
       ) : null}
@@ -355,7 +441,32 @@ export default function CouponEditorScreen({ route, navigation }) {
         </View>
       </Modal>
 
-      {/* AKILLI KUPON — bütçe + hedef → önizleme + açıklama → onay */}
+      {/* KRİTER AKTARIMI — tekli mi geniş mi? Karar kullanıcının. */}
+      <Modal visible={kriterSecim} transparent animationType="fade" onRequestClose={() => setKriterSecim(false)}>
+        <View style={st.modalBg}>
+          <View style={st.modal}>
+            <Text style={st.mTitle}>🎛 Kriter Analizinden Aktar</Text>
+            <Text style={st.mSub}>
+              Senin seçtiğin kriterlerle hesaplanır ("Analiz Kriterlerim").
+              Tekli: her maça tek işaret. Geniş: gerekli görülen maçlarda
+              alternatifli (çifte) işaret — kolon sayısı artar.
+            </Text>
+            <View style={st.mBtns}>
+              <TouchableOpacity style={st.mCancel} onPress={() => kriterAktar(false)} disabled={kriterYukleniyor}>
+                <Text style={st.mCancelTxt}>Tekli</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={st.mOk} onPress={() => kriterAktar(true)} disabled={kriterYukleniyor}>
+                <Text style={st.mOkTxt}>Geniş</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity onPress={() => setKriterSecim(false)}>
+              <Text style={[st.mCancelTxt, { textAlign: 'center', marginTop: 10 }]}>Vazgeç</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* AKILLI KUPON — düğmesi kaldırıldı (2026-08-04); kod ve testler duruyor. */}
       <Modal visible={smartOpen} transparent animationType="fade" onRequestClose={() => setSmartOpen(false)}>
         <View style={st.modalBg}>
           <View style={st.modal}>

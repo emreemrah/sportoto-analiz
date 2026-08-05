@@ -159,8 +159,8 @@ export const api = {
 
   // profil + ilerleme (puan/seviye/başarı/görev — TÜMÜ sunucu doğrulamalı)
   me: () => req('/api/users/me'),
-  progress: () => req('/api/users/me/progress'),
   updateProfile: (b) => req('/api/users/me', { method: 'PATCH', body: b }),
+  favoriteTeams: () => req('/api/favorite-teams'),
   uploadAvatar: (dataUrl) => req('/api/users/me/avatar', { method: 'POST', body: { dataUrl } }),
 
   // HESAP SİLME — gerçek ve kalıcı silme (pasife alma değildir).
@@ -214,6 +214,5 @@ export const api = {
   getPoll: (matchId) => req(`/api/predictions/poll?matchId=${encodeURIComponent(matchId)}`),
   savePoll: (b) => req('/api/predictions/poll', { method: 'POST', body: b }),
   community: (matchId) => req(`/api/predictions/community?matchId=${encodeURIComponent(matchId)}`),
-  leaderboard: (roundId) => req(`/api/predictions/leaderboard${roundId ? `?roundId=${roundId}` : ''}`),
   msSummary: (matchIds) => req(`/api/predictions/ms-summary?matchIds=${matchIds.map(encodeURIComponent).join(',')}`),
 };

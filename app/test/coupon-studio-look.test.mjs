@@ -256,21 +256,28 @@ test('kupon dosya adı: hafta yazılır, kupon kimliği YAZILMAZ', () => {
   assert.equal(couponShareFileNameOf({ roundId: '../../gizli' }), 'sportoto-kupon-hafta-gizli.png');
 });
 
-test('kupon paylaşım başlığı hafta bilinmiyorsa sayı uydurmaz', () => {
-  assert.equal(couponShareTitleOf({ roundId: 1526 }), 'Hafta 1526 kuponu');
+test('kupon paylaşım başlığı: resmî hafta adı > hafta no; iç kayıt no ASLA yazılmaz', () => {
+  // HATA DÜZELTMESİ (2026-08-06): "Hafta 1527" diye iç kayıt numarası
+  // gösteriliyordu; kullanıcı bunu hafta sanıp hatalı buldu. Artık resmî ad
+  // ("53. Hafta") ya da hafta numarası yazılır; roundId hiçbir başlığa girmez.
+  assert.equal(couponShareTitleOf({ roundName: '53. Hafta' }), '53. Hafta kuponu');
+  assert.equal(couponShareTitleOf({ weekNumber: 53 }), '53. Hafta kuponu');
+  assert.equal(couponShareTitleOf({ roundId: 1526 }), 'Kupon'); // iç no gösterilmez
   assert.equal(couponShareTitleOf({}), 'Kupon');
   assert.equal(couponShareTitleOf(), 'Kupon');
 });
 
 test('kupon altyazısı: marka ve dürüstlük bildirimi TEK KAYNAKTAN', () => {
-  const y = couponShareCaptionOf({ roundId: 1526, columnCount: 24 });
-  assert.match(y, /Hafta 1526/);
+  const y = couponShareCaptionOf({ roundName: '53. Hafta', columnCount: 24 });
+  assert.match(y, /53\. Hafta/);
   assert.match(y, /24 kolon/);
   assert.ok(y.includes(APP_NAME), 'marka adı altyazıda yok');
   assert.ok(y.endsWith(NO_GUARANTEE_NOTICE), 'dürüstlük bildirimi altyazının sonunda değil');
+  // İç kayıt numarası altyazıya SIZMAZ.
+  assert.ok(!couponShareCaptionOf({ roundId: 1526, columnCount: 24 }).includes('1526'));
   // Kolon bilinmiyorsa sıfır yazılmaz.
-  assert.ok(!couponShareCaptionOf({ roundId: 1526 }).includes('kolon'));
-  assert.ok(!couponShareCaptionOf({ roundId: 1526, columnCount: 0 }).includes('kolon'));
+  assert.ok(!couponShareCaptionOf({ roundName: '53. Hafta' }).includes('kolon'));
+  assert.ok(!couponShareCaptionOf({ roundName: '53. Hafta', columnCount: 0 }).includes('kolon'));
   // Hafta yoksa da bildirim düşmez.
   assert.ok(couponShareCaptionOf().endsWith(NO_GUARANTEE_NOTICE));
 });

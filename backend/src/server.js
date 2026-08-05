@@ -36,8 +36,8 @@ import { sarmala, hataKatmani, surecAginiKur } from './security/asyncGuard.js';
 import { securityHeaders } from './security/headers.js';
 import { buildCorsOptions } from './security/corsPolicy.js';
 import { yorumEklemeLimiti, kuponYazmaLimiti, avatarLimiti, backtestLimiti } from './security/limits.js';
-import { syncCatalog } from './gamification/service.js';
 import { acilistaMigrationCalistir, migrationDurumu } from './migrate/index.js';
+import { favoriTakimKatalogu } from './favoriteTeams.js';
 
 // Bülten maç listesi belleği — gerekçe ve ölçüm: yanitBellegi.js
 const maclarBellegi = yanitBellegi(5000);
@@ -639,6 +639,17 @@ function yalnizIcErisim(req, res, next) {
   next();
 }
 
+// FAVORİ TAKIM KATALOĞU — profildeki "Takımım" seçim ekranı için lig → takım
+// listesi (kullanıcı isteği, 2026-08-04). 7 gün cache'li; mantık favoriteTeams.js.
+app.get('/api/favorite-teams', async (req, res) => {
+  try {
+    res.json(await favoriTakimKatalogu());
+  } catch (e) {
+    console.warn('[favorite-teams] hata:', e.message);
+    res.status(500).json({ error: 'Takım listesi alınamadı.' });
+  }
+});
+
 // Elle yenileme (geliştirme için). Kimliksiz bırakılamaz: dış API
 // kotamız (FootyStats/API-Football) üçüncü kişilerce tüketilebilirdi.
 app.post('/api/refresh', yalnizIcErisim, async (req, res) => {
@@ -798,6 +809,6 @@ app.listen(config.port, async () => {
 
   // BAŞARI/GÖREV KATALOĞU: kod → veritabanı eşitlemesi (idempotent upsert).
   // Migration 006 uygulanmadıysa kendini kapatır ve tek uyarı basar.
-  if (supabaseEnabled) syncCatalog(sbAdmin);
+  // (oyunlaştırma kataloğu senkronu kaldırıldı — sistem söküldü, 2026-08-06)
 
 });

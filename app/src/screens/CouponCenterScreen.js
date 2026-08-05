@@ -28,8 +28,9 @@ import {
   getWeekCoupons, finalVersion, setRanked, deleteCoupon, copyCoupon,
   syncFromServer, getSyncState, retrySync, subscribeCoupons, markPlayed,
 } from '../coupon/store';
-import { evalCoupon, normResult } from '../couponEval';
+import { evalCoupon, normResult, buildShareText } from '../couponEval';
 import LoadingState from '../components/LoadingState';
+import TakimLogoZemin from '../components/TakimLogoZemin';
 
 const fmtTL = (n) => `${String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} TL`;
 const fmtDT = (iso) => {
@@ -125,6 +126,35 @@ export default function CouponCenterScreen({ navigation }) {
     return 'Sonuçlandı';
   };
 
+  // KOPYALA = PANOYA METİN (kullanıcı kararı, 2026-08-04): maç listesi +
+  // seçimler yazı olarak panoya gider. Eski "kuponu çoğalt" işlevi "Çoğalt"
+  // adıyla duruyor — iki iş birbirine karışmaz.
+  const doCopyText = async (c) => {
+    const teamsByNo = Object.fromEntries(bulletinMatches.map((m) => [m.no, {
+      home: m.home?.mediumName || m.home?.name || `Ev ${m.no}`,
+      away: m.away?.mediumName || m.away?.name || `Dep ${m.no}`,
+    }]));
+    const metin = buildShareText({
+      coupon: c, roundName: selMeta?.name, season: selMeta?.year ? `${selMeta.year} Sezonu` : null,
+      teamsByNo: Object.keys(teamsByNo).length ? teamsByNo : null, cost: null,
+    });
+    if (!metin) { uyari.alert('Kopyalanamadı', 'Kuponun seçimleri okunamadı.'); return; }
+    let ok = false;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(metin); ok = true;
+      } else {
+        // Telefonda RN'in panosu varsa kullanılır; yoksa dürüstçe söylenir.
+        // eslint-disable-next-line global-require
+        const rn = require('react-native');
+        if (rn?.Clipboard?.setString) { rn.Clipboard.setString(metin); ok = true; }
+      }
+    } catch { ok = false; }
+    uyari.alert(ok ? 'Panoya kopyalandı' : 'Kopyalanamadı',
+      ok ? 'Maç listesi ve seçimlerin yazı olarak panoda — istediğin yere yapıştır.'
+        : 'Bu cihazda panoya erişilemedi; Paylaş düğmesini kullanabilirsin.');
+  };
+
   const doCopy = (c) => {
     const r = copyCoupon(c.id, bulletinMatches.length ? { lockMap } : {});
     if (r.error === 'locked') uyari.alert('Kilitli', 'Kilitli haftada kupon kopyalanamaz (yeni kupon açılamaz).');
@@ -214,6 +244,8 @@ export default function CouponCenterScreen({ navigation }) {
 
   return (
     <View style={st.root}>
+      {/* Favori takım arması zeminde soluk filigran (kullanıcı isteği). */}
+      <TakimLogoZemin />
       {/* ————— ÜST ŞERİT: hafta gezinmesi ————— */}
       <View style={st.header}>
         <Text style={[st.sayfaBaslik, fontOf(700, f), { fontSize: t.baslik }]} numberOfLines={1}>
@@ -347,7 +379,9 @@ export default function CouponCenterScreen({ navigation }) {
                   {/* işlemler */}
                   <View style={st.dugmeSatir}>
                     {canEdit ? <Dugme k={k} text="Düzenle" onPress={() => navigation.navigate('CouponEditor', { roundId: selectedId, couponId: c.id })} /> : null}
-                    {canEdit ? <Dugme k={k} text="Kopyala" onPress={() => doCopy(c)} /> : null}
+                    {/* "Çoğalt" (kuponu kopyalayıp yeni kupon açma) kullanıcı
+                        isteğiyle kaldırıldı (2026-08-06); doCopy kodu duruyor. */}
+                    <Dugme k={k} text="Kopyala" onPress={() => doCopyText(c)} testID={`kupon-kopyala-metin-${c.id}`} />
                     {canEdit && !c.isRankedCoupon ? <Dugme k={k} text="Dereceli Yap" onPress={() => doRanked(c)} /> : null}
                     {resultMap.size > 0 ? <Dugme k={k} ana text="Sonuç" onPress={() => navigation.navigate('CouponResult', { roundId: selectedId, couponId: c.id, roundName: selMeta?.name, season: selMeta?.year })} /> : null}
                     <Dugme k={k} text="Paylaş" onPress={() => navigation.navigate('CouponShare', { couponId: c.id, roundId: selectedId, roundName: selMeta?.name, season: selMeta?.year })} />

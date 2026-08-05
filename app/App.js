@@ -17,7 +17,7 @@ import LiveMatchDetailScreen from './src/screens/LiveMatchDetailScreen';
 import ForumScreen from './src/screens/ForumScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import AvatarPickerScreen from './src/screens/AvatarPickerScreen';
-import LeaderboardScreen from './src/screens/LeaderboardScreen';
+import TeamPickerScreen from './src/screens/TeamPickerScreen';
 import { LoginScreen, RegisterScreen, ForgotPasswordScreen } from './src/screens/AuthScreens';
 import BulletinHistoryScreen from './src/screens/BulletinHistoryScreen';
 import BulletinDetailScreen from './src/screens/BulletinDetailScreen';
@@ -171,7 +171,6 @@ function HomeStack() {
       {/* Topluluk (eski "Stadyum" sekmesi) — alt menüden kaldırıldı, Ana Sayfa
           "Toplulukta Gündem" bölümünden erişilir. */}
       <Stack.Screen name="Forum" component={ForumScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ headerShown: false }} />
       {analysisSettingsScreen}
     </Stack.Navigator>
   );
@@ -200,7 +199,8 @@ function AnalizStack() {
     <Stack.Navigator screenOptions={header}>
       <Stack.Screen name="Analiz" component={RadarScreen} options={{ headerShown: false }} />
       {detailScreen}
-      <Stack.Screen name="SystemScorecard" component={SystemScorecardScreen} options={{ title: 'Sistem Karnesi' }} />
+      {/* SİSTEM KARNESİ buradan ÇIKARILDI — 36d5ae0'da Radar başlığı sadeleşti
+          ve ekran erişilemez kaldı. Artık yönetici tarafında: ProfileStack. */}
       {/* GELİŞTİRİCİ EKRANI — yalnız geliştirmede kayıtlıdır. Yayın (release)
           derlemesinde demo/örnek veri içeren hiçbir ekran gezinmeye açılmaz. */}
       {IS_DEV_BUILD ? (
@@ -232,9 +232,9 @@ function ProfileStack() {
     <Stack.Navigator screenOptions={header}>
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
       <Stack.Screen name="AvatarPicker" component={AvatarPickerScreen} options={{ title: 'Hazır Avatar Seç' }} />
+      <Stack.Screen name="TeamPicker" component={TeamPickerScreen} options={{ title: 'Takımını Seç' }} />
       <Stack.Screen name="UserDashboard" component={UserDashboardScreen} options={{ title: 'Başarı Panelim' }} />
       {analysisSettingsScreen}
-      <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Giriş Yap' }} />
       <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Kayıt Ol' }} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: 'Şifremi Unuttum' }} />
@@ -252,6 +252,15 @@ function ProfileStack() {
           Ekranı kayıttan çıkarmak bir güvenlik önlemi OLMAZDI; uçlar zaten
           kapalı, ekran ise yalnız bir görüntüleyicidir. */}
       <Stack.Screen name="Moderation" component={ModerationScreen} options={{ title: 'İnceleme' }} />
+      {/* SİSTEM KARNESİ — Master Analiz'in MÜHÜRLÜ TEKLİ 1/X/2 tahmininin resmî
+          sonuçla karnesi. 36d5ae0 Radar başlığından kaldırırken "yönetici
+          tarafına bağlanacak" demişti; karşılığı burasıdır. Kullanıcıya
+          gösterilmez: ekrandaki "Sistem" sütunu kupon KAPSAMA yüzdesidir
+          (çoklu tercih dahil), bu karne ise tekli ana tahmindir — iki ayrı
+          ölçü, yan yana konursa çelişkili görünür. Giriş ProfileScreen'de
+          yetkiye bağlıdır; kayıt her derlemede yapılır (uçlar zaten açık,
+          ekran yalnız görüntüleyici — bkz. yukarıdaki İnceleme notu). */}
+      <Stack.Screen name="SystemScorecard" component={SystemScorecardScreen} options={{ title: 'Sistem Karnesi' }} />
       {/* YASAL EKRANLAR — Google Play zorunluluğu: hesap silme yolu uygulama
           içinden de erişilebilir olmalıdır. */}
       <Stack.Screen name="About" component={AboutScreen} options={{ title: 'Hakkında' }} />

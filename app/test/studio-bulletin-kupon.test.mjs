@@ -134,17 +134,22 @@ test('kolon notu BİLGİ olarak durur: sınırın altında sessiz, üstünde iki
   );
 });
 
-test('SINIR GERÇEK KUPON AKIŞINDA DURUYOR — stüdyodan kalkması oraya sıçramadı', () => {
-  // Bu, yayıncının isteğinin KAPSAMINI koruyan bekçidir: oynanacak kuponda
-  // 2.500 resmî oyun kuralıdır ve orada kaldırılmadı.
+test('SINIR ARTIK KAYDI ENGELLEMEZ AMA UYARIR — kullanıcı kararı (2026-08-04)', () => {
+  // KURAL DEĞİŞİKLİĞİ TARİHÇESİ:
+  // • Önce sınır her yerdeydi; yayıncı isteğiyle STÜDYODAN kaldırıldı.
+  // • 2026-08-04: kullanıcı kararıyla GERÇEK kupon düzenleyicide de kayıt
+  //   ENGELİ kalktı — ölçüm ve AÇIK UYARI duruyor, karar kullanıcının.
+  // Bu bekçi yeni sözleşmeyi korur: sınır ölçülür + uyarılır + kayıt yapılır.
   const duzenleyici = kodu(oku('src', 'screens', 'CouponEditorScreen.js'));
   assert.match(duzenleyici, /const overLimit = cols > COUPON_MAX_COLUMNS/, 'kupon düzenleyicide sınır ölçümü kalkmış');
-  assert.match(duzenleyici, /if \(overLimit\)[\s\S]{0,160}return;/, 'kupon düzenleyicide sınır kapısı kalkmış');
+  assert.match(duzenleyici, /Kolon sınırı aşılıyor/, 'sınır aşımı uyarısı kalkmış — kullanıcı bilgilendirilmeli');
+  assert.match(duzenleyici, /Yine de Kaydet/, 'sınır üstünde kayıt seçeneği yok — engel geri gelmiş olabilir');
+  assert.doesNotMatch(duzenleyici, /Seçimleri daralt/, 'eski engel dili geri gelmiş');
 
   const akilli = kodu(oku('src', 'coupon', 'smart.js'));
-  assert.match(akilli, /Math\.min\(COUPON_MAX_COLUMNS/, 'akıllı kuponda sınır tavanı kalkmış');
+  assert.match(akilli, /Math\.min\(COUPON_MAX_COLUMNS/, 'akıllı kuponda sınır tavanı kalkmış (o hâlâ sınır içinde üretir)');
 
-  // Sabitin kendisi de yerinde durmalı.
+  // Sabitin kendisi yerinde durmalı — uyarı metni bu sayıyı söylüyor.
   assert.equal(COUPON_MAX_COLUMNS, 2500);
 });
 

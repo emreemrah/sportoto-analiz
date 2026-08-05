@@ -93,10 +93,10 @@ test('istemci tarafında sağlayıcı adı geçmez (marka gizliliği)', () => {
 
 /* ————————————————— 2) ÇÖZÜNÜRLÜK ————————————————— */
 
-test('kare en az 2× çizilir — 1× görsel yumuşak çıkıyordu', () => {
+test('kare en az MIN ölçekte çizilir — düşük ölçek yumuşak çıkıyordu (2026-08-04: taban 3, tavan 4)', () => {
   assert.equal(captureScaleOf({ dpr: 1, width: 1200, height: 800 }), CAPTURE_MIN_SCALE);
-  // Ekran yoğunluğu zaten yüksekse ondan aşağı düşülmez.
-  assert.equal(captureScaleOf({ dpr: 3, width: 1200, height: 800 }), CAPTURE_MAX_SCALE);
+  // Ekran yoğunluğu taban ile tavan arasındaysa yoğunluk kullanılır.
+  assert.equal(captureScaleOf({ dpr: 3.5, width: 1200, height: 800 }), 3.5);
   // Üst sınır aşılmaz (bellek).
   assert.equal(captureScaleOf({ dpr: 8, width: 800, height: 600 }), CAPTURE_MAX_SCALE);
 });

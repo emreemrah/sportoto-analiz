@@ -7,8 +7,9 @@ import { sbAdmin, supabaseEnabled, getProfiles } from '../supabase.js';
 import { uyelikKapisi } from '../security/supabaseGuard.js';
 import { requireAuth, optionalAuth } from '../mw.js';
 import { getBulletinByRoundId, getRoundsForNav } from '../sources/sportoto.js';
-import { awardParticipation, settleRoundAccuracy } from '../gamification/service.js';
-import { levelFromPoints } from '../gamification/catalog.js';
+// OYUNLAŞTIRMA TAMAMEN KALDIRILDI (kullanıcı kararı, 2026-08-06): puan/rozet
+// yazımı, seviye ve liderlik tablosu bu dosyadan söküldü. Tahmin kayıtları
+// (skor/oyuncu/kadro/anket) aynen çalışır — yalnız puan üretmezler.
 // SUNUCU TARAFI TAHMİN KİLİDİ — maç başladıktan sonra tahmin/puan girilemez.
 import { tahminKapisiVeYanitla } from '../security/tahminKapisi.js';
 
@@ -36,7 +37,6 @@ router.post('/score', requireAuth, async (req, res) => {
   const { error } = await sbAdmin.from('score_predictions').upsert(row, { onConflict: 'match_id,user_id' });
   if (error) return safeError(res, error, 'Tahminler şu an okunamadı.');
   // Katılım puanı — maç başına BİR KEZ (unique kısıt mükerrer ödülü engeller).
-  awardParticipation(sbAdmin, req.user.id, 'lock_score', String(matchId));
   res.json({ ok: true });
 });
 
@@ -57,7 +57,6 @@ router.post('/player', requireAuth, async (req, res) => {
   };
   const { error } = await sbAdmin.from('player_votes').upsert(row, { onConflict: 'match_id,user_id' });
   if (error) return safeError(res, error, 'Tahminler şu an okunamadı.');
-  awardParticipation(sbAdmin, req.user.id, 'player_vote', String(matchId));
   res.json({ ok: true });
 });
 
@@ -80,7 +79,6 @@ router.post('/lineup', requireAuth, async (req, res) => {
   };
   const { error } = await sbAdmin.from('lineup_predictions').upsert(row, { onConflict: 'match_id,user_id,team_id' });
   if (error) return safeError(res, error, 'Tahminler şu an okunamadı.');
-  awardParticipation(sbAdmin, req.user.id, 'lineup', `${matchId}:${teamId}`);
   res.json({ ok: true });
 });
 
@@ -113,7 +111,6 @@ router.post('/poll', requireAuth, async (req, res) => {
   };
   const { error } = await sbAdmin.from('community_poll_votes').upsert(row, { onConflict: 'match_id,user_id,poll_key' });
   if (error) return safeError(res, error, 'Tahminler şu an okunamadı.');
-  awardParticipation(sbAdmin, req.user.id, 'poll_vote', `${matchId}:${pollKey}`);
   res.json({ ok: true });
 });
 
@@ -165,63 +162,6 @@ router.get('/ms-summary', async (req, res) => {
 });
 
 // ---- Puanlama / Lider Tablosu (hafta bazlı) ----
-function gradeScore(pred, real) {
-  if (!real || !real.score) return 0;
-  if (pred.ft_home === real.score.home && pred.ft_away === real.score.away) return 5; // tam skor
-  const outcome = pred.ft_home > pred.ft_away ? '1' : pred.ft_home < pred.ft_away ? '2' : 'X';
-  return real.result && outcome === real.result ? 2 : 0; // doğru sonuç
-}
-function gradePoll(pollKey, opt, real) {
-  if (!real || !real.score) return 0;
-  const total = real.score.home + real.score.away;
-  if (pollKey === 'ms') return real.result && ((opt === 'home' && real.result === '1') || (opt === 'draw' && real.result === 'X') || (opt === 'away' && real.result === '2')) ? 2 : 0;
-  if (pollKey === 'over25') return ((total > 2.5) ? 'yes' : 'no') === opt ? 1 : 0;
-  if (pollKey === 'btts') return ((real.score.home > 0 && real.score.away > 0) ? 'yes' : 'no') === opt ? 1 : 0;
-  return 0; // surprise: değerlendirilmez
-}
-
-router.get('/leaderboard', optionalAuth, async (req, res) => {
-  let roundId = Number(req.query.roundId) || null;
-  if (!roundId) { try { roundId = (await getRoundsForNav()).currentRoundId; } catch {} }
-  if (!roundId) return res.json({ roundId: null, leaderboard: [], me: null });
-
-  let matches = [];
-  try { matches = (await getBulletinByRoundId(roundId)).matches || []; } catch {}
-  const resultMap = {};
-  matches.forEach((m) => { if (m.sportotoMatchId && m.result && m.score) resultMap[m.sportotoMatchId] = { result: m.result, score: m.score }; });
-  const ids = Object.keys(resultMap);
-  if (!ids.length) return res.json({ roundId, leaderboard: [], me: null, note: 'Bu hafta için sonuç henüz açıklanmadı.' });
-
-  // Resmî sonuçlar eldeyken kalıcı isabet puanlarını da (idempotent) yaz.
-  settleRoundAccuracy(sbAdmin, { roundId, matches }).catch(() => {});
-
-  const [sp, pv] = await Promise.all([
-    sbAdmin.from('score_predictions').select('user_id,ft_home,ft_away,match_id').in('match_id', ids),
-    sbAdmin.from('community_poll_votes').select('user_id,poll_key,selected_option,match_id').in('match_id', ids),
-  ]);
-  const pts = {}, correct = {}, made = {};
-  const add = (uid, p) => { pts[uid] = (pts[uid] || 0) + p; made[uid] = (made[uid] || 0) + 1; if (p > 0) correct[uid] = (correct[uid] || 0) + 1; };
-  (sp.data || []).forEach((r) => add(r.user_id, gradeScore(r, resultMap[r.match_id])));
-  (pv.data || []).forEach((r) => add(r.user_id, gradePoll(r.poll_key, r.selected_option, resultMap[r.match_id])));
-
-  const uids = Object.keys(pts);
-  const profiles = await getProfiles(uids);
-  // Seviye rozetleri: kalıcı puan defterinden (migration 006 yoksa sessizce atlanır).
-  const levelOf = {};
-  try {
-    const { data: ledger } = await sbAdmin.from('points_history').select('user_id,points').in('user_id', uids);
-    const sums = {};
-    (ledger || []).forEach((r) => { sums[r.user_id] = (sums[r.user_id] || 0) + (r.points || 0); });
-    for (const uid of uids) levelOf[uid] = levelFromPoints(sums[uid] || 0).level;
-  } catch { /* seviye opsiyonel süslemedir */ }
-  const board = uids.map((uid) => ({
-    userId: uid, username: profiles[uid]?.username || 'Kullanıcı', points: pts[uid],
-    correct: correct[uid] || 0, made: made[uid] || 0, accuracy: made[uid] ? Math.round(((correct[uid] || 0) / made[uid]) * 100) : 0,
-    level: levelOf[uid] || null,
-  })).sort((a, b) => b.points - a.points || b.accuracy - a.accuracy).slice(0, 50);
-  board.forEach((b, i) => { b.rank = i + 1; });
-  const me = req.user ? (board.find((b) => b.userId === req.user.id) || null) : null;
-  res.json({ roundId, leaderboard: board, me });
-});
+// (gradeScore/gradePoll ve /leaderboard rotası oyunlaştırmayla birlikte kaldırıldı.)
 
 export default router;

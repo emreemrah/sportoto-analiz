@@ -23,6 +23,10 @@ export const RADAR_SCORECARD_EMPTY_TEXT =
 // NORMAL KULLANICININ GÖRDÜĞÜ SEKMELER — Retrospektif sekmesi YOKTUR.
 // Eski/backfill/retrospektif başarılar hiçbir kullanıcı ekranında gösterilmez.
 export const USER_SECTIONS = [
+  // "Özet" en önde ve VARSAYILAN (kullanıcı isteği, 2026-08-06: ekran teknik
+  // dille açılıyordu, sıradan kullanıcı hiçbir şey anlamıyordu). Özet sade
+  // Türkçeyle konuşur; sayı meraklısı diğer sekmelere geçer.
+  { key: 'ozet', label: 'Özet' },
   { key: 'official', label: 'Resmî Karne' },
   { key: 'weeks', label: 'Hafta Hafta' },
   { key: 'byResult', label: '1/X/2' },
@@ -31,7 +35,9 @@ export const USER_SECTIONS = [
   { key: 'criteria', label: 'Kriter' },
   // Kalibrasyon: "kaç tuttu" değil, SÖYLEDİĞİMİZ OLASILIK ne kadar doğruydu.
   { key: 'calibration', label: 'Kalibrasyon' },
-  { key: 'tech', label: 'Teknik' },
+  // 'tech' (Kaynak Şeffaflığı) sekmesi KULLANICIDAN KALDIRILDI (2026-08-06):
+  // iç alan adları/metodoloji sürümleri gibi teknik ayrıntılar son kullanıcıya
+  // gösterilmez. Veri uçlarda duruyor; yalnız ekrandan çıkarıldı.
 ];
 
 // Resmî ana kart gösterilebilir mi? (default-deny: alan yoksa GÖSTERME)
