@@ -206,7 +206,7 @@ function SectionHead({ title, right, onPress }) {
   );
 }
 
-function AnalysisCard({ match, tag, color, navigation }) {
+function AnalysisCard({ match, tag, color, navigation, dar = false }) {
   // Üst düzey kart (kullanıcı isteği, 2026-08-04): takım adları logoların
   // altında, ortada VS + saat, GERÇEK 1/X/2 ihtimal çubuğu (veri yoksa çubuk
   // hiç çizilmez — uydurma yüzde yok), altta tam genişlik buton.
@@ -221,7 +221,7 @@ function AnalysisCard({ match, tag, color, navigation }) {
   ] : [];
   return (
     <TouchableOpacity
-      style={styles.analysisCard}
+      style={[styles.analysisCard, dar && styles.analysisCardDar]}
       activeOpacity={0.88}
       onPress={() => navigation.navigate('MatchDetail', { no: match.no })}
     >
@@ -233,15 +233,15 @@ function AnalysisCard({ match, tag, color, navigation }) {
         <UlkeEtiketi league={match.league} ligGoster={false} />
       </View>
 
-      <View style={styles.analysisTeams}>
+      <View style={[styles.analysisTeams, dar && styles.analysisTeamsDar]}>
         <View style={styles.teamBlock}>
-          <Logo uri={crestOf(match, 'home')} name={match.home?.name} size={46} />
+          <Logo uri={crestOf(match, 'home')} name={match.home?.name} size={dar ? 38 : 46} />
           {/* TEK satır — ad uzunsa kısalır; kart yükseklikleri simetrik kalır. */}
           <Text style={styles.teamName} numberOfLines={1}>{shortTeam(match.home?.name)}</Text>
         </View>
 
         <View style={styles.vsBlock}>
-          <View style={styles.vsCircle}>
+          <View style={[styles.vsCircle, dar && styles.vsCircleDar]}>
             <Text style={styles.vsText}>VS</Text>
           </View>
           {dOk ? (
@@ -252,36 +252,53 @@ function AnalysisCard({ match, tag, color, navigation }) {
         </View>
 
         <View style={styles.teamBlock}>
-          <Logo uri={crestOf(match, 'away')} name={match.away?.name} size={46} />
+          <Logo uri={crestOf(match, 'away')} name={match.away?.name} size={dar ? 38 : 46} />
           <Text style={styles.teamName} numberOfLines={1}>{shortTeam(match.away?.name)}</Text>
         </View>
       </View>
 
-      {/* GERÇEK ihtimaller — her seçenek kendi kutusunda, favori dolgulu.
+      {/* GERÇEK ihtimaller — her seçenek kendi kutusunda.
           (İlk sürümdeki ince çubuk "net anlaşılmıyor" bulundu, kutulara çevrildi.)
-          Veri yoksa bu bölüm hiç çizilmez — uydurma yüzde yok. */}
+          Veri yoksa bu bölüm hiç çizilmez — uydurma yüzde yok.
+
+          VURGU DİLİ DEĞİŞTİ (kullanıcı bildirimi, 2026-08-06: "MS1 %40
+          seçilmiş gibi duruyor"): favori kutusu KOYU DOLGULUYDU; mobil
+          arayüzde dolu kutu "seçildi" demektir, oysa burada seçim yok, yalnız
+          en yüksek ihtimal işaretleniyor. Artık dolgu yerine açık ton + renkli
+          çerçeve + ▲ işareti kullanılıyor ve altına "seçim değil" notu
+          yazılıyor. Kupon seçimi yalnız Kupon ekranında yapılır. */}
       {segs.length ? (
-        <View style={styles.probRow}>
-          {segs.map((s) => {
-            const favMi = s.k === fav;
-            return (
-              <View key={s.k} style={[styles.probBox, favMi && styles.probBoxFav]}>
-                <Text style={[styles.probSym, favMi && styles.probSymFav]}>{s.k}</Text>
-                <Text style={[styles.probPct, favMi && styles.probPctFav]}>
-                  %{s.v}{match.analysis?.estimated ? '≈' : ''}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
+        <>
+          <View style={[styles.probRow, dar && styles.probRowDar]}>
+            {segs.map((s) => {
+              const favMi = s.k === fav;
+              return (
+                <View
+                  key={s.k}
+                  style={[styles.probBox, favMi && styles.probBoxFav]}
+                  accessibilityLabel={favMi ? `${s.k}: yüzde ${s.v} — en yüksek ihtimal` : `${s.k}: yüzde ${s.v}`}
+                >
+                  <Text style={[styles.probSym, favMi && styles.probSymFav]}>{s.k}{favMi ? ' ▲' : ''}</Text>
+                  <Text style={[styles.probPct, favMi && styles.probPctFav]}>
+                    %{s.v}{match.analysis?.estimated ? '≈' : ''}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+          <Text style={styles.probNot}>▲ en yüksek ihtimal — seçim değil</Text>
+        </>
       ) : null}
 
-      <Text style={styles.analysisDesc} numberOfLines={2}>
+      <Text
+        style={[styles.analysisDesc, dar && styles.analysisDescDar]}
+        numberOfLines={dar ? 1 : 2}
+      >
         {match.analysis?.comment || match.aiComment || 'Form ve istatistik verileri birlikte değerlendiriliyor.'}
       </Text>
 
       <TouchableOpacity
-        style={styles.analysisBtn}
+        style={[styles.analysisBtn, dar && styles.analysisBtnDar]}
         activeOpacity={0.85}
         onPress={() => navigation.navigate('MatchDetail', { no: match.no })}
       >
@@ -561,6 +578,7 @@ export default function HomeScreen({ navigation }) {
                 tag={t.tag}
                 color={t.color}
                 navigation={navigation}
+                dar={darEkran}
               />
             );
           })}
@@ -731,6 +749,15 @@ const styles = StyleSheet.create({
     ...shadows.soft,
   },
 
+  // DAR EKRAN (kullanıcı bildirimi, 2026-08-06: "bunlar çok büyük olmuş").
+  // Telefonda kartlar alt alta diziliyor ve her biri ekranın yarısını
+  // kaplıyordu. Ölçüler küçültüldü; bilgi KAYBOLMADI, yalnız sıkılaştı.
+  analysisCardDar: {
+    minHeight: 0,
+    padding: spacing.sm,
+    borderRadius: 14,
+  },
+
   analysisTagRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -763,6 +790,8 @@ const styles = StyleSheet.create({
     height: 78,
   },
 
+  analysisTeamsDar: { height: 62, marginTop: 8, marginBottom: 2 },
+
   teamBlock: {
     flex: 1,
     alignItems: 'center',
@@ -792,6 +821,10 @@ const styles = StyleSheet.create({
     height: 32, // tam 2 satır — kartlar arası hiza bozulmaz
   },
 
+  // Dar ekranda tek satır: kart yarı yarıya kısalıyor, cümlenin başı yine
+  // okunuyor; tamamı zaten "Analiz Detayı"nda duruyor.
+  analysisDescDar: { height: 16, marginTop: 6, marginBottom: 6, fontSize: 11.5, lineHeight: 15 },
+
   // ÜST DÜZEY KART parçaları (2026-08-04 yenilemesi)
   teamName: {
     color: colors.text,
@@ -816,6 +849,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
+  vsCircleDar: { width: 28, height: 28, borderRadius: 14 },
+
   vsTime: {
     color: colors.textMuted,
     fontSize: 10,
@@ -828,6 +863,8 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
+  probRowDar: { marginTop: 6, gap: 5 },
+
   probBox: {
     flex: 1,
     alignItems: 'center',
@@ -838,9 +875,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
 
+  // EN YÜKSEK İHTİMAL — "seçildi" gibi görünmemeli. Dolu koyu kutu mobilde
+  // seçim demektir; bu yüzden açık ton + renkli çerçeve kullanılıyor.
   probBoxFav: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primary + '14',
     borderColor: colors.primary,
+    borderWidth: 1.5,
   },
 
   probSym: {
@@ -850,7 +890,7 @@ const styles = StyleSheet.create({
   },
 
   probSymFav: {
-    color: '#fff',
+    color: colors.primary,
   },
 
   probPct: {
@@ -861,7 +901,15 @@ const styles = StyleSheet.create({
   },
 
   probPctFav: {
-    color: '#fff',
+    color: colors.primary,
+  },
+
+  // Kısa ve net: işaretin ne anlama GELMEDİĞİNİ söyler.
+  probNot: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 4,
   },
 
   analysisBtn: {
@@ -874,6 +922,8 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
     gap: 6,
   },
+
+  analysisBtnDar: { paddingVertical: 7, borderRadius: 10, marginTop: 2 },
 
   analysisBtnTxt: {
     color: '#fff',
