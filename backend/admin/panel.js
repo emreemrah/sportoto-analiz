@@ -110,6 +110,7 @@
     genel: function () { return ozetYukle(); },
     analiz: function () { return karneYukle().then(kriterCiz); },
     haftalar: function () { return haftaYukle(); },
+    oruntu: function () { return Promise.resolve(); },
     sinyal: function () { return sinyalKataloguYukle(); },
     kullanicilar: function () { return kullaniciYukle(); },
     yorumlar: function () { return yorumYukle(); },
@@ -268,6 +269,89 @@
   }
   $('kriterDonem').addEventListener('change', kriterCiz);
   $('kriterSira').addEventListener('change', kriterCiz);
+
+  // ——— ÖRÜNTÜLER (sistem kendi bulur) ———
+  // Kullanıcı haklıydı: arama kutusu vermek keşfi ona yıkmaktı. Burası tüm
+  // sinyalleri tüm dilimlerde tarar ve cümleyi KENDİ kurar.
+  var sonOruntu = null;
+
+  function guvenRozet(g) {
+    var sinif = g === 'güçlü' ? 'ok' : g === 'orta' ? 'altin' : 'notr';
+    return '<span class="rozet ' + sinif + '">' + esc(g) + '</span>';
+  }
+
+  function oruntuCiz() {
+    if (!sonOruntu) return;
+    var yon = $('oruntuYon').value;
+    var minMac = Number($('oruntuMinMac').value) || 0;
+    var liste = (sonOruntu.bulgular || []).filter(function (b) {
+      if (yon && b.yon !== yon) return false;
+      return b.mac >= minMac;
+    });
+
+    $('oruntuBulgu').innerHTML = liste.length
+      ? '<div class="tabloSar"><table><thead><tr><th>Sinyal</th><th>Dilim</th>' +
+        '<th class="sag">Sonuç</th><th class="sag">Kendi ortalaması</th>' +
+        '<th class="sag">Fark</th><th>Güven</th></tr></thead><tbody>' +
+        liste.map(function (b) {
+          var ok = b.sapma > 0 ? '▲' : '▼';
+          var renk = b.sapma > 0 ? 'ok' : 'kotu';
+          return '<tr><td><b>' + esc(b.sinyal) + '</b><div class="kucuk">' + esc(b.tur) + '</div></td>' +
+            '<td>' + esc(b.kural) + '<div class="kucuk">' + esc(b.sekilBaslik) + '</div></td>' +
+            '<td class="sag"><b>' + esc(b.mac) + ' maçta ' + esc(b.dogru) + '</b>' +
+              '<div class="kucuk">%' + esc(b.oran) + '</div></td>' +
+            '<td class="sag kucuk">%' + esc(b.tabanOran) + '</td>' +
+            '<td class="sag"><span class="rozet ' + renk + '">' + ok + ' ' +
+              esc(Math.abs(b.sapma)) + ' puan</span></td>' +
+            '<td>' + guvenRozet(b.guven) + '</td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        '<p class="kucuk">"Kendi ortalaması" = o sinyalin TÜM maçlardaki başarısı. ' +
+        'Fark, dilimin o ortalamadan sapmasıdır. ▼ satırlar sinyalin ZAYIF olduğu ' +
+        'dilimlerdir ve bilerek gösterilir — yalnız iyi haberi göstermek aracı yanlı yapar.</p>'
+      : '<p class="kucuk">Bu filtreyle bulgu yok. Eşikleri gevşetebilirsin ama düşük ' +
+        'örneklemli bulgular tesadüf olmaya çok yakındır.</p>';
+
+    var so = sonOruntu.sonucOruntuleri;
+    $('oruntuSonuc').innerHTML = so && so.oruntuler && so.oruntuler.length
+      ? '<div class="tabloSar"><table><thead><tr><th>Dilim</th><th class="sag">Maç</th>' +
+        '<th class="sag">Baskın sonuç</th><th class="sag">Pay</th><th class="sag">Genel</th>' +
+        '<th>Güven</th></tr></thead><tbody>' +
+        so.oruntuler.map(function (o) {
+          return '<tr><td>' + esc(o.kural) + '<div class="kucuk">' + esc(o.sekilBaslik) + '</div></td>' +
+            '<td class="sag">' + esc(o.mac) + '</td>' +
+            '<td class="sag"><b>' + esc(o.sonuc) + '</b></td>' +
+            '<td class="sag"><b>%' + esc(o.pay) + '</b></td>' +
+            '<td class="sag kucuk">%' + esc(o.tabanPay) + '</td>' +
+            '<td>' + guvenRozet(o.guven) + '</td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        (so.uyari ? '<p class="uyari" style="margin-top:10px">' + esc(so.uyari) + '</p>' : '')
+      : '<p class="kucuk">' + esc((so && so.uyari) || 'Sonuç örüntüsü bulunamadı.') + '</p>';
+  }
+
+  $('oruntuTara').addEventListener('click', function () {
+    $('oruntuTara').disabled = true;
+    $('oruntuUyari').innerHTML = '<p class="kucuk">Taranıyor… tüm sinyaller için arşiv okunuyor, ' +
+      'ilk çalıştırmada bir dakika sürebilir.</p>';
+    istek('/api/admin/oruntuler')
+      .then(function (r) {
+        sonOruntu = r;
+        var k = r.kapsam || {};
+        $('oruntuUyari').innerHTML =
+          '<div class="izgara" style="margin-bottom:10px">' +
+          kutu('Taranan sinyal', esc(r.sinyalSayisi)) +
+          kutu('Taranan dilim', esc(r.taranan)) +
+          kutu('Bulgu', esc((r.bulgular || []).length)) +
+          kutu('Sayılan hafta', esc(k.haftaDahil), esc(k.haftaDislanan) + ' hafta dışlandı') +
+          '</div>' +
+          '<p class="uyari">' + esc(r.uyari) + '</p>' +
+          (r.bellekten ? '<p class="kucuk">Bellekten geldi (10 dk). Yeniden hesaplamak için sayfayı yenile.</p>' : '');
+        oruntuCiz();
+      })
+      .catch(function (e) { $('oruntuUyari').innerHTML = '<p class="hata">' + esc(e.message) + '</p>'; })
+      .finally(function () { $('oruntuTara').disabled = false; });
+  });
+  $('oruntuYon').addEventListener('change', oruntuCiz);
+  $('oruntuMinMac').addEventListener('change', oruntuCiz);
 
   // ——— SİNYAL KIRILIMI ———
   // Kullanıcının yakaladığı örüntüyü ölçer: aynı sıra + benzer oynanma →
