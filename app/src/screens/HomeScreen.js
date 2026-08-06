@@ -130,11 +130,13 @@ function HeroCard({ data, loading, onPress, onSummary, onRecap }) {
       <View style={styles.heroTopRow}>
         <View style={styles.heroTextBlock}>
           <Text style={styles.heroTitle}>Bu Haftanın Bülteni</Text>
-          <Text style={styles.heroDesc}>
-            {zorluk?.text || 'Veriler hazır, analizler tamam. Haftaya dair öne çıkanlar burada.'}
-          </Text>
+          {/* AÇIKLAMA CÜMLESİ KALDIRILDI (kullanıcı isteği, 2026-08-06:
+              "bir tık daha, yazı olmasın"). Kartın en çok yer kaplayan
+              parçasıydı. BİLGİ KAYBOLMADI: haftanın zorluğu yukarıdaki
+              "Zorluk: ..." rozetinde, sayılar da hemen altındaki dört
+              sayaçta duruyor. Ayrıntılı cümle "Haftanın Özeti"nde. */}
         </View>
-        <BulletinHeroVisual width={84} height={60} />
+        <BulletinHeroVisual width={66} height={46} />
       </View>
 
       {/* Sayaçlar ve düğmeler AYRI satırlarda. Aynı satırda olduklarında telefon
@@ -1109,20 +1111,23 @@ const styles = StyleSheet.create({
   /* ===== Hero kart (component + gerçek istatistik) ===== */
   // HERO YARI BOYUT (kullanıcı isteği, 2026-08-06): kart ekranın yarısını
   // yiyordu; dolgu/punto/yükseklik indirildi, içerik aynen duruyor.
+  // ÖLÇÜLER İKİNCİ KEZ KÜÇÜLTÜLDÜ (kullanıcı isteği, 2026-08-06: "burayı da
+  // küçült"). Telefonda kart ekranın üçte birini kaplıyordu. Hiçbir bilgi
+  // çıkarılmadı — punto, yükseklik ve boşluklar sıkıldı.
   heroCard: {
     marginHorizontal: 10,
-    marginTop: 10,
-    borderRadius: 16,
+    marginTop: 8,
+    borderRadius: 14,
     backgroundColor: '#0f2038',
     borderWidth: 1,
     borderColor: '#1c3a5e',
-    padding: 10,
+    padding: 8,
     overflow: 'hidden',
   },
   heroWeekRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 6,
   },
   heroWeekDot: {
     width: 7,
@@ -1133,7 +1138,7 @@ const styles = StyleSheet.create({
   },
   heroWeekText: {
     color: '#cdd8e6',
-    fontSize: 12.5,
+    fontSize: 11.5,
     fontWeight: '800',
     letterSpacing: 0.2,
   },
@@ -1145,12 +1150,12 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   heroZorlukTxt: {
-    fontSize: 10.5,
+    fontSize: 9.5,
     fontWeight: '900',
   },
   heroIlkMac: {
     color: '#cdd8e6',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     marginLeft: 'auto',
   },
@@ -1161,12 +1166,12 @@ const styles = StyleSheet.create({
   heroBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 6,
   },
   heroCtaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 6,
   },
   heroTextBlock: {
     flex: 1,
@@ -1174,14 +1179,8 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: '#ffffff',
-    fontSize: 13.5,
+    fontSize: 12.5,
     fontWeight: '900',
-  },
-  heroDesc: {
-    color: '#b8c6c8',
-    fontSize: 10,
-    lineHeight: 13,
-    marginTop: 2,
   },
   heroStats: {
     flex: 1,
@@ -1200,25 +1199,25 @@ const styles = StyleSheet.create({
   },
   heroStatValue: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '900',
     marginTop: 1,
   },
   // "/15" paydası: sayının kendisiyle yarışmasın, ama okunur kalsın.
   heroStatValueSuffix: {
     color: '#9fb0b3',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
   },
   heroStatLabel: {
     color: '#c1cacc',
-    fontSize: 8.5,
+    fontSize: 8,
     fontWeight: '700',
     marginTop: 1,
   },
   heroDivider: {
     width: 1,
-    height: 26,
+    height: 22,
     backgroundColor: '#12615d',
     marginHorizontal: 5,
   },
@@ -1234,7 +1233,7 @@ const styles = StyleSheet.create({
   },
   heroButton: {
     flex: 1,
-    height: 34,
+    height: 30,
     paddingHorizontal: 10,
     borderRadius: 11,
     backgroundColor: '#ff7a00',
@@ -1250,7 +1249,7 @@ const styles = StyleSheet.create({
   },
   heroSummaryBtn: {
     flex: 1,
-    height: 34,
+    height: 30,
     paddingHorizontal: 8,
     borderRadius: 11,
     backgroundColor: 'rgba(255,255,255,0.10)',
@@ -1262,15 +1261,15 @@ const styles = StyleSheet.create({
   },
   heroSummaryTxt: {
     color: '#ffffff',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
   },
   heroRecapBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 32,
-    borderRadius: 11,
+    height: 28,
+    borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.10)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.28)',
@@ -1278,7 +1277,7 @@ const styles = StyleSheet.create({
   },
   heroRecapTxt: {
     color: '#ffffff',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
   },
   heroRecapArrow: {
@@ -1289,7 +1288,7 @@ const styles = StyleSheet.create({
   },
   heroButtonText: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 12.5,
     fontWeight: '900',
   },
   heroButtonArrow: {
