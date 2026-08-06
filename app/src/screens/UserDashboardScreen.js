@@ -351,8 +351,10 @@ const styles = StyleSheet.create({
 
   wkCard: { backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.sm, ...shadow.soft },
   wkRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.border },
-  wkK: { color: colors.textMuted, fontSize: 12.5, fontWeight: '700' },
-  wkV: { flex: 1, textAlign: 'right', color: colors.text, fontSize: 12.5, fontWeight: '800' },
+  // Etiket kısalabilir, değer tek satır: uzun durum metinleri ('Maç sonuçları
+  // tamamlandı · İkramiye bekleniyor') satırı üç satıra çıkarıyordu.
+  wkK: { color: colors.textMuted, fontSize: 12.5, fontWeight: '700', flexShrink: 1 },
+  wkV: { flex: 1, textAlign: 'right', color: colors.text, fontSize: 12.5, fontWeight: '800', marginLeft: 8 },
   wkVMuted: { color: colors.textMuted, fontSize: 12.5, fontWeight: '700', fontStyle: 'italic' },
 
   mRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: 11, marginTop: spacing.sm },
@@ -360,7 +362,8 @@ const styles = StyleSheet.create({
   mMid: { flex: 1 },
   mTeams: { color: colors.text, fontSize: 12.5, fontWeight: '700' },
   mDate: { color: colors.textMuted, fontSize: 10.5, fontWeight: '700', marginTop: 2 },
-  mRight: { alignItems: 'flex-end' },
+  // Sağ sütun sınırsızdı ve orta sütunu (takım adları) eziyordu.
+  mRight: { alignItems: 'flex-end', maxWidth: '52%' },
   mResTxt: { color: colors.textSoft, fontSize: 12, fontWeight: '700' },
   mWait: { color: colors.warning, fontSize: 11, fontWeight: '800' },
   mSys: { color: colors.textMuted, fontSize: 10.5, fontWeight: '700', marginTop: 2 },
