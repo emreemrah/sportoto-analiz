@@ -232,6 +232,7 @@ router.get('/kullanicilar', async (req, res) => {
 router.post('/bulten-yenile', async (req, res) => {
   try {
     const sonuc = await refreshCurrentBulletin({ trigger: 'panel' });
+    await kayit(req, 'bulten-yenile', null, 'panelden tetiklendi');
     const cached = load('bulletin');
     res.json({
       ok: true,
@@ -258,6 +259,21 @@ router.post('/bulten-yenile', async (req, res) => {
 /** İstek sahibi operatörün e-postası — kayıtlara "kim yaptı" olarak yazılır. */
 function operator(req) {
   return String(req.user?.email || '').toLowerCase() || 'bilinmeyen-operator';
+}
+
+/**
+ * DENETİM KAYDI — her müdahale buraya bir satır yazar.
+ * ASLA İSTEĞİ DÜŞÜRMEZ: kayıt yazılamazsa (tablo yok, bağlantı koptu) işlem
+ * yine de tamamlanır. Ters tasarım, denetim tablosundaki bir arızayı tüm
+ * yönetim işlemlerini durduran bir arızaya çevirirdi.
+ */
+async function kayit(req, action, target, detail, ok = true) {
+  try {
+    await sbAdmin.from('admin_audit').insert({
+      actor: operator(req), action, target: target == null ? null : String(target),
+      detail: String(detail || '').slice(0, 500), ok,
+    });
+  } catch { /* denetim kaydı yazılamadı — işlem etkilenmez */ }
 }
 
 /** Tablo yoksa (migration 010 uygulanmamış) anlaşılır hata döndürür. */
@@ -323,6 +339,7 @@ router.post('/yorum/:id/gizle', async (req, res) => {
   try {
     const r = await yorumuGizle(sbAdmin, { commentId: req.params.id, operatorId: req.user?.id });
     if (!r.ok) return res.status(400).json({ error: r.sebep || 'Yorum gizlenemedi.' });
+    await kayit(req, 'yorum-gizle', req.params.id, '');
     res.json({ ok: true });
   } catch (e) { safeError(res, e, 'Yorum gizlenemedi.'); }
 });
@@ -331,6 +348,7 @@ router.post('/yorum/:id/goster', async (req, res) => {
   try {
     const r = await yorumuGeriAl(sbAdmin, { commentId: req.params.id, operatorId: req.user?.id });
     if (!r.ok) return res.status(400).json({ error: r.sebep || 'Gizleme geri alınamadı.' });
+    await kayit(req, 'yorum-goster', req.params.id, '');
     res.json({ ok: true });
   } catch (e) { safeError(res, e, 'Gizleme geri alınamadı.'); }
 });
@@ -344,6 +362,7 @@ router.delete('/yorum/:id', async (req, res) => {
     await sbAdmin.from('comment_reports').delete().eq('comment_id', id);
     const { error } = await sbAdmin.from('comments').delete().eq('id', id);
     if (error) throw new Error(error.message);
+    await kayit(req, 'yorum-sil', id, 'kalıcı silme');
     res.json({ ok: true });
   } catch (e) { safeError(res, e, 'Yorum silinemedi.'); }
 });
@@ -365,6 +384,7 @@ router.post('/kullanici/:id/engelle', async (req, res) => {
       .insert({ user_id: hedef, reason: sebep, banned_by: operator(req), until });
     if (error) throw new Error(error.message);
     engelBellekTemizle(hedef);                   // 60 sn beklenmesin
+    await kayit(req, 'kullanici-engelle', hedef, `${sebep || 'sebep yazılmadı'} · ${until ? gun + ' gün' : 'süresiz'}`);
     res.json({ ok: true, until });
   } catch (e) {
     if (tabloYokMu(e)) return tabloHatasi(res);
@@ -379,6 +399,7 @@ router.post('/kullanici/:id/engeli-kaldir', async (req, res) => {
       .eq('user_id', String(req.params.id)).is('lifted_at', null);
     if (error) throw new Error(error.message);
     engelBellekTemizle(String(req.params.id));   // beklemeden etkili olsun
+    await kayit(req, 'engel-kaldir', req.params.id, '');
     res.json({ ok: true });
   } catch (e) {
     if (tabloYokMu(e)) return tabloHatasi(res);
@@ -397,6 +418,7 @@ router.post('/kullanici/:id/premium', async (req, res) => {
       user_id: String(req.params.id), source: 'manual', granted_by: operator(req), expires_at: expires,
     });
     if (error) throw new Error(error.message);
+    await kayit(req, 'premium-ver', req.params.id, expires ? `bitiş ${expires}` : 'süresiz');
     res.json({ ok: true, bitis: expires });
   } catch (e) {
     if (tabloYokMu(e)) return tabloHatasi(res);
@@ -410,6 +432,7 @@ router.post('/kullanici/:id/premium-iptal', async (req, res) => {
       .update({ revoked_at: new Date().toISOString() })
       .eq('user_id', String(req.params.id)).is('revoked_at', null);
     if (error) throw new Error(error.message);
+    await kayit(req, 'premium-iptal', req.params.id, '');
     res.json({ ok: true });
   } catch (e) {
     if (tabloYokMu(e)) return tabloHatasi(res);
@@ -466,6 +489,7 @@ router.post('/premium/kod', async (req, res) => {
     }
     const { data, error } = await sbAdmin.from('premium_codes').insert(satirlar).select('code');
     if (error) throw new Error(error.message);
+    await kayit(req, 'kod-uret', null, `${satirlar.length} adet · ${satirlar[0].grants_days} gün · not: ${not}`);
     res.json({ ok: true, kodlar: (data || []).map((d) => d.code) });
   } catch (e) {
     if (tabloYokMu(e)) return tabloHatasi(res);
@@ -479,10 +503,29 @@ router.post('/premium/kod/:kod/iptal', async (req, res) => {
       .update({ revoked_at: new Date().toISOString() })
       .eq('code', kodNormalize(req.params.kod));
     if (error) throw new Error(error.message);
+    await kayit(req, 'kod-iptal', kodNormalize(req.params.kod), '');
     res.json({ ok: true });
   } catch (e) {
     if (tabloYokMu(e)) return tabloHatasi(res);
     safeError(res, e, 'Kod iptal edilemedi.');
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/admin/kayitlar — denetim kaydı (kim ne yaptı)
+// ---------------------------------------------------------------------------
+router.get('/kayitlar', async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(Number(req.query.limit) || 200, 1), 500);
+    const tur = String(req.query.tur || '').trim();
+    let q = sbAdmin.from('admin_audit').select('*').order('at', { ascending: false }).limit(limit);
+    if (tur) q = q.eq('action', tur);
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    res.json({ liste: data || [] });
+  } catch (e) {
+    if (tabloYokMu(e)) return res.json({ liste: [], kurulmadi: true });
+    safeError(res, e, 'Denetim kaydı okunamadı.');
   }
 });
 

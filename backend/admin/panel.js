@@ -114,6 +114,7 @@
     yorumlar: function () { return yorumYukle(); },
     premium: function () { return kodYukle(); },
     bildirimler: function () { return modYukle(); },
+    kayitlar: function () { return kayitYukle(); },
   };
 
   function sekmeAc(ad) {
@@ -494,6 +495,33 @@
     istek('/api/admin/premium/kod/' + encodeURIComponent(kod) + '/iptal', { method: 'POST' })
       .then(kodYukle).catch(hataGoster);
   });
+
+  // ——— DENETİM KAYDI ———
+  function kayitYukle() {
+    var tur = $('kayitTur').value;
+    return istek('/api/admin/kayitlar?limit=300' + (tur ? '&tur=' + encodeURIComponent(tur) : ''))
+      .then(function (r) {
+        if (r.kurulmadi) {
+          $('kayitTablo').innerHTML = '<p class="uyari">Denetim tablosu henüz kurulmadı (migration 011). ' +
+            'Sunucuda SUPABASE_DB_URL tanımlanınca açılışta otomatik oluşur.</p>';
+          return;
+        }
+        var liste = r.liste || [];
+        $('kayitTablo').innerHTML = liste.length
+          ? '<div class="tabloSar"><table><thead><tr><th>Zaman</th><th>Operatör</th><th>İşlem</th>' +
+            '<th>Hedef</th><th>Ayrıntı</th></tr></thead><tbody>' +
+            liste.map(function (k) {
+              return '<tr><td class="kucuk">' + esc(tarih(k.at) || '') + '</td>' +
+                '<td class="kucuk">' + esc(k.actor) + '</td>' +
+                '<td><span class="rozet notr">' + esc(k.action) + '</span></td>' +
+                '<td class="kucuk kod">' + esc(k.target || '—') + '</td>' +
+                '<td class="kucuk">' + esc(k.detail || '') + '</td></tr>';
+            }).join('') + '</tbody></table></div>' +
+            '<p class="kucuk">' + liste.length + ' kayıt gösteriliyor.</p>'
+          : '<p class="kucuk">Kayıt yok.</p>';
+      });
+  }
+  $('kayitTur').addEventListener('change', function () { kayitYukle().catch(hataGoster); });
 
   // ——— MODERASYON KUYRUĞU ———
   function modYukle() {
