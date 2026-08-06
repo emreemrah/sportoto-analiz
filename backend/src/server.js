@@ -21,6 +21,7 @@ import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import commentRoutes from './routes/comments.js';
 import moderationRoutes from './routes/moderation.js';
+import adminRoutes from './routes/admin.js';
 import predictionRoutes from './routes/predictions.js';
 import couponRoutes from './routes/coupons.js';
 import bulletinArchiveRoutes from './routes/bulletins.js';
@@ -78,6 +79,8 @@ app.use('/api/comments', commentRoutes);
 // comments/:id/hide, comments/:id/unhide, reports/:id/dismiss}. Yetki
 // .env'deki MODERATOR_EMAILS ile belirlenir, uygulamaya gömülmez.
 app.use('/api/moderation', moderationRoutes);
+// YÖNETİM UÇLARI — operatöre kapalı (MODERATOR_EMAILS). Ayrıntı: routes/admin.js
+app.use('/api/admin', adminRoutes);
 app.use('/api/predictions', predictionRoutes);
 app.use('/api/coupons', couponRoutes);
 
@@ -736,6 +739,26 @@ app.get(
   ['/sorumlu-oyun', '/responsible-gaming', '/sorumlu-oyun.html'],
   serveLegal('sorumlu-oyun.html'),
 );
+
+// YÖNETİM PANELİ — tek dosya HTML, backend'in kendi sunucusundan.
+// ---------------------------------------------------------------------------
+// Sayfanın KENDİSİ herkese açıktır ve bu bilinçlidir: içinde hiçbir veri
+// yoktur, yalnız bir giriş formu ve API çağıran bir betik vardır. Bütün
+// koruma sunucu tarafında (`/api/admin` → operatorKapisi). Sayfayı gizlemek
+// "belirsizlikle güvenlik" olurdu; gerçek kapı uçların önündedir.
+//
+// Arama motorlarına kapalı: sayfanın kendi <meta robots> etiketi + bu başlık.
+app.get(['/yonetim', '/yonetim/', '/admin'], (req, res) => {
+  try {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'admin', 'index.html'), 'utf8');
+    res.set('Content-Type', 'text/html; charset=utf-8');
+    res.set('X-Robots-Tag', 'noindex, nofollow');
+    res.set('Cache-Control', 'no-store');
+    res.send(html);
+  } catch {
+    res.status(500).send('Yönetim paneli şu an açılamıyor.');
+  }
+});
 
 // Üretim (Render): derlenmiş web uygulaması varsa onu da aynı sunucudan servis et.
 // Geliştirmede public/ olmadığı için bu blok atlanır, normal akış bozulmaz.

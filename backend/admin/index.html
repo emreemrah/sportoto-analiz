@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Yönetim Paneli · Sportoto Master Analiz</title>
+<!--
+  YÖNETİM PANELİ — tek dosya, çerçeve yok, paket yok.
+  ---------------------------------------------------------------------------
+  Neden tek dosya: panel ayda birkaç kez açılır. Ona bir derleme adımı, bir
+  bağımlılık ağacı ve bir güncelleme yükü eklemek maliyeti faydasından büyük
+  olurdu. Saf HTML+JS, backend'in kendi sunucusundan sunulur.
+
+  Yetki: ayrı bir yönetici şifresi YOKTUR. Uygulamanın kendi girişi kullanılır;
+  sunucu, .env'deki MODERATOR_EMAILS listesine bakar. Panelin kendisi kimseye
+  yetki VERMEZ, yalnız yetkiyi olanın işini kolaylaştırır.
+
+  Dürüstlük: sayı okunamadıysa "bilinmiyor" yazar. Ekranda uydurma değer yok.
+-->
+<style>
+  :root{
+    --lac:#0B1B3A; --lac2:#132a4d; --kenar:#e3e8ef; --zemin:#f4f6fa;
+    --kart:#ffffff; --sonuk:#6b7a90; --yesil:#12805c; --kirmizi:#c0392b;
+    --turuncu:#ff7a00; --mavi:#1d4ed8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 system-ui,"Segoe UI",Roboto,Arial,sans-serif;background:var(--zemin);color:var(--lac)}
+  header{background:var(--lac);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  header h1{font-size:16px;margin:0;font-weight:800;letter-spacing:.2px}
+  header .kim{margin-left:auto;font-size:13px;opacity:.85}
+  main{max-width:960px;margin:0 auto;padding:18px}
+  .kart{background:var(--kart);border:1px solid var(--kenar);border-radius:12px;padding:14px;margin-bottom:14px}
+  .kart h2{font-size:14px;margin:0 0 10px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--sonuk)}
+  .izgara{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .kutu{border:1px solid var(--kenar);border-radius:10px;padding:10px;background:#fbfcfe}
+  .kutu .etiket{font-size:11px;color:var(--sonuk);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .kutu .deger{font-size:20px;font-weight:900;margin-top:3px}
+  .kucuk{font-size:12px;color:var(--sonuk)}
+  .rozet{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:800}
+  .ok{background:#e6f5ef;color:var(--yesil)} .kotu{background:#fdecea;color:var(--kirmizi)}
+  .notr{background:#eef1f6;color:var(--sonuk)}
+  button{font:inherit;font-weight:800;border-radius:9px;border:1px solid var(--lac);background:var(--lac);color:#fff;padding:9px 14px;cursor:pointer}
+  button.ikincil{background:#fff;color:var(--lac)}
+  button.tehlike{background:#fff;border-color:var(--kirmizi);color:var(--kirmizi)}
+  button:disabled{opacity:.55;cursor:default}
+  input{font:inherit;padding:9px 11px;border:1px solid var(--kenar);border-radius:9px;width:100%}
+  label{display:block;font-size:12px;font-weight:700;color:var(--sonuk);margin:10px 0 4px}
+  .giris{max-width:360px;margin:60px auto}
+  .satir{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .uyari{background:#fff8e6;border:1px solid #f0d38a;color:#7a5a00;border-radius:9px;padding:9px 11px;font-size:13px}
+  .hata{background:#fdecea;border:1px solid #f3b4ad;color:var(--kirmizi);border-radius:9px;padding:9px 11px;font-size:13px}
+  .bildirim{border:1px solid var(--kenar);border-radius:10px;padding:10px;margin-bottom:9px;background:#fbfcfe}
+  .bildirim .metin{white-space:pre-wrap;background:#fff;border:1px solid var(--kenar);border-radius:8px;padding:8px;margin:7px 0;font-size:13px}
+  footer{max-width:960px;margin:0 auto;padding:6px 18px 26px;color:var(--sonuk);font-size:12px}
+</style>
+</head>
+<body>
+
+<div id="girisEkran" class="giris" hidden>
+  <div class="kart">
+    <h2>Yönetim Girişi</h2>
+    <p class="kucuk">Uygulamadaki hesabınla gir. Yetki, sunucudaki operatör listesinden gelir.</p>
+    <label for="eposta">E-posta</label>
+    <input id="eposta" type="email" autocomplete="username" />
+    <label for="sifre">Şifre</label>
+    <input id="sifre" type="password" autocomplete="current-password" />
+    <div style="margin-top:12px"><button id="girisBtn">Giriş yap</button></div>
+    <div id="girisHata" class="hata" style="margin-top:10px" hidden></div>
+  </div>
+</div>
+
+<div id="panel" hidden>
+  <header>
+    <h1>⚙️ Yönetim Paneli</h1>
+    <span class="kim" id="kimBilgi"></span>
+    <button class="ikincil" id="cikisBtn" style="padding:6px 10px">Çıkış</button>
+  </header>
+
+  <main>
+    <div id="ustHata" class="hata" hidden></div>
+
+    <section class="kart">
+      <h2>Sistem Durumu <span class="kucuk" id="zamanBilgi"></span></h2>
+      <div class="izgara" id="durumIzgara"></div>
+      <div class="satir" style="margin-top:12px">
+        <button class="ikincil" id="yenileBtn">↻ Durumu yenile</button>
+      </div>
+    </section>
+
+    <section class="kart">
+      <h2>Bülten</h2>
+      <div class="izgara" id="bultenIzgara"></div>
+      <div class="satir" style="margin-top:12px">
+        <button id="bultenBtn">⬇ Bülteni kaynaktan yenile</button>
+        <span class="kucuk" id="bultenNot">Resmî kaynaktan yeniden çeker ve analizleri hesaplar. Birkaç dakika sürebilir.</span>
+      </div>
+    </section>
+
+    <section class="kart">
+      <h2>Bekleyen Bildirimler</h2>
+      <div id="modAlan"><p class="kucuk">Yükleniyor…</p></div>
+    </section>
+  </main>
+
+  <footer>
+    Bu panel yalnız görüntüler ve iki işlem yapar: bülten yenileme, yorum gizleme/geri alma.
+    Kullanıcı silme, içerik düzenleme ve arşiv değişikliği bu panelde YOKTUR.
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // Belirteç yalnız SEKME ÖMRÜ boyunca durur (sessionStorage): paylaşılan bir
+  // masaüstünde tarayıcı kapanınca oturum da kapanır.
+  var ANAHTAR = 'yonetim_token';
+  var token = sessionStorage.getItem(ANAHTAR) || '';
+  var $ = function (id) { return document.getElementById(id); };
+  var yok = '<span class="kucuk">bilinmiyor</span>';
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function tarih(iso) {
+    if (!iso) return null;
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleString('tr-TR');
+  }
+  function kutu(etiket, deger, altYazi) {
+    return '<div class="kutu"><div class="etiket">' + esc(etiket) + '</div>' +
+      '<div class="deger">' + (deger == null ? yok : deger) + '</div>' +
+      (altYazi ? '<div class="kucuk">' + esc(altYazi) + '</div>' : '') + '</div>';
+  }
+
+  function istek(yol, secenek) {
+    secenek = secenek || {};
+    var bas = { 'Content-Type': 'application/json' };
+    if (token) bas.Authorization = 'Bearer ' + token;
+    return fetch(yol, {
+      method: secenek.method || 'GET',
+      headers: bas,
+      body: secenek.body ? JSON.stringify(secenek.body) : undefined,
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (govde) {
+        if (!r.ok) {
+          var e = new Error(govde.error || ('Sunucu ' + r.status));
+          e.durum = r.status;
+          throw e;
+        }
+        return govde;
+      });
+    });
+  }
+
+  function girisGoster(mesaj) {
+    $('panel').hidden = true;
+    $('girisEkran').hidden = false;
+    if (mesaj) { $('girisHata').textContent = mesaj; $('girisHata').hidden = false; }
+  }
+
+  function hataGoster(e) {
+    // 401/403: yetki yok ya da oturum düştü → girişe dön, sebebi söyle.
+    if (e && (e.durum === 401 || e.durum === 403)) {
+      sessionStorage.removeItem(ANAHTAR); token = '';
+      girisGoster(e.durum === 403
+        ? 'Bu hesap yönetim yetkisine sahip değil.'
+        : 'Oturum düştü, tekrar gir.');
+      return;
+    }
+    $('ustHata').textContent = (e && e.message) || 'Bilinmeyen hata.';
+    $('ustHata').hidden = false;
+  }
+
+  // ——— GİRİŞ ———
+  $('girisBtn').addEventListener('click', function () {
+    var e = $('eposta').value.trim(), s = $('sifre').value;
+    if (!e || !s) return;
+    $('girisBtn').disabled = true; $('girisHata').hidden = true;
+    istek('/api/auth/login', { method: 'POST', body: { email: e, password: s, platform: 'web', deviceName: 'Yönetim Paneli' } })
+      .then(function (r) {
+        // Sunucu belirteci `token` alanında döndürür (bkz. routes/auth.js issueSession).
+        token = r.token || '';
+        if (!token) throw new Error('Sunucu belirteç döndürmedi.');
+        sessionStorage.setItem(ANAHTAR, token);
+        if (r.user && r.user.username) sessionStorage.setItem('yonetim_kim', r.user.username);
+        $('sifre').value = '';
+        baslat();
+      })
+      .catch(function (err) { $('girisHata').textContent = err.message; $('girisHata').hidden = false; })
+      .finally(function () { $('girisBtn').disabled = false; });
+  });
+  $('sifre').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') $('girisBtn').click(); });
+
+  $('cikisBtn').addEventListener('click', function () {
+    sessionStorage.removeItem(ANAHTAR); token = '';
+    girisGoster('');
+  });
+
+  // ——— ÖZET ———
+  function ozetYukle() {
+    return istek('/api/admin/ozet').then(function (o) {
+      $('ustHata').hidden = true;
+      $('zamanBilgi').textContent = tarih(o.zaman) ? '· ' + tarih(o.zaman) : '';
+
+      var sema = o.sistem.semaOk === true
+        ? '<span class="rozet ok">tamam</span>'
+        : o.sistem.semaOk === false
+          ? '<span class="rozet kotu">' + esc(o.sistem.semaDurum || 'hata') + '</span>'
+          : '<span class="rozet notr">' + esc(o.sistem.semaDurum || 'bilinmiyor') + '</span>';
+      var db = o.sistem.veritabani
+        ? '<span class="rozet ok">bağlı</span>'
+        : '<span class="rozet kotu">kapalı</span>';
+      var kota = (o.kota && o.kota.kalan != null)
+        ? esc(o.kota.kalan) + (o.kota.limit != null ? ' <span class="kucuk">/ ' + esc(o.kota.limit) + '</span>' : '')
+        : null;
+
+      $('durumIzgara').innerHTML =
+        kutu('Veritabanı', db) +
+        kutu('Şema göçü', sema, tarih(o.sistem.semaZaman) || '') +
+        kutu('Veri kotası', kota, o.kota && o.kota.sonGuncelleme ? 'son: ' + (tarih(o.kota.sonGuncelleme) || '') : '') +
+        kutu('Kayıtlı kullanıcı', o.sayim.kullanici == null ? null : esc(o.sayim.kullanici)) +
+        kutu('Yorum', o.sayim.yorum == null ? null : esc(o.sayim.yorum)) +
+        kutu('Bekleyen bildirim', o.sayim.bekleyenBildirim == null ? null : esc(o.sayim.bekleyenBildirim));
+
+      $('bultenIzgara').innerHTML =
+        kutu('Hafta', o.bulten.hafta ? esc(o.bulten.hafta) : null) +
+        kutu('Maç', o.bulten.var ? esc(o.bulten.macSayisi) : null) +
+        kutu('Analizli maç', o.bulten.var ? esc(o.bulten.analizliMac) + ' <span class="kucuk">/ ' + esc(o.bulten.macSayisi) + '</span>' : null) +
+        kutu('Son güncelleme', tarih(o.bulten.guncellendi) ? '<span style="font-size:15px">' + esc(tarih(o.bulten.guncellendi)) + '</span>' : null);
+    });
+  }
+
+  // ——— BÜLTEN YENİLE ———
+  $('bultenBtn').addEventListener('click', function () {
+    $('bultenBtn').disabled = true;
+    $('bultenNot').textContent = 'Yenileniyor… bu işlem birkaç dakika sürebilir, sayfayı kapatma.';
+    istek('/api/admin/bulten-yenile', { method: 'POST' })
+      .then(function (r) {
+        $('bultenNot').textContent = 'Yenilendi' + (tarih(r.guncellendi) ? ' · ' + tarih(r.guncellendi) : '');
+        return ozetYukle();
+      })
+      .catch(function (e) { $('bultenNot').textContent = 'Yenilenemedi: ' + e.message; hataGoster(e); })
+      .finally(function () { $('bultenBtn').disabled = false; });
+  });
+
+  // ——— MODERASYON ———
+  function modYukle() {
+    return istek('/api/moderation/reports').then(function (r) {
+      // Sunucu şekli: { items: [...], total, orphanCount } (moderationOps.js).
+      var liste = (r && r.items) || [];
+      var oksuz = (r && r.orphanCount) || 0;
+      var oksuzNot = oksuz ? '<p class="uyari">' + esc(oksuz) + ' bildirim, silinmiş bir yoruma ait — listede gösterilemiyor.</p>' : '';
+      if (!liste.length) {
+        $('modAlan').innerHTML = oksuzNot + '<p class="kucuk">Bekleyen bildirim yok.</p>';
+        return;
+      }
+      $('modAlan').innerHTML = oksuzNot + liste.map(function (b) {
+        var sebepler = Array.isArray(b.reasons) ? b.reasons.join(', ') : (b.reasons || '');
+        var durum = b.hidden
+          ? '<span class="rozet kotu">gizli' + (b.hiddenBy ? ' · ' + esc(b.hiddenBy) : '') + '</span>'
+          : '<span class="rozet notr">görünür</span>';
+        return '<div class="bildirim" data-yorum="' + esc(b.commentId) + '">' +
+          '<div class="satir"><span class="kucuk">' +
+            esc(b.reportCount) + ' bildirim · ' + esc(b.reporterCount) + ' kişi · ' +
+            esc(sebepler) + '</span>' + durum + '</div>' +
+          '<div class="kucuk">' + esc((b.author && b.author.username) || '—') +
+            (tarih(b.createdAt) ? ' · ' + esc(tarih(b.createdAt)) : '') + '</div>' +
+          '<div class="metin">' + esc(b.text || '(metin okunamadı)') + '</div>' +
+          '<div class="satir">' +
+            (b.hidden
+              ? '<button class="ikincil" data-is="geri">Gizlemeyi geri al</button>'
+              : '<button class="tehlike" data-is="gizle">Yorumu gizle</button>') +
+            '<button class="ikincil" data-is="yoksay">Bildirimi yok say</button>' +
+          '</div></div>';
+      }).join('');
+    });
+  }
+
+  $('modAlan').addEventListener('click', function (ev) {
+    var dugme = ev.target.closest('button[data-is]');
+    if (!dugme) return;
+    var kart = dugme.closest('.bildirim');
+    var yorumId = kart && kart.getAttribute('data-yorum');
+    if (!yorumId) return;
+    var is = dugme.getAttribute('data-is');
+    var yol = is === 'gizle' ? '/api/moderation/comments/' + encodeURIComponent(yorumId) + '/hide'
+      : is === 'geri' ? '/api/moderation/comments/' + encodeURIComponent(yorumId) + '/unhide'
+        : '/api/moderation/reports/' + encodeURIComponent(yorumId) + '/dismiss';
+    kart.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+    istek(yol, { method: 'POST' })
+      .then(function () { return Promise.all([modYukle(), ozetYukle()]); })
+      .catch(function (e) {
+        hataGoster(e);
+        kart.querySelectorAll('button').forEach(function (b) { b.disabled = false; });
+      });
+  });
+
+  $('yenileBtn').addEventListener('click', function () {
+    $('yenileBtn').disabled = true;
+    Promise.all([ozetYukle(), modYukle()])
+      .catch(hataGoster)
+      .finally(function () { $('yenileBtn').disabled = false; });
+  });
+
+  function baslat() {
+    var kim = sessionStorage.getItem('yonetim_kim');
+    $('kimBilgi').textContent = kim ? kim : '';
+    $('girisEkran').hidden = true;
+    $('panel').hidden = false;
+    Promise.all([ozetYukle(), modYukle()]).catch(hataGoster);
+  }
+
+  if (token) baslat(); else girisGoster('');
+})();
+</script>
+</body>
+</html>
