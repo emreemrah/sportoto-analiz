@@ -39,15 +39,16 @@ KURULMAYACAK, mevcut `MODERATOR_EMAILS` operatör kimliği kullanılacak.
 - Doğrulama: `/api/admin/ozet` giriş olmadan **401** döndü (tarayıcıda ölçüldü).
 - Testler: backend 950 geçti / 0 kaldı (32 atlandı — canlı veritabanı isteyenler).
 
-## AÇIK MADDE — panel açılmadan önce gereken tek ayar
-`backend/.env` içinde **`MODERATOR_EMAILS` TANIMSIZ**. Kapı fail-closed
-çalıştığı için şu an panele **hiç kimse** giremez (doğru davranış).
-Kendi doğrulanmış e-postanı eklemen gerekiyor:
+## Operatör ayarı — GEÇİCİ olarak yapıldı (2026-08-06)
+`backend/.env` içine `MODERATOR_EMAILS=emrahanlar.41@hotmail.com` eklendi ve
+backend yeniden başlatıldı. Ayrı bir "admin@" adresi açmaya gerek yok:
+panel, uygulamanın kendi hesabıyla çalışır.
 
-```
-MODERATOR_EMAILS=eposta@ornek.com
-```
+- Bu dosya `.gitignore`'lu → değer GitHub'a gitmez, yalnız bu bilgisayarda.
+- Gerçek sunucuya geçince aynı değişkeni orada da tanımlaman gerekecek.
+- İleride ayrı bir yönetim adresi açarsan tek satırı değiştirmek yeterli
+  (virgülle birden fazla adres de yazılabilir).
 
-Bu değeri ben yazmıyorum: `.env` sır dosyası ve içine ne yazılacağı senin
-kararın. Ekledikten sonra backend'i yeniden başlat, `/yonetim` adresinden
-aynı hesapla gir.
+**Şart:** bu adresle uygulamada bir hesap OLMALI ve e-postası
+DOĞRULANMIŞ olmalı (kapı `email_confirmed_at` arar). Hesap yoksa önce
+uygulamadan kayıt olup doğrulama bağlantısına tıklamak gerekir.
