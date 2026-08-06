@@ -157,6 +157,173 @@
       .finally(function () { $('bultenBtn').disabled = false; });
   });
 
+
+  // ——— ANALİZ PANOSU ———
+  // KAYNAK: mevcut /api/scorecards/* uçları. Yeni backend ucu YAZILMADI —
+  // uygulamanın Sistem Karnesi ekranıyla AYNI veriyi okur, böylece panel ile
+  // uygulama asla farklı sayı söyleyemez.
+  //
+  // DÜRÜSTLÜK KURALLARI BURADA DA GEÇERLİ:
+  //  • Yalnız maç öncesi MÜHÜRLENDİĞİ doğrulanan tahminler sayılır (uç öyle
+  //    döndürüyor); dışlanan kayıt sayısı gizlenmez, ekranda yazılır.
+  //  • Veri yoksa yüzde uydurulmaz, "veri yok" yazılır.
+  function analizYukle() {
+    return istek('/api/scorecards/system').then(function (k) {
+      if (!k || k.hasData !== true) {
+        $('analizUyari').innerHTML = '<p class="uyari">Henüz resmî sonuçla eşleşmiş mühürlü tahmin yok — başarı hesaplanamaz.</p>';
+        $('analizIzgara').innerHTML = '';
+        $('sonucKirilim').innerHTML = '';
+        $('haftaTablo').innerHTML = '<p class="kucuk">Veri yok.</p>';
+        $('hataTablo').innerHTML = '<p class="kucuk">Veri yok.</p>';
+        return;
+      }
+
+      // Az örneklem uyarısı: 1-2 haftalık veriden çıkan yüzde yanıltıcıdır.
+      var uyari = '';
+      if (Number(k.weeksCounted) > 0 && Number(k.weeksCounted) < 5) {
+        uyari += '<p class="uyari">Yalnız ' + esc(k.weeksCounted) + ' hafta sayıldı — bu kadar az veride yüzde yanıltıcı olabilir.</p>';
+      }
+      if (Number(k.excludedCount) > 0) {
+        var kirilim = k.exclusionBreakdown || {};
+        var parcalar = Object.keys(kirilim).map(function (a) { return esc(a) + ': ' + esc(kirilim[a]); });
+        uyari += '<p class="uyari">' + esc(k.excludedCount) + ' hafta başarıya DAHİL EDİLMEDİ' +
+          (parcalar.length ? ' (' + parcalar.join(' · ') + ')' : '') +
+          ' — mühür kanıtı doğrulanamadığı için. Gizlenmiyor, sayılmıyor.</p>';
+      }
+      $('analizUyari').innerHTML = uyari;
+
+      var kap = k.coverage || {};
+      $('analizIzgara').innerHTML =
+        kutu('Tekli isabet', '%' + esc(k.accuracy), esc(k.correct) + ' / ' + esc(k.total) + ' maç') +
+        kutu('Son 5 hafta', k.last5 && k.last5.total ? '%' + esc(k.last5.accuracy) : null,
+          k.last5 && k.last5.total ? esc(k.last5.correct) + ' / ' + esc(k.last5.total) + ' maç' : '') +
+        kutu('Sayılan hafta', esc(k.weeksCounted), (Number(k.pendingWeeks) ? esc(k.pendingWeeks) + ' hafta sonuç bekliyor' : '')) +
+        kutu('En iyi hafta', k.bestWeek ? '%' + esc(k.bestWeek.accuracy) : null,
+          k.bestWeek ? esc(k.bestWeek.round) + ' · ' + esc(k.bestWeek.record) : '') +
+        kutu('Kapsama', kap.rate != null ? '%' + esc(kap.rate) : null,
+          kap.total != null ? esc(kap.covered) + ' / ' + esc(kap.total) + ' maç' : '') +
+        kutu('Yanlış tahmin', esc(k.wrong), 'aşağıda tek tek listeleniyor');
+
+      // 1 / X / 2 kırılımı — sistemin hangi sonuçta zayıf olduğunu gösterir.
+      var br = k.byResult || {};
+      var satirlar = ['1', 'X', '2'].map(function (o) {
+        var d = br[o];
+        if (!d || !d.t) return '<tr><td><b>' + o + '</b></td><td class="sag kucuk">veri yok</td><td class="sag"></td></tr>';
+        return '<tr><td><b>' + o + '</b></td><td class="sag">' + esc(d.c) + ' / ' + esc(d.t) + '</td>' +
+          '<td class="sag"><b>%' + esc(d.rate) + '</b></td></tr>';
+      }).join('');
+      $('sonucKirilim').innerHTML =
+        '<div class="tabloSar"><table><thead><tr><th>Gerçekleşen sonuç</th><th class="sag">Doğru / Toplam</th>' +
+        '<th class="sag">Başarı</th></tr></thead><tbody>' + satirlar + '</tbody></table></div>' +
+        '<p class="kucuk">Sistem hangi sonuç türünde zayıf, tek bakışta görünür.</p>';
+
+      // Hafta hafta
+      var haftalar = k.weeks || [];
+      $('haftaTablo').innerHTML = haftalar.length
+        ? '<div class="tabloSar"><table><thead><tr><th>Hafta</th><th class="sag">Kayıt</th>' +
+          '<th class="sag">Başarı</th><th>Durum</th><th>Mühür</th></tr></thead><tbody>' +
+          haftalar.map(function (w) {
+            var rozet = w.status === 'complete' ? '<span class="rozet ok">tam</span>'
+              : w.status === 'partial' ? '<span class="rozet notr">kısmi</span>'
+                : '<span class="rozet notr">bekliyor</span>';
+            return '<tr><td>' + esc(w.round || ('#' + w.roundId)) + '</td>' +
+              '<td class="sag">' + esc(w.record || '—') + '</td>' +
+              '<td class="sag"><b>' + (w.accuracy == null ? '—' : '%' + esc(w.accuracy)) + '</b></td>' +
+              '<td>' + rozet + '</td>' +
+              '<td class="kucuk">' + esc(w.verificationHashShort || '—') + '</td></tr>';
+          }).join('') + '</tbody></table></div>'
+        : '<p class="kucuk">Sayılan hafta yok.</p>';
+
+      // Tutmayan tahminler — kök neden aramanın başladığı yer.
+      var hatalar = k.errors || [];
+      $('hataTablo').innerHTML = hatalar.length
+        ? '<div class="tabloSar"><table><thead><tr><th>Hafta</th><th>No</th><th>Maç</th>' +
+          '<th class="sag">Sistem</th><th class="sag">Sonuç</th><th class="sag">Skor</th></tr></thead><tbody>' +
+          hatalar.map(function (e) {
+            return '<tr><td class="kucuk">' + esc(e.round || '') + '</td><td class="sag">' + esc(e.no) + '</td>' +
+              '<td>' + esc(e.home) + ' – ' + esc(e.away) + '</td>' +
+              '<td class="sag"><b>' + esc(e.system) + '</b></td>' +
+              '<td class="sag"><b>' + esc(e.result) + '</b></td>' +
+              '<td class="sag kucuk">' + esc(e.score || '') + '</td></tr>';
+          }).join('') + '</tbody></table></div>'
+        : '<p class="kucuk">Bu dönemde tutmayan tahmin yok.</p>';
+    });
+  }
+
+  function kriterYukle() {
+    return istek('/api/scorecards/criteria').then(function (c) {
+      var liste = (c && c.criteria) || [];
+      if (!liste.length) {
+        $('kriterTablo').innerHTML = '<p class="kucuk">Kriter karnesi için yeterli mühürlü veri yok.</p>';
+        return;
+      }
+      // Sinyal ürettiği maç sayısına göre sırala: çok maçta ölçülen kriter üstte.
+      var sirali = liste.filter(function (x) { return !x.informational; }).slice().sort(function (a, b) {
+        return ((b.windows && b.windows.allTime && b.windows.allTime.total) || 0) -
+          ((a.windows && a.windows.allTime && a.windows.allTime.total) || 0);
+      });
+      $('kriterTablo').innerHTML =
+        '<div class="tabloSar"><table><thead><tr><th>Kriter</th><th class="sag">Maç</th>' +
+        '<th class="sag">Doğru</th><th class="sag">Başarı</th></tr></thead><tbody>' +
+        sirali.map(function (x) {
+          var w = (x.windows && x.windows.allTime) || {};
+          if (w.rate == null) {
+            var sebep = (x.noData >= x.evaluated) ? 'veri yok' : 'sinyal yok';
+            return '<tr><td>' + esc(x.label) + '</td><td class="sag kucuk" colspan="3">' + sebep + '</td></tr>';
+          }
+          return '<tr><td>' + esc(x.label) + '</td><td class="sag">' + esc(w.total) + '</td>' +
+            '<td class="sag">' + esc(w.hits) + '</td>' +
+            '<td class="sag"><b>%' + esc(w.rate) + '</b></td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        '<p class="kucuk">"Maç" = kriterin yön gösterdiği maç sayısı. Az maçta yüzde yanıltıcı olabilir.</p>';
+    });
+  }
+
+
+  // ——— KULLANICILAR ———
+  // "Aktif" burada ÖLÇÜLEBİLİR bir şeydir: iptal edilmemiş oturumu olan
+  // kullanıcı. Tahmini/uydurma bir "çevrimiçi" sayısı gösterilmez.
+  function kullaniciYukle() {
+    var q = ($('kullaniciAra').value || '').trim();
+    return istek('/api/admin/kullanicilar?limit=100' + (q ? '&q=' + encodeURIComponent(q) : ''))
+      .then(function (r) {
+        if (!r.veritabani) {
+          $('kullaniciIzgara').innerHTML = '';
+          $('kullaniciTablo').innerHTML = '<p class="uyari">Veritabanı bağlı değil — kullanıcı bilgisi okunamıyor.</p>';
+          return;
+        }
+        var s = r.sayim || {};
+        $('kullaniciIzgara').innerHTML =
+          kutu('Toplam kayıt', esc(s.toplam)) +
+          kutu('Etkin oturumu olan', esc(s.etkinOturumlu), 'çıkış yapmamış hesaplar') +
+          kutu('Son 7 günde giriş', esc(s.son7gGiris)) +
+          kutu('Yeni kayıt · 24 saat', esc(s.yeni24s)) +
+          kutu('Yeni kayıt · 7 gün', esc(s.yeni7g)) +
+          kutu('Yeni kayıt · 30 gün', esc(s.yeni30g)) +
+          kutu('E-postası doğrulanmış', esc(s.dogrulanmis),
+            (s.dogrulanmamis ? esc(s.dogrulanmamis) + ' hesap doğrulanmamış' : '')) +
+          kutu('Premium / satın alma', null, 'sistem henüz kurulmadı');
+
+        var liste = r.liste || [];
+        $('kullaniciTablo').innerHTML = liste.length
+          ? '<div class="tabloSar"><table><thead><tr><th>E-posta</th><th>Kullanıcı adı</th>' +
+            '<th>Kayıt</th><th>Son giriş</th><th>Durum</th></tr></thead><tbody>' +
+            liste.map(function (k) {
+              var rozet = k.etkinOturum ? '<span class="rozet ok">aktif</span>'
+                : k.dogrulandi ? '<span class="rozet notr">çıkış yapmış</span>'
+                  : '<span class="rozet kotu">doğrulanmamış</span>';
+              return '<tr><td>' + esc(k.eposta || '—') + '</td>' +
+                '<td>' + esc(k.kullaniciAdi || '—') + '</td>' +
+                '<td class="kucuk">' + esc(tarih(k.kayit) || '—') + '</td>' +
+                '<td class="kucuk">' + esc(tarih(k.sonGiris) || 'hiç') + '</td>' +
+                '<td>' + rozet + '</td></tr>';
+            }).join('') + '</tbody></table></div>'
+          : '<p class="kucuk">Eşleşen kullanıcı yok.</p>';
+        $('kullaniciNot').textContent = 'Gösterilen: ' + (r.gosterilen || 0) + ' kayıt. '
+          + 'Şifre, belirteç ve IP bu ekranda hiç görünmez.';
+      });
+  }
+
   // ——— MODERASYON ———
   function modYukle() {
     return istek('/api/moderation/reports').then(function (r) {
@@ -209,9 +376,12 @@
       });
   });
 
+  $('kullaniciAraBtn').addEventListener('click', function () { kullaniciYukle().catch(hataGoster); });
+  $('kullaniciAra').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') $('kullaniciAraBtn').click(); });
+
   $('yenileBtn').addEventListener('click', function () {
     $('yenileBtn').disabled = true;
-    Promise.all([ozetYukle(), modYukle()])
+    Promise.all([ozetYukle(), analizYukle(), kriterYukle(), kullaniciYukle(), modYukle()])
       .catch(hataGoster)
       .finally(function () { $('yenileBtn').disabled = false; });
   });
@@ -221,7 +391,7 @@
     $('kimBilgi').textContent = kim ? kim : '';
     $('girisEkran').hidden = true;
     $('panel').hidden = false;
-    Promise.all([ozetYukle(), modYukle()]).catch(hataGoster);
+    Promise.all([ozetYukle(), analizYukle(), kriterYukle(), kullaniciYukle(), modYukle()]).catch(hataGoster);
   }
 
   if (token) baslat(); else girisGoster('');
