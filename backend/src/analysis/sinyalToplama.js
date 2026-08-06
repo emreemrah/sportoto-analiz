@@ -86,15 +86,27 @@ export async function sinyalKayitlariniTopla({ tur = 'kriter', key = null, store
     oynanmaOlan: 0,
     sinyalOlan: 0,
     katmanYok: 0,          // eski snapshot: analysisCenter/radarCenter yok
+    oynanmaKaydi: 0,       // DNA arşivinden kaç ham kayıt okundu
+    oynanmaHatasi: null,   // okunamadıysa SEBEBİ (sessizce yutulmasın)
   };
 
   // Oynanma yüzdeleri: TEK SEFERDE okunur, hafta hafta sorgu atılmaz.
   // Kaynak sabit 'nesine' — projedeki tek etkin oynanma sağlayıcısı.
+  //
+  // HATA DÜZELTMESİ (2026-08-06): `collectPlayedDnaRecords()` STORE bekliyor
+  // ve varsayılanı yok. Argümansız çağrılınca `store.listBulletins()` patlıyor,
+  // hata aşağıdaki catch'te yutuluyor ve HER maç "oynanma verisi yok"
+  // görünüyordu. Sessiz catch, hatayı gizleyerek yanlış ekrana yol açtı;
+  // artık sebep `kapsam.oynanmaHatasi` ile DIŞARI bildiriliyor.
   let oynanmaIndeks = new Map();
   try {
-    const dnaKayit = await collectPlayedDnaRecords();
+    const dnaKayit = await collectPlayedDnaRecords(store);
     oynanmaIndeks = sonGunOynanmaIndeksi(dnaKayit, 'nesine') || new Map();
-  } catch { oynanmaIndeks = new Map(); }
+    kapsam.oynanmaKaydi = dnaKayit.length;
+  } catch (e) {
+    oynanmaIndeks = new Map();
+    kapsam.oynanmaHatasi = String(e?.message || e).slice(0, 200);
+  }
 
   for (const b of bulletins) {
     const snap = await store.getSnapshot(b.id).catch(() => null);
