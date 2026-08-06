@@ -38,26 +38,28 @@ export default function InfoIpucu({ ozet, detay, renk, stil, testID }) {
   );
 }
 
+// YARI YARIYA KÜÇÜLTÜLDÜ (kullanıcı isteği, 2026-08-06): dolgular ve puntolar
+// indirildi — satır incecik, ⓘ yine rahat basılır boyutta.
 const st = StyleSheet.create({
   kutu: {
     backgroundColor: colors.card,
-    borderRadius: radius.md,
+    borderRadius: radius.sm ?? 8,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    marginBottom: spacing.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginBottom: 6,
   },
-  satir: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  ozet: { color: colors.text, fontSize: 12.5, fontWeight: '800' },
+  satir: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ozet: { color: colors.text, fontSize: 11, fontWeight: '800' },
   iKutu: {
-    width: 22, height: 22, borderRadius: 11,
-    borderWidth: 1.5, borderColor: colors.info,
+    width: 16, height: 16, borderRadius: 8,
+    borderWidth: 1, borderColor: colors.info,
     alignItems: 'center', justifyContent: 'center',
   },
   iKutuAcik: { backgroundColor: colors.info, borderColor: colors.info },
-  iTxt: { color: colors.info, fontSize: 12, fontWeight: '900', fontStyle: 'italic' },
+  iTxt: { color: colors.info, fontSize: 9.5, fontWeight: '900', fontStyle: 'italic' },
   iTxtAcik: { color: '#fff', fontStyle: 'normal' },
-  detay: { marginTop: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },
-  detayTxt: { color: colors.textSoft, fontSize: 12, lineHeight: 17 },
+  detay: { marginTop: 5, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 5 },
+  detayTxt: { color: colors.textSoft, fontSize: 11, lineHeight: 15 },
 });

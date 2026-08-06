@@ -366,17 +366,9 @@ export default function BulletinScreen({ navigation }) {
           <Text style={styles.currentBtnTxt}>Güncel Bültene Dön</Text>
         </TouchableOpacity>
       )}
-      {/* Kupon giriş noktaları */}
-      <View style={styles.couponRow}>
-        {viewingCurrent && !data?.pending && data?.verification?.status === 'confirmed' ? (
-          <TouchableOpacity onPress={() => navigation.navigate('CouponEditor', { roundId: data.roundId })} style={styles.couponBtnMain}>
-            <Text style={styles.couponBtnMainTxt}>🎟️ Kupon Oluştur</Text>
-          </TouchableOpacity>
-        ) : null}
-        <TouchableOpacity onPress={() => navigation.navigate('CouponCenter')} style={styles.couponBtn}>
-          <Text style={styles.couponBtnTxt}>Kuponlarım</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Kupon Oluştur / Kuponlarım buton çifti KALDIRILDI (kullanıcı kararı,
+          2026-08-06): alt sekme çubuğu Kuponlarım'a zaten götürüyor, kupon
+          oluşturma da Kupon Merkezi'nden yapılıyor — üstte yer kaplıyordu. */}
       <TouchableOpacity onPress={() => navigation.navigate('BulletinHistory')} style={styles.historyLink}>
         <Text style={styles.historyLinkTxt}>📜 Bülten Geçmişi · Kilitli Analiz ›</Text>
       </TouchableOpacity>
