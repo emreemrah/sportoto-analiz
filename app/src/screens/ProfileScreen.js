@@ -228,6 +228,13 @@ export default function ProfileScreen({ navigation }) {
 
       {/* "Tahmin Sıralaması" (puan tabanlı liderlik) oyunlaştırmayla birlikte kaldırıldı. */}
 
+      {/* PREMIUM KODU — operatörün verdiği kodla erişim açma ekranı.
+          Profilde durur çünkü hesaba bağlı bir haktır; kod kullanıldığında
+          hak SUNUCUDA yazılır, uygulama kendi başına premium ilan edemez. */}
+      <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => navigation.navigate('PremiumCode')}>
+        <Text style={styles.btnAltTxt}>⭐  Premium Kodu</Text>
+      </TouchableOpacity>
+
       {/* Güvenlik: şifre/e-posta değiştirme, güvenlik olayları, bağlı cihazlar */}
       <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => navigation.navigate('SecuritySettings')}>
         <Text style={styles.btnAltTxt}>🔐  Güvenlik Ayarları</Text>

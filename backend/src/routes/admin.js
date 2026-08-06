@@ -22,14 +22,18 @@
 // döner ve panel "bilinmiyor" yazar.
 import { Router } from 'express';
 import { safeError } from '../security/safeError.js';
-import { sbAdmin, supabaseEnabled } from '../supabase.js';
+import { sbAdmin, supabaseEnabled, getProfiles } from '../supabase.js';
 import { uyelikKapisi } from '../security/supabaseGuard.js';
-import { requireAuth } from '../mw.js';
+import { requireAuth, engelBellekTemizle } from '../mw.js';
 import { operatorKapisi } from '../moderatorGate.js';
 import { load } from '../cache.js';
 import { migrationDurumu } from '../migrate/index.js';
 import { kotaDurumu } from '../sources/kotaBekcisi.js';
 import { refreshCurrentBulletin } from '../autoRefresh.js';
+import { yorumuGizle, yorumuGeriAl } from '../moderationOps.js';
+import {
+  kodNormalize, kodUret, kodGecerliMi, premiumDurumu, etkinEngel, bitisHesapla,
+} from '../premiumBan.js';
 
 const router = Router();
 router.use(uyelikKapisi(supabaseEnabled));
@@ -155,16 +159,58 @@ router.get('/kullanicilar', async (req, res) => {
       profilliKullanici: profilHarita.size,
     };
 
+    // 4) Engel ve premium durumu — müdahale düğmeleri doğru durumu göstersin.
+    //    Tablolar yoksa (migration 010 uygulanmamış) liste yine çalışır;
+    //    o alanlar `null` gelir ve panel "bilinmiyor" der.
+    const engelHarita = new Map();
+    const engeller = await sayimDene(async () => {
+      const { data, error } = await sbAdmin
+        .from('user_bans').select('user_id,reason,banned_at,until,lifted_at').is('lifted_at', null);
+      if (error) throw new Error(error.message);
+      return data || [];
+    });
+    for (const e of engeller || []) {
+      const v = etkinEngel([e]);
+      if (v) engelHarita.set(String(e.user_id), v);
+    }
+
+    const premiumHarita = new Map();
+    const haklar = await sayimDene(async () => {
+      const { data, error } = await sbAdmin
+        .from('premium_grants').select('user_id,expires_at,revoked_at,source,code');
+      if (error) throw new Error(error.message);
+      return data || [];
+    });
+    if (haklar) {
+      const grupla = new Map();
+      for (const h of haklar) {
+        const k = String(h.user_id);
+        if (!grupla.has(k)) grupla.set(k, []);
+        grupla.get(k).push(h);
+      }
+      for (const [k, v] of grupla) premiumHarita.set(k, premiumDurumu(v));
+    }
+    sayim.premiumlu = haklar ? [...premiumHarita.values()].filter((p) => p.premium).length : null;
+    sayim.engelli = engeller ? engelHarita.size : null;
+
     const liste = kullanicilar
       .map((u) => {
         const p = profilHarita.get(String(u.id)) || null;
+        const engel = engelHarita.get(String(u.id)) || null;
+        const prem = premiumHarita.get(String(u.id)) || null;
         return {
+          id: u.id,
           eposta: u.email || null,
           kullaniciAdi: p?.username || null,
           kayit: u.created_at || null,
           sonGiris: u.last_sign_in_at || null,
           dogrulandi: !!u.email_confirmed_at,
           etkinOturum: etkinHarita.has(String(u.id)),
+          engelli: engeller ? !!engel : null,
+          engelSebep: engel?.reason || null,
+          premium: haklar ? !!(prem && prem.premium) : null,
+          premiumBitis: prem?.bitis || null,
+          premiumSuresiz: !!(prem && prem.suresiz),
         };
       })
       .filter((k) => !ara || (k.eposta || '').toLowerCase().includes(ara) || (k.kullaniciAdi || '').toLowerCase().includes(ara))
@@ -196,6 +242,247 @@ router.post('/bulten-yenile', async (req, res) => {
     });
   } catch (e) {
     safeError(res, e, 'Bülten yenilenemedi.');
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MÜDAHALE UÇLARI — buradan sonrası VERİ DEĞİŞTİRİR
+// ═══════════════════════════════════════════════════════════════════════════
+// Ortak kurallar:
+//  • Her işlem KİMİN yaptığını yazar (operatör e-postası) — sorumluluk izi.
+//  • Geri alınabilir olan hiçbir şey SİLİNMEZ; işaretlenir (lifted_at,
+//    revoked_at). Tek gerçek silme yorum silmedir ve o da açıkça istenir.
+//  • Operatör KENDİNİ engelleyemez: paneli kilitleyip çıkışsız kalmak,
+//    geri dönüşü sunucuya erişim gerektiren bir hatadır.
+
+/** İstek sahibi operatörün e-postası — kayıtlara "kim yaptı" olarak yazılır. */
+function operator(req) {
+  return String(req.user?.email || '').toLowerCase() || 'bilinmeyen-operator';
+}
+
+/** Tablo yoksa (migration 010 uygulanmamış) anlaşılır hata döndürür. */
+function tabloYokMu(e) {
+  const m = String(e?.message || '');
+  return /relation .* does not exist|could not find the table|schema cache/i.test(m);
+}
+function tabloHatasi(res) {
+  return res.status(503).json({
+    error: 'Bu özellik için veritabanı tabloları henüz oluşturulmadı '
+      + '(migration 010). Sunucuda SUPABASE_DB_URL tanımlanınca açılışta otomatik kurulur.',
+  });
+}
+
+// ---------------------------------------------------------------------------
+// YORUMLAR — tüm geçmiş, arama, gizle / geri al / SİL
+// ---------------------------------------------------------------------------
+// NEDEN "tüm yorumlar": moderasyon kuyruğu yalnız BİLDİRİLEN yorumları
+// gösterir. Operatörün kötü bir yorumu bildirim beklemeden bulup silebilmesi
+// gerekiyor (kullanıcı isteği).
+router.get('/yorumlar', async (req, res) => {
+  if (!supabaseEnabled) return res.json({ veritabani: false, liste: [] });
+  try {
+    const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 300);
+    const ara = String(req.query.q || '').trim();
+    const sadeceGizli = String(req.query.gizli || '') === '1';
+
+    let sorgu = sbAdmin
+      .from('comments')
+      .select('id,match_id,user_id,text,created_at,edited_at,hidden_at,hidden_reason')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (ara) sorgu = sorgu.ilike('text', `%${ara}%`);
+    if (sadeceGizli) sorgu = sorgu.not('hidden_at', 'is', null);
+
+    const { data: yorumlar, error } = await sorgu;
+    if (error) throw new Error(error.message);
+
+    const kullanicilar = [...new Set((yorumlar || []).map((c) => c.user_id).filter(Boolean))];
+    const profiller = kullanicilar.length ? (await getProfiles(kullanicilar)) || {} : {};
+
+    res.json({
+      veritabani: true,
+      liste: (yorumlar || []).map((c) => ({
+        id: c.id,
+        matchId: c.match_id,
+        userId: c.user_id,
+        kullaniciAdi: profiller[c.user_id]?.username || 'Silinmiş kullanıcı',
+        metin: c.text,
+        tarih: c.created_at,
+        duzenlendi: c.edited_at || null,
+        gizli: !!c.hidden_at,
+        gizlenmeSebebi: c.hidden_reason || null,
+      })),
+    });
+  } catch (e) {
+    safeError(res, e, 'Yorumlar okunamadı.');
+  }
+});
+
+// GİZLE / GERİ AL — moderasyonun kendi işlemleri (tek doğruluk kaynağı).
+router.post('/yorum/:id/gizle', async (req, res) => {
+  try {
+    const r = await yorumuGizle(sbAdmin, { commentId: req.params.id, operatorId: req.user?.id });
+    if (!r.ok) return res.status(400).json({ error: r.sebep || 'Yorum gizlenemedi.' });
+    res.json({ ok: true });
+  } catch (e) { safeError(res, e, 'Yorum gizlenemedi.'); }
+});
+
+router.post('/yorum/:id/goster', async (req, res) => {
+  try {
+    const r = await yorumuGeriAl(sbAdmin, { commentId: req.params.id, operatorId: req.user?.id });
+    if (!r.ok) return res.status(400).json({ error: r.sebep || 'Gizleme geri alınamadı.' });
+    res.json({ ok: true });
+  } catch (e) { safeError(res, e, 'Gizleme geri alınamadı.'); }
+});
+
+// SİL — GERİ ALINAMAZ. Bu yüzden ayrı bir uçtur ve panelde onay ister.
+// Önce bağlı bildirimler, sonra yorum silinir (yabancı anahtar sırası).
+router.delete('/yorum/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Geçersiz yorum numarası.' });
+    await sbAdmin.from('comment_reports').delete().eq('comment_id', id);
+    const { error } = await sbAdmin.from('comments').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    res.json({ ok: true });
+  } catch (e) { safeError(res, e, 'Yorum silinemedi.'); }
+});
+
+// ---------------------------------------------------------------------------
+// KULLANICI ENGELLEME
+// ---------------------------------------------------------------------------
+router.post('/kullanici/:id/engelle', async (req, res) => {
+  try {
+    const hedef = String(req.params.id);
+    if (hedef === String(req.user?.id)) {
+      return res.status(400).json({ error: 'Kendini engelleyemezsin — panele giriş kapanır.' });
+    }
+    const sebep = String(req.body?.sebep || '').slice(0, 300);
+    const gun = Number(req.body?.gun);
+    const until = Number.isFinite(gun) && gun > 0
+      ? new Date(Date.now() + gun * 86400000).toISOString() : null;
+    const { error } = await sbAdmin.from('user_bans')
+      .insert({ user_id: hedef, reason: sebep, banned_by: operator(req), until });
+    if (error) throw new Error(error.message);
+    engelBellekTemizle(hedef);                   // 60 sn beklenmesin
+    res.json({ ok: true, until });
+  } catch (e) {
+    if (tabloYokMu(e)) return tabloHatasi(res);
+    safeError(res, e, 'Kullanıcı engellenemedi.');
+  }
+});
+
+router.post('/kullanici/:id/engeli-kaldir', async (req, res) => {
+  try {
+    const { error } = await sbAdmin.from('user_bans')
+      .update({ lifted_at: new Date().toISOString(), lifted_by: operator(req) })
+      .eq('user_id', String(req.params.id)).is('lifted_at', null);
+    if (error) throw new Error(error.message);
+    engelBellekTemizle(String(req.params.id));   // beklemeden etkili olsun
+    res.json({ ok: true });
+  } catch (e) {
+    if (tabloYokMu(e)) return tabloHatasi(res);
+    safeError(res, e, 'Engel kaldırılamadı.');
+  }
+});
+
+// ---------------------------------------------------------------------------
+// PREMIUM — doğrudan verme / iptal
+// ---------------------------------------------------------------------------
+router.post('/kullanici/:id/premium', async (req, res) => {
+  try {
+    const gun = Number(req.body?.gun);
+    const expires = bitisHesapla(Number.isFinite(gun) ? gun : 30);
+    const { error } = await sbAdmin.from('premium_grants').insert({
+      user_id: String(req.params.id), source: 'manual', granted_by: operator(req), expires_at: expires,
+    });
+    if (error) throw new Error(error.message);
+    res.json({ ok: true, bitis: expires });
+  } catch (e) {
+    if (tabloYokMu(e)) return tabloHatasi(res);
+    safeError(res, e, 'Premium verilemedi.');
+  }
+});
+
+router.post('/kullanici/:id/premium-iptal', async (req, res) => {
+  try {
+    const { error } = await sbAdmin.from('premium_grants')
+      .update({ revoked_at: new Date().toISOString() })
+      .eq('user_id', String(req.params.id)).is('revoked_at', null);
+    if (error) throw new Error(error.message);
+    res.json({ ok: true });
+  } catch (e) {
+    if (tabloYokMu(e)) return tabloHatasi(res);
+    safeError(res, e, 'Premium iptal edilemedi.');
+  }
+});
+
+// ---------------------------------------------------------------------------
+// PREMIUM KODLARI
+// ---------------------------------------------------------------------------
+router.get('/premium/kodlar', async (req, res) => {
+  try {
+    const { data: kodlar, error } = await sbAdmin.from('premium_codes')
+      .select('*').order('created_at', { ascending: false }).limit(200);
+    if (error) throw new Error(error.message);
+    const { data: kullanimlar } = await sbAdmin.from('premium_redemptions').select('code,user_id,redeemed_at');
+    const sayac = new Map();
+    for (const k of kullanimlar || []) sayac.set(k.code, (sayac.get(k.code) || 0) + 1);
+    res.json({
+      liste: (kodlar || []).map((k) => ({
+        kod: k.code,
+        gun: k.grants_days,
+        maxKullanim: k.max_uses,
+        kullanim: sayac.get(k.code) || 0,
+        not: k.note || '',
+        olusturma: k.created_at,
+        olusturan: k.created_by,
+        sonKullanma: k.expires_at,
+        iptal: !!k.revoked_at,
+        gecerli: kodGecerliMi(k, sayac.get(k.code) || 0).ok,
+      })),
+    });
+  } catch (e) {
+    if (tabloYokMu(e)) return tabloHatasi(res);
+    safeError(res, e, 'Kodlar okunamadı.');
+  }
+});
+
+router.post('/premium/kod', async (req, res) => {
+  try {
+    const adet = Math.min(Math.max(Number(req.body?.adet) || 1, 1), 50);
+    const gun = Number(req.body?.gun);
+    const maxUses = Math.max(Number(req.body?.maxKullanim) || 1, 1);
+    const not = String(req.body?.not || '').slice(0, 200);
+    const satirlar = [];
+    for (let i = 0; i < adet; i += 1) {
+      satirlar.push({
+        code: kodUret(10),
+        grants_days: Number.isFinite(gun) ? gun : 30,
+        max_uses: maxUses,
+        note: not,
+        created_by: operator(req),
+      });
+    }
+    const { data, error } = await sbAdmin.from('premium_codes').insert(satirlar).select('code');
+    if (error) throw new Error(error.message);
+    res.json({ ok: true, kodlar: (data || []).map((d) => d.code) });
+  } catch (e) {
+    if (tabloYokMu(e)) return tabloHatasi(res);
+    safeError(res, e, 'Kod üretilemedi.');
+  }
+});
+
+router.post('/premium/kod/:kod/iptal', async (req, res) => {
+  try {
+    const { error } = await sbAdmin.from('premium_codes')
+      .update({ revoked_at: new Date().toISOString() })
+      .eq('code', kodNormalize(req.params.kod));
+    if (error) throw new Error(error.message);
+    res.json({ ok: true });
+  } catch (e) {
+    if (tabloYokMu(e)) return tabloHatasi(res);
+    safeError(res, e, 'Kod iptal edilemedi.');
   }
 });
 

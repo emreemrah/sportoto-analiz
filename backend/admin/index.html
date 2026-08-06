@@ -8,28 +8,29 @@
 <!--
   YÖNETİM PANELİ — tek dosya, çerçeve yok, paket yok.
   ---------------------------------------------------------------------------
-  Neden tek dosya: panel ayda birkaç kez açılır. Ona bir derleme adımı, bir
-  bağımlılık ağacı ve bir güncelleme yükü eklemek maliyeti faydasından büyük
-  olurdu. Saf HTML+JS, backend'in kendi sunucusundan sunulur.
+  Betik AYRI dosyadadır (/yonetim/panel.js) çünkü sunucunun CSP başlığı
+  `script-src 'self'` — satır içi script çalışmaz. Bkz. panel.js başlığı.
 
   Yetki: ayrı bir yönetici şifresi YOKTUR. Uygulamanın kendi girişi kullanılır;
-  sunucu, .env'deki MODERATOR_EMAILS listesine bakar. Panelin kendisi kimseye
-  yetki VERMEZ, yalnız yetkiyi olanın işini kolaylaştırır.
+  sunucu .env'deki MODERATOR_EMAILS listesine bakar.
 
   Dürüstlük: sayı okunamadıysa "bilinmiyor" yazar. Ekranda uydurma değer yok.
 -->
 <style>
   :root{
-    --lac:#0B1B3A; --lac2:#132a4d; --kenar:#e3e8ef; --zemin:#f4f6fa;
-    --kart:#ffffff; --sonuk:#6b7a90; --yesil:#12805c; --kirmizi:#c0392b;
-    --turuncu:#ff7a00; --mavi:#1d4ed8;
+    --lac:#0B1B3A; --kenar:#e3e8ef; --zemin:#f4f6fa; --kart:#fff;
+    --sonuk:#6b7a90; --yesil:#12805c; --kirmizi:#c0392b; --turuncu:#ff7a00;
   }
   *{box-sizing:border-box}
   body{margin:0;font:15px/1.5 system-ui,"Segoe UI",Roboto,Arial,sans-serif;background:var(--zemin);color:var(--lac)}
-  header{background:var(--lac);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-  header h1{font-size:16px;margin:0;font-weight:800;letter-spacing:.2px}
+  header{background:var(--lac);color:#fff;padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  header h1{font-size:16px;margin:0;font-weight:800}
   header .kim{margin-left:auto;font-size:13px;opacity:.85}
-  main{max-width:960px;margin:0 auto;padding:18px}
+  nav{background:var(--lac);padding:0 12px 10px;display:flex;gap:6px;flex-wrap:wrap}
+  nav button{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;
+    padding:7px 12px;border-radius:999px;font-size:13px;font-weight:800;cursor:pointer}
+  nav button.acik{background:#fff;color:var(--lac);border-color:#fff}
+  main{max-width:1100px;margin:0 auto;padding:18px}
   .kart{background:var(--kart);border:1px solid var(--kenar);border-radius:12px;padding:14px;margin-bottom:14px}
   .kart h2{font-size:14px;margin:0 0 10px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--sonuk)}
   .izgara{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
@@ -37,28 +38,31 @@
   .kutu .etiket{font-size:11px;color:var(--sonuk);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
   .kutu .deger{font-size:20px;font-weight:900;margin-top:3px}
   .kucuk{font-size:12px;color:var(--sonuk)}
-  .rozet{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:800}
+  .rozet{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap}
   .ok{background:#e6f5ef;color:var(--yesil)} .kotu{background:#fdecea;color:var(--kirmizi)}
-  .notr{background:#eef1f6;color:var(--sonuk)}
-  button{font:inherit;font-weight:800;border-radius:9px;border:1px solid var(--lac);background:var(--lac);color:#fff;padding:9px 14px;cursor:pointer}
+  .notr{background:#eef1f6;color:var(--sonuk)} .altin{background:#fff4e0;color:#9a5b00}
+  button{font:inherit;font-weight:800;border-radius:9px;border:1px solid var(--lac);background:var(--lac);color:#fff;padding:8px 12px;cursor:pointer}
   button.ikincil{background:#fff;color:var(--lac)}
   button.tehlike{background:#fff;border-color:var(--kirmizi);color:var(--kirmizi)}
-  button:disabled{opacity:.55;cursor:default}
-  input{font:inherit;padding:9px 11px;border:1px solid var(--kenar);border-radius:9px;width:100%}
+  button.ufak{padding:4px 8px;font-size:12px;border-radius:7px}
+  button:disabled{opacity:.5;cursor:default}
+  input,select{font:inherit;padding:8px 10px;border:1px solid var(--kenar);border-radius:9px}
   label{display:block;font-size:12px;font-weight:700;color:var(--sonuk);margin:10px 0 4px}
   .giris{max-width:360px;margin:60px auto}
   .satir{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .uyari{background:#fff8e6;border:1px solid #f0d38a;color:#7a5a00;border-radius:9px;padding:9px 11px;font-size:13px}
+  .uyari{background:#fff8e6;border:1px solid #f0d38a;color:#7a5a00;border-radius:9px;padding:9px 11px;font-size:13px;margin:0 0 10px}
   .hata{background:#fdecea;border:1px solid #f3b4ad;color:var(--kirmizi);border-radius:9px;padding:9px 11px;font-size:13px}
+  .basari{background:#e6f5ef;border:1px solid #9dd6c0;color:var(--yesil);border-radius:9px;padding:9px 11px;font-size:13px;margin:10px 0 0}
   .bildirim{border:1px solid var(--kenar);border-radius:10px;padding:10px;margin-bottom:9px;background:#fbfcfe}
-  .bildirim .metin{white-space:pre-wrap;background:#fff;border:1px solid var(--kenar);border-radius:8px;padding:8px;margin:7px 0;font-size:13px}
+  .metin{white-space:pre-wrap;background:#fff;border:1px solid var(--kenar);border-radius:8px;padding:8px;margin:7px 0;font-size:13px}
   table{width:100%;border-collapse:collapse;font-size:13px}
-  th,td{padding:6px 8px;border-bottom:1px solid var(--kenar);text-align:left}
-  th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--sonuk);background:#fbfcfe}
+  th,td{padding:6px 8px;border-bottom:1px solid var(--kenar);text-align:left;vertical-align:top}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--sonuk);background:#fbfcfe;position:sticky;top:0}
   td.sag,th.sag{text-align:right;font-variant-numeric:tabular-nums}
   tr:last-child td{border-bottom:0}
-  .tabloSar{overflow-x:auto}
-  footer{max-width:960px;margin:0 auto;padding:6px 18px 26px;color:var(--sonuk);font-size:12px}
+  .tabloSar{overflow-x:auto;max-height:560px;overflow-y:auto;border:1px solid var(--kenar);border-radius:10px}
+  .kod{font-family:ui-monospace,Consolas,monospace;font-weight:900;letter-spacing:1px}
+  footer{max-width:1100px;margin:0 auto;padding:6px 18px 26px;color:var(--sonuk);font-size:12px}
 </style>
 </head>
 <body>
@@ -68,9 +72,9 @@
     <h2>Yönetim Girişi</h2>
     <p class="kucuk">Uygulamadaki hesabınla gir. Yetki, sunucudaki operatör listesinden gelir.</p>
     <label for="eposta">E-posta</label>
-    <input id="eposta" type="email" autocomplete="username" />
+    <input id="eposta" type="email" autocomplete="username" style="width:100%" />
     <label for="sifre">Şifre</label>
-    <input id="sifre" type="password" autocomplete="current-password" />
+    <input id="sifre" type="password" autocomplete="current-password" style="width:100%" />
     <div style="margin-top:12px"><button id="girisBtn">Giriş yap</button></div>
     <div id="girisHata" class="hata" style="margin-top:10px" hidden></div>
   </div>
@@ -80,71 +84,161 @@
   <header>
     <h1>⚙️ Yönetim Paneli</h1>
     <span class="kim" id="kimBilgi"></span>
-    <button class="ikincil" id="cikisBtn" style="padding:6px 10px">Çıkış</button>
+    <button class="ikincil ufak" id="yenileBtn">↻ Yenile</button>
+    <button class="ikincil ufak" id="cikisBtn">Çıkış</button>
   </header>
+  <nav id="sekmeler">
+    <button data-sekme="genel" class="acik">Genel</button>
+    <button data-sekme="analiz">Analiz</button>
+    <button data-sekme="haftalar">Haftalar</button>
+    <button data-sekme="kullanicilar">Kullanıcılar</button>
+    <button data-sekme="yorumlar">Yorumlar</button>
+    <button data-sekme="premium">Premium</button>
+    <button data-sekme="bildirimler">Bildirimler</button>
+  </nav>
 
   <main>
     <div id="ustHata" class="hata" hidden></div>
 
-    <section class="kart">
-      <h2>Sistem Durumu <span class="kucuk" id="zamanBilgi"></span></h2>
-      <div class="izgara" id="durumIzgara"></div>
-      <div class="satir" style="margin-top:12px">
-        <button class="ikincil" id="yenileBtn">↻ Durumu yenile</button>
-      </div>
-    </section>
+    <!-- ══════════ GENEL ══════════ -->
+    <div data-panel="genel">
+      <section class="kart">
+        <h2>Sistem Durumu <span class="kucuk" id="zamanBilgi"></span></h2>
+        <div class="izgara" id="durumIzgara"></div>
+      </section>
+      <section class="kart">
+        <h2>Bülten</h2>
+        <div class="izgara" id="bultenIzgara"></div>
+        <div class="satir" style="margin-top:12px">
+          <button id="bultenBtn">⬇ Bülteni kaynaktan yenile</button>
+          <span class="kucuk" id="bultenNot">Resmî kaynaktan yeniden çeker ve analizleri hesaplar. Birkaç dakika sürebilir.</span>
+        </div>
+      </section>
+    </div>
 
-    <section class="kart">
-      <h2>Bülten</h2>
-      <div class="izgara" id="bultenIzgara"></div>
-      <div class="satir" style="margin-top:12px">
-        <button id="bultenBtn">⬇ Bülteni kaynaktan yenile</button>
-        <span class="kucuk" id="bultenNot">Resmî kaynaktan yeniden çeker ve analizleri hesaplar. Birkaç dakika sürebilir.</span>
-      </div>
-    </section>
+    <!-- ══════════ ANALİZ ══════════ -->
+    <div data-panel="analiz" hidden>
+      <section class="kart">
+        <h2>Sistem Başarısı</h2>
+        <div id="analizUyari"></div>
+        <div class="izgara" id="analizIzgara"></div>
+        <div id="sonucKirilim" style="margin-top:12px"></div>
+      </section>
+      <section class="kart">
+        <h2>Tutmayan Tahminler</h2>
+        <div id="hataTablo"><p class="kucuk">Yükleniyor…</p></div>
+      </section>
+      <section class="kart">
+        <h2>Kriter Başarıları</h2>
+        <div class="satir" style="margin-bottom:10px">
+          <label style="margin:0">Dönem</label>
+          <select id="kriterDonem">
+            <option value="allTime">Tüm zamanlar</option>
+            <option value="last1">Son hafta</option>
+            <option value="last5">Son 5 hafta</option>
+            <option value="last10">Son 10 hafta</option>
+            <option value="last15">Son 15 hafta</option>
+          </select>
+          <label style="margin:0">Sırala</label>
+          <select id="kriterSira">
+            <option value="mac">Maç sayısına göre</option>
+            <option value="basari">Başarıya göre</option>
+            <option value="ad">Ada göre</option>
+          </select>
+        </div>
+        <div id="kriterTablo"><p class="kucuk">Yükleniyor…</p></div>
+      </section>
+    </div>
 
-    <section class="kart">
-      <h2>Analiz Panosu — Sistem Başarısı</h2>
-      <div id="analizUyari"></div>
-      <div class="izgara" id="analizIzgara"></div>
-      <div id="sonucKirilim" style="margin-top:12px"></div>
-    </section>
+    <!-- ══════════ HAFTALAR ══════════ -->
+    <div data-panel="haftalar" hidden>
+      <section class="kart">
+        <h2>Hafta Hafta Karne — tüm geçmiş</h2>
+        <div class="satir" style="margin-bottom:10px">
+          <label style="margin:0">Durum</label>
+          <select id="haftaDurum">
+            <option value="">Hepsi</option>
+            <option value="complete">Tam</option>
+            <option value="partial">Kısmi</option>
+            <option value="pending">Sonuç bekliyor</option>
+          </select>
+          <input id="haftaAra" placeholder="hafta adında ara…" style="max-width:220px" />
+        </div>
+        <div id="haftaTablo"><p class="kucuk">Yükleniyor…</p></div>
+      </section>
+    </div>
 
-    <section class="kart">
-      <h2>Hafta Hafta Karne</h2>
-      <div id="haftaTablo"><p class="kucuk">Yükleniyor…</p></div>
-    </section>
+    <!-- ══════════ KULLANICILAR ══════════ -->
+    <div data-panel="kullanicilar" hidden>
+      <section class="kart">
+        <h2>Kullanıcılar</h2>
+        <div class="izgara" id="kullaniciIzgara"></div>
+        <div class="satir" style="margin-top:12px">
+          <input id="kullaniciAra" placeholder="e-posta veya kullanıcı adında ara…" style="min-width:260px" />
+          <select id="kullaniciFiltre">
+            <option value="">Hepsi</option>
+            <option value="aktif">Etkin oturumu olan</option>
+            <option value="premium">Premium</option>
+            <option value="engelli">Engelli</option>
+            <option value="dogrulanmamis">Doğrulanmamış</option>
+          </select>
+          <button class="ikincil" id="kullaniciAraBtn">Filtrele</button>
+        </div>
+        <div id="kullaniciDurum"></div>
+        <div id="kullaniciTablo" style="margin-top:10px"><p class="kucuk">Yükleniyor…</p></div>
+        <p class="kucuk" id="kullaniciNot"></p>
+      </section>
+    </div>
 
-    <section class="kart">
-      <h2>Tutmayan Tahminler</h2>
-      <div id="hataTablo"><p class="kucuk">Yükleniyor…</p></div>
-    </section>
+    <!-- ══════════ YORUMLAR ══════════ -->
+    <div data-panel="yorumlar" hidden>
+      <section class="kart">
+        <h2>Tüm Yorumlar</h2>
+        <div class="satir">
+          <input id="yorumAra" placeholder="yorum metninde ara…" style="min-width:260px" />
+          <select id="yorumFiltre">
+            <option value="">Hepsi</option>
+            <option value="gizli">Yalnız gizlenenler</option>
+          </select>
+          <button class="ikincil" id="yorumAraBtn">Filtrele</button>
+        </div>
+        <div id="yorumDurum"></div>
+        <div id="yorumTablo" style="margin-top:10px"><p class="kucuk">Yükleniyor…</p></div>
+      </section>
+    </div>
 
-    <section class="kart">
-      <h2>Kriter Başarıları <span class="kucuk">· seçili dönem: tüm zamanlar</span></h2>
-      <div id="kriterTablo"><p class="kucuk">Yükleniyor…</p></div>
-    </section>
+    <!-- ══════════ PREMIUM ══════════ -->
+    <div data-panel="premium" hidden>
+      <section class="kart">
+        <h2>Kod Üret</h2>
+        <div class="satir">
+          <div><label for="kodAdet">Adet</label><input id="kodAdet" type="number" value="1" min="1" max="50" style="width:90px" /></div>
+          <div><label for="kodGun">Kaç gün premium</label><input id="kodGun" type="number" value="30" min="0" style="width:120px" /></div>
+          <div><label for="kodMax">Kaç kişi kullanabilir</label><input id="kodMax" type="number" value="1" min="1" style="width:150px" /></div>
+          <div style="flex:1;min-width:200px"><label for="kodNot">Not (kime verildi?)</label><input id="kodNot" placeholder="ör. Ahmet — deneme" style="width:100%" /></div>
+        </div>
+        <p class="kucuk">Gün 0 yazılırsa kod <b>süresiz</b> premium verir.</p>
+        <div class="satir" style="margin-top:6px"><button id="kodUretBtn">🎟️ Kod üret</button></div>
+        <div id="kodSonuc"></div>
+      </section>
+      <section class="kart">
+        <h2>Kodlar</h2>
+        <div id="kodTablo"><p class="kucuk">Yükleniyor…</p></div>
+      </section>
+    </div>
 
-    <section class="kart">
-      <h2>Kullanıcılar</h2>
-      <div class="izgara" id="kullaniciIzgara"></div>
-      <div class="satir" style="margin-top:12px">
-        <input id="kullaniciAra" placeholder="e-posta veya kullanıcı adında ara…" style="max-width:280px" />
-        <button class="ikincil" id="kullaniciAraBtn">Ara</button>
-      </div>
-      <div id="kullaniciTablo" style="margin-top:10px"><p class="kucuk">Yükleniyor…</p></div>
-      <p class="kucuk" id="kullaniciNot"></p>
-    </section>
-
-    <section class="kart">
-      <h2>Bekleyen Bildirimler</h2>
-      <div id="modAlan"><p class="kucuk">Yükleniyor…</p></div>
-    </section>
+    <!-- ══════════ BİLDİRİMLER ══════════ -->
+    <div data-panel="bildirimler" hidden>
+      <section class="kart">
+        <h2>Bekleyen Bildirimler</h2>
+        <div id="modAlan"><p class="kucuk">Yükleniyor…</p></div>
+      </section>
+    </div>
   </main>
 
   <footer>
-    Bu panel yalnız görüntüler ve iki işlem yapar: bülten yenileme, yorum gizleme/geri alma.
-    Kullanıcı silme, içerik düzenleme ve arşiv değişikliği bu panelde YOKTUR.
+    Yorum silme ve engelleme <b>gerçek</b> işlemlerdir. Silme geri alınamaz; engelleme geri alınabilir
+    (kayıt silinmez, "kaldırıldı" olarak işaretlenir). Arşiv, mühürlü analiz ve resmî sonuçlar bu panelden değiştirilemez.
   </footer>
 </div>
 

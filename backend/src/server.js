@@ -22,6 +22,7 @@ import userRoutes from './routes/users.js';
 import commentRoutes from './routes/comments.js';
 import moderationRoutes from './routes/moderation.js';
 import adminRoutes from './routes/admin.js';
+import premiumRoutes from './routes/premium.js';
 import predictionRoutes from './routes/predictions.js';
 import couponRoutes from './routes/coupons.js';
 import bulletinArchiveRoutes from './routes/bulletins.js';
@@ -81,6 +82,8 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/moderation', moderationRoutes);
 // YÖNETİM UÇLARI — operatöre kapalı (MODERATOR_EMAILS). Ayrıntı: routes/admin.js
 app.use('/api/admin', adminRoutes);
+// PREMIUM (kullanıcı tarafı): kod kullanma + durum. Ayrıntı: routes/premium.js
+app.use('/api/premium', premiumRoutes);
 app.use('/api/predictions', predictionRoutes);
 app.use('/api/coupons', couponRoutes);
 

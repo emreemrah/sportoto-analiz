@@ -3,26 +3,27 @@
 // NEDEN AYRI: sunucunun güvenlik başlıklarında CSP `script-src 'self'` var
 // (src/security/headers.js). Satır içi <script> bu kuralla ENGELLENİR; panel
 // açılır ama betik hiç çalışmadığı için ekran BOŞ kalır — ilk sürümde tam
-// olarak bu oldu. Doğru çözüm CSP'yi gevşetmek değil, betiği dosyaya almaktı:
-// güvenlik kuralı yerinde kalır, panel çalışır.
-
+// olarak bu oldu. Doğru çözüm CSP'yi gevşetmek değil, betiği dosyaya almaktı.
+//
+// TASARIM
+//  • Sekmeli: her sekme kendi verisini İLK açılışta çeker (tembel yükleme).
+//  • Filtreler istemcide değil, mümkün olduğunca SUNUCUDA (arama uçlara gider).
+//  • Yıkıcı işlemler (yorum silme, engelleme) ONAY ister.
+//  • Sayı okunamazsa "bilinmiyor" yazar — 0 yazmak yalan olurdu.
 (function () {
   'use strict';
 
-  // Belirteç yalnız SEKME ÖMRÜ boyunca durur (sessionStorage): paylaşılan bir
-  // masaüstünde tarayıcı kapanınca oturum da kapanır.
   var ANAHTAR = 'yonetim_token';
-  // OTURUM KİMLİĞİ (X-Session-Id) — ZORUNLU, süs değil.
-  // Sunucu her istekte oturum satırını doğruluyor (mw.js/checkSession):
-  // başlık gelmezse istek 401 ile reddediliyor. Bu, 'tüm cihazlardan çıkış'
-  // özelliğinin atlatılamamasını sağlayan koruma. İlk sürümde panel bu
-  // başlığı göndermiyordu; giriş başarılı oluyor ama ilk veri isteği 401
-  // dönüp 'Oturum düştü' diyordu — yaşanan arıza tam olarak buydu.
+  // OTURUM KİMLİĞİ (X-Session-Id) — ZORUNLU. Sunucu her istekte oturum
+  // satırını doğruluyor (mw.js/checkSession); başlık gelmezse 401 döner.
   var OTURUM = 'yonetim_oturum';
   var token = sessionStorage.getItem(ANAHTAR) || '';
   var oturumId = sessionStorage.getItem(OTURUM) || '';
   var $ = function (id) { return document.getElementById(id); };
   var yok = '<span class="kucuk">bilinmiyor</span>';
+  var yuklendi = {};          // sekme → veri çekildi mi
+  var sonKarne = null;        // /api/scorecards/system yanıtı (haftalar için)
+  var sonKriter = null;       // /api/scorecards/criteria yanıtı
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -32,13 +33,15 @@
   function tarih(iso) {
     if (!iso) return null;
     var d = new Date(iso);
-    if (isNaN(d.getTime())) return null;
-    return d.toLocaleString('tr-TR');
+    return isNaN(d.getTime()) ? null : d.toLocaleString('tr-TR');
   }
-  function kutu(etiket, deger, altYazi) {
+  function kutu(etiket, deger, alt) {
     return '<div class="kutu"><div class="etiket">' + esc(etiket) + '</div>' +
       '<div class="deger">' + (deger == null ? yok : deger) + '</div>' +
-      (altYazi ? '<div class="kucuk">' + esc(altYazi) + '</div>' : '') + '</div>';
+      (alt ? '<div class="kucuk">' + esc(alt) + '</div>' : '') + '</div>';
+  }
+  function bilgi(hedef, mesaj, tur) {
+    $(hedef).innerHTML = '<div class="' + (tur || 'basari') + '">' + esc(mesaj) + '</div>';
   }
 
   function istek(yol, secenek) {
@@ -51,13 +54,9 @@
       headers: bas,
       body: secenek.body ? JSON.stringify(secenek.body) : undefined,
     }).then(function (r) {
-      return r.json().catch(function () { return {}; }).then(function (govde) {
-        if (!r.ok) {
-          var e = new Error(govde.error || ('Sunucu ' + r.status));
-          e.durum = r.status;
-          throw e;
-        }
-        return govde;
+      return r.json().catch(function () { return {}; }).then(function (g) {
+        if (!r.ok) { var e = new Error(g.error || ('Sunucu ' + r.status)); e.durum = r.status; throw e; }
+        return g;
       });
     });
   }
@@ -69,13 +68,10 @@
   }
 
   function hataGoster(e) {
-    // 401/403: yetki yok ya da oturum düştü → girişe dön, sebebi söyle.
     if (e && (e.durum === 401 || e.durum === 403)) {
       sessionStorage.removeItem(ANAHTAR); sessionStorage.removeItem(OTURUM);
       token = ''; oturumId = '';
-      girisGoster(e.durum === 403
-        ? 'Bu hesap yönetim yetkisine sahip değil.'
-        : 'Oturum düştü, tekrar gir.');
+      girisGoster(e.durum === 403 ? 'Bu hesap yönetim yetkisine sahip değil.' : 'Oturum düştü, tekrar gir.');
       return;
     }
     $('ustHata').textContent = (e && e.message) || 'Bilinmeyen hata.';
@@ -89,7 +85,6 @@
     $('girisBtn').disabled = true; $('girisHata').hidden = true;
     istek('/api/auth/login', { method: 'POST', body: { email: e, password: s, platform: 'web', deviceName: 'Yönetim Paneli' } })
       .then(function (r) {
-        // Sunucu belirteci `token` alanında döndürür (bkz. routes/auth.js issueSession).
         token = r.token || '';
         if (!token) throw new Error('Sunucu belirteç döndürmedi.');
         oturumId = r.sessionId || '';
@@ -110,32 +105,52 @@
     girisGoster('');
   });
 
-  // ——— ÖZET ———
+  // ——— SEKME YÖNETİMİ ———
+  var yukleyiciler = {
+    genel: function () { return ozetYukle(); },
+    analiz: function () { return karneYukle().then(kriterCiz); },
+    haftalar: function () { return karneYukle().then(haftaCiz); },
+    kullanicilar: function () { return kullaniciYukle(); },
+    yorumlar: function () { return yorumYukle(); },
+    premium: function () { return kodYukle(); },
+    bildirimler: function () { return modYukle(); },
+  };
+
+  function sekmeAc(ad) {
+    var dugmeler = $('sekmeler').querySelectorAll('button');
+    for (var i = 0; i < dugmeler.length; i += 1) {
+      dugmeler[i].classList.toggle('acik', dugmeler[i].getAttribute('data-sekme') === ad);
+    }
+    var paneller = document.querySelectorAll('[data-panel]');
+    for (var j = 0; j < paneller.length; j += 1) {
+      paneller[j].hidden = paneller[j].getAttribute('data-panel') !== ad;
+    }
+    if (!yuklendi[ad]) {
+      yuklendi[ad] = true;
+      (yukleyiciler[ad] || function () { return Promise.resolve(); })().catch(hataGoster);
+    }
+  }
+  $('sekmeler').addEventListener('click', function (ev) {
+    var d = ev.target.closest('button[data-sekme]');
+    if (d) sekmeAc(d.getAttribute('data-sekme'));
+  });
+
+  // ——— GENEL ———
   function ozetYukle() {
     return istek('/api/admin/ozet').then(function (o) {
       $('ustHata').hidden = true;
       $('zamanBilgi').textContent = tarih(o.zaman) ? '· ' + tarih(o.zaman) : '';
-
-      var sema = o.sistem.semaOk === true
-        ? '<span class="rozet ok">tamam</span>'
-        : o.sistem.semaOk === false
-          ? '<span class="rozet kotu">' + esc(o.sistem.semaDurum || 'hata') + '</span>'
+      var sema = o.sistem.semaOk === true ? '<span class="rozet ok">tamam</span>'
+        : o.sistem.semaOk === false ? '<span class="rozet kotu">' + esc(o.sistem.semaDurum || 'hata') + '</span>'
           : '<span class="rozet notr">' + esc(o.sistem.semaDurum || 'bilinmiyor') + '</span>';
-      var db = o.sistem.veritabani
-        ? '<span class="rozet ok">bağlı</span>'
-        : '<span class="rozet kotu">kapalı</span>';
-      var kota = (o.kota && o.kota.kalan != null)
-        ? esc(o.kota.kalan) + (o.kota.limit != null ? ' <span class="kucuk">/ ' + esc(o.kota.limit) + '</span>' : '')
-        : null;
-
       $('durumIzgara').innerHTML =
-        kutu('Veritabanı', db) +
+        kutu('Veritabanı', o.sistem.veritabani ? '<span class="rozet ok">bağlı</span>' : '<span class="rozet kotu">kapalı</span>') +
         kutu('Şema göçü', sema, tarih(o.sistem.semaZaman) || '') +
-        kutu('Veri kotası', kota, o.kota && o.kota.sonGuncelleme ? 'son: ' + (tarih(o.kota.sonGuncelleme) || '') : '') +
+        kutu('Veri kotası', o.kota && o.kota.kalan != null
+          ? esc(o.kota.kalan) + ' <span class="kucuk">/ ' + esc(o.kota.limit) + '</span>' : null) +
         kutu('Kayıtlı kullanıcı', o.sayim.kullanici == null ? null : esc(o.sayim.kullanici)) +
         kutu('Yorum', o.sayim.yorum == null ? null : esc(o.sayim.yorum)) +
         kutu('Bekleyen bildirim', o.sayim.bekleyenBildirim == null ? null : esc(o.sayim.bekleyenBildirim));
-
       $('bultenIzgara').innerHTML =
         kutu('Hafta', o.bulten.hafta ? esc(o.bulten.hafta) : null) +
         kutu('Maç', o.bulten.var ? esc(o.bulten.macSayisi) : null) +
@@ -144,10 +159,9 @@
     });
   }
 
-  // ——— BÜLTEN YENİLE ———
   $('bultenBtn').addEventListener('click', function () {
     $('bultenBtn').disabled = true;
-    $('bultenNot').textContent = 'Yenileniyor… bu işlem birkaç dakika sürebilir, sayfayı kapatma.';
+    $('bultenNot').textContent = 'Yenileniyor… birkaç dakika sürebilir, sayfayı kapatma.';
     istek('/api/admin/bulten-yenile', { method: 'POST' })
       .then(function (r) {
         $('bultenNot').textContent = 'Yenilendi' + (tarih(r.guncellendi) ? ' · ' + tarih(r.guncellendi) : '');
@@ -157,218 +171,369 @@
       .finally(function () { $('bultenBtn').disabled = false; });
   });
 
-
-  // ——— ANALİZ PANOSU ———
-  // KAYNAK: mevcut /api/scorecards/* uçları. Yeni backend ucu YAZILMADI —
+  // ——— ANALİZ ———
+  // KAYNAK: mevcut /api/scorecards/* uçları. Yeni backend ucu yazılmadı —
   // uygulamanın Sistem Karnesi ekranıyla AYNI veriyi okur, böylece panel ile
   // uygulama asla farklı sayı söyleyemez.
-  //
-  // DÜRÜSTLÜK KURALLARI BURADA DA GEÇERLİ:
-  //  • Yalnız maç öncesi MÜHÜRLENDİĞİ doğrulanan tahminler sayılır (uç öyle
-  //    döndürüyor); dışlanan kayıt sayısı gizlenmez, ekranda yazılır.
-  //  • Veri yoksa yüzde uydurulmaz, "veri yok" yazılır.
-  function analizYukle() {
-    return istek('/api/scorecards/system').then(function (k) {
-      if (!k || k.hasData !== true) {
-        $('analizUyari').innerHTML = '<p class="uyari">Henüz resmî sonuçla eşleşmiş mühürlü tahmin yok — başarı hesaplanamaz.</p>';
-        $('analizIzgara').innerHTML = '';
-        $('sonucKirilim').innerHTML = '';
-        $('haftaTablo').innerHTML = '<p class="kucuk">Veri yok.</p>';
-        $('hataTablo').innerHTML = '<p class="kucuk">Veri yok.</p>';
-        return;
-      }
-
-      // Az örneklem uyarısı: 1-2 haftalık veriden çıkan yüzde yanıltıcıdır.
-      var uyari = '';
-      if (Number(k.weeksCounted) > 0 && Number(k.weeksCounted) < 5) {
-        uyari += '<p class="uyari">Yalnız ' + esc(k.weeksCounted) + ' hafta sayıldı — bu kadar az veride yüzde yanıltıcı olabilir.</p>';
-      }
-      if (Number(k.excludedCount) > 0) {
-        var kirilim = k.exclusionBreakdown || {};
-        var parcalar = Object.keys(kirilim).map(function (a) { return esc(a) + ': ' + esc(kirilim[a]); });
-        uyari += '<p class="uyari">' + esc(k.excludedCount) + ' hafta başarıya DAHİL EDİLMEDİ' +
-          (parcalar.length ? ' (' + parcalar.join(' · ') + ')' : '') +
-          ' — mühür kanıtı doğrulanamadığı için. Gizlenmiyor, sayılmıyor.</p>';
-      }
-      $('analizUyari').innerHTML = uyari;
-
-      var kap = k.coverage || {};
-      $('analizIzgara').innerHTML =
-        kutu('Tekli isabet', '%' + esc(k.accuracy), esc(k.correct) + ' / ' + esc(k.total) + ' maç') +
-        kutu('Son 5 hafta', k.last5 && k.last5.total ? '%' + esc(k.last5.accuracy) : null,
-          k.last5 && k.last5.total ? esc(k.last5.correct) + ' / ' + esc(k.last5.total) + ' maç' : '') +
-        kutu('Sayılan hafta', esc(k.weeksCounted), (Number(k.pendingWeeks) ? esc(k.pendingWeeks) + ' hafta sonuç bekliyor' : '')) +
-        kutu('En iyi hafta', k.bestWeek ? '%' + esc(k.bestWeek.accuracy) : null,
-          k.bestWeek ? esc(k.bestWeek.round) + ' · ' + esc(k.bestWeek.record) : '') +
-        kutu('Kapsama', kap.rate != null ? '%' + esc(kap.rate) : null,
-          kap.total != null ? esc(kap.covered) + ' / ' + esc(kap.total) + ' maç' : '') +
-        kutu('Yanlış tahmin', esc(k.wrong), 'aşağıda tek tek listeleniyor');
-
-      // 1 / X / 2 kırılımı — sistemin hangi sonuçta zayıf olduğunu gösterir.
-      var br = k.byResult || {};
-      var satirlar = ['1', 'X', '2'].map(function (o) {
-        var d = br[o];
-        if (!d || !d.t) return '<tr><td><b>' + o + '</b></td><td class="sag kucuk">veri yok</td><td class="sag"></td></tr>';
-        return '<tr><td><b>' + o + '</b></td><td class="sag">' + esc(d.c) + ' / ' + esc(d.t) + '</td>' +
-          '<td class="sag"><b>%' + esc(d.rate) + '</b></td></tr>';
-      }).join('');
-      $('sonucKirilim').innerHTML =
-        '<div class="tabloSar"><table><thead><tr><th>Gerçekleşen sonuç</th><th class="sag">Doğru / Toplam</th>' +
-        '<th class="sag">Başarı</th></tr></thead><tbody>' + satirlar + '</tbody></table></div>' +
-        '<p class="kucuk">Sistem hangi sonuç türünde zayıf, tek bakışta görünür.</p>';
-
-      // Hafta hafta
-      var haftalar = k.weeks || [];
-      $('haftaTablo').innerHTML = haftalar.length
-        ? '<div class="tabloSar"><table><thead><tr><th>Hafta</th><th class="sag">Kayıt</th>' +
-          '<th class="sag">Başarı</th><th>Durum</th><th>Mühür</th></tr></thead><tbody>' +
-          haftalar.map(function (w) {
-            var rozet = w.status === 'complete' ? '<span class="rozet ok">tam</span>'
-              : w.status === 'partial' ? '<span class="rozet notr">kısmi</span>'
-                : '<span class="rozet notr">bekliyor</span>';
-            return '<tr><td>' + esc(w.round || ('#' + w.roundId)) + '</td>' +
-              '<td class="sag">' + esc(w.record || '—') + '</td>' +
-              '<td class="sag"><b>' + (w.accuracy == null ? '—' : '%' + esc(w.accuracy)) + '</b></td>' +
-              '<td>' + rozet + '</td>' +
-              '<td class="kucuk">' + esc(w.verificationHashShort || '—') + '</td></tr>';
-          }).join('') + '</tbody></table></div>'
-        : '<p class="kucuk">Sayılan hafta yok.</p>';
-
-      // Tutmayan tahminler — kök neden aramanın başladığı yer.
-      var hatalar = k.errors || [];
-      $('hataTablo').innerHTML = hatalar.length
-        ? '<div class="tabloSar"><table><thead><tr><th>Hafta</th><th>No</th><th>Maç</th>' +
-          '<th class="sag">Sistem</th><th class="sag">Sonuç</th><th class="sag">Skor</th></tr></thead><tbody>' +
-          hatalar.map(function (e) {
-            return '<tr><td class="kucuk">' + esc(e.round || '') + '</td><td class="sag">' + esc(e.no) + '</td>' +
-              '<td>' + esc(e.home) + ' – ' + esc(e.away) + '</td>' +
-              '<td class="sag"><b>' + esc(e.system) + '</b></td>' +
-              '<td class="sag"><b>' + esc(e.result) + '</b></td>' +
-              '<td class="sag kucuk">' + esc(e.score || '') + '</td></tr>';
-          }).join('') + '</tbody></table></div>'
-        : '<p class="kucuk">Bu dönemde tutmayan tahmin yok.</p>';
-    });
-  }
-
-  function kriterYukle() {
-    return istek('/api/scorecards/criteria').then(function (c) {
-      var liste = (c && c.criteria) || [];
-      if (!liste.length) {
-        $('kriterTablo').innerHTML = '<p class="kucuk">Kriter karnesi için yeterli mühürlü veri yok.</p>';
-        return;
-      }
-      // Sinyal ürettiği maç sayısına göre sırala: çok maçta ölçülen kriter üstte.
-      var sirali = liste.filter(function (x) { return !x.informational; }).slice().sort(function (a, b) {
-        return ((b.windows && b.windows.allTime && b.windows.allTime.total) || 0) -
-          ((a.windows && a.windows.allTime && a.windows.allTime.total) || 0);
+  function karneYukle() {
+    if (sonKarne) return Promise.resolve(sonKarne);
+    return Promise.all([istek('/api/scorecards/system'), istek('/api/scorecards/criteria').catch(function () { return null; })])
+      .then(function (r) {
+        sonKarne = r[0]; sonKriter = r[1];
+        analizCiz();
+        return sonKarne;
       });
-      $('kriterTablo').innerHTML =
-        '<div class="tabloSar"><table><thead><tr><th>Kriter</th><th class="sag">Maç</th>' +
-        '<th class="sag">Doğru</th><th class="sag">Başarı</th></tr></thead><tbody>' +
-        sirali.map(function (x) {
-          var w = (x.windows && x.windows.allTime) || {};
-          if (w.rate == null) {
-            var sebep = (x.noData >= x.evaluated) ? 'veri yok' : 'sinyal yok';
-            return '<tr><td>' + esc(x.label) + '</td><td class="sag kucuk" colspan="3">' + sebep + '</td></tr>';
-          }
-          return '<tr><td>' + esc(x.label) + '</td><td class="sag">' + esc(w.total) + '</td>' +
-            '<td class="sag">' + esc(w.hits) + '</td>' +
-            '<td class="sag"><b>%' + esc(w.rate) + '</b></td></tr>';
-        }).join('') + '</tbody></table></div>' +
-        '<p class="kucuk">"Maç" = kriterin yön gösterdiği maç sayısı. Az maçta yüzde yanıltıcı olabilir.</p>';
-    });
   }
 
+  function analizCiz() {
+    var k = sonKarne;
+    if (!k || k.hasData !== true) {
+      $('analizUyari').innerHTML = '<p class="uyari">Henüz resmî sonuçla eşleşmiş mühürlü tahmin yok — başarı hesaplanamaz.</p>';
+      $('analizIzgara').innerHTML = ''; $('sonucKirilim').innerHTML = '';
+      $('hataTablo').innerHTML = '<p class="kucuk">Veri yok.</p>';
+      return;
+    }
+    var u = '';
+    if (Number(k.weeksCounted) > 0 && Number(k.weeksCounted) < 5) {
+      u += '<p class="uyari">Yalnız ' + esc(k.weeksCounted) + ' hafta sayıldı — bu kadar az veride yüzde yanıltıcı olabilir.</p>';
+    }
+    if (Number(k.excludedCount) > 0) {
+      var kr = k.exclusionBreakdown || {};
+      var p = Object.keys(kr).map(function (a) { return esc(a) + ': ' + esc(kr[a]); });
+      u += '<p class="uyari">' + esc(k.excludedCount) + ' hafta başarıya DAHİL EDİLMEDİ' +
+        (p.length ? ' (' + p.join(' · ') + ')' : '') + ' — mühür kanıtı doğrulanamadığı için. Gizlenmiyor, sayılmıyor.</p>';
+    }
+    $('analizUyari').innerHTML = u;
+
+    var kap = k.coverage || {};
+    $('analizIzgara').innerHTML =
+      kutu('Tekli isabet', '%' + esc(k.accuracy), esc(k.correct) + ' / ' + esc(k.total) + ' maç') +
+      kutu('Son 5 hafta', k.last5 && k.last5.total ? '%' + esc(k.last5.accuracy) : null,
+        k.last5 && k.last5.total ? esc(k.last5.correct) + ' / ' + esc(k.last5.total) + ' maç' : '') +
+      kutu('Sayılan hafta', esc(k.weeksCounted), Number(k.pendingWeeks) ? esc(k.pendingWeeks) + ' hafta sonuç bekliyor' : '') +
+      kutu('En iyi hafta', k.bestWeek ? '%' + esc(k.bestWeek.accuracy) : null,
+        k.bestWeek ? esc(k.bestWeek.round) + ' · ' + esc(k.bestWeek.record) : '') +
+      kutu('Kapsama', kap.rate != null ? '%' + esc(kap.rate) : null,
+        kap.total != null ? esc(kap.covered) + ' / ' + esc(kap.total) + ' maç' : '') +
+      kutu('Yanlış tahmin', esc(k.wrong), 'aşağıda tek tek listeleniyor');
+
+    var br = k.byResult || {};
+    $('sonucKirilim').innerHTML = '<div class="tabloSar"><table><thead><tr><th>Gerçekleşen sonuç</th>' +
+      '<th class="sag">Doğru / Toplam</th><th class="sag">Başarı</th></tr></thead><tbody>' +
+      ['1', 'X', '2'].map(function (o) {
+        var d = br[o];
+        if (!d || !d.t) return '<tr><td><b>' + o + '</b></td><td class="sag kucuk">veri yok</td><td></td></tr>';
+        return '<tr><td><b>' + o + '</b></td><td class="sag">' + esc(d.c) + ' / ' + esc(d.t) +
+          '</td><td class="sag"><b>%' + esc(d.rate) + '</b></td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<p class="kucuk">Sistem hangi sonuç türünde zayıf, tek bakışta görünür.</p>';
+
+    var h = k.errors || [];
+    $('hataTablo').innerHTML = h.length
+      ? '<div class="tabloSar"><table><thead><tr><th>Hafta</th><th class="sag">No</th><th>Maç</th>' +
+        '<th class="sag">Sistem</th><th class="sag">Sonuç</th><th class="sag">Skor</th></tr></thead><tbody>' +
+        h.map(function (e) {
+          return '<tr><td class="kucuk">' + esc(e.round || '') + '</td><td class="sag">' + esc(e.no) + '</td>' +
+            '<td>' + esc(e.home) + ' – ' + esc(e.away) + '</td><td class="sag"><b>' + esc(e.system) + '</b></td>' +
+            '<td class="sag"><b>' + esc(e.result) + '</b></td><td class="sag kucuk">' + esc(e.score || '') + '</td></tr>';
+        }).join('') + '</tbody></table></div>'
+      : '<p class="kucuk">Bu dönemde tutmayan tahmin yok.</p>';
+  }
+
+  function kriterCiz() {
+    var c = sonKriter;
+    var liste = (c && c.criteria) || [];
+    if (!liste.length) { $('kriterTablo').innerHTML = '<p class="kucuk">Kriter karnesi için yeterli mühürlü veri yok.</p>'; return; }
+    var donem = $('kriterDonem').value, sira = $('kriterSira').value;
+    var pencere = function (x) { return (x.windows && x.windows[donem]) || {}; };
+    var sirali = liste.filter(function (x) { return !x.informational; }).slice().sort(function (a, b) {
+      if (sira === 'ad') return String(a.label).localeCompare(String(b.label), 'tr');
+      if (sira === 'basari') return (pencere(b).rate || -1) - (pencere(a).rate || -1);
+      return (pencere(b).total || 0) - (pencere(a).total || 0);
+    });
+    $('kriterTablo').innerHTML = '<div class="tabloSar"><table><thead><tr><th>Kriter</th>' +
+      '<th class="sag">Maç</th><th class="sag">Doğru</th><th class="sag">Başarı</th></tr></thead><tbody>' +
+      sirali.map(function (x) {
+        var w = pencere(x);
+        if (w.rate == null) {
+          return '<tr><td>' + esc(x.label) + '</td><td class="sag kucuk" colspan="3">' +
+            ((x.noData >= x.evaluated) ? 'veri yok' : 'sinyal yok') + '</td></tr>';
+        }
+        return '<tr><td>' + esc(x.label) + '</td><td class="sag">' + esc(w.total) + '</td>' +
+          '<td class="sag">' + esc(w.hits) + '</td><td class="sag"><b>%' + esc(w.rate) + '</b></td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<p class="kucuk">"Maç" = kriterin yön gösterdiği maç sayısı. Az maçta yüzde yanıltıcı olabilir.</p>';
+  }
+  $('kriterDonem').addEventListener('change', kriterCiz);
+  $('kriterSira').addEventListener('change', kriterCiz);
+
+  // ——— HAFTALAR ———
+  function haftaCiz() {
+    var haftalar = (sonKarne && sonKarne.weeks) || [];
+    var durum = $('haftaDurum').value, ara = ($('haftaAra').value || '').trim().toLowerCase();
+    var suz = haftalar.filter(function (w) {
+      if (durum && w.status !== durum) return false;
+      if (ara && String(w.round || '').toLowerCase().indexOf(ara) < 0) return false;
+      return true;
+    });
+    $('haftaTablo').innerHTML = suz.length
+      ? '<div class="tabloSar"><table><thead><tr><th>Hafta</th><th>Sezon</th><th class="sag">Maç</th>' +
+        '<th class="sag">Kayıt</th><th class="sag">Başarı</th><th class="sag">Kapsama</th>' +
+        '<th>Durum</th><th>Mühür</th><th class="kucuk">Mühür zamanı</th></tr></thead><tbody>' +
+        suz.map(function (w) {
+          var r = w.status === 'complete' ? '<span class="rozet ok">tam</span>'
+            : w.status === 'partial' ? '<span class="rozet notr">kısmi</span>'
+              : '<span class="rozet notr">bekliyor</span>';
+          var kap = w.coverage ? esc(w.coverage.covered) + '/' + esc(w.coverage.total) : '—';
+          return '<tr><td><b>' + esc(w.round || ('#' + w.roundId)) + '</b></td>' +
+            '<td class="kucuk">' + esc(w.year || '') + '</td>' +
+            '<td class="sag">' + esc(w.matchCount) + '</td>' +
+            '<td class="sag">' + esc(w.record || '—') + '</td>' +
+            '<td class="sag"><b>' + (w.accuracy == null ? '—' : '%' + esc(w.accuracy)) + '</b></td>' +
+            '<td class="sag">' + kap + '</td><td>' + r + '</td>' +
+            '<td class="kucuk kod">' + esc(w.verificationHashShort || '—') + '</td>' +
+            '<td class="kucuk">' + esc(tarih(w.snapshotAt) || '—') + '</td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        '<p class="kucuk">' + suz.length + ' hafta gösteriliyor. "Mühür" = tahminin maç öncesi kilitlendiğini kanıtlayan özet.</p>'
+      : '<p class="kucuk">Filtreye uyan hafta yok.</p>';
+  }
+  $('haftaDurum').addEventListener('change', haftaCiz);
+  $('haftaAra').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') haftaCiz(); });
 
   // ——— KULLANICILAR ———
-  // "Aktif" burada ÖLÇÜLEBİLİR bir şeydir: iptal edilmemiş oturumu olan
-  // kullanıcı. Tahmini/uydurma bir "çevrimiçi" sayısı gösterilmez.
+  var kullaniciListe = [];
   function kullaniciYukle() {
     var q = ($('kullaniciAra').value || '').trim();
-    return istek('/api/admin/kullanicilar?limit=100' + (q ? '&q=' + encodeURIComponent(q) : ''))
+    return istek('/api/admin/kullanicilar?limit=200' + (q ? '&q=' + encodeURIComponent(q) : ''))
       .then(function (r) {
         if (!r.veritabani) {
           $('kullaniciIzgara').innerHTML = '';
-          $('kullaniciTablo').innerHTML = '<p class="uyari">Veritabanı bağlı değil — kullanıcı bilgisi okunamıyor.</p>';
+          $('kullaniciTablo').innerHTML = '<p class="uyari">Veritabanı bağlı değil.</p>';
           return;
         }
         var s = r.sayim || {};
         $('kullaniciIzgara').innerHTML =
           kutu('Toplam kayıt', esc(s.toplam)) +
           kutu('Etkin oturumu olan', esc(s.etkinOturumlu), 'çıkış yapmamış hesaplar') +
+          kutu('Premium', s.premiumlu == null ? null : esc(s.premiumlu)) +
+          kutu('Engelli', s.engelli == null ? null : esc(s.engelli)) +
           kutu('Son 7 günde giriş', esc(s.son7gGiris)) +
-          kutu('Yeni kayıt · 24 saat', esc(s.yeni24s)) +
-          kutu('Yeni kayıt · 7 gün', esc(s.yeni7g)) +
-          kutu('Yeni kayıt · 30 gün', esc(s.yeni30g)) +
-          kutu('E-postası doğrulanmış', esc(s.dogrulanmis),
-            (s.dogrulanmamis ? esc(s.dogrulanmamis) + ' hesap doğrulanmamış' : '')) +
-          kutu('Premium / satın alma', null, 'sistem henüz kurulmadı');
-
-        var liste = r.liste || [];
-        $('kullaniciTablo').innerHTML = liste.length
-          ? '<div class="tabloSar"><table><thead><tr><th>E-posta</th><th>Kullanıcı adı</th>' +
-            '<th>Kayıt</th><th>Son giriş</th><th>Durum</th></tr></thead><tbody>' +
-            liste.map(function (k) {
-              var rozet = k.etkinOturum ? '<span class="rozet ok">aktif</span>'
-                : k.dogrulandi ? '<span class="rozet notr">çıkış yapmış</span>'
-                  : '<span class="rozet kotu">doğrulanmamış</span>';
-              return '<tr><td>' + esc(k.eposta || '—') + '</td>' +
-                '<td>' + esc(k.kullaniciAdi || '—') + '</td>' +
-                '<td class="kucuk">' + esc(tarih(k.kayit) || '—') + '</td>' +
-                '<td class="kucuk">' + esc(tarih(k.sonGiris) || 'hiç') + '</td>' +
-                '<td>' + rozet + '</td></tr>';
-            }).join('') + '</tbody></table></div>'
-          : '<p class="kucuk">Eşleşen kullanıcı yok.</p>';
-        $('kullaniciNot').textContent = 'Gösterilen: ' + (r.gosterilen || 0) + ' kayıt. '
-          + 'Şifre, belirteç ve IP bu ekranda hiç görünmez.';
+          kutu('Yeni · 24 saat', esc(s.yeni24s)) +
+          kutu('Yeni · 7 gün', esc(s.yeni7g)) +
+          kutu('Doğrulanmamış', esc(s.dogrulanmamis));
+        kullaniciListe = r.liste || [];
+        kullaniciCiz();
+        $('kullaniciNot').textContent = 'Şifre, belirteç ve IP bu ekranda hiç görünmez.';
       });
   }
 
-  // ——— MODERASYON ———
+  function kullaniciCiz() {
+    var f = $('kullaniciFiltre').value;
+    var liste = kullaniciListe.filter(function (k) {
+      if (f === 'aktif') return k.etkinOturum;
+      if (f === 'premium') return k.premium === true;
+      if (f === 'engelli') return k.engelli === true;
+      if (f === 'dogrulanmamis') return !k.dogrulandi;
+      return true;
+    });
+    $('kullaniciTablo').innerHTML = liste.length
+      ? '<div class="tabloSar"><table><thead><tr><th>E-posta</th><th>Kullanıcı adı</th><th>Kayıt</th>' +
+        '<th>Son giriş</th><th>Durum</th><th>Premium</th><th>İşlem</th></tr></thead><tbody>' +
+        liste.map(function (k) {
+          var d = k.engelli ? '<span class="rozet kotu">engelli</span>'
+            : k.etkinOturum ? '<span class="rozet ok">aktif</span>'
+              : k.dogrulandi ? '<span class="rozet notr">çıkış yapmış</span>'
+                : '<span class="rozet kotu">doğrulanmamış</span>';
+          var pr = k.premium === true
+            ? '<span class="rozet altin">' + (k.premiumSuresiz ? 'süresiz' : esc(tarih(k.premiumBitis) || 'var')) + '</span>'
+            : (k.premium === null ? '<span class="kucuk">—</span>' : '<span class="kucuk">yok</span>');
+          return '<tr data-uid="' + esc(k.id) + '"><td>' + esc(k.eposta || '—') + '</td>' +
+            '<td>' + esc(k.kullaniciAdi || '—') + '</td>' +
+            '<td class="kucuk">' + esc(tarih(k.kayit) || '—') + '</td>' +
+            '<td class="kucuk">' + esc(tarih(k.sonGiris) || 'hiç') + '</td>' +
+            '<td>' + d + (k.engelSebep ? '<div class="kucuk">' + esc(k.engelSebep) + '</div>' : '') + '</td>' +
+            '<td>' + pr + '</td>' +
+            '<td><div class="satir">' +
+              (k.engelli
+                ? '<button class="ikincil ufak" data-is="engel-kaldir">Engeli kaldır</button>'
+                : '<button class="tehlike ufak" data-is="engelle">Engelle</button>') +
+              (k.premium
+                ? '<button class="ikincil ufak" data-is="premium-iptal">Premium iptal</button>'
+                : '<button class="ikincil ufak" data-is="premium-ver">Premium ver</button>') +
+            '</div></td></tr>';
+        }).join('') + '</tbody></table></div>'
+      : '<p class="kucuk">Eşleşen kullanıcı yok.</p>';
+  }
+
+  $('kullaniciTablo').addEventListener('click', function (ev) {
+    var d = ev.target.closest('button[data-is]');
+    if (!d) return;
+    var satir = d.closest('tr'), uid = satir && satir.getAttribute('data-uid');
+    if (!uid) return;
+    var is = d.getAttribute('data-is'), yol = null, govde = null;
+    if (is === 'engelle') {
+      var sebep = window.prompt('Engelleme sebebi (kullanıcıya gösterilmez, kayıt için):', 'Topluluk kurallarını ihlal');
+      if (sebep === null) return;
+      var gun = window.prompt('Kaç gün? (boş bırakırsan süresiz)', '');
+      if (gun === null) return;
+      yol = '/api/admin/kullanici/' + encodeURIComponent(uid) + '/engelle';
+      govde = { sebep: sebep, gun: Number(gun) || 0 };
+    } else if (is === 'engel-kaldir') {
+      yol = '/api/admin/kullanici/' + encodeURIComponent(uid) + '/engeli-kaldir';
+    } else if (is === 'premium-ver') {
+      var g = window.prompt('Kaç gün premium? (0 = süresiz)', '30');
+      if (g === null) return;
+      yol = '/api/admin/kullanici/' + encodeURIComponent(uid) + '/premium';
+      govde = { gun: Number(g) || 0 };
+    } else if (is === 'premium-iptal') {
+      if (!window.confirm('Bu kullanıcının premium hakkı iptal edilsin mi?')) return;
+      yol = '/api/admin/kullanici/' + encodeURIComponent(uid) + '/premium-iptal';
+    }
+    if (!yol) return;
+    satir.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+    istek(yol, { method: 'POST', body: govde })
+      .then(function () { bilgi('kullaniciDurum', 'İşlem tamam.'); return kullaniciYukle(); })
+      .catch(function (e) { bilgi('kullaniciDurum', e.message, 'hata'); hataGoster(e); });
+  });
+
+  $('kullaniciAraBtn').addEventListener('click', function () { kullaniciYukle().catch(hataGoster); });
+  $('kullaniciFiltre').addEventListener('change', kullaniciCiz);
+  $('kullaniciAra').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') $('kullaniciAraBtn').click(); });
+
+  // ——— YORUMLAR ———
+  function yorumYukle() {
+    var q = ($('yorumAra').value || '').trim();
+    var gizli = $('yorumFiltre').value === 'gizli' ? '&gizli=1' : '';
+    return istek('/api/admin/yorumlar?limit=300' + (q ? '&q=' + encodeURIComponent(q) : '') + gizli)
+      .then(function (r) {
+        var liste = r.liste || [];
+        $('yorumTablo').innerHTML = liste.length
+          ? '<div class="tabloSar"><table><thead><tr><th>Tarih</th><th>Kullanıcı</th><th>Yorum</th>' +
+            '<th>Durum</th><th>İşlem</th></tr></thead><tbody>' +
+            liste.map(function (c) {
+              return '<tr data-yid="' + esc(c.id) + '"><td class="kucuk">' + esc(tarih(c.tarih) || '') + '</td>' +
+                '<td>' + esc(c.kullaniciAdi) + '</td>' +
+                '<td style="max-width:420px"><div class="metin">' + esc(c.metin) + '</div></td>' +
+                '<td>' + (c.gizli ? '<span class="rozet kotu">gizli</span>' : '<span class="rozet ok">görünür</span>') + '</td>' +
+                '<td><div class="satir">' +
+                  (c.gizli ? '<button class="ikincil ufak" data-is="goster">Göster</button>'
+                    : '<button class="ikincil ufak" data-is="gizle">Gizle</button>') +
+                  '<button class="tehlike ufak" data-is="sil">Sil</button>' +
+                '</div></td></tr>';
+            }).join('') + '</tbody></table></div>' +
+            '<p class="kucuk">' + liste.length + ' yorum gösteriliyor. Silme GERİ ALINAMAZ.</p>'
+          : '<p class="kucuk">Eşleşen yorum yok.</p>';
+      });
+  }
+
+  $('yorumTablo').addEventListener('click', function (ev) {
+    var d = ev.target.closest('button[data-is]');
+    if (!d) return;
+    var satir = d.closest('tr'), yid = satir && satir.getAttribute('data-yid');
+    if (!yid) return;
+    var is = d.getAttribute('data-is');
+    var yol = '/api/admin/yorum/' + encodeURIComponent(yid) + (is === 'sil' ? '' : '/' + is);
+    if (is === 'sil' && !window.confirm('Bu yorum KALICI olarak silinecek. Geri alınamaz. Emin misin?')) return;
+    satir.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+    istek(yol, { method: is === 'sil' ? 'DELETE' : 'POST' })
+      .then(function () { bilgi('yorumDurum', is === 'sil' ? 'Yorum silindi.' : 'İşlem tamam.'); return yorumYukle(); })
+      .catch(function (e) { bilgi('yorumDurum', e.message, 'hata'); hataGoster(e); });
+  });
+  $('yorumAraBtn').addEventListener('click', function () { yorumYukle().catch(hataGoster); });
+  $('yorumAra').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') $('yorumAraBtn').click(); });
+
+  // ——— PREMIUM KODLARI ———
+  function kodYukle() {
+    return istek('/api/admin/premium/kodlar').then(function (r) {
+      var liste = r.liste || [];
+      $('kodTablo').innerHTML = liste.length
+        ? '<div class="tabloSar"><table><thead><tr><th>Kod</th><th class="sag">Gün</th>' +
+          '<th class="sag">Kullanım</th><th>Not</th><th>Üretim</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>' +
+          liste.map(function (k) {
+            var durum = k.iptal ? '<span class="rozet kotu">iptal</span>'
+              : k.gecerli ? '<span class="rozet ok">geçerli</span>'
+                : '<span class="rozet notr">kullanılamaz</span>';
+            return '<tr data-kod="' + esc(k.kod) + '"><td class="kod">' + esc(k.kod) + '</td>' +
+              '<td class="sag">' + (Number(k.gun) > 0 ? esc(k.gun) : 'süresiz') + '</td>' +
+              '<td class="sag">' + esc(k.kullanim) + ' / ' + esc(k.maxKullanim) + '</td>' +
+              '<td class="kucuk">' + esc(k.not || '') + '</td>' +
+              '<td class="kucuk">' + esc(tarih(k.olusturma) || '') + '</td>' +
+              '<td>' + durum + '</td>' +
+              '<td>' + (k.iptal ? '' : '<button class="tehlike ufak" data-is="kod-iptal">İptal et</button>') + '</td></tr>';
+          }).join('') + '</tbody></table></div>'
+        : '<p class="kucuk">Henüz kod üretilmedi.</p>';
+    });
+  }
+
+  $('kodUretBtn').addEventListener('click', function () {
+    $('kodUretBtn').disabled = true;
+    istek('/api/admin/premium/kod', {
+      method: 'POST',
+      body: {
+        adet: Number($('kodAdet').value) || 1,
+        gun: Number($('kodGun').value),
+        maxKullanim: Number($('kodMax').value) || 1,
+        not: $('kodNot').value,
+      },
+    })
+      .then(function (r) {
+        $('kodSonuc').innerHTML = '<div class="basari">Üretilen kod' + ((r.kodlar || []).length > 1 ? 'lar' : '') +
+          ': <span class="kod">' + (r.kodlar || []).map(esc).join(' · ') + '</span></div>';
+        return kodYukle();
+      })
+      .catch(function (e) { bilgi('kodSonuc', e.message, 'hata'); hataGoster(e); })
+      .finally(function () { $('kodUretBtn').disabled = false; });
+  });
+
+  $('kodTablo').addEventListener('click', function (ev) {
+    var d = ev.target.closest('button[data-is="kod-iptal"]');
+    if (!d) return;
+    var satir = d.closest('tr'), kod = satir && satir.getAttribute('data-kod');
+    if (!kod || !window.confirm(kod + ' kodu iptal edilsin mi? Kullanılmış haklar geri alınmaz.')) return;
+    d.disabled = true;
+    istek('/api/admin/premium/kod/' + encodeURIComponent(kod) + '/iptal', { method: 'POST' })
+      .then(kodYukle).catch(hataGoster);
+  });
+
+  // ——— MODERASYON KUYRUĞU ———
   function modYukle() {
     return istek('/api/moderation/reports').then(function (r) {
-      // Sunucu şekli: { items: [...], total, orphanCount } (moderationOps.js).
       var liste = (r && r.items) || [];
       var oksuz = (r && r.orphanCount) || 0;
-      var oksuzNot = oksuz ? '<p class="uyari">' + esc(oksuz) + ' bildirim, silinmiş bir yoruma ait — listede gösterilemiyor.</p>' : '';
-      if (!liste.length) {
-        $('modAlan').innerHTML = oksuzNot + '<p class="kucuk">Bekleyen bildirim yok.</p>';
-        return;
-      }
-      $('modAlan').innerHTML = oksuzNot + liste.map(function (b) {
+      var not = oksuz ? '<p class="uyari">' + esc(oksuz) + ' bildirim silinmiş bir yoruma ait — listede gösterilemiyor.</p>' : '';
+      if (!liste.length) { $('modAlan').innerHTML = not + '<p class="kucuk">Bekleyen bildirim yok.</p>'; return; }
+      $('modAlan').innerHTML = not + liste.map(function (b) {
         var sebepler = Array.isArray(b.reasons) ? b.reasons.join(', ') : (b.reasons || '');
-        var durum = b.hidden
-          ? '<span class="rozet kotu">gizli' + (b.hiddenBy ? ' · ' + esc(b.hiddenBy) : '') + '</span>'
-          : '<span class="rozet notr">görünür</span>';
         return '<div class="bildirim" data-yorum="' + esc(b.commentId) + '">' +
-          '<div class="satir"><span class="kucuk">' +
-            esc(b.reportCount) + ' bildirim · ' + esc(b.reporterCount) + ' kişi · ' +
-            esc(sebepler) + '</span>' + durum + '</div>' +
+          '<div class="satir"><span class="kucuk">' + esc(b.reportCount) + ' bildirim · ' +
+            esc(b.reporterCount) + ' kişi · ' + esc(sebepler) + '</span>' +
+            (b.hidden ? '<span class="rozet kotu">gizli</span>' : '<span class="rozet notr">görünür</span>') + '</div>' +
           '<div class="kucuk">' + esc((b.author && b.author.username) || '—') +
             (tarih(b.createdAt) ? ' · ' + esc(tarih(b.createdAt)) : '') + '</div>' +
           '<div class="metin">' + esc(b.text || '(metin okunamadı)') + '</div>' +
           '<div class="satir">' +
-            (b.hidden
-              ? '<button class="ikincil" data-is="geri">Gizlemeyi geri al</button>'
-              : '<button class="tehlike" data-is="gizle">Yorumu gizle</button>') +
-            '<button class="ikincil" data-is="yoksay">Bildirimi yok say</button>' +
+            (b.hidden ? '<button class="ikincil ufak" data-is="geri">Gizlemeyi geri al</button>'
+              : '<button class="tehlike ufak" data-is="gizle">Yorumu gizle</button>') +
+            '<button class="tehlike ufak" data-is="sil">Yorumu sil</button>' +
+            '<button class="ikincil ufak" data-is="yoksay">Bildirimi yok say</button>' +
           '</div></div>';
       }).join('');
     });
   }
 
   $('modAlan').addEventListener('click', function (ev) {
-    var dugme = ev.target.closest('button[data-is]');
-    if (!dugme) return;
-    var kart = dugme.closest('.bildirim');
-    var yorumId = kart && kart.getAttribute('data-yorum');
-    if (!yorumId) return;
-    var is = dugme.getAttribute('data-is');
-    var yol = is === 'gizle' ? '/api/moderation/comments/' + encodeURIComponent(yorumId) + '/hide'
-      : is === 'geri' ? '/api/moderation/comments/' + encodeURIComponent(yorumId) + '/unhide'
-        : '/api/moderation/reports/' + encodeURIComponent(yorumId) + '/dismiss';
+    var d = ev.target.closest('button[data-is]');
+    if (!d) return;
+    var kart = d.closest('.bildirim'), id = kart && kart.getAttribute('data-yorum');
+    if (!id) return;
+    var is = d.getAttribute('data-is');
+    if (is === 'sil' && !window.confirm('Bu yorum KALICI olarak silinecek. Emin misin?')) return;
+    var yol = is === 'sil' ? '/api/admin/yorum/' + encodeURIComponent(id)
+      : is === 'gizle' ? '/api/moderation/comments/' + encodeURIComponent(id) + '/hide'
+        : is === 'geri' ? '/api/moderation/comments/' + encodeURIComponent(id) + '/unhide'
+          : '/api/moderation/reports/' + encodeURIComponent(id) + '/dismiss';
     kart.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
-    istek(yol, { method: 'POST' })
+    istek(yol, { method: is === 'sil' ? 'DELETE' : 'POST' })
       .then(function () { return Promise.all([modYukle(), ozetYukle()]); })
       .catch(function (e) {
         hataGoster(e);
@@ -376,22 +541,24 @@
       });
   });
 
-  $('kullaniciAraBtn').addEventListener('click', function () { kullaniciYukle().catch(hataGoster); });
-  $('kullaniciAra').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') $('kullaniciAraBtn').click(); });
-
+  // ——— GENEL YENİLE ———
   $('yenileBtn').addEventListener('click', function () {
     $('yenileBtn').disabled = true;
-    Promise.all([ozetYukle(), analizYukle(), kriterYukle(), kullaniciYukle(), modYukle()])
+    sonKarne = null; sonKriter = null;
+    var acik = ($('sekmeler').querySelector('button.acik') || {}).getAttribute
+      ? $('sekmeler').querySelector('button.acik').getAttribute('data-sekme') : 'genel';
+    Promise.all([ozetYukle(), (yukleyiciler[acik] || function () { return Promise.resolve(); })()])
       .catch(hataGoster)
       .finally(function () { $('yenileBtn').disabled = false; });
   });
 
   function baslat() {
     var kim = sessionStorage.getItem('yonetim_kim');
-    $('kimBilgi').textContent = kim ? kim : '';
+    $('kimBilgi').textContent = kim || '';
     $('girisEkran').hidden = true;
     $('panel').hidden = false;
-    Promise.all([ozetYukle(), analizYukle(), kriterYukle(), kullaniciYukle(), modYukle()]).catch(hataGoster);
+    yuklendi = {};
+    sekmeAc('genel');
   }
 
   if (token) baslat(); else girisGoster('');
