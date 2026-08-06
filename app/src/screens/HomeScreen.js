@@ -148,7 +148,7 @@ function HeroCard({ data, loading, onPress, onSummary, onRecap }) {
             {zorluk?.text || 'Veriler hazır, analizler tamam. Haftaya dair öne çıkanlar burada.'}
           </Text>
         </View>
-        <BulletinHeroVisual width={128} height={92} />
+        <BulletinHeroVisual width={84} height={60} />
       </View>
 
       {/* Sayaçlar ve düğmeler AYRI satırlarda. Aynı satırda olduklarında telefon
@@ -1036,14 +1036,16 @@ const styles = StyleSheet.create({
   },
 
   /* ===== Hero kart (component + gerçek istatistik) ===== */
+  // HERO YARI BOYUT (kullanıcı isteği, 2026-08-06): kart ekranın yarısını
+  // yiyordu; dolgu/punto/yükseklik indirildi, içerik aynen duruyor.
   heroCard: {
-    marginHorizontal: 12,
-    marginTop: 12,
-    borderRadius: 22,
+    marginHorizontal: 10,
+    marginTop: 10,
+    borderRadius: 16,
     backgroundColor: '#0f2038',
     borderWidth: 1,
     borderColor: '#1c3a5e',
-    padding: 16,
+    padding: 10,
     overflow: 'hidden',
   },
   heroWeekRow: {
@@ -1088,12 +1090,12 @@ const styles = StyleSheet.create({
   heroBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 8,
   },
   heroCtaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 14,
+    marginTop: 8,
   },
   heroTextBlock: {
     flex: 1,
@@ -1101,13 +1103,13 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 13.5,
     fontWeight: '900',
   },
   heroDesc: {
     color: '#b8c6c8',
-    fontSize: 11.5,
-    lineHeight: 15,
+    fontSize: 10,
+    lineHeight: 13,
     marginTop: 2,
   },
   heroStats: {
@@ -1127,27 +1129,27 @@ const styles = StyleSheet.create({
   },
   heroStatValue: {
     color: '#ffffff',
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: '900',
-    marginTop: 2,
+    marginTop: 1,
   },
   // "/15" paydası: sayının kendisiyle yarışmasın, ama okunur kalsın.
   heroStatValueSuffix: {
     color: '#9fb0b3',
-    fontSize: 13,
+    fontSize: 10,
     fontWeight: '800',
   },
   heroStatLabel: {
     color: '#c1cacc',
-    fontSize: 10,
+    fontSize: 8.5,
     fontWeight: '700',
-    marginTop: 2,
+    marginTop: 1,
   },
   heroDivider: {
     width: 1,
-    height: 40,
+    height: 26,
     backgroundColor: '#12615d',
-    marginHorizontal: 7,
+    marginHorizontal: 5,
   },
   heroRight: {
     width: 122,
@@ -1161,9 +1163,9 @@ const styles = StyleSheet.create({
   },
   heroButton: {
     flex: 1,
-    height: 44,
-    paddingHorizontal: 12,
-    borderRadius: 14,
+    height: 34,
+    paddingHorizontal: 10,
+    borderRadius: 11,
     backgroundColor: '#ff7a00',
     flexDirection: 'row',
     alignItems: 'center',
@@ -1177,9 +1179,9 @@ const styles = StyleSheet.create({
   },
   heroSummaryBtn: {
     flex: 1,
-    height: 44,
-    paddingHorizontal: 10,
-    borderRadius: 14,
+    height: 34,
+    paddingHorizontal: 8,
+    borderRadius: 11,
     backgroundColor: 'rgba(255,255,255,0.10)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.35)',
@@ -1189,23 +1191,23 @@ const styles = StyleSheet.create({
   },
   heroSummaryTxt: {
     color: '#ffffff',
-    fontSize: 12.5,
+    fontSize: 11,
     fontWeight: '900',
   },
   heroRecapBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 40,
-    borderRadius: 14,
+    height: 32,
+    borderRadius: 11,
     backgroundColor: 'rgba(255,255,255,0.10)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.28)',
-    marginTop: 10,
+    marginTop: 6,
   },
   heroRecapTxt: {
     color: '#ffffff',
-    fontSize: 12.5,
+    fontSize: 11,
     fontWeight: '900',
   },
   heroRecapArrow: {
