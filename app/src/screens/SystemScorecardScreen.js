@@ -172,7 +172,7 @@ export default function SystemScorecardScreen({ navigation }) {
           {sc.weeks.map((w) => (
             <View key={w.roundId} style={styles.weekCard}>
               <View style={styles.weekHead}>
-                <Text style={styles.weekName}>{w.round || `#${w.roundId}`}</Text>
+                <Text style={styles.weekName} numberOfLines={1}>{w.round || `#${w.roundId}`}</Text>
                 <Text style={[styles.weekStatus, w.status === 'complete' ? styles.stOk : w.status === 'partial' ? styles.stWarn : styles.stMuted]}>
                   {w.status === 'complete' ? 'tam' : w.status === 'partial' ? 'kısmi' : 'sonuç bekleniyor'}
                 </Text>
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
 
   weekCard: { backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.sm, ...shadow.soft },
   weekHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  weekName: { color: colors.text, fontSize: 13, fontWeight: '900', flex: 1 },
+  weekName: { color: colors.text, fontSize: 13, fontWeight: '900', flex: 1, minWidth: 0 },
   weekStatus: { fontSize: 10.5, fontWeight: '900', paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.pill, overflow: 'hidden' },
   stOk: { backgroundColor: 'rgba(46,160,90,0.12)', color: colors.success },
   stWarn: { backgroundColor: 'rgba(240,160,40,0.14)', color: colors.warning },
@@ -447,14 +447,18 @@ const styles = StyleSheet.create({
   errSys: { color: colors.danger, fontWeight: '900' },
   errRes: { color: colors.success, fontWeight: '900' },
 
-  donemSatir: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8, marginBottom: 10 },
-  donemBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: colors.surfaceSoft },
+  // Beş çip 360px'e sığmayıp sonuncusu alt satıra düşüyordu. Dolgu ve punto
+  // indirildi; sarma yine açık ama artık tek satırda duruyor.
+  donemSatir: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 8, marginBottom: 10 },
+  donemBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 5, backgroundColor: colors.surfaceSoft },
   donemBtnAcik: { backgroundColor: colors.primary, borderColor: colors.primary },
-  donemTxt: { color: colors.textSoft, fontSize: 11.5, fontWeight: '800' },
+  donemTxt: { color: colors.textSoft, fontSize: 10.5, fontWeight: '800' },
   donemTxtAcik: { color: '#fff' },
   critRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border },
-  critName: { flex: 1, color: colors.text, fontSize: 12.5, fontWeight: '700' },
-  critVal: { color: colors.textSoft, fontSize: 12, fontWeight: '900' },
+  // Değer metni ('1008 maçta 809 başarı · %80') sabit davranıp kriter adını
+  // eziyordu; ikisi de kısalabilir oldu, satır tek satır kalır.
+  critName: { flex: 1, minWidth: 0, color: colors.text, fontSize: 12.5, fontWeight: '700' },
+  critVal: { color: colors.textSoft, fontSize: 11.5, fontWeight: '900', flexShrink: 1, marginLeft: 8 },
 
   // KALİBRASYON — ana rakam bilerek en büyük punto; isabet oranı burada YOK.
   calBig: { fontSize: 18, fontWeight: '900', marginTop: 4 },

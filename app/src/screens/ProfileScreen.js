@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
   taskCount: { color: colors.textMuted, fontSize: 11.5, fontWeight: '800' },
   stats: { flexDirection: 'row', gap: 14, marginTop: 10, flexWrap: 'wrap', justifyContent: 'center' },
   stat: { color: colors.textMuted, fontSize: 13, fontWeight: '700' },
-  favRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
+  favRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, minWidth: 0 },
   favLabel: { color: colors.textMuted, fontSize: 13, fontWeight: '700' },
   favPick: {
     flexDirection: 'row', alignItems: 'center', gap: 6,

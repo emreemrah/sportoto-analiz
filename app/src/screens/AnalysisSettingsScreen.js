@@ -305,7 +305,10 @@ export default function AnalysisSettingsScreen({ navigation }) {
       {/* Sabit Kaydet çubuğu */}
       <View style={[s.saveBar, { paddingBottom: 12 + (insets.bottom || 0) }]}>
         <TouchableOpacity onPress={save} activeOpacity={0.9} style={s.saveBtn}>
-          <Text style={s.saveTxt}>💾  Analiz Profilini Kaydet (yeni sürüm)</Text>
+          {/* Etiket kısaltıldı: eski hâli ('… (yeni sürüm)') dar telefonda
+              iki satıra kırılıyordu. Kaydetmenin yeni sürüm ürettiği zaten
+              kaydettikten sonraki bildirimde yazıyor. */}
+          <Text style={s.saveTxt} numberOfLines={1}>💾  Profili Kaydet</Text>
         </TouchableOpacity>
       </View>
 

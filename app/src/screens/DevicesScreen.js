@@ -70,13 +70,13 @@ export default function DevicesScreen() {
                 {s.deviceName}{s.current ? '  ' : ''}
                 {s.current && <Text style={styles.currentTag}>Bu cihaz</Text>}
               </Text>
-              <Text style={styles.deviceMeta}>Son görülme: {timeAgo(s.lastSeenAt)} · Giriş: {new Date(s.createdAt).toLocaleDateString('tr-TR')}</Text>
+              <Text style={styles.deviceMeta} numberOfLines={1}>Son görülme: {timeAgo(s.lastSeenAt)} · Giriş: {new Date(s.createdAt).toLocaleDateString('tr-TR')}</Text>
             </View>
             {!s.current && (
               <TouchableOpacity style={styles.revokeBtn} onPress={() => revoke(s.id)} disabled={busyId === s.id}>
                 {busyId === s.id
                   ? <ActivityIndicator size="small" color={colors.red} />
-                  : <Text style={styles.revokeTxt}>Oturumu Kapat</Text>}
+                  : <Text style={styles.revokeTxt} numberOfLines={1}>Oturumu Kapat</Text>}
               </TouchableOpacity>
             )}
           </View>
@@ -100,7 +100,8 @@ const styles = StyleSheet.create({
   deviceIcon: { fontSize: 26 },
   deviceName: { color: colors.text, fontSize: 14.5, fontWeight: '800' },
   currentTag: { color: colors.green, fontSize: 11.5, fontWeight: '800' },
-  deviceMeta: { color: colors.textMuted, fontSize: 11.5, marginTop: 3 },
-  revokeBtn: { borderWidth: 1, borderColor: colors.red, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 7 },
+  deviceMeta: { color: colors.textMuted, fontSize: 11, marginTop: 3 },
+  // Buton daraltıldı: orta sütuna (cihaz adı + tarih) yer kalsın.
+  revokeBtn: { borderWidth: 1, borderColor: colors.red, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 7, flexShrink: 0 },
   revokeTxt: { color: colors.red, fontSize: 12, fontWeight: '800' },
 });

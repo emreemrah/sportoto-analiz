@@ -350,7 +350,7 @@ export default function BulletinScreen({ navigation }) {
           <Text style={styles.muted}>{subtitle}</Text>
           {verifiedNow && (
             <View style={styles.verifiedBadge}>
-              <Text style={styles.verifiedTxt}>
+              <Text style={styles.verifiedTxt} numberOfLines={1}>
                 ✓ Resmi bülten teyit edildi{verifiedAt ? ` · ${verifiedAt.day} ${verifiedAt.time}` : ''}
               </Text>
             </View>

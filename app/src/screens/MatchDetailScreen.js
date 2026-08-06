@@ -953,10 +953,12 @@ const rec = (r) => (r ? `${r.wins}G ${r.draws}B ${r.losses}M` : null);
 
 const styles = StyleSheet.create({
   fltRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 6 },
-  fltDim: { color: colors.textMuted, fontSize: 11.5, fontWeight: '800', width: 78 },
-  fltBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  // Etiket sabit 78px'ti; dört çip + etiket 360px'e sığmayıp son çip alta
+  // düşüyordu ("taşma"). Daraltıldı ve çipler sıkıldı — satır tek satır kalır.
+  fltDim: { color: colors.textMuted, fontSize: 11, fontWeight: '800', width: 60 },
+  fltBtn: { paddingHorizontal: 7, paddingVertical: 5, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   fltBtnOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-  fltTxt: { color: colors.textSoft, fontSize: 11.5, fontWeight: '800' },
+  fltTxt: { color: colors.textSoft, fontSize: 11, fontWeight: '800' },
   fltTxtOn: { color: '#fff' },
   fltHint: { color: colors.textMuted, fontSize: 10.5, lineHeight: 14, marginTop: 6, fontStyle: 'italic' },
   // Referans tasarım dili — temiz kıyas kartları (İstatistik sekmesi).
@@ -971,7 +973,8 @@ const styles = StyleSheet.create({
   clSideR: { alignItems: 'flex-end' },
   clVal: { color: colors.text, fontSize: 14.5, fontWeight: '800', fontVariant: ['tabular-nums'] },
   clValR: { textAlign: 'right' },
-  clLab: { minWidth: 130, textAlign: 'center', color: colors.textSoft, fontSize: 12.5 },
+  // minWidth 130 iki yandaki değerleri eziyordu; artık kalan alanı paylaşır.
+  clLab: { flex: 1, minWidth: 0, flexShrink: 1, textAlign: 'center', color: colors.textSoft, fontSize: 12 },
   container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   league: { color: colors.textMuted, fontSize: 13 },
