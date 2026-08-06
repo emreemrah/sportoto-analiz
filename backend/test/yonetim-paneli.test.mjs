@@ -70,6 +70,18 @@ test('panelde gömülü sır veya sabit yönetici şifresi yok', () => {
   }
 });
 
+test('panel oturum kimliğini (X-Session-Id) gönderiyor', () => {
+  // YAŞANAN ARIZA (2026-08-06): giriş başarılı oluyor, ama ilk veri isteği
+  // 401 dönüp "Oturum düştü" diyordu. Sebep: sunucu her istekte oturum
+  // satırını doğruluyor (mw.js/checkSession) ve başlık gelmezse reddediyor.
+  // Panel giriş yanıtındaki sessionId'yi yok sayıyordu.
+  assert.match(betik, /bas\['X-Session-Id'\] = oturumId/, 'oturum başlığı gönderilmiyor');
+  assert.match(betik, /oturumId = r\.sessionId/, 'giriş yanıtındaki sessionId saklanmıyor');
+  // Çıkışta ve yetki hatasında ikisi de temizlenmeli, yoksa bayat kimlik kalır.
+  const temizlik = betik.match(/sessionStorage\.removeItem\(OTURUM\)/g) || [];
+  assert.ok(temizlik.length >= 2, 'oturum kimliği çıkışta/hata sonrası temizlenmiyor');
+});
+
 test('veri okunamayınca uydurma sayı üretilmiyor', () => {
   // sayimDene hata durumunda null döner; panel null için "bilinmiyor" yazar.
   assert.match(rota, /catch \{ return null; \}/, 'sayım hatası 0 gibi gösteriliyor olabilir');
