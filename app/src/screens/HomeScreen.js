@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 
 import { api } from '../api';
@@ -125,7 +126,7 @@ function HeroCard({ data, loading, onPress, onSummary, onRecap }) {
     <View style={styles.heroCard}>
       <BulletinHeroBackdrop />
 
-      <View style={styles.heroWeekRow}>
+      <View style={[styles.heroWeekRow, { flexWrap: 'wrap', rowGap: 4 }]}>
         <View style={styles.heroWeekDot} />
         <Text style={styles.heroWeekText}>{data?.round || '—'}</Text>
         {hazir && zorluk?.level ? (
@@ -454,6 +455,11 @@ export default function HomeScreen({ navigation }) {
 
   const matches = data?.matches || [];
 
+  // 360px SINIFI EKRANLAR (kullanıcı isteği, 2026-08-06): dar ekranda analiz
+  // kartları yan yana sıkışmak yerine ALT ALTA dizilir.
+  const { width: ekranGenislik } = useWindowDimensions();
+  const darEkran = ekranGenislik < 400;
+
   const topAnalysis = useMemo(() => {
     return [...matches]
       .filter((m) => m.status !== 'finished')
@@ -525,7 +531,7 @@ export default function HomeScreen({ navigation }) {
       ) : error || matches.length === 0 ? (
         <EmptyDashboard error={error} />
       ) : (
-        <View style={styles.analysisGrid}>
+        <View style={[styles.analysisGrid, darEkran && { flexDirection: 'column' }]}>
           {displayAnalysis.map((m) => {
             // Etiket GERÇEK sürpriz puanından — karta göre sabit etiket uydurulmaz.
             const sc = Number(m.analysis?.surpriseScore || 0);
