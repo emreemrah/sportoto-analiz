@@ -578,14 +578,21 @@ export default function RadarScreen({ navigation }) {
         </TouchableOpacity>
         {pct ? (
           <>
-            <View style={styles.memPctRow}>
+            {/* DAR EKRAN TAŞMASI (kullanıcı bildirimi, 2026-08-06): etiket +
+                üç rozet 360px'e sığmıyordu; "%50.0" gibi uzun değerlerde
+                sonuncusu alt satıra düşüp kartın dışına taşmış görünüyordu.
+                Çözüm: dar ekranda etiket kendi satırında, üç rozet ALTTA eşit
+                genişlikte (flex:1) — basamak sayısı ne olursa olsun sığar. */}
+            <View style={[styles.memPctRow, darEkran && styles.memPctRowDar]}>
               {/* Hafta sayısı parantez içinde yazılıyordu, kullanıcı kararıyla
                   kaldırıldı ("52/51/50 ne demek?"). Az örneklem uyarısı ALTTA
                   duruyor — sezon başında tek maçtan gelen "%100" için gerekli. */}
               <Text style={styles.memPctLabel}>Geçmiş {item.no}. sıra</Text>
-              <View style={styles.memOutcome}><Text style={[styles.memOutcomeKey, styles.memOutcomeOneKey]}>1</Text><Text style={styles.memOutcomeValue}>%{pct['1']}</Text></View>
-              <View style={styles.memOutcome}><Text style={[styles.memOutcomeKey, styles.memOutcomeDrawKey]}>X</Text><Text style={styles.memOutcomeValue}>%{pct.X}</Text></View>
-              <View style={styles.memOutcome}><Text style={[styles.memOutcomeKey, styles.memOutcomeTwoKey]}>2</Text><Text style={styles.memOutcomeValue}>%{pct['2']}</Text></View>
+              <View style={[styles.memOutcomes, darEkran && styles.memOutcomesDar]}>
+                <View style={[styles.memOutcome, darEkran && styles.memOutcomeDar]}><Text style={[styles.memOutcomeKey, styles.memOutcomeOneKey]}>1</Text><Text style={styles.memOutcomeValue}>%{pct['1']}</Text></View>
+                <View style={[styles.memOutcome, darEkran && styles.memOutcomeDar]}><Text style={[styles.memOutcomeKey, styles.memOutcomeDrawKey]}>X</Text><Text style={styles.memOutcomeValue}>%{pct.X}</Text></View>
+                <View style={[styles.memOutcome, darEkran && styles.memOutcomeDar]}><Text style={[styles.memOutcomeKey, styles.memOutcomeTwoKey]}>2</Text><Text style={styles.memOutcomeValue}>%{pct['2']}</Text></View>
+              </View>
             </View>
           </>
         ) : (
@@ -868,7 +875,14 @@ const styles = StyleSheet.create({
   memNo: { color: colors.textMuted, fontSize: 15, fontWeight: '800', width: 22, textAlign: 'center' },
   memTeams: { color: colors.text, fontSize: 14, fontWeight: '800', flex: 1, minWidth: 0 },
   memPctRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 6, marginLeft: 34 },
+  // Dar ekran: etiket üstte, rozetler altta — 34px'lik hiza payı da bırakılır,
+  // yoksa üç rozet için kalan genişlik yine yetmez.
+  memPctRowDar: { flexDirection: 'column', alignItems: 'stretch', marginLeft: 0, gap: 4, flexWrap: 'nowrap' },
   memPctLabel: { color: colors.textSoft, fontSize: 12, fontWeight: '800' },
+  memOutcomes: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  memOutcomesDar: { alignSelf: 'stretch' },
+  // Eşit paylaşım: en uzun değer ("%100.0") bile kendi kutusunda kalır.
+  memOutcomeDar: { flex: 1, justifyContent: 'center' },
   memOutcome: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: radius.pill, paddingHorizontal: 5, paddingVertical: 3, backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.border },
   memOutcomeKey: { color: colors.white, backgroundColor: colors.primary, borderRadius: radius.pill, minWidth: 20, paddingVertical: 2, textAlign: 'center', fontSize: 11, fontWeight: '900' },
   memOutcomeOneKey: { backgroundColor: colors.info },
