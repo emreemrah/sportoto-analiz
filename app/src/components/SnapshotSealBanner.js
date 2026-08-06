@@ -8,6 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, spacing } from '../theme';
 import { matchDate } from '../utils';
+import InfoIpucu from './InfoIpucu';
 
 function remainingText(ms) {
   if (ms <= 0) return null;
@@ -56,20 +57,18 @@ export default function SnapshotSealBanner({ archive }) {
     );
   }
 
-  // 2) AKTİF + kilit zamanı belli: geri sayım.
+  // 2) AKTİF + kilit zamanı belli: geri sayım — MOBİL SADELİK (2026-08-06):
+  //    tek satır özet, açıklama ⓘ arkasında. Veri eksiği uyarısı GÖRÜNÜR kalır.
   if (freezeAtMs) {
     const d = matchDate(archive.freezeAt);
     const left = remainingText(freezeAtMs - now);
     return (
-      <View style={[styles.wrap, styles.counting]}>
-        <Text style={styles.countTitle}>
-          🔒 Analizler {d.day} {d.time} itibarıyla kilitlenecek
-        </Text>
-        <Text style={styles.countTxt}>
-          {left
-            ? `Kalan süre: ${left} · Kilitten sonra tahmin/analiz değişmez, arşive mühürlenir.`
-            : 'Kilit zamanı geldi — analizler mühürleniyor…'}
-        </Text>
+      <View>
+        <InfoIpucu
+          renk={colors.warning}
+          ozet={`🔒 Kilit: ${d.day} ${d.time}${left ? ` · kalan ${left}` : ' · mühürleniyor…'}`}
+          detay={'Kilitten sonra tahmin/analiz değişmez, arşive mühürlenir. Bu, karnelerin geriye dönük oynanamamasının güvencesidir.'}
+        />
         {archive.dataGaps?.length ? (
           <Text style={styles.gapTxt}>⚠ {archive.dataGaps.length} maçta veri eksik — eksikler snapshot’a "veri yok" olarak yazılır.</Text>
         ) : null}

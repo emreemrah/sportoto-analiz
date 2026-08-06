@@ -12,6 +12,7 @@
 //  * Kaynak yoksa uydurma yüzde gösterilmez; bunun söylendiği satır da burada.
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import InfoIpucu from './InfoIpucu';
 import { colors, spacing, radius } from '../theme';
 import { DNA_PERIODS } from '../radarScreenData';
 
@@ -147,19 +148,11 @@ export default function RadarTabHeader({
     const dd = dailyOdds;
     return (
       <View>
-        <View style={styles.tabBanner}>
-          <Text style={styles.tabBannerTitle}>💹 Oran Takibi · Günlük 1/X/2 Oranları</Text>
-          <Text style={styles.tabBannerTxt}>
-            Gerçek 1/X/2 maç oranlarının gün gün hareketi. Bir gün seçin; 15 maçın o güne ait
-            mühürlü oranı kendi satırında görünür (ör. 1: 1.61 · X: 3.20 · 2: 4.25). Oran bir önceki güne göre
-            yükseldi (▲), düştü (▼) veya sabit (=) olarak işaretlenir.
-          </Text>
-          <Text style={styles.tabBannerTxt}>
-            Radar 3 (Oynanma DNA) kullanıcıların oynama YÜZDESİNİ, Radar 4 ise gerçek 1/X/2 ORANINI
-            gösterir — burada yüzde değil, oran vardır.
-          </Text>
-          <Text style={styles.tabBannerWarn}>Her günün oranı 23:55'te (maç günü ilk maçtan 5 dk önce) mühürlenir ve sonradan değişmez.</Text>
-        </View>
+        {/* MOBİL SADELİK (2026-08-06): açıklamalar ⓘ arkasında — yer kaplamaz. */}
+        <InfoIpucu
+          ozet="💹 Oran Takibi · Günlük 1/X/2 Oranları"
+          detay={'Gerçek 1/X/2 maç oranlarının gün gün hareketi. Bir gün seçin; 15 maçın o güne ait mühürlü oranı kendi satırında görünür (ör. 1: 1.61 · X: 3.20 · 2: 4.25). Oran bir önceki güne göre yükseldi (▲), düştü (▼) veya sabit (=) olarak işaretlenir.\n\nRadar 3 (Oynanma DNA) kullanıcıların oynama YÜZDESİNİ, Radar 4 ise gerçek 1/X/2 ORANINI gösterir — burada yüzde değil, oran vardır.\n\nHer günün oranı 23:55\'te (maç günü ilk maçtan 5 dk önce) mühürlenir ve sonradan değişmez.'}
+        />
         {dd?.days?.length ? (
           <>
             <DayChipsRow data={dd} selected={oddsDay} onSelect={onSelectOddsDay} />
@@ -178,29 +171,17 @@ export default function RadarTabHeader({
     const dp = dailyPlayed;
     return (
       <View>
-        <View style={styles.tabBanner}>
-          <Text style={styles.tabBannerTitle}>📊 Oynanma DNA · Günlük 1/X/2 Yüzdeleri</Text>
-          <Text style={styles.tabBannerTxt}>
-            Kullanıcıların 1/X/2 OYNAMA YÜZDESİNİN gün gün değişimi. Bir gün seçin; 15 maçın o güne ait mühürlü
-            yüzdesi kendi satırında görünür (ör. 1 %62 · X %21 · 2 %17). Yüzde bir önceki güne göre yükseldi (▲),
-            düştü (▼) veya sabit (=) olarak işaretlenir.
-          </Text>
-          <Text style={styles.tabBannerTxt}>
-            Bu bir ORAN değildir — Radar 4 (Oran Takibi) gerçek oranı gösterir; Radar 3 oynanma yüzdesidir.
-          </Text>
-          {/* KAYNAK LEJANTI KALDIRILDI (kullanıcı kararı). Kaynaklar yalnız maç
-              satırındaki renkli noktalarla görünür; başlıkta ne ad ne sayaç ne
-              de "bir kaynağa erişilemiyor" satırı yazar.
-              VERİ YOKLUĞU NOTU DURUYOR: hiç kaynak yoksa ekranın neden boş
-              olduğu söylenmeli — bu bir süs değil, ürünün dürüstlük kuralı
-              ("veri yoksa sebebini yaz"). */}
-          {dp && !dp.sources?.length ? (
-            <Text style={styles.tabBannerTxt}>
-              Kaynak yok — veri bekleniyor (uydurma yüzde gösterilmez).
-            </Text>
-          ) : null}
-          <Text style={styles.tabBannerWarn}>Her günün yüzdesi 23:55'te (maç günü ilk maçtan 5 dk önce) mühürlenir ve sonradan değişmez. Kaynak yoksa uydurma yüzde gösterilmez.</Text>
-        </View>
+        {/* MOBİL SADELİK (2026-08-06): açıklamalar ⓘ arkasında. VERİ YOKLUĞU
+            notu ⓘ DIŞINDA görünür kalır — dürüstlük kuralı gizlenmez. */}
+        <InfoIpucu
+          ozet="📊 Oynanma DNA · Günlük 1/X/2 Yüzdeleri"
+          detay={'Kullanıcıların 1/X/2 OYNAMA YÜZDESİNİN gün gün değişimi. Bir gün seçin; 15 maçın o güne ait mühürlü yüzdesi kendi satırında görünür (ör. 1 %62 · X %21 · 2 %17). Yüzde bir önceki güne göre yükseldi (▲), düştü (▼) veya sabit (=) olarak işaretlenir.\n\nBu bir ORAN değildir — Radar 4 (Oran Takibi) gerçek oranı gösterir; Radar 3 oynanma yüzdesidir.\n\nHer günün yüzdesi 23:55\'te (maç günü ilk maçtan 5 dk önce) mühürlenir ve sonradan değişmez. Kaynak yoksa uydurma yüzde gösterilmez.'}
+        />
+        {dp && !dp.sources?.length ? (
+          <Text style={styles.dnaHint}>Kaynak yok — veri bekleniyor (uydurma yüzde gösterilmez).</Text>
+        ) : null}
+        {/* KAYNAK LEJANTI eskiden kaldırılmıştı; VERİ YOKLUĞU notu yukarıda
+            GÖRÜNÜR duruyor (ⓘ'ye saklanmaz — dürüstlük kuralı). */}
         {dp?.days?.length ? (
           <>
             <DayChipsRow data={dp} selected={playedDay} onSelect={onSelectPlayedDay} />
@@ -268,16 +249,12 @@ export default function RadarTabHeader({
   }
 
   if (tab === 'performance' && anyData) {
+    // MOBİL SADELİK (2026-08-06): açıklama ⓘ arkasında.
     return (
-      <View style={styles.tabBanner}>
-        <Text style={styles.tabBannerTitle}>🛡 Rakip Gücü & Saha Performansı</Text>
-        <Text style={styles.tabBannerTxt}>
-          Form, rakibin MAÇ TARİHİNDEKİ ligdeki yerine göre tartılır (bugünkü tablo geçmişe uygulanmaz).
-          Ev sahibi yalnız İÇ SAHA, deplasman yalnız DEPLASMAN maçlarıyla değerlendirilir. Zayıf rakiplere karşı
-          gelen seriler "Şişirilmiş Form", güçlü rakiplere karşı gelenler "Kaliteli Form" olarak etiketlenir;
-          ham form da ayrıca gösterilir — hiçbir veri gizlenmez.
-        </Text>
-      </View>
+      <InfoIpucu
+        ozet="🛡 Rakip Gücü & Saha Performansı"
+        detay={'Form, rakibin MAÇ TARİHİNDEKİ ligdeki yerine göre tartılır (bugünkü tablo geçmişe uygulanmaz). Ev sahibi yalnız İÇ SAHA, deplasman yalnız DEPLASMAN maçlarıyla değerlendirilir. Zayıf rakiplere karşı gelen seriler "Şişirilmiş Form", güçlü rakiplere karşı gelenler "Kaliteli Form" olarak etiketlenir; ham form da ayrıca gösterilir — hiçbir veri gizlenmez.'}
+      />
     );
   }
 

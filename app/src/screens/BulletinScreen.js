@@ -20,6 +20,7 @@ import LiveBulletinView from '../components/LiveBulletinView';
 import { View as DuzZemin } from 'react-native';
 import BultenEmptyState from '../components/BultenEmptyState';
 import UlkeEtiketi from '../components/UlkeEtiketi';
+import InfoIpucu from '../components/InfoIpucu';
 import TakimLogoZemin from '../components/TakimLogoZemin';
 
 const MARK = { correct: '✅', wrong: '❌', pending: '⏳', none: '' };
@@ -382,16 +383,13 @@ export default function BulletinScreen({ navigation }) {
       {/* MÜHÜR DURUMU — kilit geri sayımı / "Mühürlü Analiz" + doğrulama hash'i.
           Veri kalıcı arşivden (data.archive); arşiv yoksa şerit çizilmez. */}
       {viewingCurrent && !data?.pending ? <SnapshotSealBanner archive={data?.archive} /> : null}
-      {/* Bülten Zorluk Skoru — analizden türetilir, veri yoksa gösterilmez */}
+      {/* Bülten Zorluk Skoru — MOBİL SADELİK (2026-08-06): tek satır + ⓘ. */}
       {viewingCurrent && !data?.pending && data?.difficulty ? (
-        <View style={[styles.diffBanner, {
-          borderColor: data.difficulty.score < 30 ? colors.success : data.difficulty.score < 50 ? colors.warning : colors.danger,
-        }]}>
-          <Text style={styles.diffTitle}>
-            🧭 Bu bülten: <Text style={{ color: data.difficulty.score < 30 ? colors.success : data.difficulty.score < 50 ? colors.warning : colors.danger }}>{data.difficulty.level}</Text> ({data.difficulty.score}/100)
-          </Text>
-          <Text style={styles.diffTxt}>{data.difficulty.text}</Text>
-        </View>
+        <InfoIpucu
+          renk={data.difficulty.score < 30 ? colors.success : data.difficulty.score < 50 ? colors.warning : colors.danger}
+          ozet={`🧭 Bu bülten: ${data.difficulty.level} (${data.difficulty.score}/100)`}
+          detay={data.difficulty.text}
+        />
       ) : null}
       {viewingCurrent && !data?.pending && data?.coverage?.uncoveredCount > 0 ? (
         <View style={styles.coverBanner}>
