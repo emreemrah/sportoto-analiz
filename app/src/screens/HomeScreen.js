@@ -226,18 +226,20 @@ function AnalysisCard({ match, tag, color, navigation, dar = false }) {
       onPress={() => navigation.navigate('MatchDetail', { no: match.no })}
     >
       <View style={styles.analysisTagRow}>
-        <View style={[styles.tagPill, { backgroundColor: color + '26' }]}>
-          <Text style={[styles.tagText, { color }]}>{tag}</Text>
+        <View style={[styles.tagPill, dar && styles.tagPillDar, { backgroundColor: color + '26' }]}>
+          <Text style={[styles.tagText, dar && styles.tagTextDar, { color }]}>{tag}</Text>
         </View>
-        {/* Hangi ülkenin maçı (kullanıcı isteği, 2026-08-04). */}
-        <UlkeEtiketi league={match.league} ligGoster={false} />
+        {/* Hangi ülkenin maçı (kullanıcı isteği, 2026-08-04). Dar ekranda
+            yan yana iki kart var; ülke adı satırı taşırdığı için yalnız
+            bayrak çizilir (ad, erişilebilirlik etiketinde durur). */}
+        <UlkeEtiketi league={match.league} ligGoster={false} kisa={dar} />
       </View>
 
       <View style={[styles.analysisTeams, dar && styles.analysisTeamsDar]}>
         <View style={styles.teamBlock}>
-          <Logo uri={crestOf(match, 'home')} name={match.home?.name} size={dar ? 38 : 46} />
+          <Logo uri={crestOf(match, 'home')} name={match.home?.name} size={dar ? 28 : 46} />
           {/* TEK satır — ad uzunsa kısalır; kart yükseklikleri simetrik kalır. */}
-          <Text style={styles.teamName} numberOfLines={1}>{shortTeam(match.home?.name)}</Text>
+          <Text style={[styles.teamName, dar && styles.teamNameDar]} numberOfLines={1}>{shortTeam(match.home?.name)}</Text>
         </View>
 
         <View style={styles.vsBlock}>
@@ -245,15 +247,17 @@ function AnalysisCard({ match, tag, color, navigation, dar = false }) {
             <Text style={styles.vsText}>VS</Text>
           </View>
           {dOk ? (
-            <Text style={styles.vsTime}>
-              {d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} · {matchTime(match.date)}
+            /* Dar ekranda yan yana iki kart var: tarih ve saat ALT ALTA
+               yazılır, tek satır olsa takım adlarının yerini yerdi. */
+            <Text style={[styles.vsTime, dar && styles.vsTimeDar]} numberOfLines={dar ? 2 : 1}>
+              {d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}{dar ? '\n' : ' · '}{matchTime(match.date)}
             </Text>
           ) : null}
         </View>
 
         <View style={styles.teamBlock}>
-          <Logo uri={crestOf(match, 'away')} name={match.away?.name} size={dar ? 38 : 46} />
-          <Text style={styles.teamName} numberOfLines={1}>{shortTeam(match.away?.name)}</Text>
+          <Logo uri={crestOf(match, 'away')} name={match.away?.name} size={dar ? 28 : 46} />
+          <Text style={[styles.teamName, dar && styles.teamNameDar]} numberOfLines={1}>{shortTeam(match.away?.name)}</Text>
         </View>
       </View>
 
@@ -275,18 +279,22 @@ function AnalysisCard({ match, tag, color, navigation, dar = false }) {
               return (
                 <View
                   key={s.k}
-                  style={[styles.probBox, favMi && styles.probBoxFav]}
+                  style={[styles.probBox, dar && styles.probBoxDar, favMi && styles.probBoxFav]}
                   accessibilityLabel={favMi ? `${s.k}: yüzde ${s.v} — en yüksek ihtimal` : `${s.k}: yüzde ${s.v}`}
                 >
-                  <Text style={[styles.probSym, favMi && styles.probSymFav]}>{s.k}{favMi ? ' ▲' : ''}</Text>
-                  <Text style={[styles.probPct, favMi && styles.probPctFav]}>
+                  <Text style={[styles.probSym, dar && styles.probSymDar, favMi && styles.probSymFav]}>
+                    {s.k}{favMi ? ' ▲' : ''}
+                  </Text>
+                  <Text style={[styles.probPct, dar && styles.probPctDar, favMi && styles.probPctFav]}>
                     %{s.v}{match.analysis?.estimated ? '≈' : ''}
                   </Text>
                 </View>
               );
             })}
           </View>
-          <Text style={styles.probNot}>▲ en yüksek ihtimal — seçim değil</Text>
+          <Text style={[styles.probNot, dar && styles.probNotDar]} numberOfLines={1}>
+            {dar ? '▲ en yüksek · seçim değil' : '▲ en yüksek ihtimal — seçim değil'}
+          </Text>
         </>
       ) : null}
 
@@ -302,8 +310,8 @@ function AnalysisCard({ match, tag, color, navigation, dar = false }) {
         activeOpacity={0.85}
         onPress={() => navigation.navigate('MatchDetail', { no: match.no })}
       >
-        <Text style={styles.analysisBtnTxt}>Analiz Detayı</Text>
-        <Text style={styles.analysisBtnArrow}>›</Text>
+        <Text style={[styles.analysisBtnTxt, dar && styles.analysisBtnTxtDar]}>Analiz Detayı</Text>
+        <Text style={[styles.analysisBtnArrow, dar && styles.analysisBtnArrowDar]}>›</Text>
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -564,7 +572,11 @@ export default function HomeScreen({ navigation }) {
       ) : error || matches.length === 0 ? (
         <EmptyDashboard error={error} />
       ) : (
-        <View style={[styles.analysisGrid, darEkran && { flexDirection: 'column' }]}>
+        /* YAN YANA (kullanıcı isteği, 2026-08-06): dar ekranda da iki kart
+           aynı satırda dursun, karşılaştırma tek bakışta yapılabilsin. Alt
+           alta dizmek ekranı iki katına çıkarıyordu. Sığması için kart içi
+           ölçüler ayrıca küçültüldü (bkz. `dar` bayrağı). */
+        <View style={[styles.analysisGrid, darEkran && styles.analysisGridDar]}>
           {displayAnalysis.map((m) => {
             // Etiket GERÇEK sürpriz puanından — karta göre sabit etiket uydurulmaz.
             const sc = Number(m.analysis?.surpriseScore || 0);
@@ -738,8 +750,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
 
+  // Dar ekranda iki kart yan yana: kenar boşlukları ve aradaki boşluk
+  // daraltılır ki her karta daha fazla genişlik kalsın.
+  analysisGridDar: {
+    gap: 8,
+    paddingHorizontal: 10,
+  },
+
   analysisCard: {
-    flex: 1,
+    // AÇIK YAZILDI (2026-08-06): yalnız `flex: 1` yazılınca kartlar içeriğin
+    // genişliğine göre büyüyüp satırdan taşıyordu (dar ekranda ikinci kart
+    // ekranın dışında kalıyordu). flexBasis 0 + minWidth 0, "içerik ne olursa
+    // olsun genişliği kap paylaş" demenin kesin yoludur.
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    overflow: 'hidden',
     backgroundColor: colors.card,
     borderRadius: 18,
     borderWidth: 1,
@@ -749,13 +776,14 @@ const styles = StyleSheet.create({
     ...shadows.soft,
   },
 
-  // DAR EKRAN (kullanıcı bildirimi, 2026-08-06: "bunlar çok büyük olmuş").
-  // Telefonda kartlar alt alta diziliyor ve her biri ekranın yarısını
-  // kaplıyordu. Ölçüler küçültüldü; bilgi KAYBOLMADI, yalnız sıkılaştı.
+  // DAR EKRAN (kullanıcı bildirimi, 2026-08-06: "çok büyük olmuş" → sonra
+  // "yan yana olsa daha da küçült"). Telefonda iki kart aynı satırda duruyor;
+  // ~170px'lik karta sığması için tüm iç ölçüler küçültüldü. Bilgi KAYBOLMADI:
+  // ülke bayrakta, açıklamanın tamamı Analiz Detayı'nda.
   analysisCardDar: {
     minHeight: 0,
-    padding: spacing.sm,
-    borderRadius: 14,
+    padding: 8,
+    borderRadius: 12,
   },
 
   analysisTagRow: {
@@ -790,7 +818,7 @@ const styles = StyleSheet.create({
     height: 78,
   },
 
-  analysisTeamsDar: { height: 62, marginTop: 8, marginBottom: 2 },
+  analysisTeamsDar: { height: 56, marginTop: 6, marginBottom: 2, paddingHorizontal: 0 },
 
   teamBlock: {
     flex: 1,
@@ -823,7 +851,9 @@ const styles = StyleSheet.create({
 
   // Dar ekranda tek satır: kart yarı yarıya kısalıyor, cümlenin başı yine
   // okunuyor; tamamı zaten "Analiz Detayı"nda duruyor.
-  analysisDescDar: { height: 16, marginTop: 6, marginBottom: 6, fontSize: 11.5, lineHeight: 15 },
+  // Yan yana kipte TEK satır: cümlenin başı yön veriyor, tamamı zaten
+  // "Analiz Detayı"nda. Yükseklik satırla birebir — altta boşluk kalmasın.
+  analysisDescDar: { height: 14, marginTop: 5, marginBottom: 5, fontSize: 10, lineHeight: 13 },
 
   // ÜST DÜZEY KART parçaları (2026-08-04 yenilemesi)
   teamName: {
@@ -834,11 +864,15 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
 
+  teamNameDar: { fontSize: 9.5, marginTop: 4 },
+
   vsBlock: {
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 6,
   },
+
+  vsTimeDar: { fontSize: 8.5, lineHeight: 11, textAlign: 'center' },
 
   vsCircle: {
     width: 34,
@@ -849,7 +883,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  vsCircleDar: { width: 28, height: 28, borderRadius: 14 },
+  vsCircleDar: { width: 24, height: 24, borderRadius: 12 },
 
   vsTime: {
     color: colors.textMuted,
@@ -863,7 +897,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
-  probRowDar: { marginTop: 6, gap: 5 },
+  probRowDar: { marginTop: 5, gap: 3 },
+  probBoxDar: { paddingVertical: 4, borderRadius: 8 },
+  probSymDar: { fontSize: 10.5 },
+  probPctDar: { fontSize: 9, marginTop: 0 },
 
   probBox: {
     flex: 1,
@@ -912,6 +949,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
+  probNotDar: { fontSize: 8.5, marginTop: 3 },
+
   analysisBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -923,7 +962,11 @@ const styles = StyleSheet.create({
     gap: 6,
   },
 
-  analysisBtnDar: { paddingVertical: 7, borderRadius: 10, marginTop: 2 },
+  analysisBtnDar: { paddingVertical: 6, borderRadius: 9, marginTop: 2, gap: 3 },
+  analysisBtnTxtDar: { fontSize: 10.5, letterSpacing: 0 },
+  analysisBtnArrowDar: { fontSize: 13 },
+  tagPillDar: { paddingHorizontal: 6, paddingVertical: 3 },
+  tagTextDar: { fontSize: 8.5 },
 
   analysisBtnTxt: {
     color: '#fff',
