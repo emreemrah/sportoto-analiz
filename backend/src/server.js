@@ -748,9 +748,25 @@ app.get(
 // "belirsizlikle güvenlik" olurdu; gerçek kapı uçların önündedir.
 //
 // Arama motorlarına kapalı: sayfanın kendi <meta robots> etiketi + bu başlık.
+const adminDir = path.join(__dirname, '..', 'admin');
+
+// Panelin BETİĞİ ayrı dosyadır ve bu ŞARTTIR: CSP `script-src 'self'`
+// (security/headers.js) satır içi <script> çalıştırmaz. İlk sürümde betik
+// HTML'in içindeydi ve panel bu yüzden bomboş açıldı. CSP gevşetilmedi;
+// betik dosyaya alındı.
+app.get('/yonetim/panel.js', (req, res) => {
+  try {
+    res.set('Content-Type', 'application/javascript; charset=utf-8');
+    res.set('Cache-Control', 'no-store');
+    res.send(fs.readFileSync(path.join(adminDir, 'panel.js'), 'utf8'));
+  } catch {
+    res.status(500).send('// panel betiği okunamadı');
+  }
+});
+
 app.get(['/yonetim', '/yonetim/', '/admin'], (req, res) => {
   try {
-    const html = fs.readFileSync(path.join(__dirname, '..', 'admin', 'index.html'), 'utf8');
+    const html = fs.readFileSync(path.join(adminDir, 'index.html'), 'utf8');
     res.set('Content-Type', 'text/html; charset=utf-8');
     res.set('X-Robots-Tag', 'noindex, nofollow');
     res.set('Cache-Control', 'no-store');

@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 const KOK = join(dirname(fileURLToPath(import.meta.url)), '..');
 const rota = readFileSync(join(KOK, 'src', 'routes', 'admin.js'), 'utf8');
 const panel = readFileSync(join(KOK, 'admin', 'index.html'), 'utf8');
+const betik = readFileSync(join(KOK, 'admin', 'panel.js'), 'utf8');
 const sunucu = readFileSync(join(KOK, 'src', 'server.js'), 'utf8');
 
 test('yönetim uçları operatör kapısının ARKASINDA', () => {
@@ -33,11 +34,22 @@ test('yönetim uçlarında /access gibi AÇIK uç yok', () => {
     'uçlara ayrı ayrı kimlik eklenmiş — tek kapı kuralı bozulmuş olabilir');
 });
 
+test('panelde SATIR İÇİ betik yok — CSP script-src \'self\' onu çalıştırmaz', () => {
+  // YAŞANAN ARIZA (2026-08-06): betik HTML'in içindeydi; sunucunun CSP başlığı
+  // satır içi script'i engelledi ve panel BOMBOŞ açıldı. CSP gevşetilmedi,
+  // betik ayrı dosyaya alındı. Bu test o hatanın geri gelmesini engeller.
+  assert.doesNotMatch(panel, /<script>(?!\s*<\/script>)/,
+    'panelde satır içi <script> var — CSP yüzünden çalışmaz, ekran boş açılır');
+  assert.match(panel, /<script src="\/yonetim\/panel\.js"><\/script>/,
+    'panel betiği harici dosyadan yüklenmiyor');
+  assert.match(sunucu, /app\.get\('\/yonetim\/panel\.js'/, 'betik yolu sunulmuyor');
+});
+
 test('panel YIKICI işlem sunmuyor (kapsam sınırı)', () => {
   // v1 kapsamı: okuma + bülten yenileme + yorum gizle/geri al/yok say.
   // Kullanıcı silme, arşiv değiştirme, elle skor girme YOK.
   for (const yasak of ['/api/admin/kullanici-sil', 'deleteUser', 'archive', 'skor-gir']) {
-    assert.ok(!panel.includes(yasak), `panelde beklenmeyen yıkıcı işlem: ${yasak}`);
+    assert.ok(!betik.includes(yasak), `panelde beklenmeyen yıkıcı işlem: ${yasak}`);
   }
   assert.ok(!rota.includes('deleteUser'), 'yönetim ucu kullanıcı siliyor — kapsam dışı');
 });
@@ -50,14 +62,16 @@ test('panel sayfası sunuluyor ve arama motoruna kapalı', () => {
 
 test('panelde gömülü sır veya sabit yönetici şifresi yok', () => {
   // Panel istemcide çalışır; içine yazılan her şey okunabilir.
-  assert.doesNotMatch(panel, /SUPABASE|SERVICE_ROLE|secret|api[_-]?key/i,
-    'panelde sır benzeri bir ifade var');
-  assert.doesNotMatch(panel, /password\s*===|sifre\s*===\s*'/i,
-    'panelde sabit şifre karşılaştırması var');
+  for (const parca of [panel, betik]) {
+    assert.doesNotMatch(parca, /SUPABASE|SERVICE_ROLE|secret|api[_-]?key/i,
+      'panelde sır benzeri bir ifade var');
+    assert.doesNotMatch(parca, /password\s*===|sifre\s*===\s*'/i,
+      'panelde sabit şifre karşılaştırması var');
+  }
 });
 
 test('veri okunamayınca uydurma sayı üretilmiyor', () => {
   // sayimDene hata durumunda null döner; panel null için "bilinmiyor" yazar.
   assert.match(rota, /catch \{ return null; \}/, 'sayım hatası 0 gibi gösteriliyor olabilir');
-  assert.match(panel, /bilinmiyor/, 'panelde "bilinmiyor" karşılığı yok');
+  assert.match(betik, /bilinmiyor/, 'panelde "bilinmiyor" karşılığı yok');
 });
