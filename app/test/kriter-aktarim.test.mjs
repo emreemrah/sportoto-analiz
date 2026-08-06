@@ -7,7 +7,7 @@
 // seçimler" dedi. Artık geniş = tekli + GEREKİRSE ikinci (destek farkına göre).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { macSecimi, kriterAktarimi, ekranMotoruylaAktar, sembolAc, CEKISME_FARKI } from '../src/kriterAktarim.js';
+import { macSecimi, kriterAktarimi, ekranMotoruylaAktar, netFavoriMi, sembolAc, CEKISME_FARKI } from '../src/kriterAktarim.js';
 import { userSelectedAnalysisEngine } from '../src/analysis/engine.js';
 
 const mac = (no, master) => ({ no, master });
@@ -121,7 +121,9 @@ test('kupon aktarımı EKRANIN verdiği sonucun AYNISINI üretir', () => {
     const { secimler } = ekranMotoruylaAktar(maclar, PROFIL, { genis });
     for (const m of maclar) {
       const v = userSelectedAnalysisEngine(m, PROFIL)?.verdict;
-      const beklenen = sembolAc(genis ? (v?.alt || v?.main) : v?.main);
+      // Net favoride geniş de tekli kalır (kullanıcı kuralı) — bunun dışında birebir aynı.
+      const net = genis && netFavoriMi(v);
+      const beklenen = sembolAc((genis && !net) ? (v?.alt || v?.main) : v?.main);
       assert.deepEqual(secimler[m.no] ?? [], beklenen,
         `maç ${m.no} (${genis ? 'geniş' : 'tekli'}): kupon ekrandan farklı seçim yaptı`);
     }
@@ -134,4 +136,56 @@ test('kilitli maça dokunulmaz, veri yoksa boş bırakılır', () => {
   assert.ok(!(2 in r.secimler), 'kilitli maça öneri yazılmış');
   assert.ok(!(3 in r.secimler), 'verisiz maça öneri uydurulmuş');
   assert.ok(r.uyarilar.some((u) => /kriter verisi yok/.test(u)));
+});
+
+
+/* ═══════ NET FAVORİDE ÇİFT YOK (kullanıcı kuralı, 2026-08-06) ═══════ */
+
+test('netFavoriMi: ölçü motorun kendi lead değeri (0.55 = "açık ara önde")', () => {
+  assert.equal(netFavoriMi({ main: '1', lead: 0.8 }), true);
+  assert.equal(netFavoriMi({ main: '2', lead: 0.55 }), true, 'tam eşik net sayılır');
+  assert.equal(netFavoriMi({ main: '1', lead: 0.54 }), false, 'eşiğin altı net değildir');
+  assert.equal(netFavoriMi({ main: '1', lead: 0.2 }), false);
+  // Açık maçta ana seçim ZATEN çifttir — ona dokunulmaz.
+  assert.equal(netFavoriMi({ main: '12', lead: 0.9 }), false);
+  // lead yoksa (eski önbellek) güvene düşülür.
+  assert.equal(netFavoriMi({ main: '1', confidence: 'Yüksek' }), true);
+  assert.equal(netFavoriMi({ main: '1', confidence: 'Orta' }), false);
+  assert.equal(netFavoriMi(null), false);
+});
+
+test('motor lead değerini DIŞA AÇIYOR — kupon kuralı buna dayanıyor', () => {
+  const v = userSelectedAnalysisEngine(gercekMac(1, 2.4, 0.6), PROFIL)?.verdict;
+  assert.ok(Number.isFinite(v?.lead), 'verdict.lead yok — net favori kuralı yedek ölçüye düşer');
+});
+
+test('geniş: net favoride TEK işaret kalır, kullanıcı bilgilendirilir', () => {
+  // Ev sahibi ezici → motorun lead değeri eşiği aşar.
+  const maclar = [gercekMac(1, 2.9, 0.2)];
+  const v = userSelectedAnalysisEngine(maclar[0], PROFIL)?.verdict;
+  assert.equal(netFavoriMi(v), true, `ön koşul: bu maç net favori olmalı (lead=${v?.lead})`);
+  assert.ok(sembolAc(v.alt).length > 1, 'ön koşul: motorun alternatifi çift olmalı');
+
+  const r = ekranMotoruylaAktar(maclar, PROFIL, { genis: true });
+  assert.deepEqual(r.secimler[1], sembolAc(v.main), 'net favoride çift yazılmış');
+  assert.equal(r.istatistik.netFavori, 1);
+  assert.ok(r.uyarilar.some((u) => /favori net olduğu için tek işaret/.test(u)));
+});
+
+test('geniş: net OLMAYAN maçta alternatif aynen gelir', () => {
+  const denk = gercekMac(2, 1.5, 1.45);
+  const v = userSelectedAnalysisEngine(denk, PROFIL)?.verdict;
+  const r = ekranMotoruylaAktar([denk], PROFIL, { genis: true });
+  if (netFavoriMi(v)) return;                       // bu maç net çıktıysa test konusu değil
+  assert.deepEqual(r.secimler[2], sembolAc(v.alt || v.main));
+});
+
+test('tekli kip net favori kuralından ETKİLENMEZ', () => {
+  const maclar = [gercekMac(1, 2.4, 0.6), gercekMac(2, 1.5, 1.45)];
+  const r = ekranMotoruylaAktar(maclar, PROFIL, { genis: false });
+  assert.equal(r.istatistik.netFavori, 0, 'tekli kipte net favori sayacı işlememeli');
+  for (const m of maclar) {
+    const v = userSelectedAnalysisEngine(m, PROFIL)?.verdict;
+    assert.deepEqual(r.secimler[m.no], sembolAc(v.main));
+  }
 });

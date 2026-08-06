@@ -355,7 +355,14 @@ export function userSelectedAnalysisEngine(m, profile) {
       drawCount: results.filter((x) => x.available && x.side === 'draw').length,
       leader: net > 0.05 ? 'home' : net < -0.05 ? 'away' : 'draw',
     },
-    verdict: { main, alt, confidence, risk, reason, favor, ratio: Math.round(ratio * 100) / 100 },
+    // `lead` DIŞA AÇILDI (2026-08-06): kupon aktarımı "net favori" kararını
+    // motorun KENDİ ölçüsüyle vermeli. lead ≥ 0.55, risk metninin "açık ara
+    // önde" dediği eşiktir; ikinci bir eşik uydurmak iki ekranı ayırırdı.
+    verdict: {
+      main, alt, confidence, risk, reason, favor,
+      ratio: Math.round(ratio * 100) / 100,
+      lead: Math.round(lead * 100) / 100,
+    },
     sportotoDecision,
   };
 }

@@ -37,24 +37,53 @@ export function sembolAc(sym) {
   return ['1', 'X', '2'].filter((o) => set.has(o));
 }
 
+// NET FAVORİ KURALI (kullanıcı isteği, 2026-08-06: "kriter net favorilere çift
+// seçenek sunmasın"). Ekran motoru, ana seçim açıkken bile alternatif olarak
+// bir çift üretir (ör. '1X') — bu, KAPSAMAK isteyene sunulan bir seçenektir.
+// Ama net favoride çifte yazmak kolon sayısını iki katına çıkarır ve bilgi
+// katmaz. Ölçü, motorun kendi eşikleridir:
+//   • güven "Yüksek" (lead ≥ 0.55 ve en az iki belirleyici kriter), VE
+//   • ana seçim TEK sonuç (açık maçlarda main zaten çifttir — ona dokunulmaz).
+// Bu iki koşulda geniş de tekli kalır. Diğer maçlarda alternatif aynen gelir.
+//
+// ÖLÇÜ MOTORUN KENDİSİNDEN: `lead` (lider ile ikincinin puan farkı / toplam).
+// 0.55 eşiği, motorun risk metninde "açık ara önde" dediği eşiğin AYNISIDIR —
+// ikinci bir eşik uydurmak ekranla kuponu tekrar ayırırdı. `lead` yoksa
+// (eski önbellek) güven derecesine düşülür.
+export const NET_FAVORI_LEAD = 0.55;
+export const NET_FAVORI_GUVEN = 'Yüksek';
+
+/** Bu maç "net favori" mi? Saf — yalnız motorun verdict'ine bakar. */
+export function netFavoriMi(verdict) {
+  if (!verdict) return false;
+  const ana = sembolAc(verdict.main);
+  if (ana.length !== 1) return false;                 // açık maç: ana zaten çift
+  if (Number.isFinite(verdict.lead)) return verdict.lead >= NET_FAVORI_LEAD;
+  return verdict.confidence === NET_FAVORI_GUVEN;     // yedek ölçü
+}
+
 /**
  * EKRANLA AYNI kaynak: kullanıcının kriter setiyle yerel motoru çalıştırır ve
- * kupon seçimlerini üretir. tekli → verdict.main, geniş → verdict.alt.
+ * kupon seçimlerini üretir. tekli → verdict.main; geniş → verdict.alt, ANCAK
+ * net favoride tekli kalır (yukarıdaki kural).
  * @returns { secimler, uyarilar, istatistik }
  */
 export function ekranMotoruylaAktar(matches, profile, { genis = false, kilitliNolar = new Set() } = {}) {
   const secimler = {};
   let veriYok = 0;
   let genisletilen = 0;
+  let netFavori = 0;
   let xVar = false;
 
   for (const m of matches || []) {
     if (kilitliNolar.has(Number(m?.no))) continue;
     let v = null;
     try { v = userSelectedAnalysisEngine(m, profile)?.verdict || null; } catch { v = null; }
-    const sym = genis ? (v?.alt || v?.main) : v?.main;
+    const net = netFavoriMi(v);
+    const sym = (genis && !net) ? (v?.alt || v?.main) : v?.main;
     const secim = sembolAc(sym);
     if (!secim.length) { veriYok += 1; continue; }
+    if (genis && net) netFavori += 1;
     if (secim.includes('X')) xVar = true;
     if (secim.length > 1) genisletilen += 1;
     secimler[m.no] = secim;
@@ -62,10 +91,13 @@ export function ekranMotoruylaAktar(matches, profile, { genis = false, kilitliNo
 
   const uyarilar = [];
   if (veriYok) uyarilar.push(`${veriYok} maçta kriter verisi yok — o maçlar boş bırakıldı (uydurma seçim yapılmaz).`);
-  if (genis && !xVar && Object.keys(secimler).length) {
+  if (netFavori) {
+    uyarilar.push(`${netFavori} maçta favori net olduğu için tek işaret bırakıldı — çift yazmak kolon sayısını artırır, bilgi katmaz.`);
+  }
+  if (genis && !xVar && genisletilen && !netFavori) {
     uyarilar.push('Seçtiğin kriterler hiçbir maçta beraberliği öne çıkarmadı. Beraberlik ihtimalini daha çok görmek istersen "Beraberlik Eğilimi", "KG Var" gibi kriterleri de aç.');
   }
-  return { secimler, uyarilar, istatistik: { veriYok, genisletilen, toplam: Object.keys(secimler).length } };
+  return { secimler, uyarilar, istatistik: { veriYok, genisletilen, netFavori, toplam: Object.keys(secimler).length } };
 }
 
 const KANONIK = (s) => (s === '0' ? 'X' : s);
