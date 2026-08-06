@@ -671,6 +671,11 @@ router.get('/oruntuler', async (req, res) => {
     ];
 
     const bulgular = [];
+    // SIRA MATRİSİ (kullanıcı isteği: "hangi radarda başarılı olduğunu
+    // bilmiyorum"). Tek sinyale bakmak yerine, HER SIRADA hangi sinyalin
+    // önde olduğunu gösterir. Tarama zaten tüm sinyalleri dolaşıyor;
+    // ek maliyet yok.
+    const matris = [];
     let sonucOruntuleri = null;
     let kapsamOrnek = null;
     let taranan = 0;
@@ -682,6 +687,27 @@ router.get('/oruntuler', async (req, res) => {
 
       // SONUÇ ÖRÜNTÜLERİ sinyalden bağımsızdır; bir kez hesaplanır.
       if (!sonucOruntuleri) sonucOruntuleri = oruntuTara(veri.kayitlar);
+
+      // Sıra bazlı başarı — matris satırı.
+      const siraOzet = [];
+      for (let no = 1; no <= 15; no += 1) {
+        const kesit = veri.kayitlar.filter((k) => Number(k.no) === no && k.sinyal && k.sonuc);
+        if (!kesit.length) { siraOzet.push(null); continue; }
+        const d = kesit.filter((k) => k.sinyal === k.sonuc).length;
+        siraOzet.push({ mac: kesit.length, dogru: d, oran: Math.round((d / kesit.length) * 1000) / 10 });
+      }
+      const tumSinyalli = veri.kayitlar.filter((k) => k.sinyal && k.sonuc);
+      matris.push({
+        sinyal: h.ad, tur: h.tur, key: h.key,
+        genel: tumSinyalli.length
+          ? {
+            mac: tumSinyalli.length,
+            dogru: tumSinyalli.filter((k) => k.sinyal === k.sonuc).length,
+            oran: Math.round((tumSinyalli.filter((k) => k.sinyal === k.sonuc).length / tumSinyalli.length) * 1000) / 10,
+          }
+          : null,
+        sira: siraOzet,
+      });
 
       const r = sinyalBasariTara(veri.kayitlar);
       taranan += r.taranan;
@@ -703,6 +729,7 @@ router.get('/oruntuler', async (req, res) => {
       sinyalSayisi: hedefler.length,
       taranan,
       bulgular: bulgular.slice(0, 200),
+      matris,
       sonucOruntuleri: sonucOruntuleri
         ? { ...sonucOruntuleri, oruntuler: (sonucOruntuleri.oruntuler || []).slice(0, 50) }
         : null,

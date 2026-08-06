@@ -335,6 +335,10 @@
     istek('/api/admin/oruntuler')
       .then(function (r) {
         sonOruntu = r;
+        var ms = $('matrisSira');
+        if (!ms.options.length) {
+          for (var i = 1; i <= 15; i += 1) ms.innerHTML += '<option value="' + i + '">' + i + '. sıra</option>';
+        }
         var k = r.kapsam || {};
         $('oruntuUyari').innerHTML =
           '<div class="izgara" style="margin-bottom:10px">' +
@@ -346,10 +350,47 @@
           '<p class="uyari">' + esc(r.uyari) + '</p>' +
           (r.bellekten ? '<p class="kucuk">Bellekten geldi (10 dk). Yeniden hesaplamak için sayfayı yenile.</p>' : '');
         oruntuCiz();
+        matrisCiz();
       })
       .catch(function (e) { $('oruntuUyari').innerHTML = '<p class="hata">' + esc(e.message) + '</p>'; })
       .finally(function () { $('oruntuTara').disabled = false; });
   });
+  function matrisCiz() {
+    if (!sonOruntu || !sonOruntu.matris) return;
+    var no = Number($('matrisSira').value) || 1;
+    var minMac = Number($('matrisMinMac').value) || 1;
+    var satirlar = sonOruntu.matris.map(function (m) {
+      var h = m.sira[no - 1];
+      return h ? { ad: m.sinyal, tur: m.tur, h: h, genel: m.genel } : null;
+    }).filter(function (x) { return x && x.h.mac >= minMac; })
+      .sort(function (a, b) { return (b.h.oran - a.h.oran) || (b.h.mac - a.h.mac); });
+
+    $('matrisTablo').innerHTML = satirlar.length
+      ? '<div class="tabloSar"><table><thead><tr><th>Sinyal</th><th>Tür</th>' +
+        '<th class="sag">' + no + '. sırada</th><th class="sag">Başarı</th>' +
+        '<th class="sag">Genel ortalaması</th><th class="sag">Fark</th></tr></thead><tbody>' +
+        satirlar.map(function (x) {
+          var fark = x.genel && x.genel.oran != null
+            ? Math.round((x.h.oran - x.genel.oran) * 10) / 10 : null;
+          var rozet = fark == null ? '—'
+            : '<span class="rozet ' + (fark >= 0 ? 'ok' : 'kotu') + '">' +
+              (fark >= 0 ? '▲ ' : '▼ ') + esc(Math.abs(fark)) + '</span>';
+          return '<tr><td><b>' + esc(x.ad) + '</b></td>' +
+            '<td class="kucuk">' + esc(x.tur) + '</td>' +
+            '<td class="sag">' + esc(x.h.mac) + ' maçta ' + esc(x.h.dogru) + '</td>' +
+            '<td class="sag"><b>%' + esc(x.h.oran) + '</b>' +
+              (x.h.mac < 5 ? ' <span class="rozet notr">az veri</span>' : '') + '</td>' +
+            '<td class="sag kucuk">' + (x.genel && x.genel.oran != null ? '%' + esc(x.genel.oran) : '—') + '</td>' +
+            '<td class="sag">' + rozet + '</td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        '<p class="kucuk">Bu tablo "' + no + '. sırada hangi sinyal önde" sorusunu cevaplar. ' +
+        '"Fark" sütunu sinyalin KENDİ genel ortalamasına göre bu sırada ne kadar iyi/kötü olduğunu gösterir — ' +
+        'yüksek başarı tek başına yetmez, sinyalin zaten yüksek ortalaması olabilir.</p>'
+      : '<p class="kucuk">Bu sırada, bu eşikle sinyal yok.</p>';
+  }
+  $('matrisSira').addEventListener('change', matrisCiz);
+  $('matrisMinMac').addEventListener('change', matrisCiz);
+
   $('oruntuYon').addEventListener('change', oruntuCiz);
   $('oruntuMinMac').addEventListener('change', oruntuCiz);
 
@@ -402,8 +443,16 @@
             r.genel ? esc(r.genel.mac) + ' maçta ' + esc(r.genel.dogru) : '') +
           kutu('Sayılan hafta', esc(kap.haftaDahil), esc(kap.haftaDislanan) + ' hafta dışlandı') +
           kutu('Sinyal veren maç', esc(kap.sinyalOlan), esc(r.genel ? r.genel.sinyalsizMac : 0) + ' maçta yön yok') +
-          kutu('Oynanma verisi olan', esc(kap.oynanmaOlan), 'maç') +
-          '</div>';
+          kutu('Oynanma verisi olan', esc(kap.oynanmaOlan),
+            kap.oynanmaHatasi ? 'HATA: ' + kap.oynanmaHatasi
+              : (kap.oynanmaKaydi ? kap.oynanmaKaydi + ' ham DNA kaydı okundu' : 'DNA arşivi boş')) +
+          '</div>' +
+          (kap.oynanmaHatasi
+            ? '<p class="hata">Oynanma arşivi okunamadı: ' + esc(kap.oynanmaHatasi) + '</p>'
+            : (kap.oynanmaOlan === 0 && kap.macToplam > 0
+              ? '<p class="uyari">Hiçbir maçta oynanma yüzdesi eşleşmedi. Oynanma arşivi ' +
+                esc(kap.oynanmaKaydi) + ' kayıt döndürdü — kayıt varsa sıra eşleşmesi, yoksa ' +
+                'gözlem toplama sorunu vardır.</p>' : ''));
         sinyalSiraCiz();
         oynanmaCiz();
       })
