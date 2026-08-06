@@ -152,6 +152,12 @@ export async function sinyalKayitlariniTopla({ tur = 'kriter', key = null, store
         away: pm.away?.name || null,
         sinyal,
         oynanma: oyn?.pct || null,
+        // ORAN: maç öncesi mühürlenmiş oran. Detay satırında gösterilir —
+        // "1 maçta 1 doğru" yazıp hangi maç olduğunu söylememek işi yarım
+        // bırakmaktı (kullanıcı bildirimi, 2026-08-06).
+        oran: pm.market?.odds || null,
+        lig: pm.league || null,
+        tarih: pm.kickoffAt || null,
       });
     }
   }
