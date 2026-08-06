@@ -106,12 +106,26 @@ export async function acilistaMigrationCalistir({
     });
   }
 
-  const sonuc = await migrationUygula({
-    klasor,
-    env,
-    log,
-    dogrulayici: semayiDogrula,
-  });
+  // AÇILIŞTA SABIR (2026-08-06, gerçek olay): Supabase'te şifre sıfırlandıktan
+  // sonra pooler düğümleri yeni şifreyi KADEMELİ öğreniyor — aynı doğru şifre
+  // 07:53 açılışında geçti, 08:22 açılışında 28P01 (password auth failed) yedi.
+  // Tek denemede pes etmek, geçici bir aksaklığı bütün güne yayıyordu (worker'lar
+  // hiç başlamıyor). Çözüm: kısa aralıklarla 3 deneme. Şifre GERÇEKTEN yanlışsa
+  // üç deneme de aynı hatayı verir ve sonuç yine dürüstçe raporlanır — sabır,
+  // hatayı gizlemez, yalnız geçici olanı eler.
+  const DENEME_SAYISI = 3;
+  const DENEME_ARASI_MS = 20000;
+  let sonuc = null;
+  for (let deneme = 1; deneme <= DENEME_SAYISI; deneme += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    sonuc = await migrationUygula({ klasor, env, log, dogrulayici: semayiDogrula });
+    if (sonuc.ok) break;
+    if (deneme < DENEME_SAYISI) {
+      log(`⚠️  Migration denemesi ${deneme}/${DENEME_SAYISI} başarısız (${sonuc.hata || sonuc.durum}) — ${DENEME_ARASI_MS / 1000} sn sonra tekrar denenecek.`);
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((coz) => { setTimeout(coz, DENEME_ARASI_MS); });
+    }
+  }
 
   if (!sonuc.ok) {
     log('');
