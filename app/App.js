@@ -18,6 +18,7 @@ import ForumScreen from './src/screens/ForumScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import AvatarPickerScreen from './src/screens/AvatarPickerScreen';
 import TeamPickerScreen from './src/screens/TeamPickerScreen';
+import PremiumCodeScreen from './src/screens/PremiumCodeScreen';
 import { LoginScreen, RegisterScreen, ForgotPasswordScreen } from './src/screens/AuthScreens';
 import BulletinHistoryScreen from './src/screens/BulletinHistoryScreen';
 import BulletinDetailScreen from './src/screens/BulletinDetailScreen';
@@ -195,6 +196,7 @@ function ProfileStack() {
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
       <Stack.Screen name="AvatarPicker" component={AvatarPickerScreen} options={{ title: 'Hazır Avatar Seç' }} />
       <Stack.Screen name="TeamPicker" component={TeamPickerScreen} options={{ title: 'Takımını Seç' }} />
+      <Stack.Screen name="PremiumCode" component={PremiumCodeScreen} options={{ title: 'Premium Kodu' }} />
       <Stack.Screen name="UserDashboard" component={UserDashboardScreen} options={{ title: 'Başarı Panelim' }} />
       {analysisSettingsScreen}
       <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Giriş Yap' }} />

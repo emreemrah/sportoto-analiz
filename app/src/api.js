@@ -161,6 +161,10 @@ export const api = {
   me: () => req('/api/users/me'),
   updateProfile: (b) => req('/api/users/me', { method: 'PATCH', body: b }),
   favoriteTeams: () => req('/api/favorite-teams'),
+
+  // PREMIUM — durum SUNUCUDAN okunur; istemci "ben premium'um" diyemez.
+  premiumDurum: () => req('/api/premium/durum'),
+  premiumKodKullan: (kod) => req('/api/premium/kod', { method: 'POST', body: { kod } }),
   uploadAvatar: (dataUrl) => req('/api/users/me/avatar', { method: 'POST', body: { dataUrl } }),
 
   // HESAP SİLME — gerçek ve kalıcı silme (pasife alma değildir).
