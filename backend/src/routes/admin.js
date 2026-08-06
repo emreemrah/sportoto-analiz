@@ -512,6 +512,87 @@ router.post('/premium/kod/:kod/iptal', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// GET /api/admin/haftalar — TÜM arşiv haftaları (dahil + DIŞLANAN)
+// ---------------------------------------------------------------------------
+// YAŞANAN SORU (kullanıcı, 2026-08-06): "50-51. haftalar neden yok?"
+//
+// Panelin hafta listesi karneden besleniyordu; karne ise YALNIZ başarıya
+// sayılan (maç öncesi mühürlendiği doğrulanan) haftaları döndürür. Dışlanan
+// hafta listede hiç görünmediği için "veri kayıp" gibi duruyordu. Oysa veri
+// duruyor, yalnız BAŞARIYA SAYILMIYOR — ve bunun sebebi görünmeliydi.
+//
+// Bu uç, kaynağı `/api/scorecards/provenance` (kanıt kaydı) olan TAM listeyi
+// döndürür: hangi hafta dahil, hangisi neden dışlandı. Yeni bir hesap YAPMAZ;
+// var olan kanıt kaydını okunur hâle getirir.
+const DISLAMA_SEBEBI = {
+  no_sealed_snapshot: 'Mühürlü kayıt yok — o hafta anlık görüntü alınmamış.',
+  late_lock: 'Mühür GEÇ atılmış: tahmin ilk maç başladıktan sonra kilitlenmiş.',
+  not_persistent_archive: 'Yalnız geçici önbellekte — kalıcı arşivde kaydı yok.',
+  backfilled: 'Sonradan doldurulmuş kayıt (geriye dönük).',
+  demo: 'Demo/test kaydı.',
+};
+
+router.get('/haftalar', async (req, res) => {
+  try {
+    const [kanit, karne] = await Promise.all([
+      fetch(`http://127.0.0.1:${process.env.PORT || 4000}/api/scorecards/provenance`)
+        .then((r) => r.json()).catch(() => null),
+      fetch(`http://127.0.0.1:${process.env.PORT || 4000}/api/scorecards/system`)
+        .then((r) => r.json()).catch(() => null),
+    ]);
+    const basari = new Map();
+    for (const w of (karne && karne.weeks) || []) basari.set(String(w.roundId), w);
+
+    // Aynı hafta hem arşivde hem eski önbellekte olabilir; ARŞİV kaydı üstün
+    // tutulur (kalıcı ve mühürlenebilir olan odur).
+    const harita = new Map();
+    for (const r of (kanit && kanit.records) || []) {
+      const k = String(r.roundId);
+      const onceki = harita.get(k);
+      if (onceki && onceki.kaynak === 'archive' && r.source !== 'archive') continue;
+      harita.set(k, {
+        roundId: r.roundId,
+        hafta: r.round,
+        kaynak: r.source,
+        dahil: r.isOfficialForward === true,
+        tur: r.provenanceType,
+        sebep: r.exclusionReason || null,
+        sebepMetni: r.exclusionReason ? (DISLAMA_SEBEBI[r.exclusionReason] || r.exclusionReason) : null,
+        ayrinti: Array.isArray(r.reasons) ? r.reasons : [],
+        muhur: r.verificationHashShort || null,
+        muhurZamani: r.lockedAt || null,
+        ilkMac: r.firstMatchStartAt || null,
+        resmiSonuc: r.officialResultCount ?? null,
+      });
+    }
+    const liste = [...harita.values()]
+      .map((h) => {
+        const b = basari.get(String(h.roundId));
+        return {
+          ...h,
+          kayit: b?.record || null,
+          basari: b?.accuracy ?? null,
+          durum: b?.status || null,
+          macSayisi: b?.matchCount ?? null,
+        };
+      })
+      .sort((a, b) => Number(b.roundId) - Number(a.roundId));
+
+    res.json({
+      liste,
+      ozet: {
+        toplam: liste.length,
+        dahil: liste.filter((h) => h.dahil).length,
+        dislanan: liste.filter((h) => !h.dahil).length,
+      },
+      not: 'Dışlanan hafta SİLİNMEZ ve gizlenmez; yalnız başarı hesabına katılmaz.',
+    });
+  } catch (e) {
+    safeError(res, e, 'Hafta listesi okunamadı.');
+  }
+});
+
+// ---------------------------------------------------------------------------
 // GET /api/admin/kayitlar — denetim kaydı (kim ne yaptı)
 // ---------------------------------------------------------------------------
 router.get('/kayitlar', async (req, res) => {
