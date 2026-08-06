@@ -279,13 +279,13 @@ function AnalysisCard({ match, tag, color, navigation, dar = false }) {
               return (
                 <View
                   key={s.k}
-                  style={[styles.probBox, dar && styles.probBoxDar, favMi && styles.probBoxFav]}
+                  style={[styles.probBox, dar && styles.probBoxDar]}
                   accessibilityLabel={favMi ? `${s.k}: yüzde ${s.v} — en yüksek ihtimal` : `${s.k}: yüzde ${s.v}`}
                 >
-                  <Text style={[styles.probSym, dar && styles.probSymDar, favMi && styles.probSymFav]}>
+                  <Text style={[styles.probSym, dar && styles.probSymDar]}>
                     {s.k}{favMi ? ' ▲' : ''}
                   </Text>
-                  <Text style={[styles.probPct, dar && styles.probPctDar, favMi && styles.probPctFav]}>
+                  <Text style={[styles.probPct, dar && styles.probPctDar]}>
                     %{s.v}{match.analysis?.estimated ? '≈' : ''}
                   </Text>
                 </View>
@@ -912,22 +912,16 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
 
-  // EN YÜKSEK İHTİMAL — "seçildi" gibi görünmemeli. Dolu koyu kutu mobilde
-  // seçim demektir; bu yüzden açık ton + renkli çerçeve kullanılıyor.
-  probBoxFav: {
-    backgroundColor: colors.primary + '14',
-    borderColor: colors.primary,
-    borderWidth: 1.5,
-  },
-
+  // EN YÜKSEK İHTİMAL — HİÇBİR renk/ton farkı YOK (kullanıcı kararı,
+  // 2026-08-06: "seçim yapılması gerekiyor gibi hissettiriyor, ton rengi aynı
+  // olsun"). Önce koyu dolgu, sonra açık ton + çerçeve denendi; ikisi de
+  // "seçili kutu" gibi okundu. Üç kutu birebir aynı; en yükseği YALNIZCA
+  // sembolün yanındaki ▲ ve altındaki not söylüyor. Seçim yalnız Kupon
+  // ekranında yapılır.
   probSym: {
     color: colors.textSoft,
     fontSize: 13,
     fontWeight: '900',
-  },
-
-  probSymFav: {
-    color: colors.primary,
   },
 
   probPct: {
@@ -935,10 +929,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     marginTop: 1,
-  },
-
-  probPctFav: {
-    color: colors.primary,
   },
 
   // Kısa ve net: işaretin ne anlama GELMEDİĞİNİ söyler.
