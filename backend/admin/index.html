@@ -91,6 +91,7 @@
     <button data-sekme="genel" class="acik">Genel</button>
     <button data-sekme="analiz">Analiz</button>
     <button data-sekme="haftalar">Haftalar</button>
+    <button data-sekme="sinyal">Sinyal Kırılımı</button>
     <button data-sekme="kullanicilar">Kullanıcılar</button>
     <button data-sekme="yorumlar">Yorumlar</button>
     <button data-sekme="premium">Premium</button>
@@ -148,6 +149,46 @@
           </select>
         </div>
         <div id="kriterTablo"><p class="kucuk">Yükleniyor…</p></div>
+      </section>
+    </div>
+
+    <!-- ══════════ SİNYAL KIRILIMI ══════════ -->
+    <div data-panel="sinyal" hidden>
+      <section class="kart">
+        <h2>Sinyal Kırılımı — bu sinyal NEREDE işe yarıyor?</h2>
+        <div class="satir">
+          <label style="margin:0">Sinyal</label>
+          <select id="sinyalSec" style="min-width:320px"><option>yükleniyor…</option></select>
+          <button id="sinyalGetir">Hesapla</button>
+        </div>
+        <div id="sinyalKapsam" style="margin-top:12px"></div>
+      </section>
+
+      <section class="kart">
+        <h2>Bülten Sırasına Göre Başarı</h2>
+        <div id="sinyalSira"><p class="kucuk">Sinyal seç ve "Hesapla"ya bas.</p></div>
+      </section>
+
+      <section class="kart">
+        <h2>Sonuca Göre Oynanma Profili</h2>
+        <div class="satir" style="margin-bottom:10px">
+          <label style="margin:0">Sıra</label>
+          <select id="oynanmaSira"></select>
+        </div>
+        <div id="sinyalOynanma"><p class="kucuk">—</p></div>
+      </section>
+
+      <section class="kart">
+        <h2>Benzerlik — bu profile benzeyen geçmiş maçlar</h2>
+        <div class="satir">
+          <div><label for="bnzSira">Sıra</label><input id="bnzSira" type="number" min="1" max="15" value="1" style="width:80px" /></div>
+          <div><label for="bnz1">1 (%)</label><input id="bnz1" type="number" value="44" style="width:90px" /></div>
+          <div><label for="bnzX">X (%)</label><input id="bnzX" type="number" value="30" style="width:90px" /></div>
+          <div><label for="bnz2">2 (%)</label><input id="bnz2" type="number" value="26" style="width:90px" /></div>
+          <div><label for="bnzTol">Tolerans</label><input id="bnzTol" type="number" value="5" style="width:90px" /></div>
+          <div style="align-self:flex-end"><button class="ikincil" id="bnzBtn">Ara</button></div>
+        </div>
+        <div id="sinyalBenzer" style="margin-top:10px"><p class="kucuk">Geçmiş GÖZLEMİ gösterir; gelecek tahmini değildir.</p></div>
       </section>
     </div>
 
