@@ -20,7 +20,6 @@ import LiveBulletinView from '../components/LiveBulletinView';
 import { View as DuzZemin } from 'react-native';
 import BultenEmptyState from '../components/BultenEmptyState';
 import UlkeEtiketi from '../components/UlkeEtiketi';
-import InfoIpucu from '../components/InfoIpucu';
 import TakimLogoZemin from '../components/TakimLogoZemin';
 
 const MARK = { correct: '✅', wrong: '❌', pending: '⏳', none: '' };
@@ -375,21 +374,13 @@ export default function BulletinScreen({ navigation }) {
       {/* MÜHÜR DURUMU — kilit geri sayımı / "Mühürlü Analiz" + doğrulama hash'i.
           Veri kalıcı arşivden (data.archive); arşiv yoksa şerit çizilmez. */}
       {viewingCurrent && !data?.pending ? <SnapshotSealBanner archive={data?.archive} /> : null}
-      {/* Bülten Zorluk Skoru — MOBİL SADELİK (2026-08-06): tek satır + ⓘ. */}
-      {viewingCurrent && !data?.pending && data?.difficulty ? (
-        <InfoIpucu
-          renk={data.difficulty.score < 30 ? colors.success : data.difficulty.score < 50 ? colors.warning : colors.danger}
-          ozet={`🧭 Bu bülten: ${data.difficulty.level} (${data.difficulty.score}/100)`}
-          detay={data.difficulty.text}
-        />
-      ) : null}
-      {viewingCurrent && !data?.pending && data?.coverage?.uncoveredCount > 0 ? (
-        <View style={styles.coverBanner}>
-          <Text style={styles.coverBannerTxt}>
-            ⚠ {data.coverage.uncoveredCount}/{data.coverage.total} maçta analiz verisi yok — aşağıda ⚠ ile işaretli.
-          </Text>
-        </View>
-      ) : null}
+      {/* Bülten zorluk satırı da KALDIRILDI (kullanıcı isteği, 2026-08-06).
+          Aynı özet ana sayfadaki hafta kartında zaten duruyor; bültende
+          ekranın üstünü işgal ediyordu. Backend'in difficulty verisi yerinde. */}
+      {/* ÜST KAPSAM UYARISI KALDIRILDI (kullanıcı isteği, 2026-08-06): mobilde
+          yer kaplıyordu. Bilgi KAYBOLMUYOR — verisi olmayan maç kendi kartında
+          "VERİ YOK" rozeti ve "Maç verisi eşleştirilemedi" satırıyla zaten
+          açıkça görünüyor (dürüstlük kuralı korunur). */}
       <Text style={styles.legalTxt}>{LEGAL_FOOTER}</Text>
     </View>
   );
