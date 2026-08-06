@@ -126,6 +126,20 @@ export function siraBazliBasari(kayitlar, opt = {}) {
       const dogru = sinyalli.filter((k) => k.sinyal === k.sonuc).length;
       satir.donem[etiket] = hucre(dogru, sinyalli.length);
     }
+    // ARKASINDAKİ MAÇLAR — "1 maçta 1 doğru" yazıp hangi maç olduğunu
+    // söylememek, sayıyı doğrulanamaz kılar. Sinyalsiz maçlar da listelenir
+    // (ayrı işaretle), çünkü "burada yön göstermemiş" de bir bilgidir.
+    satir.maclar = (kayitlar || [])
+      .filter((k) => Number(k.no) === no)
+      .sort((a, b) => Number(b.roundId) - Number(a.roundId))
+      .map((k) => ({
+        roundId: k.roundId, hafta: k.hafta, lig: k.lig || null, tarih: k.tarih || null,
+        home: k.home, away: k.away, skor: k.skor || null,
+        sinyal: k.sinyal || null, sonuc: k.sonuc,
+        tutmus: k.sinyal ? k.sinyal === k.sonuc : null,
+        oynanma: k.oynanma || null,
+        oran: k.oran || null,
+      }));
     cikti.push(satir);
   }
   return cikti;

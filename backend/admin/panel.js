@@ -410,6 +410,28 @@
       .finally(function () { $('sinyalGetir').disabled = false; });
   }
 
+  /** Bir maçın DETAY satırı: hangi maç, ne oynanmış, oranı neydi, ne oldu. */
+  function macDetaySatiri(m) {
+    var durum = m.sinyal == null
+      ? '<span class="rozet notr">yön yok</span>'
+      : (m.tutmus ? '<span class="rozet ok">tuttu</span>' : '<span class="rozet kotu">tutmadı</span>');
+    var oyn = m.oynanma
+      ? '%' + esc(m.oynanma['1']) + ' / %' + esc(m.oynanma.X) + ' / %' + esc(m.oynanma['2'])
+      : '<span class="kucuk">oynanma verisi yok</span>';
+    var oran = m.oran
+      ? esc(m.oran.home) + ' / ' + esc(m.oran.draw) + ' / ' + esc(m.oran.away)
+      : '<span class="kucuk">oran yok</span>';
+    return '<tr><td class="kucuk">' + esc(m.hafta) + '</td>' +
+      '<td>' + esc(m.home) + ' – ' + esc(m.away) +
+        (m.lig ? '<div class="kucuk">' + esc(m.lig) + '</div>' : '') + '</td>' +
+      '<td class="sag"><b>' + esc(m.skor || '—') + '</b></td>' +
+      '<td class="sag">' + (m.sinyal ? '<b>' + esc(m.sinyal) + '</b>' : '—') + '</td>' +
+      '<td class="sag"><b>' + esc(m.sonuc) + '</b></td>' +
+      '<td class="sag kod">' + oyn + '</td>' +
+      '<td class="sag kod">' + oran + '</td>' +
+      '<td>' + durum + '</td></tr>';
+  }
+
   function sinyalSiraCiz() {
     if (!sonSinyal) return;
     var sira = sonSinyal.sira || [];
@@ -417,7 +439,7 @@
     (sonSinyal.dagilim || []).forEach(function (d) { dag[d.no] = d; });
     $('sinyalSira').innerHTML =
       '<div class="tabloSar"><table><thead><tr><th>Sıra</th><th>Tüm haftalar</th><th>Son 5</th>' +
-      '<th>Son 10</th><th>O sırada ne çıkmış (1 / X / 2)</th></tr></thead><tbody>' +
+      '<th>Son 10</th><th>O sırada ne çıkmış (1 / X / 2)</th><th></th></tr></thead><tbody>' +
       sira.map(function (s) {
         var d = dag[s.no];
         var dagMetin = d && d.mac
@@ -425,15 +447,42 @@
             return '<b>' + o + '</b> ' + (d.dagilim[o].oran == null ? '—' : '%' + esc(d.dagilim[o].oran));
           }).join(' · ') + ' <span class="kucuk">(' + esc(d.mac) + ' maç)</span>'
           : '<span class="kucuk">—</span>';
-        return '<tr><td><b>' + esc(s.no) + '</b></td>' +
+        var macSayisi = (s.maclar || []).length;
+        var satir = '<tr data-sira="' + esc(s.no) + '"><td><b>' + esc(s.no) + '</b></td>' +
           '<td>' + hucreYaz(s.donem.tum) + '</td>' +
           '<td>' + hucreYaz(s.donem.son5) + '</td>' +
           '<td>' + hucreYaz(s.donem.son10) + '</td>' +
-          '<td class="kucuk">' + dagMetin + '</td></tr>';
+          '<td class="kucuk">' + dagMetin + '</td>' +
+          '<td>' + (macSayisi
+            ? '<button class="ikincil ufak" data-ac="' + esc(s.no) + '">Maçları gör (' + macSayisi + ')</button>'
+            : '') + '</td></tr>';
+        // DETAY: varsayılan gizli. "1 maçta 1 doğru" yazıp hangi maç olduğunu
+        // söylememek sayıyı doğrulanamaz kılıyordu (kullanıcı bildirimi).
+        if (macSayisi) {
+          satir += '<tr class="detay" data-detay="' + esc(s.no) + '" hidden><td colspan="6">' +
+            '<div class="tabloSar"><table><thead><tr><th>Hafta</th><th>Maç</th><th class="sag">Skor</th>' +
+            '<th class="sag">Sinyal</th><th class="sag">Sonuç</th><th class="sag">Oynanma 1/X/2</th>' +
+            '<th class="sag">Oran 1/X/2</th><th>Durum</th></tr></thead><tbody>' +
+            s.maclar.map(macDetaySatiri).join('') + '</tbody></table></div></td></tr>';
+        }
+        return satir;
       }).join('') + '</tbody></table></div>' +
       '<p class="kucuk">Sinyalin başarısı, o sıranın DOĞAL dağılımıyla birlikte okunmalı: ' +
-      'bir sıra zaten çoğunlukla 1 bitiyorsa, "1" diyen sinyalin yüksek başarısı tek başına bir şey söylemez.</p>';
+      'bir sıra zaten çoğunlukla 1 bitiyorsa, "1" diyen sinyalin yüksek başarısı tek başına bir şey söylemez. ' +
+      '"Maçları gör" ile her sayının arkasındaki maçları açabilirsin.</p>';
   }
+
+  $('sinyalSira').addEventListener('click', function (ev) {
+    var d = ev.target.closest('button[data-ac]');
+    if (!d) return;
+    var no = d.getAttribute('data-ac');
+    var detay = $('sinyalSira').querySelector('tr[data-detay="' + no + '"]');
+    if (!detay) return;
+    detay.hidden = !detay.hidden;
+    d.textContent = detay.hidden ? 'Maçları gör (' + (sonSinyal.sira.find(function (x) {
+      return String(x.no) === String(no);
+    }).maclar || []).length + ')' : 'Gizle';
+  });
 
   function oynanmaCiz() {
     if (!sonSinyal) return;
