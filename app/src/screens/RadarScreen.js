@@ -6,7 +6,7 @@
 // * Radar Merkezi öncesi eski haftalar: legacy sürpriz radarı görünümü korunur.
 // Veri yoksa alan gösterilmez / "veri kaynağı bekleniyor" yazılır (uydurma yok).
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, FlatList, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, useWindowDimensions } from 'react-native';
 import { api } from '../api';
 import { colors, spacing, radius } from '../theme';
 import VenueMark from '../components/VenueMark';
@@ -47,6 +47,12 @@ const KISA_GUN = {
 
 
 export default function RadarScreen({ navigation }) {
+  // DAR EKRAN (kullanıcı bildirimi 2026-08-06: "mobilde takım isimleri
+  // görünmüyor"). Radar 5 satırında bugünün oynanma yüzdesi maçın YANINDA
+  // duruyordu; 360px sınıfı telefonda takım adını "Ra…" e indiriyordu.
+  // Dar ekranda yüzde bloğu ALT SATIRA iner, ad tam genişlikte kalır.
+  const { width: ekranGenislik } = useWindowDimensions();
+  const darEkran = ekranGenislik < 430;
   const [view, setView] = useState(null);            // Radar Merkezi görünümü (matches[])
   const [legacyRadar, setLegacyRadar] = useState(null); // eski sürpriz radarı listesi
   const [meta, setMeta] = useState(null);            // gösterilen haftanın bilgisi
@@ -514,7 +520,7 @@ export default function RadarScreen({ navigation }) {
                 "altında değil yanında"). Gün adı önde durur, yoksa alttaki
                 "Geçmiş N. sıra" satırıyla karışır: biri BU MAÇA bu hafta ne
                 oynandığını, öteki o SIRADA geçmişte ne çıktığını söyler. */}
-            {bugunKaynaklar ? (
+            {bugunKaynaklar && !darEkran ? (
               <View style={styles.memBugunYan}>
                 <Text style={styles.memBugunGun}>{bugunGunKisa || 'Bugün'}</Text>
                 {bugunKaynaklar.map(({ kaynak, pct: kp }) => (
@@ -546,6 +552,29 @@ export default function RadarScreen({ navigation }) {
             ) : null}
             <Text style={styles.memAc}>{acik ? '▲' : '▼'}</Text>
           </View>
+          {/* DAR EKRAN: aynı bilgi, alt satırda — takım adı ezilmesin. */}
+          {bugunKaynaklar && darEkran ? (
+            <View style={[styles.memBugunYan, styles.memBugunAlt]}>
+              <Text style={styles.memBugunGun}>{bugunGunKisa || 'Bugün'}</Text>
+              {bugunKaynaklar.map(({ kaynak, pct: kp }) => (
+                <View key={kaynak} style={styles.memBugunKaynak}>
+                  <View
+                    style={[styles.memBugunNokta, { backgroundColor: providerColor(kaynak) }]}
+                    accessibilityLabel={providerLabel(kaynak)}
+                    testID={`radar5-bugun-nokta-${kaynakKodu(kaynak)}`}
+                  />
+                  {['1', 'X', '2'].map((k) => (
+                    <View key={k} style={styles.memBugunOge}>
+                      <Text style={styles.memBugunHarf}>{k}</Text>
+                      <View style={styles.memBugunKutu}>
+                        <Text style={styles.memBugunPct}>%{kp[k]}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ))}
+            </View>
+          ) : null}
         </TouchableOpacity>
         {pct ? (
           <>
@@ -837,7 +866,7 @@ const styles = StyleSheet.create({
   memRow: { backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm },
   memTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   memNo: { color: colors.textMuted, fontSize: 15, fontWeight: '800', width: 22, textAlign: 'center' },
-  memTeams: { color: colors.text, fontSize: 14, fontWeight: '800', flex: 1 },
+  memTeams: { color: colors.text, fontSize: 14, fontWeight: '800', flex: 1, minWidth: 0 },
   memPctRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 6, marginLeft: 34 },
   memPctLabel: { color: colors.textSoft, fontSize: 12, fontWeight: '800' },
   memOutcome: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: radius.pill, paddingHorizontal: 5, paddingVertical: 3, backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.border },
@@ -853,6 +882,7 @@ const styles = StyleSheet.create({
   // olsun"). memTeams ile birebir: fontSize 14 / fontWeight '800'. Gün adı da
   // aynı boyutta ama marka renginde — ayrışması boyutla değil RENKLE sağlanır.
   memBugunYan: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
+  memBugunAlt: { marginTop: 6, marginLeft: 34, flexWrap: 'wrap', rowGap: 4 },
   memBugunGun: { color: colors.primary, fontSize: 14, fontWeight: '800' },
   // ÖĞELER ARASI boşluk (kullanıcı kararı: "aralarına boşluk koy"). 1/X/2
   // üçlüsü bitişikken tek bir sayı dizisi gibi okunuyordu; ayrık durunca göz
