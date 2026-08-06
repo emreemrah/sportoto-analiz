@@ -28,6 +28,7 @@ import { OUTCOMES, columnCount, costOf, validPricing, COUPON_MAX_COLUMNS, lockAt
 import { getCoupon, finalVersion, createCoupon, addVersion, renameCoupon, getDraft, clearDraft } from '../coupon/store';
 import { buildSmartCoupon, diffSelections, proposalFrom, signalsOf } from '../coupon/smart';
 import { getActiveProfile, countOn } from '../analysisProfile';
+import { kriterAktarimi } from '../kriterAktarim';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 // Backend etiketi ('BANKO' gibi) EKRANA HAM BASILMAZ; sözlükten geçirilir.
@@ -164,29 +165,22 @@ export default function CouponEditorScreen({ route, navigation }) {
     setKriterYukleniyor(true);
     try {
       const calc = await api.analysisCalcBulletin(data.roundId, { profile: profil });
-      const proposed = {};
-      for (const cm of calc?.matches || []) {
-        const master = cm.master || {};
-        // Tekli: ana tahmin. Geniş: kapalı tahmin (varsa) yoksa ana+alternatif.
-        let semboller = [];
-        if (genis) {
-          if (master.closedPrediction) semboller = String(master.closedPrediction).split('');
-          else semboller = [master.mainPrediction, master.alternativePrediction].filter(Boolean);
-        } else if (master.mainPrediction) {
-          semboller = [master.mainPrediction];
-        }
-        const arr = OUTCOMES.filter((o) => semboller.map((s) => (s === '0' ? 'X' : s)).includes(o));
-        if (arr.length && !lockedNos.has(Number(cm.no))) proposed[cm.no] = arr;
-      }
+      // Seçim mantığı SAF modülde (kriterAktarim.js) — testli.
+      // Geniş artık "kapalı tercih" değil: tekli + GEREKİRSE ikinci işaret.
+      // Sebep: kriter seti X üretmiyorsa kapalı tercih her maçta '12' oluyor
+      // ve 15 maçın hepsi "1-2" görünüyordu (kullanıcı bildirimi, 2026-08-06).
+      const { secimler: proposed, uyarilar } = kriterAktarimi(calc?.matches || [], {
+        genis, kilitliNolar: lockedNos,
+      });
       if (!Object.keys(proposed).length) {
-        uyari.alert('Veri yok', 'Kriter setinle hesaplanan tahmin bulunamadı.');
+        uyari.alert('Veri yok', ['Kriter setinle hesaplanan tahmin bulunamadı.', ...uyarilar].join('\n\n'));
         return;
       }
       const changes = diffSelections(picks, proposed);
       if (!changes.length) { uyari.alert('Fark yok', 'Kriter önerisi, mevcut seçimlerinle zaten aynı.'); return; }
       setImportState({
         title: genis ? 'Kriter analizinden aktar (geniş)' : 'Kriter analizinden aktar (tekli)',
-        changes, proposed,
+        changes, proposed, notes: uyarilar,
       });
     } catch (e) {
       uyari.alert('Hesaplanamadı', e.message);
@@ -426,6 +420,9 @@ export default function CouponEditorScreen({ route, navigation }) {
           <View style={st.modal}>
             <Text style={st.mTitle}>{importState?.title}</Text>
             <Text style={st.mSub}>Mevcut seçimlerin SİLİNMEZ — aşağıdaki değişiklikleri sen onaylarsan uygulanır:</Text>
+            {(importState?.notes || []).map((n) => (
+              <Text key={n} style={st.mUyari}>ℹ️ {n}</Text>
+            ))}
             <ScrollView style={st.mScroll}>
               {(importState?.changes || []).map((c) => (
                 <Text key={c.no} style={st.mLine}>
@@ -548,6 +545,7 @@ const st = StyleSheet.create({
     borderWidth: TABLE.hair, borderColor: S.line, borderRadius: R.md, padding: SP.lg,
   },
   mTitle: { color: S.ink, fontSize: 15.5, fontWeight: '700' },
+  mUyari: { color: S.warn ?? S.accent, fontSize: 11.5, lineHeight: 16, marginTop: 6 },
   mSub: { color: S.inkSoft, fontSize: 12, marginTop: SP.sm, lineHeight: 17 },
   mNote: { color: S.inkDim, fontSize: 10.5, fontStyle: 'italic', marginTop: 5, lineHeight: 14 },
   mScroll: { marginTop: SP.sm, maxHeight: 260 },
