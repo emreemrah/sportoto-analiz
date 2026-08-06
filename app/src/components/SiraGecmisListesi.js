@@ -43,7 +43,17 @@ function Satir({ mac, cift }) {
             "52. Hafta" ve "1-1" tek başına aranamaz hâle geliyor (testler ve
             ekran okuyucu ikisini de ayrı okumalı). İç içe Text kullanılmasının
             sebebi bu — tek satır akışı korunur, düğümler ayrı kalır. */}
-        <Text style={s.takim} numberOfLines={2}>
+        {/* TEK SATIR (kullanıcı bildirimi, 2026-08-06: "takım ismi aşağı
+            taşmış"). İki satıra izin verilince uzun eşleşmelerde ikinci
+            satırda tek kelime asılı kalıyor, satır yükseklikleri de eşit
+            olmuyordu. Sığmayan ad üç noktayla kesilir; TAM ad ekran okuyucu
+            etiketinde durur — ad değiştirilmez, kısaltılmış görünür. */}
+        <Text
+          style={s.takim}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          accessibilityLabel={`${week || ''} ${home} ${score || ''} ${away}`.trim()}
+        >
           <Text style={s.hafta}>{week || '—'}</Text>
           {'  '}{home} <Text style={s.skor}>{score || '–'}</Text> {away}
         </Text>
@@ -136,7 +146,9 @@ export default function SiraGecmisListesi({ kayit, donemEtiketi, limit }) {
 
 // Sütun genişlikleri dar telefona (≈340 px liste genişliği) göre seçildi:
 // 3×34 oran + 30 sonuç + boşluklar → karşılaşmaya ≈190 px kalır, iki satır sığar.
-const ORAN_GENISLIK = 34;
+// Oran ve sonuç sütunları daraltıldı (34→30, 30→26): kazanılan ~16px
+// doğrudan karşılaşma sütununa gitti, uzun eşleşmeler tek satıra sığsın diye.
+const ORAN_GENISLIK = 30;
 
 const s = StyleSheet.create({
   // SOL PAY 34 → 6 (kullanıcı isteği, 2026-08-06: "sığdır"). Tablo, üstteki
@@ -174,9 +186,10 @@ const s = StyleSheet.create({
   // SKOR ise satırın en belirgin ögesidir (kullanıcı kararı): marka rengi,
   // takım adından büyük ve daha kalın. "Maç nasıl bitti" sorusunun cevabı
   // satırda göze ilk çarpan şey olmalı — takım adları onun çevresinde okunur.
-  hafta: { color: colors.muted, fontSize: 10, fontWeight: '800' },
-  skor: { color: colors.primary, fontSize: 14, fontWeight: '900', letterSpacing: 0.3 },
-  takim: { color: colors.text, fontSize: 12, fontWeight: '700', lineHeight: 19 },
+  // Puntolar bir tık indi ki eşleşme tek satıra sığsın (bkz. yukarıdaki not).
+  hafta: { color: colors.muted, fontSize: 9, fontWeight: '800' },
+  skor: { color: colors.primary, fontSize: 12.5, fontWeight: '900', letterSpacing: 0.3 },
+  takim: { color: colors.text, fontSize: 11, fontWeight: '700', lineHeight: 16 },
 
   oranHucre: { width: ORAN_GENISLIK, alignItems: 'center', justifyContent: 'center', paddingVertical: 2, borderRadius: 4 },
   // Gerçekleşen sonucun hücresi koyulaşır: hangi seçeneğin çıktığı, yüzdesiyle
@@ -185,7 +198,7 @@ const s = StyleSheet.create({
   oran: { color: colors.textSoft, fontSize: 11, fontWeight: '700' },
   oranGerceklesen: { color: colors.primary, fontWeight: '900' },
 
-  sonucHucre: { width: 30, alignItems: 'center' },
+  sonucHucre: { width: 26, alignItems: 'center' },
   sonuc: {
     minWidth: 22, textAlign: 'center', color: colors.white, fontSize: 11, fontWeight: '900',
     borderRadius: radius.pill, paddingVertical: 2, overflow: 'hidden',
