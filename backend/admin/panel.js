@@ -12,7 +12,15 @@
   // Belirteç yalnız SEKME ÖMRÜ boyunca durur (sessionStorage): paylaşılan bir
   // masaüstünde tarayıcı kapanınca oturum da kapanır.
   var ANAHTAR = 'yonetim_token';
+  // OTURUM KİMLİĞİ (X-Session-Id) — ZORUNLU, süs değil.
+  // Sunucu her istekte oturum satırını doğruluyor (mw.js/checkSession):
+  // başlık gelmezse istek 401 ile reddediliyor. Bu, 'tüm cihazlardan çıkış'
+  // özelliğinin atlatılamamasını sağlayan koruma. İlk sürümde panel bu
+  // başlığı göndermiyordu; giriş başarılı oluyor ama ilk veri isteği 401
+  // dönüp 'Oturum düştü' diyordu — yaşanan arıza tam olarak buydu.
+  var OTURUM = 'yonetim_oturum';
   var token = sessionStorage.getItem(ANAHTAR) || '';
+  var oturumId = sessionStorage.getItem(OTURUM) || '';
   var $ = function (id) { return document.getElementById(id); };
   var yok = '<span class="kucuk">bilinmiyor</span>';
 
@@ -37,6 +45,7 @@
     secenek = secenek || {};
     var bas = { 'Content-Type': 'application/json' };
     if (token) bas.Authorization = 'Bearer ' + token;
+    if (oturumId) bas['X-Session-Id'] = oturumId;
     return fetch(yol, {
       method: secenek.method || 'GET',
       headers: bas,
@@ -62,7 +71,8 @@
   function hataGoster(e) {
     // 401/403: yetki yok ya da oturum düştü → girişe dön, sebebi söyle.
     if (e && (e.durum === 401 || e.durum === 403)) {
-      sessionStorage.removeItem(ANAHTAR); token = '';
+      sessionStorage.removeItem(ANAHTAR); sessionStorage.removeItem(OTURUM);
+      token = ''; oturumId = '';
       girisGoster(e.durum === 403
         ? 'Bu hesap yönetim yetkisine sahip değil.'
         : 'Oturum düştü, tekrar gir.');
@@ -82,7 +92,9 @@
         // Sunucu belirteci `token` alanında döndürür (bkz. routes/auth.js issueSession).
         token = r.token || '';
         if (!token) throw new Error('Sunucu belirteç döndürmedi.');
+        oturumId = r.sessionId || '';
         sessionStorage.setItem(ANAHTAR, token);
+        if (oturumId) sessionStorage.setItem(OTURUM, oturumId);
         if (r.user && r.user.username) sessionStorage.setItem('yonetim_kim', r.user.username);
         $('sifre').value = '';
         baslat();
@@ -93,7 +105,8 @@
   $('sifre').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') $('girisBtn').click(); });
 
   $('cikisBtn').addEventListener('click', function () {
-    sessionStorage.removeItem(ANAHTAR); token = '';
+    sessionStorage.removeItem(ANAHTAR); sessionStorage.removeItem(OTURUM);
+    token = ''; oturumId = '';
     girisGoster('');
   });
 
