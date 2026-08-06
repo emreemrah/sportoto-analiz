@@ -17,8 +17,8 @@
 //
 // GERÇEKLEŞEN SONUÇ, kendi yüzde hücresinde vurgulanır. "Kalabalık neye
 // oynadı, maç nasıl bitti" tek bakışta görünür — Radar 5'in bütün amacı bu.
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 import { colors, radius } from '../theme';
 
@@ -71,6 +71,11 @@ function Satir({ mac, cift }) {
 }
 
 export default function SiraGecmisListesi({ kayit, donemEtiketi, limit }) {
+  // Kapsam notları varsayılan KAPALI — tablo daha çok yer bulsun.
+  // Kanca (hook) erken dönüşlerin ÜSTÜNDE: aşağıdaki `return`'ler koşullu
+  // olduğu için buradan sonra tanımlanırsa kanca sırası bozulur.
+  const [notAcik, setNotAcik] = useState(false);
+
   if (kayit?.yukleniyor) return <View style={s.kutu}><Text style={s.bilgi}>Maçlar yükleniyor…</Text></View>;
   if (kayit?.hata) return <View style={s.kutu}><Text style={s.bilgi}>Maçlar okunamadı: {kayit.hata}</Text></View>;
 
@@ -86,7 +91,23 @@ export default function SiraGecmisListesi({ kayit, donemEtiketi, limit }) {
       {/* BAŞLIK SATIRI — 1/X/2'nin ne olduğu BİR KEZ burada söylenir. Önceki
           tasarımda her maçın altında "Oynanma" etiketi tekrarlanıyordu. */}
       <View style={s.baslikSatiri}>
-        <Text style={[s.baslik, s.macHucre]}>KARŞILAŞMA</Text>
+        <View style={[s.macHucre, s.baslikMac]}>
+          <Text style={s.baslik}>KARŞILAŞMA</Text>
+          {/* KAPSAM NOTLARI ⓘ ARKASINDA (kullanıcı isteği, 2026-08-06:
+              "sığdır, altındaki yazı olmasın"). İki satır italik not tablonun
+              altında yer kaplıyordu. Notlar SİLİNMEDİ — dürüstlük gereği
+              duruyorlar, sadece istenince görünüyorlar: listenin nereden
+              başladığı ve üstteki yüzdenin listeden BAĞIMSIZ hesaplandığı. */}
+          <TouchableOpacity
+            onPress={() => setNotAcik((a) => !a)}
+            style={s.notDugme}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={notAcik ? 'Kapsam bilgisini gizle' : 'Bu liste ne kadarını kapsıyor?'}
+          >
+            <Text style={s.notDugmeTxt}>{notAcik ? '✕' : 'i'}</Text>
+          </TouchableOpacity>
+        </View>
         {SECENEKLER.map((k) => (
           <Text key={k} style={[s.baslik, s.oranHucre, s.baslikOrta]}>{k}</Text>
         ))}
@@ -100,12 +121,15 @@ export default function SiraGecmisListesi({ kayit, donemEtiketi, limit }) {
 
       {/* KAPSAM — iki gerçek de söylenir: listenin nereden başladığı ve üstteki
           yüzdenin ondan BAĞIMSIZ hesaplandığı. İkincisi olmazsa kullanıcı iki
-          maçlık listeye bakıp üstteki yüzdeyi doğrulamaya çalışır. */}
-      <Text style={s.bilgi}>
-        {donemEtiketi || 'Seçili dönem'} · {liste.length} maç · liste {enEski || 'kayıt başlangıcı'}'ndan başlar
-        {kayitsiz ? ` · ${kayitsiz} maçta oynanma kaydı yok (–)` : ''}
-      </Text>
-      <Text style={s.bilgi}>Üstteki yüzde tüm haftalardan hesaplanır.</Text>
+          maçlık listeye bakıp üstteki yüzdeyi doğrulamaya çalışır.
+          Başlıktaki ⓘ ile açılır — varsayılan olarak yer kaplamaz. */}
+      {notAcik ? (
+        <Text style={s.bilgi}>
+          {donemEtiketi || 'Seçili dönem'} · {liste.length} maç · liste {enEski || 'kayıt başlangıcı'}'ndan başlar
+          {kayitsiz ? ` · ${kayitsiz} maçta oynanma kaydı yok (–)` : ''}
+          {'\n'}Üstteki yüzde tüm haftalardan hesaplanır.
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -115,7 +139,11 @@ export default function SiraGecmisListesi({ kayit, donemEtiketi, limit }) {
 const ORAN_GENISLIK = 34;
 
 const s = StyleSheet.create({
-  kutu: { marginTop: 8, marginLeft: 34, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },
+  // SOL PAY 34 → 6 (kullanıcı isteği, 2026-08-06: "sığdır"). Tablo, üstteki
+  // "Geçmiş N. sıra" satırıyla hizalanmak için 34px içeriden başlıyordu;
+  // dar telefonda bu, takım adlarını iki satıra düşürüyordu. Tablo kendi
+  // başlık satırıyla zaten ayrı bir birim — hizaya ihtiyacı yok.
+  kutu: { marginTop: 8, marginLeft: 6, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },
 
   baslikSatiri: {
     flexDirection: 'row', alignItems: 'center',
@@ -124,6 +152,13 @@ const s = StyleSheet.create({
   },
   baslik: { color: colors.white, fontSize: 9, fontWeight: '900', letterSpacing: 0.4 },
   baslikOrta: { textAlign: 'center' },
+  baslikMac: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  notDugme: {
+    width: 14, height: 14, borderRadius: 7,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  notDugmeTxt: { color: colors.white, fontSize: 8.5, fontWeight: '900', fontStyle: 'italic' },
 
   satir: {
     flexDirection: 'row', alignItems: 'center',
