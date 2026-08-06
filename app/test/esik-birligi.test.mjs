@@ -1,3 +1,6 @@
+// NOT (2026-08-06 denetimi): `decisionEngine.js` ÖLÜ KOD olduğu için kaldırıldı;
+// ona dayanan üç 'ALTIN' senaryo testi de birlikte gitti. Eşik SABİTLERİ ve
+// yaşayan kriter motoru (userSelectedAnalysisEngine) testleri aynen duruyor.
 // EŞİK BİRLİĞİ TESTLERİ (T14) — iki motor AYNI sabitlerden okur.
 //
 // SORUN: Aynı sayılar (X≥20, 2≥30, fark<15) iki motorda ayrı ayrı yazılıydı.
@@ -10,7 +13,6 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { buildDecision } from '../src/decisionEngine.js';
 import { userSelectedAnalysisEngine } from '../src/analysis/engine.js';
 import {
   X_KEEP_PCT, AWAY_KEEP_PCT, HOME_KEEP_PCT, CLOSE_GAP_PCT, FAVORITE_MIN_PCT,
@@ -39,7 +41,7 @@ const etiketler = (tags) => (tags || []).map((t) => `${t.name}:${Math.round(t.we
 
 // ——— Kaynak birliği ———
 test('iki motor da eşikleri thresholds.js\'ten okur (kopya sayı kalmadı)', () => {
-  for (const dosya of ['decisionEngine.js', 'analysis/engine.js']) {
+  for (const dosya of ['analysis/engine.js']) {
     const kod = src(dosya);
     assert.match(kod, /from '\.[./]*(analysis\/)?thresholds'/, `${dosya}: thresholds import edilmemiş`);
   }
@@ -48,10 +50,6 @@ test('iki motor da eşikleri thresholds.js\'ten okur (kopya sayı kalmadı)', ()
 test('kopya eşik sayıları kaynaktan temizlendi (drift imkânsız)', () => {
   // Bu desenler refactor öncesi iki dosyada da vardı; geri gelirse test kırılır.
   const yasakli = [
-    [/pX >= 20/, 'decisionEngine.js'],
-    [/p2 >= 30/, 'decisionEngine.js'],
-    [/gap12 < 15/, 'decisionEngine.js'],
-    [/favPct < 50/, 'decisionEngine.js'],
     [/sX >= 20/, 'analysis/engine.js'],
     [/s2 >= 30/, 'analysis/engine.js'],
     [/gap12 < 15/, 'analysis/engine.js'],
@@ -71,41 +69,6 @@ test('eşik değerleri beklenen sayılar (sessizce kaymasın)', () => {
 
 // ——— Altın değerler: refactor davranışı DEĞİŞTİRMEDİ ———
 // Aşağıdaki değerler refactor ÖNCESİ motorlardan ölçüldü (tahmin değil).
-test('ALTIN: eşik altı senaryo (X=19, gap=14) — çıktı refactor öncesiyle aynı', () => {
-  const d = buildDecision(mac({ '1': 43, X: 19, '2': 38 }));
-  assert.equal(d.mainTrend, '1');
-  assert.equal(d.bankoStatus, 'Hayır');
-  assert.equal(d.riskLevel, 'Yüksek');
-  assert.deepEqual(d.narrowCoupon, ['1', '2']);
-  assert.deepEqual(d.safeCoupon, ['1', 'X', '2']);
-  assert.equal(d.dataConfidence, 'Orta');
-  assert.deepEqual(etiketler(d.tags), [
-    'Tek Oynanmaz:75', 'Güçlü Aday Freni:67', 'Favori Tuzağı:58',
-    'Deplasman Sürprizi:55', '2 Silinmez:55',
-  ]);
-  // X=19 eşiğin ALTINDA → "X Silinmez" etiketi ÇIKMAMALI
-  assert.ok(!etiketler(d.tags).some((t) => t.startsWith('X Silinmez')),
-    'X eşiğin altındayken korunma etiketi üretilmemeli');
-});
-
-test('ALTIN: eşik üstü senaryo (X=20) — X Silinmez etiketi TAM eşikte devreye girer', () => {
-  const d = buildDecision(mac({ '1': 45, X: 20, '2': 30 }));
-  assert.ok(etiketler(d.tags).some((t) => t.startsWith('X Silinmez')),
-    'X tam eşikteyken (20) korunmalı — sınır dahil');
-  assert.ok(d.safeCoupon.includes('X'));
-  assert.ok(d.safeCoupon.includes('2'), '2 tam eşikte (30) geniş kuponda kalmalı');
-});
-
-test('ALTIN: güçlü favori senaryosu — çıktı refactor öncesiyle aynı', () => {
-  const d = buildDecision(mac({ '1': 62, X: 18, '2': 20 }));
-  assert.equal(d.mainTrend, '1');
-  assert.equal(d.bankoStatus, 'Şartlı', 'güçlü favoride bile "Evet" denmez — aday dili');
-  assert.equal(d.riskLevel, 'Düşük');
-  assert.deepEqual(d.narrowCoupon, ['1', '2']);
-  assert.deepEqual(d.safeCoupon, ['1', 'X', '2']);
-  assert.deepEqual(etiketler(d.tags), [], 'hiçbir risk etiketi tetiklenmemeli');
-});
-
 test('ALTIN: kriter motoru (userSelectedAnalysisEngine) çıktısı da aynı', () => {
   const u = userSelectedAnalysisEngine(mac({ '1': 43, X: 19, '2': 38 }), TAM_PROFIL);
   const k = u.sportotoDecision;
@@ -115,12 +78,3 @@ test('ALTIN: kriter motoru (userSelectedAnalysisEngine) çıktısı da aynı', (
   assert.deepEqual(k.narrowCoupon, ['1']);
 });
 
-test('iki motor da aynı eşikte aynı yönde davranır (sınır tutarlılığı)', () => {
-  // X eşiğin bir altı ve tam üstü: her iki motorda da "X korunuyor mu?" kararı
-  // aynı yöne dönmeli — eşikler tek kaynaktan geldiği için garanti altında.
-  const altD = buildDecision(mac({ '1': 45, X: X_KEEP_PCT - 1, '2': 36 }));
-  const ustD = buildDecision(mac({ '1': 45, X: X_KEEP_PCT, '2': 35 }));
-  const xEtiketi = (d) => etiketler(d.tags).some((t) => t.startsWith('X Silinmez'));
-  assert.equal(xEtiketi(altD), false, 'eşik altında X korunmaz');
-  assert.equal(xEtiketi(ustD), true, 'eşikte X korunur');
-});

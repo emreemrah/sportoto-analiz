@@ -8,8 +8,16 @@ export const SCHEMA_VERSION = '1.0.0';
 // Bu dosyalarda karar mantığı değişirse burayı artır (snapshot'lara işlenir).
 export const ANALYSIS_ENGINE_VERSION = 'backend-analysis-1.0.0';
 
-// Kriter kataloğu sürümü (criteriaEval.js EVALS anahtar seti).
-export const CRITERIA_CATALOG_VERSION = 'criteria-1.0.0';
+// ESKİ kriter motorunun katalog sürümü (criteriaEval.js EVALS anahtar seti).
+// ⚠️ AD KARIŞIKLIĞI DÜZELTİLDİ (2026-08-06 denetimi): bu sabit, snapshot'a yazılan
+// `criteria.signals` alanının kataloğunu tanımlar — 40 kriterli MASTER katalogla
+// (analysisConfig.js → CRITERIA_CATALOG_VERSION = 'criteria-catalog-2.0.0') AYNI
+// ŞEY DEĞİLDİR. İki ayrı katalog, iki ayrı sürüm; ikisi de doğru. Değerler
+// değiştirilmedi: mühürlü snapshot'lar bu etiketleri taşıyor, geriye dönük
+// anlamları bozulamaz. Yalnız ad ayrıştırıldı ki bir daha karıştırılmasın.
+export const LEGACY_CRITERIA_CATALOG_VERSION = 'criteria-1.0.0';
+// Geriye uyumluluk: eski ad hâlâ dışa açık (başka modüller kırılmasın).
+export const CRITERIA_CATALOG_VERSION = LEGACY_CRITERIA_CATALOG_VERSION;
 
 // Radar kimliği/sürümü (surprise.js etiket motoru + refresh.js radar dizisi).
 export const RADAR_ID = 'surprise-radar';

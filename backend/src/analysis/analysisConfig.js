@@ -3,7 +3,10 @@
 // kendi sürümleriyle DEĞİŞMEDEN kalır.
 
 export const ANALYSIS_METHODOLOGY_VERSION = 'master-analysis-1.0.0';
-export const CRITERIA_CATALOG_VERSION = 'criteria-catalog-2.0.0'; // 40 mevcut kriter, key'ler DEĞİŞMEDİ
+// MASTER katalog sürümü — 40 kriterli criterionCatalog.js. Anahtarlar DEĞİŞMEDİ.
+// ⚠️ archive/constants.js içindeki LEGACY_CRITERIA_CATALOG_VERSION ('criteria-1.0.0')
+// ile karıştırılmamalı: o, snapshot'taki eski `criteria.signals` kataloğudur (2026-08-06).
+export const CRITERIA_CATALOG_VERSION = 'criteria-catalog-2.0.0';
 
 // Etki seviyeleri (kullanıcı seçer)
 export const IMPACT_WEIGHTS = { low: 1, mid: 2, high: 3, critical: 4 };

@@ -318,3 +318,60 @@ düzeltmeler kasten bozulup testlerin kırmızıya döndüğü görüldü.
 
 Kalan bilinen boşluk: hiçbiri **gerçek cihazda gözle** doğrulanmadı — kayma
 hızı, `14/15` sığması ve hafta rozetinin görünümü kullanıcı onayı bekliyor.
+
+
+---
+
+## 2026-08-06 — DENETİM VE TEMİZLİK (A'dan Z'ye)
+
+Kullanıcı isteği: "projeyi komple incele … ne varsa dök" ardından
+"tüm düzeltmeleri yapıp uygula".
+
+**Önce yapılan denetim** → `RAPOR-PROJE-DENETIMI.md` (dört paralel tarama:
+backend, uygulama, test/doküman, yayın/güvenlik).
+
+- [x] `backend/.env.yedek-0107` SİLİNDİ (9 gerçek anahtar taşıyordu; git'e
+      girmemişti ama diskte durması tek başına risktı)
+- [x] Katalog sürümü "çelişkisi" incelendi → **yanlış alarm**: iki AYRI katalog
+      (eski `criteriaEval` = `criteria-1.0.0`, master 40 kriter =
+      `criteria-catalog-2.0.0`). Değerler DEĞİŞTİRİLMEDİ (mühürlü snapshot'lar
+      bu etiketleri taşıyor); yalnız ad ayrıştırıldı:
+      `LEGACY_CRITERIA_CATALOG_VERSION` + iki tarafa açıklama
+- [x] Kırık test kaldırıldı: `app/test-ui/liderlik.test.jsx` silinmiş
+      `LeaderboardScreen`'i çağırıyordu
+- [x] `HANDOFF.md` + `AGENTS.md`: "ana motor `userMatchEngine`" yanlışı
+      düzeltildi (doğrusu `backend/src/analysis/masterEngine.js`); var olmayan
+      kupon ekranları, eski branch talimatı ve sökülen rozet sistemi güncellendi
+- [x] Ölü kod (≈1.400 satır) `_to_delete/denetim-20260806/` altına alındı:
+      `decisionEngine.js`, `DecisionEngineView.js`, `SahaBackdrop`,
+      `BultenBackdrop`, `LineupBuilder`, `CompareBars`,
+      `usePerformanceDashboard`, iki mock veri dosyası
+- [x] Ölü import temizliği: `MatchDetailScreen` (13 isim), `RadarScreen` (9)
+- [x] Ölü koda bağlı testler uyarlandı: `esik-birligi` (ALTIN senaryolar
+      kaldırıldı, eşik sabitleri + yaşayan kriter motoru KALDI),
+      `guvence-dili`, `erisilebilirlik-simge-dugme`, `verdict-wording` (silindi)
+- [x] Sessiz hata yutma giderildi: `refresh.js` sezon çekimi (artık loglanıyor
+      + `dusenSezonlar`), `routes/auth.js` üç `.catch(() => {})` (yanıt gizlilik
+      gereği AYNI kaldı, hata sunucu loguna yazılıyor)
+- [x] `misli: 'k2'` "hayalet eşlemesi" incelendi → **bilinçli** (arşivdeki eski
+      gözlemler bu kimliği taşıyor). Gerçek risk kapatıldı: aynı koda iki
+      kaynak düşerse açılışta HATA fırlatan çakışma kilidi eklendi
+- [x] `/api/health` artık **kalan kotayı** yayınlıyor (2 Ağustos'taki sessiz
+      kapsam çöküşü dışarıdan görülebilsin diye; sağlayıcı adı sızdırılmaz)
+- [x] `backend/migrations/README.md`: 007-009 satırları eklendi (belge 006'da
+      kalmıştı), oyunlaştırma tablolarının artık ölü olduğu not edildi
+- [x] Yanlış `mkdir` izi 4 boş klasör ve ölü `cache/bilyonerDiag.json` temizlendi
+
+**İnceleme.** Denetimin işaret ettiği 3 maddenin ikisi (katalog sürümü, misli
+eşlemesi) incelenince **yanlış alarm** çıktı — körü körüne "düzeltmek" arşiv
+semantiğini bozardı. Bu yüzden ikisinde de değer değil, ANLAM netleştirildi ve
+gerçek risk (isim karışıklığı, kod çakışması) ayrıca kapatıldı. Kalan maddeler
+uygulandı. En büyük kazanç ölü kod: 1.400+ satır ve 22 ölü import gitti.
+
+Doğrulama: backend **944/944**, app **740/740** (0 başarısız; app sayısı
+ölü koda bağlı 16 testin kaldırılmasıyla 756 → 740'a indi).
+
+**Bilerek yapılmayanlar (gerekçeli):** ~172 ölü stil anahtarı (yalnız kozmetik,
+büyük diff riski), Yayın Stüdyosu kümesi (bayrakla kapalı, silinmez),
+`SystemDashboardScreen` (dev-only demo), kırılgan regex bekçi testlerinin
+yeniden yazımı (ayrı ve büyük iş).

@@ -7,7 +7,8 @@
 Resmi Spor Toto bültenini (sportoto.gov.tr) + FootyStats/API-Football verisini
 birleştirip her maça **kupon karar desteği** (analiz) sunan uygulama —
 **bahis/ödeme değil, analiz.** Güncel + geçmiş bülten, canlı skor, kapsam kontrolü,
-kupon oluşturma ve **kullanıcı mantığı analiz motoru** (`app/src/userMatchEngine.js`).
+kupon oluşturma ve **iki ayrı analiz motoru** (aşağıda; hangisinin nerede
+çalıştığı karıştırılmamalı).
 
 ## Yapı
 - **backend/** — Node.js (ESM) + Express API, port **4000**.
@@ -29,7 +30,7 @@ kupon oluşturma ve **kullanıcı mantığı analiz motoru** (`app/src/userMatch
 - `backend/src/refresh.js` — Bülteni çeker, eşleştirir, analiz/tahmin ekler,
   cache'e yazar. `backend/src/enrich.js` — puan durumu/form/H2H/kadro zenginleştirme.
 - `backend/src/analysis/` — `surprise.js` (sürpriz puanı), `prediction.js`
-  (kupon kuralları), `aiComment.js` (opsiyonel Codex yorumu).
+  (kupon kuralları), `aiComment.js` (opsiyonel Claude yorumu).
 - `backend/src/cache.js` — dosya tabanlı JSON cache (`backend/cache/`).
 - `backend/src/config.js` — `.env`'den ayarlar (FOOTYSTATS_API_KEY, PORT, ...).
 
@@ -47,6 +48,12 @@ kupon oluşturma ve **kullanıcı mantığı analiz motoru** (`app/src/userMatch
 - Backend: `cd backend && npm install && npm run dev` (nodemon, :4000)
 - Web: `cd app && npm install && npm run web` (Metro, :8081)
 - Cache yenile: `cd backend && npm run refresh`
+- **Veritabanı migration'ları OTOMATİK**: backend açılışında `backend/migrations/`
+  sırayla uygulanır (defter: `public.schema_migrations`, advisory lock, tam
+  rollback, bütünlük mührü). Elle SQL çalıştırma. `SUPABASE_DB_URL` (session/direct)
+  yoksa migration olmaz: **üretimde** worker/scheduler'lar BAŞLAMAZ, geliştirmede
+  yüksek sesle uyarılır ve devam edilir (`MIGRATIONS_REQUIRED=1` orada da kapatır).
+  Ayrıntı: `backend/migrations/README.md`, `HANDOFF.md` §9.3.
 - Derleme kontrolü (web bundle): `curl -s -o /dev/null -w "%{http_code}" \
   "http://localhost:8081/index.bundle?platform=web&dev=true"` → 200 beklenir.
 
@@ -69,7 +76,18 @@ kupon oluşturma ve **kullanıcı mantığı analiz motoru** (`app/src/userMatch
 - Backend API mantığını gereksiz büyütme; mevcut akışı bozma. Takım adlarını/logoları
   koru. Minimum dosya değişikliği; iş sonunda değişenleri özetle; web bundle 200 doğrula.
 - **Yeni paket kurma ve sormadan push/PR/deploy yapma.**
-- Analiz motoru: `app/src/userMatchEngine.js` (6 kriter; risk = önerilen seçim
-  genişliği: tek=Düşük, çifte=Orta, üçlü 1X2=Yüksek). Detay: `HANDOFF.md` §6.
+- **İKİ MOTOR VAR — karıştırma:**
+  - `backend/src/analysis/masterEngine.js` — **ÜRÜN STANDARDI**. 40 kriterli
+    Master Analiz; `analysisService.js` üzerinden `/api/analysis` ve karne
+    uçlarını besler. Analiz ve Radar ekranlarında görünen budur.
+  - `app/src/userMatchEngine.js` — 6 kriterli hafif motor. YALNIZ
+    `broadcastStudio.js` (Haftanın Özeti ekranı) kullanır; ürünün ana analizi
+    DEĞİLDİR. (risk = seçim genişliği: tek=Düşük, çifte=Orta, üçlü=Yüksek)
+  - Belgeler bir dönem ikincisini ana motor gibi tarif ediyordu; bu satır o
+    karışıklığı kapatmak için var. Detay: `HANDOFF.md` §6.
 - `node_modules/`, `.git/`, `dist/`, `build/`, `app/.expo/`, `backend/cache/`,
   `backend/data/`, `backend/public/` üretilen/çıktı — okuma/düzenleme gerekmez.
+
+> Not: Bu dosya CLAUDE.md'nin proje bölümüyle EŞİTLENMİŞTİR (2026-08-06 denetimi).
+> Eskiden `userMatchEngine.js`'i ana motor diye anlatıyordu — yanlıştı.
+> Çalışma yöntemi kuralları için CLAUDE.md'ye bak.

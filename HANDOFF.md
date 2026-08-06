@@ -75,23 +75,39 @@ Resmi Spor Toto bültenini + FootyStats/API-Football verisini birleştirip her m
 - `mw.js` — `requireAuth` (Supabase token → req.user).
 
 **Frontend (app/src)**
-- `userMatchEngine.js` — **ANA ANALİZ MOTORU** (aşağıda). `components/UserAnalysisView.js` — görünümü.
+- `userMatchEngine.js` — 6 kriterli HAFİF motor; YALNIZ `broadcastStudio.js`
+  (Haftanın Özeti) kullanır. **ANA MOTOR DEĞİLDİR** — ürün standardı
+  `backend/src/analysis/masterEngine.js`'tir (40 kriter, `/api/analysis`).
 - `couponStore.js` / `couponConfig.js` — kupon veri/kural + sunucu senkron + taslak.
 - `screens/MatchDetailScreen.js` — maç detay (Özet/Analiz/İstatistik/Karşılaştırma/
   Yorumlar sekmeleri). "Analiz" sekmesi = UserAnalysisView + Kazanma İhtimalleri.
 - `screens/BulletinScreen.js` — bülten (güncel + geçmiş, canlı skor, filtreler).
-- `screens/CouponBuilderScreen.js` / `CouponsScreen.js` — kupon oluştur / Kuponlarım.
+- `screens/CouponCenterScreen.js` / `CouponEditorScreen.js` — Kupon Merkezi / editör.
+  (Eski `CouponBuilderScreen`/`CouponsScreen` SİLİNDİ — 2026-07-24 kupon yenilemesi.)
 - `screens/UserDashboardScreen.js` — Başarı Panelim (yalnız resmi sonuç).
 - `screens/RadarScreen.js` — "Radar" sekmesi (sürpriz radarı) + Sistem Karnesi.
-- `components/CouponPickBlock.js` — maç detayında 1/X/2 + "Sistemden al" (analiz seçimi).
+- Kupon aktarımı (2026-08-04): editörde **Sistem · Kriter (tekli/geniş) · Seçimim**.
+  Eski "Sistemden/Radardan/Akıllı" üçlüsü kaldırıldı (Akıllı kodu duruyor, düğmesi yok).
 - `components/MatchInfoCard.js` — lig/hafta + stadyum + hava kartı.
 - `App.js` — sekmeler: Ana Sayfa · Bülten · Radar · Profil. `api.js`, `auth.js`,
   `theme.js`, `utils.js`, `liveLogic.js`, `prefs.js`.
 
-## 6. ANALİZ MOTORU MANTIĞI (en kritik bölüm)
-Dosya: `app/src/userMatchEngine.js` → `analyzeUserMatch(m)`. **Kullanıcının kendi
-maç okuma mantığı.** Yalnız şu kriterler çalışır (başka yok — xG/oran/AI/hakem/hava
-KARARDA kullanılmaz):
+## 6. İKİ MOTOR — HANGİSİ NEREDE (ÖNEMLİ)
+> ⚠️ **DÜZELTME (2026-08-06 denetimi).** Bu bölüm bir dönem `userMatchEngine.js`'i
+> "ana motor" diye tarif ediyordu; **yanlıştı ve yeni gelenleri yanlış dosyaya
+> yönlendiriyordu.** Doğrusu:
+>
+> * **ÜRÜN STANDARDI = `backend/src/analysis/masterEngine.js`** — 40 kriterli
+>   Master Analiz. `analysisService.js` üzerinden `/api/analysis` ve karne uçlarını
+>   besler. Analiz, Radar ve Sistem Karnesi ekranlarında görünen budur.
+> * **`app/src/userMatchEngine.js`** — aşağıda anlatılan 6 kriterli hafif motor.
+>   YALNIZ `broadcastStudio.js` (Haftanın Özeti) kullanır.
+>
+> Aşağıdaki 6 kriterlik anlatım, o hafif motorun mantığıdır — tarihsel değeri için
+> korunuyor.
+
+Dosya: `app/src/userMatchEngine.js` → `analyzeUserMatch(m)`. Yalnız şu kriterler
+çalışır (başka yok — xG/oran/AI/hakem/hava KARARDA kullanılmaz):
 
 1. **Puan durumu** — güç/güven veren avantaj ≈ 5 maçlık fark = **5×3 = 15 puan**.
    fark ≥15 güçlü (±2), 9-14 hafif (±1), altı = avantaj yok.
@@ -132,9 +148,9 @@ eşleşmedi (alias gerekir)**. Yeni maç veri gelmiyorsa buradan sebebi görül�
   sıfırlanır) — kalıcı prod için Supabase tablosuna taşınmalı (henüz yapılmadı).
 
 ## 9. MEVCUT DURUM (devir anı)
-- **Tüm güncel iş `feature/gecmis-bulten-ve-rozet-tasarimi` branch'inde commit'li
-  ve push'lı.** Devir alan **bu branch'ten** çalışmalı (`git checkout` ile). `main`
-  daha eskidir; en güncel analiz motoru + UI feature branch'tedir.
+- **GÜNCEL (2026-08-06): `main` ve `feature/gecmis-bulten-ve-rozet-tasarimi` AYNI
+  noktada.** Yayın (Render) `main`'i izler; feature dalına commit atılır, sonra
+  `main`'e ileri sarılır (`github-main-birlestir.bat`).
 - **`backend/.env` git'te YOK** (anahtarlar) — ayrıca güvenli şekilde paylaşılmalı:
   `FOOTYSTATS_API_KEY`, `FOOTYSTATS_SEASON_IDS`, `APIFOOTBALL_API_KEY`,
   `SUPABASE_URL/PUBLISHABLE_KEY/SECRET_KEY` (adlar için `render.yaml`).

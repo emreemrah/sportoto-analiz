@@ -21,9 +21,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const kok = join(here, '..', '..');
 
 // Kullanıcıya cümle üreten dosyalar (iki motor + karar katmanı).
+// (decisionEngine.js listeden çıktı — dosya ölü kod olarak kaldırıldı, 2026-08-06.)
 const DOSYALAR = [
   ['app', 'src', 'analysis', 'engine.js'],
-  ['app', 'src', 'decisionEngine.js'],
   ['app', 'src', 'userMatchEngine.js'],
   ['backend', 'src', 'analysis', 'masterEngine.js'],
 ];

@@ -27,6 +27,23 @@ export const KAYNAK_KODLARI = {
   iddaa: 'k5',
 };
 
+// ÇAKIŞMA KİLİDİ (2026-08-06 denetimi). Denetim, `misli: 'k2'` eşlemesinin
+// adaptör silinmiş olmasına rağmen durmasını riskli buldu. İnceleme sonucu:
+// eşleme BİLEREK duruyor — arşivdeki eski gözlemler `source: 'misli'` taşıyor
+// ve kod/renk değişirse geçmiş DNA kayar (playedPercentages.js:46).
+// Asıl risk eşlemenin varlığı değil, YENİ bir kaynağın aynı koda düşmesiydi:
+// o durumda iki kaynağın verisi sessizce birbirini ezerdi. Artık imkânsız —
+// çakışma açılışta HATA fırlatır (sessiz veri kaybı yerine gürültülü duruş).
+{
+  const gorulen = new Map();
+  for (const [id, kod] of Object.entries(KAYNAK_KODLARI)) {
+    if (gorulen.has(kod)) {
+      throw new Error(`Kaynak kodu çakışması: '${id}' ve '${gorulen.get(kod)}' aynı koda (${kod}) eşleniyor — verileri birbirini ezerdi.`);
+    }
+    gorulen.set(kod, id);
+  }
+}
+
 const TERS = Object.fromEntries(Object.entries(KAYNAK_KODLARI).map(([id, k]) => [k, id]));
 
 /** İç kimlik → dış kod. Bilinmeyen: 'k0'. */

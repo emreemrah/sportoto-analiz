@@ -38,6 +38,7 @@ import { buildCorsOptions } from './security/corsPolicy.js';
 import { yorumEklemeLimiti, kuponYazmaLimiti, avatarLimiti, backtestLimiti } from './security/limits.js';
 import { acilistaMigrationCalistir, migrationDurumu } from './migrate/index.js';
 import { favoriTakimKatalogu } from './favoriteTeams.js';
+import { kotaDurumu } from './sources/kotaBekcisi.js';
 
 // Bülten maç listesi belleği — gerekçe ve ölçüm: yanitBellegi.js
 const maclarBellegi = yanitBellegi(5000);
@@ -130,6 +131,13 @@ app.get('/api/health', (req, res) => {
       zaman: migration.zaman,
       semaDogrulandi: migration.dogrulama ? migration.dogrulama.ok : null,
     },
+    // VERİ KAYNAĞI KOTASI (2026-08-06 denetimi): kalan kota hiçbir uçtan
+    // görünmüyordu; kota bitince bülten sessizce eksiliyordu (2 Ağustos olayı).
+    // Yalnız SAYI yayınlanır — sağlayıcı adı, anahtar veya uç bilgisi YOK.
+    kota: (() => {
+      const k = kotaDurumu();
+      return { kalan: k.kalan, limit: k.limit, sonGuncelleme: k.sonGuncelleme };
+    })(),
   });
 });
 

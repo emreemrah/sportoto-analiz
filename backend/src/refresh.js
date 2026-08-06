@@ -123,13 +123,22 @@ export async function snapshotRoundPredictions(roundId, { manualRetrospective = 
   const footyMatches = [];
   const teamImg = new Map();       // `${sid}:${teamId}` → kulüp arması
   const matchesBySid = new Map();  // sid → o sezonun maçları (kayıt HESABI için)
+  const dusenSezonlar = []; // düşen sezonlar (görünürlük — sessiz yutma yok)
   for (const sid of config.seasonIds) {
     try {
       const season = await fetchSeason(sid);
       footyMatches.push(...season.matches);
       matchesBySid.set(sid, season.matches);
       for (const t of season.teams || []) if (t.id != null && t.image) teamImg.set(`${sid}:${t.id}`, t.image);
-    } catch {}
+    } catch (e) {
+      // SESSİZ DEĞİL (2026-08-06 denetimi): bir sezon düşerse bülten eksik
+      // veriyle devam ediyordu ve HİÇ İZ KALMIYORDU — 2 Ağustos'taki
+      // "14/15 → 0/15" kapsam çöküşünün kardeşi. Akış yine kesilmez
+      // (tek sezon yüzünden bülten üretilmemesi daha kötüdür), ama artık
+      // loga yazılır ve kapsam raporundan sayılabilir.
+      dusenSezonlar.push({ sid, hata: e.message });
+      console.warn(`[refresh] ⚠ sezon ${sid} çekilemedi: ${e.message}`);
+    }
   }
   saveFootyScores(footyMatches);
   const picks = bulletin.matches.map((bm) => {

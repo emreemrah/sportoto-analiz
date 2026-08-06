@@ -8,8 +8,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, FlatList, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
 import { api } from '../api';
-import { colors, spacing, radius, labelColors } from '../theme';
-import { SurpriseBadge, FormStrip } from '../components';
+import { colors, spacing, radius } from '../theme';
 import VenueMark from '../components/VenueMark';
 import NoInternetScreen, { isNetworkError } from '../components/NoInternetScreen';
 // Hareketli arka plan (ScreenBackdrop) kullanıcı isteğiyle KALDIRILDI
@@ -30,12 +29,7 @@ import {
 } from '../radarScreenLogic';
 // Veri türetme (filtre/sıralama/sayaç/biçim) ekrandan ayrıldı — bkz.
 // radarScreenData.js. Ekran yalnız ÇİZER; ne göstereceğine orası karar verir.
-import {
-  DNA_PERIODS, MASTER_FILTERS, roundPct100, ord, wdl, num1, fmtClock, birOndalik,
-  classCountsOf, filterMaster, sortMaster,
-  legacyCountsOf, legacyFiltered,
-  DONEM_MAC_SAYISI, DNA_PERIOD_LABELS,
-} from '../radarScreenData';
+import { MASTER_FILTERS, fmtClock, birOndalik, classCountsOf, filterMaster, sortMaster, legacyCountsOf, legacyFiltered, DONEM_MAC_SAYISI, DNA_PERIOD_LABELS } from '../radarScreenData';
 
 // RADAR 3 OTOMATİK TAZELEME — sekme açıkken ekran kendiliğinden yenilenir.
 // Sağlayıcı gözlemi arka planda 15 dk'da bir yazıldığı için 60 sn'lik ekran

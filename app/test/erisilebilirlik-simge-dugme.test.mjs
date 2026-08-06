@@ -77,7 +77,7 @@ test('hafta gezinme okları ne yaptığını söylüyor', () => {
 });
 
 test('kapat düğmeleri "Kapat" diyor', () => {
-  for (const d of ['LineupBuilder.js', 'Polls.js', 'components/TakimFiksturModal.js']) {
+  for (const d of ['components/TakimFiksturModal.js']) { // LineupBuilder/Polls ölü kod olarak kaldırıldı (2026-08-06)
     const kod = readFileSync(join(SRC, d), 'utf8');
     assert.match(kod, /accessibilityLabel="Kapat"/, `${d}: kapat etiketi yok`);
   }

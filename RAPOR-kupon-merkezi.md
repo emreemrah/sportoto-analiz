@@ -1,5 +1,18 @@
 # RAPOR — Kupon Merkezi (sıfırdan, uçtan uca)
 
+> ⚠️ **GÜNCELLEME (2026-08-06).** Bu rapor 24 Temmuz'daki kurulumu anlatır.
+> O günden bu yana değişenler:
+> * Aktarım seçenekleri **Sistem · Kriter (tekli/geniş) · Seçimim** oldu.
+>   "Sistemden/Radardan/**Akıllı**" üçlüsü kaldırıldı — Akıllı Kupon'un kodu ve
+>   testleri duruyor ama **düğmesi yok**, yani kullanıcıya kapalı.
+> * "Kopyala" artık kuponu çoğaltmaz, **maç listesini panoya metin olarak**
+>   kopyalar. "Çoğalt" düğmesi kaldırıldı.
+> * 2.500 kolon sınırı kaydı **engellemez**; yalnız açıkça uyarır (karar
+>   kullanıcının).
+> * Bülten üstündeki "Kupon Oluştur / Kuponlarım" buton çifti kaldırıldı.
+> * Paylaşım başlıklarında iç kayıt numarası ("Hafta 1527") yerine resmî hafta
+>   adı yazılır; görsel 3-4x çözünürlükte üretilir.
+
 Tarih: 2026-07-24 · Testler: uygulama **54/54** ✅ · backend **276/276** ✅ · web export ✅
 
 ## 1. Yapılanlar

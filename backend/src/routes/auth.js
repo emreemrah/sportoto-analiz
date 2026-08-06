@@ -119,7 +119,10 @@ router.post('/register', guard, rl(registerLimiter), async (req, res) => {
 
   const { error: pe } = await sbAdmin.from('profiles').insert({ id: userId, username: uname });
   if (pe) {
-    await sbAdmin.auth.admin.deleteUser(userId).catch(() => {});
+    // GERİ ALMA HATASI GÖRÜNÜR OLMALI (2026-08-06 denetimi): başarısız olursa
+    // profilsiz bir "yetim" auth kullanıcısı kalır — sessizce yutulamaz.
+    await sbAdmin.auth.admin.deleteUser(userId)
+      .catch((e) => console.error('[auth] kayıt geri alma başarısız (yetim kullanıcı kalmış olabilir):', e?.message || e));
     return res.status(409).json({ error: 'Bu kullanıcı adı alınmış.' });
   }
 
@@ -140,7 +143,10 @@ router.post('/register', guard, rl(registerLimiter), async (req, res) => {
 router.post('/resend-verification', guard, rl(forgotLimiter), async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'E-posta gerekli.' });
-  await sbAuth.auth.resend({ type: 'signup', email: String(email) }).catch(() => {});
+  // Yanıt BİLEREK aynı kalır (hesap var mı bilgisini sızdırmamak için), ama
+  // sunucu tarafında hata artık loglanır: bozuk e-posta ayarı görünmez kalmasın.
+  await sbAuth.auth.resend({ type: 'signup', email: String(email) })
+    .catch((e) => console.warn('[auth] doğrulama e-postası gönderilemedi:', e?.message || e));
   res.json({ ok: true, message: 'Eğer bu e-posta doğrulama bekliyorsa, yeni bağlantı gönderildi.' });
 });
 
@@ -328,7 +334,9 @@ router.get('/security-events', guard, requireAuth, async (req, res) => {
 router.post('/forgot-password', guard, rl(forgotLimiter), async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'E-posta gerekli.' });
-  await sbAuth.auth.resetPasswordForEmail(email).catch(() => {});
+  // Yanıt BİLEREK aynı (kullanıcı sayımı sızmasın); hata yalnız loga yazılır.
+  await sbAuth.auth.resetPasswordForEmail(email)
+    .catch((e) => console.warn('[auth] şifre sıfırlama e-postası gönderilemedi:', e?.message || e));
   res.json({ ok: true, message: 'Eğer bu e-posta kayıtlıysa, şifre sıfırlama bağlantısı gönderildi.' });
 });
 

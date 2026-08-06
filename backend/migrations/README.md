@@ -110,7 +110,15 @@ Motor bu anı loga da yazar; sessizce yapmaz.
 | `sportoto_history_checkpoint` *(005)* | İçe aktarım checkpoint'i (kaldığı yerden devam) |
 | `bulletin_data_observations` *(005 kolonları)* | + `kind` / `usable_for_prediction` / `first_observed_late` (oynanma gözlem semantiği) |
 
-| `user_sessions`, `user_devices`, `user_points`, … *(006)* | Oturum/cihaz güvenliği + puan/başarı tabloları (8 tablo, hepsinde RLS) |
+| `user_sessions`, `user_devices`, `user_points`, … *(006)* | Oturum/cihaz güvenliği + puan/başarı tabloları (8 tablo, hepsinde RLS). ⚠️ Puan/başarı (oyunlaştırma) 2026-08-06'da uygulamadan TAMAMEN söküldü; tablolar veri silme yasağı gereği DURUYOR ama hiçbir kod okumuyor/yazmıyor |
+| `comment_reports`, `user_blocks` *(007)* | Moderasyon: bildirme + engelleme. Sebep listesi CHECK ile 7 değere kilitli, ikisinde de RLS açık |
+| `user_coupons` *(008)* | Kullanıcı kuponları (hesaba bağlı, yalnız sahibi görür) |
+| `profiles` ek kolonları + tahmin tabloları *(009)* | Profil alanları ve skor/kadro/anket tahmin kayıtları |
+
+> **Belge tazeliği (2026-08-06 denetimi):** klasörde 9 migration var; bu belge
+> bir dönem yalnız 001–006'yı anlatıyordu. 007–009 satırları yukarıya eklendi.
+> Sıfırdan kurulan bir veritabanında 009 uygulanmazsa kayıt/profil/tahmin uçları
+> çalışmaz — motor dosya listesini diskten okur, bu tablo yalnız insan içindir.
 
 **005 doğrulaması (gerçek PostgreSQL 16'da yapıldı):** 001→005 sıralı temiz geçiş;
 005 ikinci kez çalıştırıldığında hatasız (idempotent); yanlış provenance
