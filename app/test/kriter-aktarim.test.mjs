@@ -7,7 +7,8 @@
 // seçimler" dedi. Artık geniş = tekli + GEREKİRSE ikinci (destek farkına göre).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { macSecimi, kriterAktarimi, CEKISME_FARKI } from '../src/kriterAktarim.js';
+import { macSecimi, kriterAktarimi, ekranMotoruylaAktar, sembolAc, CEKISME_FARKI } from '../src/kriterAktarim.js';
+import { userSelectedAnalysisEngine } from '../src/analysis/engine.js';
 
 const mac = (no, master) => ({ no, master });
 // Gerçek vakadan (1527, kullanıcının 14 kriterlik seti): X desteği hep 0.
@@ -84,4 +85,53 @@ test('X üreten set varsa gereksiz uyarı ÇIKMAZ', () => {
 
 test('eşik sabiti makul aralıkta (regresyon bekçisi)', () => {
   assert.ok(CEKISME_FARKI > 10 && CEKISME_FARKI <= 40, 'çekişme eşiği anlamsız bir değere kaymış');
+});
+
+
+/* ═══════ EKRAN MOTORUYLA BİRLİK (2026-08-06 ikinci düzeltme) ═══════
+   Maç Detayı → Analiz ekranındaki "Ana Seçim / Alternatif" ile kupondaki
+   tekli/geniş AYNI olmalı. Ekran yerel kriter motorunu kullanıyor; kupon da. */
+
+test('sembolAc: bileşik sembolü kanonik sıraya açar', () => {
+  assert.deepEqual(sembolAc('1X'), ['1', 'X']);
+  assert.deepEqual(sembolAc('12'), ['1', '2']);
+  assert.deepEqual(sembolAc('1X2'), ['1', 'X', '2']);
+  assert.deepEqual(sembolAc('102'), ['1', 'X', '2'], "'0' → X");
+  assert.deepEqual(sembolAc(''), []);
+  assert.deepEqual(sembolAc(null), []);
+});
+
+// Ekran motorunun beklediği en sade maç: iki takımın sezon istatistikleri.
+const takim = (ppg, gf, ga) => ({
+  standing: { ppg, played: 20, wins: 10, draws: 5, losses: 5, position: 3 },
+  season: { goalsPerGame: gf, concededPerGame: ga },
+  last5: ['G', 'G', 'B', 'M', 'G'],
+});
+const gercekMac = (no, evPpg, depPpg) => ({
+  no,
+  home: { name: 'Ev' }, away: { name: 'Dep' },
+  stats: { home: takim(evPpg, 1.8, 0.9), away: takim(depPpg, 1.0, 1.4) },
+});
+
+const PROFIL = { criteria: { ppg: { on: true, impact: 'kritik' }, formGeneral: { on: true, impact: 'kritik' } } };
+
+test('kupon aktarımı EKRANIN verdiği sonucun AYNISINI üretir', () => {
+  const maclar = [gercekMac(1, 2.4, 0.6), gercekMac(2, 1.5, 1.4)];
+  for (const genis of [false, true]) {
+    const { secimler } = ekranMotoruylaAktar(maclar, PROFIL, { genis });
+    for (const m of maclar) {
+      const v = userSelectedAnalysisEngine(m, PROFIL)?.verdict;
+      const beklenen = sembolAc(genis ? (v?.alt || v?.main) : v?.main);
+      assert.deepEqual(secimler[m.no] ?? [], beklenen,
+        `maç ${m.no} (${genis ? 'geniş' : 'tekli'}): kupon ekrandan farklı seçim yaptı`);
+    }
+  }
+});
+
+test('kilitli maça dokunulmaz, veri yoksa boş bırakılır', () => {
+  const maclar = [gercekMac(1, 2.4, 0.6), gercekMac(2, 1.5, 1.4), { no: 3 }];
+  const r = ekranMotoruylaAktar(maclar, PROFIL, { genis: true, kilitliNolar: new Set([2]) });
+  assert.ok(!(2 in r.secimler), 'kilitli maça öneri yazılmış');
+  assert.ok(!(3 in r.secimler), 'verisiz maça öneri uydurulmuş');
+  assert.ok(r.uyarilar.some((u) => /kriter verisi yok/.test(u)));
 });

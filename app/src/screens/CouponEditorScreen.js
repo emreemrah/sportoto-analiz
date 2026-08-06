@@ -28,7 +28,7 @@ import { OUTCOMES, columnCount, costOf, validPricing, COUPON_MAX_COLUMNS, lockAt
 import { getCoupon, finalVersion, createCoupon, addVersion, renameCoupon, getDraft, clearDraft } from '../coupon/store';
 import { buildSmartCoupon, diffSelections, proposalFrom, signalsOf } from '../coupon/smart';
 import { getActiveProfile, countOn } from '../analysisProfile';
-import { kriterAktarimi } from '../kriterAktarim';
+import { ekranMotoruylaAktar } from '../kriterAktarim';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 // Backend etiketi ('BANKO' gibi) EKRANA HAM BASILMAZ; sözlükten geçirilir.
@@ -164,12 +164,12 @@ export default function CouponEditorScreen({ route, navigation }) {
     }
     setKriterYukleniyor(true);
     try {
-      const calc = await api.analysisCalcBulletin(data.roundId, { profile: profil });
-      // Seçim mantığı SAF modülde (kriterAktarim.js) — testli.
-      // Geniş artık "kapalı tercih" değil: tekli + GEREKİRSE ikinci işaret.
-      // Sebep: kriter seti X üretmiyorsa kapalı tercih her maçta '12' oluyor
-      // ve 15 maçın hepsi "1-2" görünüyordu (kullanıcı bildirimi, 2026-08-06).
-      const { secimler: proposed, uyarilar } = kriterAktarimi(calc?.matches || [], {
+      // EKRANLA AYNI MOTOR (2026-08-06 ikinci düzeltme): Maç Detayı → Analiz
+      // ekranındaki "Ana Seçim / Alternatif" ile burası birebir aynı sonucu
+      // vermeli. O ekran yerel kriter motorunu kullanıyor; kupon da artık onu
+      // kullanıyor. Backend'e ayrı bir hesap İSTENMEZ — iki motor iki farklı
+      // cevap veriyordu (ekran "1X" derken kupon "1-2" öneriyordu).
+      const { secimler: proposed, uyarilar } = ekranMotoruylaAktar(matches, profil, {
         genis, kilitliNolar: lockedNos,
       });
       if (!Object.keys(proposed).length) {
