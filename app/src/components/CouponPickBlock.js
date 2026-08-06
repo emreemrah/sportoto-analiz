@@ -36,63 +36,66 @@ export default function CouponPickBlock({ m, navigation }) {
   };
 
   return (
+    /* OLABİLDİĞİNCE KÜÇÜK (kullanıcı isteği, 2026-08-06). Blok beş satırdı:
+       başlık, iki satırlık açıklama, düğmeler, "Henüz seçim yok…" ipucu ve
+       "Seçimin: 1" tekrarı. İkisi de gereksizdi — seçilen işaret ZATEN kendi
+       düğmesinde ✓ ve dolgu ile görünüyor; açıklama da düğmelerin yaptığı işi
+       kelimeyle anlatıyordu. Şimdi iki satır: başlık + Kupon Oluştur yan yana,
+       altında 1/X/2 + Sistemden al. Hiçbir işlev kaybolmadı. */
     <View style={s.block}>
-      <Text style={s.title}>🎟️ KUPONA İŞLE</Text>
-      <Text style={s.sub}>Analizi gördün — seçimini yap. Kupon taslağına işlenir, Kupon Oluştur'dan kaydedersin.</Text>
+      <View style={s.head}>
+        <Text style={s.title}>🎟️ KUPONA İŞLE</Text>
+        {!locked ? (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('CouponEditor', { roundId: m.roundId })}
+            style={s.goBtn}
+            activeOpacity={0.85}
+          >
+            <Text style={s.goTxt}>Kupon Oluştur ›</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
       {locked ? (
         <Text style={s.locked}>🔒 Maç başladı — bu maç için seçim değiştirilemez.</Text>
       ) : (
-        <>
-          <View style={s.row}>
-            {OUT.map((o) => { const on = pick.includes(o); return (
-              <TouchableOpacity
-                key={o}
-                onPress={() => toggle(o)}
-                activeOpacity={0.85}
-                style={[s.btn, on && s.btnOn]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                accessibilityLabel={`${o} işareti`}
-              >
-                {on ? <Text style={s.check}>✓</Text> : null}
-                <Text style={[s.txt, on && s.txtOn]}>{o}</Text>
-              </TouchableOpacity>
-            ); })}
-            <TouchableOpacity onPress={fromSystem} activeOpacity={0.85} style={s.sysBtn}><Text style={s.sysTxt}>⚙ Sistemden al</Text></TouchableOpacity>
-          </View>
-          <View style={s.footer}>
-            {pick.length ? (
-              <View style={s.pickedWrap}>
-                <Text style={s.pickedLbl}>Seçimin:</Text>
-                {pick.map((o) => <View key={o} style={s.pickedPill}><Text style={s.pickedPillTxt}>{o}</Text></View>)}
-              </View>
-            ) : <Text style={s.noneTxt}>Henüz seçim yok — 1/X/2 seç ya da “Sistemden al”</Text>}
-            <TouchableOpacity onPress={() => navigation.navigate('CouponEditor', { roundId: m.roundId })} style={s.goBtn}><Text style={s.goTxt}>Kupon Oluştur ›</Text></TouchableOpacity>
-          </View>
-        </>
+        <View style={s.row}>
+          {OUT.map((o) => { const on = pick.includes(o); return (
+            <TouchableOpacity
+              key={o}
+              onPress={() => toggle(o)}
+              activeOpacity={0.85}
+              style={[s.btn, on && s.btnOn]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={`${o} işareti${on ? ' — seçili' : ''}`}
+            >
+              {on ? <Text style={s.check}>✓</Text> : null}
+              <Text style={[s.txt, on && s.txtOn]}>{o}</Text>
+            </TouchableOpacity>
+          ); })}
+          <TouchableOpacity onPress={fromSystem} activeOpacity={0.85} style={s.sysBtn}>
+            <Text style={s.sysTxt} numberOfLines={1}>⚙ Sistemden al</Text>
+          </TouchableOpacity>
+        </View>
       )}
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  block: { backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.primary, padding: spacing.md, marginBottom: spacing.md },
-  title: { color: colors.primary, fontSize: 12.5, fontWeight: '900', letterSpacing: 0.3 },
-  sub: { color: colors.textMuted, fontSize: 11, fontWeight: '600', marginTop: 4, lineHeight: 15 },
-  locked: { color: colors.warning, fontSize: 12.5, fontWeight: '800', marginTop: 8 },
-  row: { flexDirection: 'row', gap: 7, marginTop: 10 },
-  btn: { flex: 1, flexDirection: 'row', gap: 4, paddingVertical: 12, borderRadius: radius.sm, backgroundColor: colors.cardAlt, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
+  block: { backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.primary, padding: 8, marginBottom: spacing.sm },
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  title: { color: colors.primary, fontSize: 11, fontWeight: '900', letterSpacing: 0.3, flexShrink: 1 },
+  locked: { color: colors.warning, fontSize: 11.5, fontWeight: '800', marginTop: 6 },
+  row: { flexDirection: 'row', gap: 6, marginTop: 7 },
+  btn: { flex: 1, flexDirection: 'row', gap: 4, paddingVertical: 7, borderRadius: radius.sm, backgroundColor: colors.cardAlt, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
   btnOn: { backgroundColor: colors.primary, borderColor: colors.primary, ...shadow.soft },
-  txt: { color: colors.textSoft, fontSize: 16, fontWeight: '900' }, txtOn: { color: '#fff' },
-  check: { color: '#fff', fontSize: 12, fontWeight: '900' },
-  sysBtn: { paddingHorizontal: 11, paddingVertical: 12, borderRadius: radius.sm, backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.border, justifyContent: 'center' },
-  sysTxt: { color: colors.primary, fontSize: 11, fontWeight: '900' },
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, gap: 8 },
-  pickedWrap: { flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 },
-  pickedLbl: { color: colors.textMuted, fontSize: 12, fontWeight: '800' },
-  pickedPill: { minWidth: 22, height: 22, paddingHorizontal: 5, borderRadius: 6, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  pickedPillTxt: { color: '#fff', fontSize: 12.5, fontWeight: '900' },
-  noneTxt: { color: colors.textMuted, fontSize: 11, fontWeight: '700', flex: 1 },
-  goBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.sm, backgroundColor: colors.primary },
-  goTxt: { color: '#fff', fontSize: 11.5, fontWeight: '900' },
+  txt: { color: colors.textSoft, fontSize: 14, fontWeight: '900' }, txtOn: { color: '#fff' },
+  check: { color: '#fff', fontSize: 11, fontWeight: '900' },
+  // Sistemden al, üç işaret kutusuyla aynı yükseklikte kalsın diye flexShrink'li:
+  // uzun metinde küçülür, satırı alta itmez.
+  sysBtn: { paddingHorizontal: 9, paddingVertical: 7, borderRadius: radius.sm, backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.border, justifyContent: 'center', flexShrink: 1 },
+  sysTxt: { color: colors.primary, fontSize: 10.5, fontWeight: '900' },
+  goBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.sm, backgroundColor: colors.primary },
+  goTxt: { color: '#fff', fontSize: 10.5, fontWeight: '900' },
 });

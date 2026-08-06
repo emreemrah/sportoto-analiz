@@ -88,5 +88,8 @@ test('kupon işaret düğmesi SEÇİLİ durumunu bildiriyor', () => {
   // durum ayrıca bildirilmeli, yoksa renk tek ayırt edici olur.
   const kod = readFileSync(join(SRC, 'components', 'CouponPickBlock.js'), 'utf8');
   assert.match(kod, /accessibilityState=\{\{ selected: on \}\}/, 'seçili durumu bildirilmiyor');
-  assert.match(kod, /accessibilityLabel=\{`\$\{o\} işareti`\}/, 'işaret etiketi yok');
+  // Etiket "1 işareti" ile BAŞLAMALI; sonuna durum eklenebilir ("… — seçili").
+  // Kalıp bilerek gevşek: tam eşitlik istenirse etiketi zenginleştirmek
+  // (ki erişilebilirlik açısından iyileşmedir) testi kırar.
+  assert.match(kod, /accessibilityLabel=\{`\$\{o\} işareti/, 'işaret etiketi yok');
 });
