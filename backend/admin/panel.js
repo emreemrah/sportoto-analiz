@@ -110,6 +110,7 @@
     genel: function () { return ozetYukle(); },
     analiz: function () { return karneYukle().then(kriterCiz); },
     haftalar: function () { return haftaYukle(); },
+    sinyal: function () { return sinyalKataloguYukle(); },
     kullanicilar: function () { return kullaniciYukle(); },
     yorumlar: function () { return yorumYukle(); },
     premium: function () { return kodYukle(); },
@@ -267,6 +268,167 @@
   }
   $('kriterDonem').addEventListener('change', kriterCiz);
   $('kriterSira').addEventListener('change', kriterCiz);
+
+  // ——— SİNYAL KIRILIMI ———
+  // Kullanıcının yakaladığı örüntüyü ölçer: aynı sıra + benzer oynanma →
+  // aynı sonuç. Hesap SUNUCUDA (analysis/sinyalKirilim.js); burası yalnız
+  // çizer. Az örneklem işaretleri sunucudan gelir, burada uydurulmaz.
+  var sonSinyal = null;
+
+  function hucreYaz(h) {
+    if (!h || h.veriYok) return '<span class="kucuk">—</span>';
+    var metin = esc(h.mac) + ' maçta ' + esc(h.dogru);
+    var yuzde = h.oran == null ? '—' : '%' + esc(h.oran);
+    // AZ ÖRNEKLEM: yüzde gizlenmez ama işaretlenir; ham sayı hep önde.
+    return '<div><b>' + yuzde + '</b>' + (h.azOrneklem ? ' <span class="rozet notr">az veri</span>' : '') +
+      '</div><div class="kucuk">' + metin + '</div>';
+  }
+
+  function sinyalKataloguYukle() {
+    return istek('/api/admin/sinyaller').then(function (k) {
+      var sec = $('sinyalSec');
+      var html = '<optgroup label="Radarlar">' +
+        (k.radarlar || []).map(function (r) {
+          return '<option value="radar:' + esc(r.key) + '">' + esc(r.ad) + '</option>';
+        }).join('') + '</optgroup>' +
+        '<option value="master:master">Master Analiz (ana tahmin)</option>' +
+        '<optgroup label="Kriterler">' +
+        (k.kriterler || []).map(function (c) {
+          return '<option value="kriter:' + esc(c.key) + '">' + esc(c.ad) + '</option>';
+        }).join('') + '</optgroup>';
+      sec.innerHTML = html || '<option>kriter bulunamadı</option>';
+      var siraSec = $('oynanmaSira');
+      siraSec.innerHTML = '';
+      for (var i = 1; i <= 15; i += 1) siraSec.innerHTML += '<option value="' + i + '">' + i + '. sıra</option>';
+    });
+  }
+
+  function sinyalHesapla() {
+    var v = ($('sinyalSec').value || '').split(':');
+    if (v.length < 2) return Promise.resolve();
+    $('sinyalGetir').disabled = true;
+    return istek('/api/admin/sinyal-kirilim?tur=' + encodeURIComponent(v[0]) + '&key=' + encodeURIComponent(v[1]))
+      .then(function (r) {
+        sonSinyal = r;
+        var kap = r.kapsam || {};
+        $('sinyalKapsam').innerHTML =
+          (r.uyari ? '<p class="uyari">' + esc(r.uyari) + '</p>' : '') +
+          '<div class="izgara">' +
+          kutu('Genel başarı', r.genel && r.genel.oran != null ? '%' + esc(r.genel.oran) : null,
+            r.genel ? esc(r.genel.mac) + ' maçta ' + esc(r.genel.dogru) : '') +
+          kutu('Sayılan hafta', esc(kap.haftaDahil), esc(kap.haftaDislanan) + ' hafta dışlandı') +
+          kutu('Sinyal veren maç', esc(kap.sinyalOlan), esc(r.genel ? r.genel.sinyalsizMac : 0) + ' maçta yön yok') +
+          kutu('Oynanma verisi olan', esc(kap.oynanmaOlan), 'maç') +
+          '</div>';
+        sinyalSiraCiz();
+        oynanmaCiz();
+      })
+      .finally(function () { $('sinyalGetir').disabled = false; });
+  }
+
+  function sinyalSiraCiz() {
+    if (!sonSinyal) return;
+    var sira = sonSinyal.sira || [];
+    var dag = {};
+    (sonSinyal.dagilim || []).forEach(function (d) { dag[d.no] = d; });
+    $('sinyalSira').innerHTML =
+      '<div class="tabloSar"><table><thead><tr><th>Sıra</th><th>Tüm haftalar</th><th>Son 5</th>' +
+      '<th>Son 10</th><th>O sırada ne çıkmış (1 / X / 2)</th></tr></thead><tbody>' +
+      sira.map(function (s) {
+        var d = dag[s.no];
+        var dagMetin = d && d.mac
+          ? ['1', 'X', '2'].map(function (o) {
+            return '<b>' + o + '</b> ' + (d.dagilim[o].oran == null ? '—' : '%' + esc(d.dagilim[o].oran));
+          }).join(' · ') + ' <span class="kucuk">(' + esc(d.mac) + ' maç)</span>'
+          : '<span class="kucuk">—</span>';
+        return '<tr><td><b>' + esc(s.no) + '</b></td>' +
+          '<td>' + hucreYaz(s.donem.tum) + '</td>' +
+          '<td>' + hucreYaz(s.donem.son5) + '</td>' +
+          '<td>' + hucreYaz(s.donem.son10) + '</td>' +
+          '<td class="kucuk">' + dagMetin + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<p class="kucuk">Sinyalin başarısı, o sıranın DOĞAL dağılımıyla birlikte okunmalı: ' +
+      'bir sıra zaten çoğunlukla 1 bitiyorsa, "1" diyen sinyalin yüksek başarısı tek başına bir şey söylemez.</p>';
+  }
+
+  function oynanmaCiz() {
+    if (!sonSinyal) return;
+    var no = Number($('oynanmaSira').value) || 1;
+    var satirlar = (sonSinyal.oynanmaProfili || []).filter(function (r) { return Number(r.no) === no; });
+    var govde = satirlar.map(function (r) {
+      if (r.veriYok) {
+        return '<tr><td><b>' + esc(r.sonuc) + '</b></td><td class="kucuk" colspan="4">bu sırada ' +
+          esc(r.sonuc) + ' ile biten maç yok</td></tr>';
+      }
+      var p = r.profil || {};
+      var hucreP = function (o) {
+        var x = p[o];
+        if (!x) return '<span class="kucuk">—</span>';
+        return '<b>%' + esc(x.ortalama) + '</b><div class="kucuk">' +
+          esc(x.enAz) + '–' + esc(x.enCok) + '</div>';
+      };
+      return '<tr><td><b>' + esc(r.sonuc) + '</b>' +
+        (r.azOrneklem ? ' <span class="rozet notr">az veri</span>' : '') + '</td>' +
+        '<td class="sag">' + esc(r.mac) + '</td>' +
+        '<td class="sag">' + hucreP('1') + '</td>' +
+        '<td class="sag">' + hucreP('X') + '</td>' +
+        '<td class="sag">' + hucreP('2') + '</td></tr>' +
+        '<tr><td colspan="5" class="kucuk">' + (r.maclar || []).map(function (m) {
+          return esc(m.hafta) + ' ' + esc(m.home) + '–' + esc(m.away) +
+            (m.skor ? ' ' + esc(m.skor) : '') +
+            (m.oynanma ? ' <span class="kod">%' + esc(m.oynanma['1']) + '/%' + esc(m.oynanma.X) +
+              '/%' + esc(m.oynanma['2']) + '</span>' : '');
+        }).join(' &nbsp;·&nbsp; ') + '</td></tr>';
+    }).join('');
+    $('sinyalOynanma').innerHTML = govde
+      ? '<div class="tabloSar"><table><thead><tr><th>Sonuç</th><th class="sag">Maç</th>' +
+        '<th class="sag">Oynanma 1</th><th class="sag">Oynanma X</th><th class="sag">Oynanma 2</th>' +
+        '</tr></thead><tbody>' + govde + '</tbody></table></div>' +
+        '<p class="kucuk">Kalın sayı ortalama, altındaki en az–en çok aralığıdır. ' +
+        'Ortalama tek başına yanıltır: %44 ile %30’un ortalaması %37’dir ve %37 hiçbir maçta görülmemiş olabilir.</p>'
+      : '<p class="kucuk">Bu sırada oynanma verisi olan maç yok.</p>';
+  }
+
+  $('sinyalGetir').addEventListener('click', function () { sinyalHesapla().catch(hataGoster); });
+  $('oynanmaSira').addEventListener('change', oynanmaCiz);
+
+  $('bnzBtn').addEventListener('click', function () {
+    var v = ($('sinyalSec').value || '').split(':');
+    if (v.length < 2) return;
+    var q = '/api/admin/sinyal-kirilim?tur=' + encodeURIComponent(v[0]) + '&key=' + encodeURIComponent(v[1]) +
+      '&sira=' + encodeURIComponent($('bnzSira').value) +
+      '&h1=' + encodeURIComponent($('bnz1').value) +
+      '&hx=' + encodeURIComponent($('bnzX').value) +
+      '&h2=' + encodeURIComponent($('bnz2').value) +
+      '&tolerans=' + encodeURIComponent($('bnzTol').value);
+    $('bnzBtn').disabled = true;
+    istek(q).then(function (r) {
+      var b = r.benzer;
+      if (!b || b.veriYok) {
+        $('sinyalBenzer').innerHTML = '<p class="kucuk">Bu profile benzeyen geçmiş maç bulunamadı. ' +
+          'Toleransı artırabilirsin — ama geniş tolerans "benzer" tanımını anlamsızlaştırır.</p>';
+        return;
+      }
+      $('sinyalBenzer').innerHTML =
+        '<div class="izgara" style="margin-bottom:10px">' +
+        ['1', 'X', '2'].map(function (o) {
+          return kutu('Sonuç ' + o, b.dagilim[o].oran == null ? null : '%' + esc(b.dagilim[o].oran),
+            esc(b.dagilim[o].adet) + ' / ' + esc(b.mac) + ' maç');
+        }).join('') + '</div>' +
+        (b.azOrneklem ? '<p class="uyari">Yalnız ' + esc(b.mac) + ' benzer maç bulundu — bu sayıdan çıkarım yapılmaz, ' +
+          'yalnız gözlem olarak okunur.</p>' : '') +
+        '<div class="tabloSar"><table><thead><tr><th>Hafta</th><th class="sag">Sıra</th><th>Maç</th>' +
+        '<th class="sag">Skor</th><th class="sag">Oynanma</th><th class="sag">Sonuç</th></tr></thead><tbody>' +
+        b.vakalar.map(function (m) {
+          return '<tr><td class="kucuk">' + esc(m.hafta) + '</td><td class="sag">' + esc(m.no) + '</td>' +
+            '<td>' + esc(m.home) + ' – ' + esc(m.away) + '</td>' +
+            '<td class="sag kucuk">' + esc(m.skor || '') + '</td>' +
+            '<td class="sag kod">%' + esc(m.oynanma['1']) + '/%' + esc(m.oynanma.X) + '/%' + esc(m.oynanma['2']) + '</td>' +
+            '<td class="sag"><b>' + esc(m.sonuc) + '</b></td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        '<p class="kucuk">Bu tablo GEÇMİŞ gözlemidir. Gelecek maç için bir vaat içermez.</p>';
+    }).catch(hataGoster).finally(function () { $('bnzBtn').disabled = false; });
+  });
 
   // ——— HAFTALAR ———
   // KULLANICI SORUSU (2026-08-06): "50-51. haftalar neden yok?"
