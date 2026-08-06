@@ -502,6 +502,36 @@ export default function HomeScreen({ navigation }) {
           bileşen hiç çizilmez (boş çubuk bırakmaz). */}
       <LigSeridi matches={data?.matches} />
 
+      {/* Yaklaşan Maçlar — GERÇEK bülten verisinden (gün + saat + takımlar).
+          Toplulukta Gündem kaldırıldı (kullanıcı isteği; içeriği sahte örnekti —
+          sahte veri yok kuralıyla da uyumlu).
+          KONUM (kullanıcı isteği, 2026-08-06): "Öne Çıkan Analizler"in ÜSTÜNDE.
+          Mantığı da bu: önce "ne zaman ne oynanıyor", sonra "hangisi ilginç" —
+          en aşağıdayken üç bölüm kaydırmadan görünmüyordu. */}
+      {upcoming.length > 0 && (
+        <>
+          <SectionHead
+            title="Yaklaşan Maçlar"
+            right="Tümünü Gör ›"
+            onPress={() => navigation.navigate('BulletinTab')}
+          />
+          {/* Lig şeridiyle AYNI mekanizma: sürekli döner, parmak değince
+              durur (hareket eden kartı isabetle tıklamak zordur), cihazda
+              "hareketi azalt" açıksa hiç kaymaz.
+              Anahtar hafta+no birlikte: iki haftanın maçları aynı listede ve
+              sıra numaraları çakışıyor — yalnız m.no ile anahtar çakışırdı. */}
+          <KayanSerit
+            testID="yaklasan-serit"
+            style={styles.surpriseScroll}
+            accessibilityLabel={`Yaklaşan maçlar: ${upcoming.length} karşılaşma`}
+          >
+            {upcoming.map((m) => (
+              <KickoffCard key={`${m.roundId}-${m.no}`} match={m} navigation={navigation} />
+            ))}
+          </KayanSerit>
+        </>
+      )}
+
       {/* Hızlı Erişim kullanıcı kararıyla KALDIRILDI ("hızlı erişim olmasın") —
           alt sekme çubuğu aynı sayfalara zaten götürüyor. */}
       <SectionHead
@@ -559,32 +589,6 @@ export default function HomeScreen({ navigation }) {
         )}
       </ScrollView>
 
-      {/* Yaklaşan Maçlar — GERÇEK bülten verisinden (gün + saat + takımlar).
-          Toplulukta Gündem kaldırıldı (kullanıcı isteği; içeriği sahte örnekti —
-          sahte veri yok kuralıyla da uyumlu). */}
-      {upcoming.length > 0 && (
-        <>
-          <SectionHead
-            title="Yaklaşan Maçlar"
-            right="Tümünü Gör ›"
-            onPress={() => navigation.navigate('BulletinTab')}
-          />
-          {/* Lig şeridiyle AYNI mekanizma: sürekli döner, parmak değince
-              durur (hareket eden kartı isabetle tıklamak zordur), cihazda
-              "hareketi azalt" açıksa hiç kaymaz.
-              Anahtar hafta+no birlikte: iki haftanın maçları aynı listede ve
-              sıra numaraları çakışıyor — yalnız m.no ile anahtar çakışırdı. */}
-          <KayanSerit
-            testID="yaklasan-serit"
-            style={styles.surpriseScroll}
-            accessibilityLabel={`Yaklaşan maçlar: ${upcoming.length} karşılaşma`}
-          >
-            {upcoming.map((m) => (
-              <KickoffCard key={`${m.roundId}-${m.no}`} match={m} navigation={navigation} />
-            ))}
-          </KayanSerit>
-        </>
-      )}
     </ScrollView>
     </View>
   );
