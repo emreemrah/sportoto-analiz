@@ -40,9 +40,10 @@ KURULMAYACAK, mevcut `MODERATOR_EMAILS` operatör kimliği kullanılacak.
 - Testler: backend 950 geçti / 0 kaldı (32 atlandı — canlı veritabanı isteyenler).
 
 ## Operatör ayarı — GEÇİCİ olarak yapıldı (2026-08-06)
-`backend/.env` içine `MODERATOR_EMAILS=emrahanlar.41@hotmail.com` eklendi ve
-backend yeniden başlatıldı. Ayrı bir "admin@" adresi açmaya gerek yok:
-panel, uygulamanın kendi hesabıyla çalışır.
+Kullanıcı kararı: şimdilik kendi adresi kullanılacak. `backend/.env` içine
+`MODERATOR_EMAILS=emrahanlar.41@hotmail.com` yazıldı ve backend yeniden
+başlatıldı. Ayrı bir "admin@" adresi açmaya gerek yok: panel, uygulamanın
+kendi hesabıyla çalışır.
 
 - Bu dosya `.gitignore`'lu → değer GitHub'a gitmez, yalnız bu bilgisayarda.
 - Gerçek sunucuya geçince aynı değişkeni orada da tanımlaman gerekecek.
