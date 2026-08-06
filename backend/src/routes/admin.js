@@ -34,6 +34,8 @@ import { yorumuGizle, yorumuGeriAl } from '../moderationOps.js';
 import {
   kodNormalize, kodUret, kodGecerliMi, premiumDurumu, etkinEngel, bitisHesapla,
 } from '../premiumBan.js';
+import { tamKirilim, benzerVakalar } from '../analysis/sinyalKirilim.js';
+import { sinyalKayitlariniTopla, sinyalKatalogu } from '../analysis/sinyalToplama.js';
 
 const router = Router();
 router.use(uyelikKapisi(supabaseEnabled));
@@ -590,6 +592,53 @@ router.get('/haftalar', async (req, res) => {
   } catch (e) {
     safeError(res, e, 'Hafta listesi okunamadı.');
   }
+});
+
+// ---------------------------------------------------------------------------
+// SİNYAL KIRILIMI — "bu kriter/radar NEREDE işe yarıyor?"
+// ---------------------------------------------------------------------------
+// Kullanıcının fark ettiği örüntüyü ölçülebilir hâle getirir: aynı bülten
+// sırasında, benzer oynanma yüzdeleriyle aynı sonucun çıkması.
+// Hesap saf modülde (analysis/sinyalKirilim.js), veri toplama ayrı dosyada
+// (analysis/sinyalToplama.js). Bu uç yalnız ikisini birleştirir.
+router.get('/sinyaller', async (req, res) => {
+  try {
+    res.json(await sinyalKatalogu());
+  } catch (e) { safeError(res, e, 'Sinyal listesi okunamadı.'); }
+});
+
+router.get('/sinyal-kirilim', async (req, res) => {
+  try {
+    const tur = String(req.query.tur || 'kriter');
+    const key = String(req.query.key || '');
+    if (tur !== 'master' && !key) return res.status(400).json({ error: 'Sinyal seçilmedi.' });
+
+    const { kayitlar, kapsam } = await sinyalKayitlariniTopla({ tur, key });
+    const kirilim = tamKirilim(kayitlar);
+
+    // BENZERLİK: istenirse bu haftanın oynanma profili verilir ve geçmişte
+    // benzeyen AYNI SIRADAKİ maçlar bulunur. Tahmin değil GÖZLEM.
+    let benzer = null;
+    const hedefNo = Number(req.query.sira);
+    const h1 = Number(req.query.h1); const hX = Number(req.query.hx); const h2 = Number(req.query.h2);
+    if (Number.isFinite(hedefNo) && [h1, hX, h2].every(Number.isFinite)) {
+      benzer = benzerVakalar(kayitlar, { 1: h1, X: hX, 2: h2 }, {
+        no: hedefNo,
+        tolerans: Number(req.query.tolerans) || undefined,
+      });
+    }
+
+    res.json({
+      tur,
+      key,
+      kapsam,
+      ...kirilim,
+      benzer,
+      uyari: kapsam.haftaDahil < 5
+        ? `Yalnız ${kapsam.haftaDahil} hafta mühürlü ve sonuçlanmış — bu kadar az veride sıra bazlı yüzdeler yanıltıcıdır.`
+        : null,
+    });
+  } catch (e) { safeError(res, e, 'Sinyal kırılımı hesaplanamadı.'); }
 });
 
 // ---------------------------------------------------------------------------
