@@ -140,6 +140,8 @@ test('salt okunur yüzeylerde kutular SOLDURULMAZ — disabled geri gelmesin', (
     }
   }
   // Bileşen tarafı: solukluk YALNIZ disabled'a bağlı kalmalı.
+  // (Yayın Stüdyosu kaldırıldı 2026-08-06; ortak parçalar studioParts.js'te
+  //  YAŞAMAYA devam ediyor — kupon ekranları oradan besleniyor.)
   const parca = kodu(oku('src', 'screens', 'studioParts.js'));
   assert.match(parca, /salt\s*=\s*false/, 'PickBoxes salt okunur kipini tanımıyor');
   assert.match(parca, /disabled\s*&&\s*st\.pickOff/, 'solukluk disabled dışında bir şeye bağlanmış');

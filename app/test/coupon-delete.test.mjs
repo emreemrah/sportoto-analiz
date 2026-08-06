@@ -140,7 +140,7 @@ const EKRANLAR = [
   'src/screens/CouponEditorScreen.js',
   'src/screens/DeleteAccountScreen.js',
   'src/screens/ProfileScreen.js',
-  'src/screens/StudioBulletinScreen.js',
+// (Yayın Stüdyosu 2026-08-06'da tamamen kaldırıldı — ilgili dosyalar listeden çıktı.)
 ];
 
 test('REGRESYON: hiçbir ekran react-native Alert\'ini kullanmaz (web\'de boş taslak)', () => {

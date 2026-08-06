@@ -22,7 +22,7 @@ const BILESENLER = [
   [['src', 'ui.js'], 'export function Logo'],
   [['src', 'screens', 'BulletinScreen.js'], 'function TeamLogo'],
   [['src', 'screens', 'MatchDetailScreen.js'], 'function TableLogo'],
-  [['src', 'screens', 'studioParts.js'], null],   // dosya genelinde
+// (Yayın Stüdyosu 2026-08-06'da tamamen kaldırıldı — ilgili dosyalar listeden çıktı.)
 ];
 
 test('arma çizen her bileşen adresi crestUrlOf\'tan geçiriyor', () => {

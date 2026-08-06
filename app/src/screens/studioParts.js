@@ -1,14 +1,20 @@
-// YAYIN STÜDYOSU — ortak arayüz parçaları (bütün stüdyo ekranları bunları kullanır).
+// ORTAK TABLO PARÇALARI — arma, 1-0-2 kutuları, panel, yasal şerit, durum.
 //
-// NEDEN: Logo, seçim kutuları, risk şeridi ve durum ekranı ayrı ayrı yazılırsa
-// yayında biri diğerinden farklı görünür. Burada bir kez tanımlanır.
+// ⚠️ AD MİRASI: bu dosya Yayın Stüdyosu için yazılmıştı; STÜDYO 2026-08-06'da
+// TAMAMEN KALDIRILDI ama bu parçalar KUPON EKRANLARINDA yaşıyor
+// (couponStudioParts.js → Kupon Hazırla · Merkez · Sonuç · Paylaş). Dosya adı
+// mevcut import'ları ve testleri kırmamak için korundu; içerik stüdyoya değil
+// kupon tablosuna hizmet ediyor.
+//
+// NEDEN TEK YERDE: Logo, seçim kutuları, şerit ve durum ekranı ayrı ayrı
+// yazılırsa dört kupon ekranı birbirinden farklı görünür.
 //
 // GÖRÜNÜM: "resmî bülten tablosu" — açık zemin, ince gri çizgi, köşeli kutu,
 // koyu başlık şeridi, küçük punto. Yuvarlak-koyu-gölgeli kart görünümü bilerek
 // terk edildi; ölçüler studioTheme.js'ten (TABLE / T / SP / R) okunur.
 //
 // KURALLAR:
-//  • Bu dosya HESAP YAPMAZ. Bütün sayılar broadcastStudio.js'ten hazır gelir
+//  • Bu dosya HESAP YAPMAZ. Bütün sayılar çağıran ekrandan hazır gelir
 //    (yinelenen istatistik yasağı).
 //  • Hiçbir metin "kesin/garanti/banko" demez; renk de kesinlik anlamı taşımaz.
 //  • Kişisel veri almaz: parçalar yalnız bülten satırı ve yayıncının seçimini alır.
@@ -20,7 +26,9 @@ import { APP_NAME_UPPER, LEGAL_FOOTER } from '../brand';
 import { API_BASE } from '../config';
 import { crestUrlOf } from '../crestUrl';
 import { OUTCOMES } from '../couponConfig';
-import { officialSymbol } from '../broadcastStudio';
+// Resmî işaret yazımı (X → 0) doğrudan kupon sözleşmesinden gelir; eskiden
+// silinen broadcastStudio.js üzerinden geçiyordu (2026-08-06 stüdyo kaldırma).
+import { toOfficial as officialSymbol } from '../couponConfig';
 import { S, R, SP, TABLE, T, ETIKET } from '../studioTheme';
 import { fontOf, useStudioFontReady, TABULAR } from '../studioFonts';
 
@@ -250,7 +258,7 @@ export function Bar({ value, tone, height = 5 }) {
    "Düşük/Orta/Yüksek · 44/100" biçiminde maça not veren tek bileşendi.
    Bileşen hiç yoksa yayıncı ekranlarına geri sızamaz; renk eşlemesi
    (toneOfLevel/toneSoftOfLevel) da aynı sebeple studioTheme.js'ten kaldırıldı.
-   Ölçümün KENDİSİ broadcastStudio.js'te olduğu gibi durur (testleriyle
+   Ölçüm mantığı kupon tarafında durur (testleriyle
    birlikte); yalnız yayıncı modunda ÇİZİLMEZ. */
 
 /**

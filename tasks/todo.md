@@ -375,3 +375,24 @@ Doğrulama: backend **944/944**, app **740/740** (0 başarısız; app sayısı
 büyük diff riski), Yayın Stüdyosu kümesi (bayrakla kapalı, silinmez),
 `SystemDashboardScreen` (dev-only demo), kırılgan regex bekçi testlerinin
 yeniden yazımı (ayrı ve büyük iş).
+
+
+## 2026-08-06 (ek) — YAYIN STÜDYOSU TAMAMEN KALDIRILDI
+
+Kullanıcı kararı: "Yayın Stüdyosu tamamen silelim". Özellik 1 Ağustos'ta
+bayrakla kapatılmıştı (`YAYIN_STUDYOSU_ACIK=false`); artık kod da gitti.
+
+- [x] Ekranlar: Broadcast · StudioBulletin · StudioMatch · StudioKarne
+- [x] Mağaza/mantık: broadcast.js, broadcastStudio.js, broadcastStudioStore.js,
+      studioKarne.js, studioCouponSave.js
+- [x] `userMatchEngine.js` (6 kriterli hafif motor — yalnız stüdyodan erişiliyordu)
+- [x] 9 test dosyası + `scripts/render-studio.mjs` + `verify:render` betiği
+- [x] `features.js` bayrağı ve App.js/HomeScreen kalıntıları (📺 düğmesi dahil)
+- [x] `FULLSCREEN_ROUTES` boşaltıldı (stüdyo rotaları kalmadı)
+
+**Yanlış silmeden dönülen adım:** `studioParts.js` da silinmişti, ama testler
+onun KUPON ekranlarını beslediğini gösterdi (couponStudioParts → TeamCrest /
+PickBoxes). Geri alındı, başlığı gerçeğe göre düzeltildi ve tek stüdyo
+bağımlılığı (`officialSymbol`) doğrudan `couponConfig`'e çevrildi.
+
+Doğrulama: app **520/520** (0 başarısız; stüdyo testlerinin gitmesiyle 740→520).

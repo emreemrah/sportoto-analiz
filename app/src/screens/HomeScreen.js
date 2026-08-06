@@ -11,7 +11,6 @@ import {
 
 import { api } from '../api';
 import { BRAND_LINE_1, BRAND_LINE_2 } from '../brand';
-import { YAYIN_STUDYOSU_ACIK } from '../features';
 import { colors, spacing, radius, shadows } from '../theme';
 import { EmptyState, SkeletonCard, Logo } from '../ui';
 import { ProfileAvatar } from '../components';
@@ -48,19 +47,6 @@ function Header({ data, navigation, unread = 0 }) {
         </Text>
       </View>
 
-      {/* Yayın Stüdyosu: 15 maçlık bülteni canlı yayında maç maç işleyen,
-          koyu, sekmesiz mod. features.js ile KAPALI olabilir — kapalıyken
-          düğme hiç çizilmez ve rotası da kayıtlı değildir (bkz. App.js). */}
-      {YAYIN_STUDYOSU_ACIK ? (
-        <TouchableOpacity
-          style={styles.topIconBtn}
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate('StudioBulletin')}
-          accessibilityLabel="Yayın stüdyosu"
-        >
-          <Text style={styles.broadcastIcon}>📺</Text>
-        </TouchableOpacity>
-      ) : null}
 
       {/* Zil GERÇEK çalışır: bildirim merkezini açar. Kırmızı sayı YALNIZ
           okunmamış GERÇEK bildirim varsa görünür — süs rozeti yoktur. */}
@@ -676,9 +662,6 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '-18deg' }],
   },
 
-  broadcastIcon: {
-    fontSize: 20,
-  },
 
   notificationDot: {
     position: 'absolute',

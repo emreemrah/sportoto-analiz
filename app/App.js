@@ -38,20 +38,12 @@ import DevicesScreen from './src/screens/DevicesScreen';
 import WeekSummaryScreen from './src/screens/WeekSummaryScreen';
 import WeekRecapScreen from './src/screens/WeekRecapScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
-import BroadcastScreen, { BROADCAST_CONTENT_STYLE } from './src/screens/BroadcastScreen';
-// YAYIN STÜDYOSU — yayıncının canlı yayında ilerlediği üç ekran: tablo, maç
-// detayı, geçmiş hafta karnesi. (Dördüncü bir "Final Kupon" ekranı vardı;
-// kaydetme tabloya taşındığı için kaldırıldı.)
-import StudioBulletinScreen from './src/screens/StudioBulletinScreen';
-import StudioMatchScreen from './src/screens/StudioMatchScreen';
-import StudioKarneScreen from './src/screens/StudioKarneScreen';
 // UYARI/ONAY PENCERESİ: React Native'in Alert'i web'de boş taslaktır (hiç
 // çizmez). Onay isteyen düğmeler web'de sessiz kalmasın diye pencereyi çizen
 // host uygulama kökünde BİR KEZ bağlanır.
 import { UyariHost } from './src/components/Uyari';
-import { STUDIO_CONTENT_STYLE, FULLSCREEN_ROUTES } from './src/studioTheme';
+import { FULLSCREEN_ROUTES } from './src/studioTheme';
 import { useStudioFontLoader } from './src/studioFonts';
-import { YAYIN_STUDYOSU_ACIK } from './src/features';
 import { initAuth, getToken } from './src/auth';
 import { needsLockOnLaunch } from './src/security/biometricLock';
 import {
@@ -133,40 +125,10 @@ function HomeStack() {
       <Stack.Screen name="WeekSummary" component={WeekSummaryScreen} options={{ title: 'Haftanın Özeti' }} />
       <Stack.Screen name="WeekRecap" component={WeekRecapScreen} options={{ title: 'Hafta Kapanışı' }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Bildirimler' }} />
-      {/* YAYIN STÜDYOSU — features.js ile KAPALI (emrah şu an kullanmıyor).
-          Rotalar hiç KAYDEDİLMİYOR: düğmeyi gizlemek yetmez, kayıtlı bir rota
-          derin bağlantıyla ya da unutulmuş bir navigate çağrısıyla yine
-          açılabilir. Kod, testler ve stiller yerinde — geri açmak tek satır
-          (src/features.js → YAYIN_STUDYOSU_ACIK = true).
-
-          İçindeki dört ekran: Broadcast (eski "Sunum" tam ekran modu),
-          StudioBulletin, StudioMatch, StudioKarne. Dördü de tam ekran; alt
-          sekme çubuğu FULLSCREEN_ROUTES kuralıyla gizlenir. */}
-      {YAYIN_STUDYOSU_ACIK ? (
-        <>
-          <Stack.Screen
-            name="Broadcast"
-            component={BroadcastScreen}
-            options={{ headerShown: false, contentStyle: BROADCAST_CONTENT_STYLE }}
-          />
-          <Stack.Screen
-            name="StudioBulletin"
-            component={StudioBulletinScreen}
-            options={{ headerShown: false, contentStyle: STUDIO_CONTENT_STYLE }}
-          />
-          <Stack.Screen
-            name="StudioMatch"
-            component={StudioMatchScreen}
-            options={{ headerShown: false, contentStyle: STUDIO_CONTENT_STYLE }}
-          />
-          {/* KARNE: geçmiş haftanın "ne oldu, kaç tuttu" ekranı. */}
-          <Stack.Screen
-            name="StudioKarne"
-            component={StudioKarneScreen}
-            options={{ headerShown: false, contentStyle: STUDIO_CONTENT_STYLE }}
-          />
-        </>
-      ) : null}
+      {/* Yayın Stüdyosu TAMAMEN KALDIRILDI (kullanıcı kararı, 2026-08-06):
+          ekranlar, mağaza, testler ve özellik anahtarı silindi. Kupon
+          ekranlarının kullandığı studioTheme/studioFonts/studioShare/
+          couponStudioParts modülleri DURUYOR — onlar stüdyoya ait değil. */}
       {detailScreen}
       {/* Topluluk (eski "Stadyum" sekmesi) — alt menüden kaldırıldı, Ana Sayfa
           "Toplulukta Gündem" bölümünden erişilir. */}
@@ -386,7 +348,7 @@ export default function App() {
   // uygulama fontsuz da açılır; font gelince stüdyo ekranları kendini yeniler.
   // Stüdyo kapalıyken yüklemeye hiç girilmez (kanca her koşulda ÇAĞRILIR —
   // koşullu çağırmak kanca sırasını bozar; kararı kancanın kendisi verir).
-  useStudioFontLoader(YAYIN_STUDYOSU_ACIK);
+  useStudioFontLoader(false); // stüdyo kaldırıldı; kupon ekranları kendi fontunu yükler
   const [ready, setReady] = useState(false);
   const [locked, setLocked] = useState(false);
   const navRef = useRef(null);

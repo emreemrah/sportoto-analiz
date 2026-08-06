@@ -36,8 +36,7 @@
     "web:cache": "expo start --web",
     "test": "node --import ./test/register-hooks.mjs --test",
     "test:ui": "jest --config jest.config.js",
-    "verify:screen": "node scripts/verify-brand-screen.mjs",
-    "verify:render": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node scripts/render-studio.mjs"
+    "verify:screen": "node scripts/verify-brand-screen.mjs"
   },
   "private": true,
   "devDependencies": {

@@ -228,6 +228,7 @@ test('kare kitaplığı patlarsa hata yukarı sızmaz — eski yol denenebilir',
 /* ————————————————— 5) EKRANLAR BU YOLU KULLANIYOR MU ————————————————— */
 
 test('arma bileşeni adresi vekilden geçiriyor', () => {
+  // (Yayın Stüdyosu kaldırıldı 2026-08-06; TeamCrest ortak parçalarda yaşıyor.)
   const kod = kodu(oku('src', 'screens', 'studioParts.js'));
   assert.match(kod, /crestUrlOf\(\s*uri\s*,\s*API_BASE\s*\)/, 'TeamCrest adresi vekilden geçirmiyor');
   // Ham adres doğrudan kullanılırsa arma yine kareye giremez.
@@ -237,13 +238,6 @@ test('arma bileşeni adresi vekilden geçiriyor', () => {
   assert.match(kod, /⚽/, 'nötr simge kaldırılmış');
 });
 
-test('bülten ekranı kareyi yüksek çözünürlükte alıyor ve armaları gömüyor', () => {
-  const kod = kodu(oku('src', 'screens', 'StudioBulletinScreen.js'));
-  assert.match(kod, /inlineImagesForCapture\(paylasRef\.current\)/, 'armalar kare öncesi gömülmüyor');
-  assert.match(kod, /capturePngDataUri\(paylasRef\.current/, 'yüksek çözünürlüklü kare alınmıyor');
-  // Kitaplık yoksa paylaşım özelliği kaybolmamalı: eski yol duruyor.
-  assert.match(kod, /if \(!kare\)[\s\S]{0,200}captureRef\(/, 'kare alınamazsa eski yola düşülmüyor');
-  // GEÇİCİ DEĞİŞİKLİK GERİ ALINMALI: ekranda kalıcı iz bırakmaz.
-  assert.match(kod, /finally\s*\{[\s\S]{0,200}armaGeri\(\)/, 'gömme finally içinde geri alınmıyor');
-  assert.match(kod, /finally\s*\{[\s\S]{0,200}tabularGeri\(\)/, 'eşit-genişlik ayarı geri alınmıyor');
-});
+// (Stüdyo bülten ekranının kare testi kaldırıldı — Yayın Stüdyosu silindi,
+//  2026-08-06. Kupon paylaşımının kare/arma testleri aşağıda aynen duruyor.)
+

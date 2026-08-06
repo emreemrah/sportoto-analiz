@@ -24,7 +24,7 @@ const kok = join(here, '..', '..');
 // (decisionEngine.js listeden çıktı — dosya ölü kod olarak kaldırıldı, 2026-08-06.)
 const DOSYALAR = [
   ['app', 'src', 'analysis', 'engine.js'],
-  ['app', 'src', 'userMatchEngine.js'],
+// (Yayın Stüdyosu 2026-08-06'da tamamen kaldırıldı — ilgili dosyalar listeden çıktı.)
   ['backend', 'src', 'analysis', 'masterEngine.js'],
 ];
 

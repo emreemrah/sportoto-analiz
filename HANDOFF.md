@@ -147,6 +147,19 @@ eşleşmedi (alias gerekir)**. Yeni maç veri gelmiyorsa buradan sebebi görül�
 - Kupon dosya deposu (`backend/data`) Render free'de **ephemeral** (redeploy'da
   sıfırlanır) — kalıcı prod için Supabase tablosuna taşınmalı (henüz yapılmadı).
 
+## 8.1 KALDIRILAN ÖZELLİKLER (geri gelmesi istenmiyor)
+- **Yayın Stüdyosu** (2026-08-06): dört ekran (Broadcast/StudioBulletin/
+  StudioMatch/StudioKarne), `broadcast*.js`, `studioKarne/studioCouponSave`,
+  `userMatchEngine.js` (yalnız oradan erişiliyordu), 9 test ve
+  `scripts/render-studio.mjs` SİLİNDİ. Özellik anahtarı (`features.js`) de
+  kalktı. **Duran ve stüdyoya AİT OLMAYAN modüller:** `studioParts.js`
+  (ortak tablo parçaları), `couponStudioParts.js`, `studioTheme.js`,
+  `studioFonts.js`, `studioShare.js` — dördü de KUPON ekranlarını besliyor;
+  adlarındaki "studio" yalnız miras.
+- **Oyunlaştırma** (2026-08-06): rozet/puan/seviye/görev/liderlik tamamen
+  söküldü (backend uçları + app ekranları + bildirim türleri).
+Silinen dosyalar `_to_delete/` altında duruyor.
+
 ## 9. MEVCUT DURUM (devir anı)
 - **GÜNCEL (2026-08-06): `main` ve `feature/gecmis-bulten-ve-rozet-tasarimi` AYNI
   noktada.** Yayın (Render) `main`'i izler; feature dalına commit atılır, sonra

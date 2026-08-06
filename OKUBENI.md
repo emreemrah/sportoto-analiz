@@ -58,7 +58,6 @@ Geliştirmede telefon ile bilgisayar aynı Wi-Fi'da olmalı ve
   üzerinden dürüst başarı ölçümü
 - **🎟️ Kupon Merkezi** — kişisel kupon taslakları (maç bazlı kilit: maç
   başladıktan sonra seçim değiştirilemez)
-- **📺 Yayın Stüdyosu** — yayıncılar için sunum ekranları
 - **👤 Üyelik + topluluk** — yorumlar, moderasyon, cihaz yönetimi
 
 ## Dürüstlük kuralları (kısaca)

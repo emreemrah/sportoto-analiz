@@ -132,4 +132,7 @@ export const STUDIO_CONTENT_STYLE = {
  * Tam ekran (alt sekme çubuğu gizlenen) rotalar. App.js bu listeyi okur;
  * rota adı iki yerde ayrı ayrı yazılmasın diye tek kaynak burada.
  */
-export const FULLSCREEN_ROUTES = ['Broadcast', 'StudioBulletin', 'StudioMatch', 'StudioKarne'];
+// Yayın Stüdyosu KALDIRILDI (2026-08-06) → tam ekran rota kalmadı. Dizi boş
+// bırakıldı (silinmedi): App.js alt sekme kuralını bundan okuyor ve ileride
+// tam ekran bir ekran gelirse tek satırda geri döner.
+export const FULLSCREEN_ROUTES = [];
