@@ -154,14 +154,14 @@
     <!-- ══════════ HAFTALAR ══════════ -->
     <div data-panel="haftalar" hidden>
       <section class="kart">
-        <h2>Hafta Hafta Karne — tüm geçmiş</h2>
+        <h2>Haftalar — arşivdeki HER hafta (dahil + dışlanan)</h2>
+        <div id="haftaOzet"></div>
         <div class="satir" style="margin-bottom:10px">
-          <label style="margin:0">Durum</label>
+          <label style="margin:0">Göster</label>
           <select id="haftaDurum">
             <option value="">Hepsi</option>
-            <option value="complete">Tam</option>
-            <option value="partial">Kısmi</option>
-            <option value="pending">Sonuç bekliyor</option>
+            <option value="dahil">Başarıya dahil</option>
+            <option value="dislanan">Dışlanan</option>
           </select>
           <input id="haftaAra" placeholder="hafta adında ara…" style="max-width:220px" />
         </div>

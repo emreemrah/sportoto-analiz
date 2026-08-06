@@ -109,7 +109,7 @@
   var yukleyiciler = {
     genel: function () { return ozetYukle(); },
     analiz: function () { return karneYukle().then(kriterCiz); },
-    haftalar: function () { return karneYukle().then(haftaCiz); },
+    haftalar: function () { return haftaYukle(); },
     kullanicilar: function () { return kullaniciYukle(); },
     yorumlar: function () { return yorumYukle(); },
     premium: function () { return kodYukle(); },
@@ -269,33 +269,52 @@
   $('kriterSira').addEventListener('change', kriterCiz);
 
   // ——— HAFTALAR ———
+  // KULLANICI SORUSU (2026-08-06): "50-51. haftalar neden yok?"
+  // Liste karneden besleniyordu; karne yalnız BAŞARIYA SAYILAN (maç öncesi
+  // mühürlendiği doğrulanan) haftaları döndürür. Dışlanan hafta hiç
+  // görünmediği için veri kayıp sanılıyordu. Artık TÜM arşiv haftaları
+  // listeleniyor ve dışlananın SEBEBİ yazıyor.
+  var haftaListe = [];
+  function haftaYukle() {
+    return istek('/api/admin/haftalar').then(function (r) {
+      haftaListe = r.liste || [];
+      var o = r.ozet || {};
+      $('haftaOzet').innerHTML = '<div class="izgara" style="margin-bottom:10px">' +
+        kutu('Arşivdeki hafta', esc(o.toplam)) +
+        kutu('Başarıya dahil', esc(o.dahil)) +
+        kutu('Dışlanan', esc(o.dislanan), 'silinmedi, yalnız sayılmıyor') +
+        '</div>';
+      haftaCiz();
+    });
+  }
+
   function haftaCiz() {
-    var haftalar = (sonKarne && sonKarne.weeks) || [];
-    var durum = $('haftaDurum').value, ara = ($('haftaAra').value || '').trim().toLowerCase();
-    var suz = haftalar.filter(function (w) {
-      if (durum && w.status !== durum) return false;
-      if (ara && String(w.round || '').toLowerCase().indexOf(ara) < 0) return false;
+    var f = $('haftaDurum').value, ara = ($('haftaAra').value || '').trim().toLowerCase();
+    var suz = haftaListe.filter(function (h) {
+      if (f === 'dahil' && !h.dahil) return false;
+      if (f === 'dislanan' && h.dahil) return false;
+      if (ara && String(h.hafta || '').toLowerCase().indexOf(ara) < 0) return false;
       return true;
     });
     $('haftaTablo').innerHTML = suz.length
-      ? '<div class="tabloSar"><table><thead><tr><th>Hafta</th><th>Sezon</th><th class="sag">Maç</th>' +
-        '<th class="sag">Kayıt</th><th class="sag">Başarı</th><th class="sag">Kapsama</th>' +
-        '<th>Durum</th><th>Mühür</th><th class="kucuk">Mühür zamanı</th></tr></thead><tbody>' +
-        suz.map(function (w) {
-          var r = w.status === 'complete' ? '<span class="rozet ok">tam</span>'
-            : w.status === 'partial' ? '<span class="rozet notr">kısmi</span>'
-              : '<span class="rozet notr">bekliyor</span>';
-          var kap = w.coverage ? esc(w.coverage.covered) + '/' + esc(w.coverage.total) : '—';
-          return '<tr><td><b>' + esc(w.round || ('#' + w.roundId)) + '</b></td>' +
-            '<td class="kucuk">' + esc(w.year || '') + '</td>' +
-            '<td class="sag">' + esc(w.matchCount) + '</td>' +
-            '<td class="sag">' + esc(w.record || '—') + '</td>' +
-            '<td class="sag"><b>' + (w.accuracy == null ? '—' : '%' + esc(w.accuracy)) + '</b></td>' +
-            '<td class="sag">' + kap + '</td><td>' + r + '</td>' +
-            '<td class="kucuk kod">' + esc(w.verificationHashShort || '—') + '</td>' +
-            '<td class="kucuk">' + esc(tarih(w.snapshotAt) || '—') + '</td></tr>';
+      ? '<div class="tabloSar"><table><thead><tr><th>Hafta</th><th>Durum</th><th class="sag">Kayıt</th>' +
+        '<th class="sag">Başarı</th><th class="sag">Resmî sonuç</th><th>Mühür</th>' +
+        '<th>Neden sayılmıyor?</th></tr></thead><tbody>' +
+        suz.map(function (h) {
+          var rozet = h.dahil ? '<span class="rozet ok">dahil</span>'
+            : '<span class="rozet kotu">dışlandı</span>';
+          return '<tr><td><b>' + esc(h.hafta || ('#' + h.roundId)) + '</b>' +
+            '<div class="kucuk">' + esc(h.kaynak) + '</div></td>' +
+            '<td>' + rozet + '</td>' +
+            '<td class="sag">' + esc(h.kayit || '—') + '</td>' +
+            '<td class="sag"><b>' + (h.basari == null ? '—' : '%' + esc(h.basari)) + '</b></td>' +
+            '<td class="sag">' + esc(h.resmiSonuc == null ? '—' : h.resmiSonuc) + '</td>' +
+            '<td class="kucuk kod">' + esc(h.muhur || '—') +
+              (h.muhurZamani ? '<div class="kucuk">' + esc(tarih(h.muhurZamani) || '') + '</div>' : '') + '</td>' +
+            '<td class="kucuk">' + esc(h.sebepMetni || '') + '</td></tr>';
         }).join('') + '</tbody></table></div>' +
-        '<p class="kucuk">' + suz.length + ' hafta gösteriliyor. "Mühür" = tahminin maç öncesi kilitlendiğini kanıtlayan özet.</p>'
+        '<p class="kucuk">Dışlanan hafta <b>silinmez</b> ve gizlenmez; yalnız başarı hesabına katılmaz. ' +
+        'Kural: tahmin ilk maç başlamadan ÖNCE mühürlenmiş olmalı.</p>'
       : '<p class="kucuk">Filtreye uyan hafta yok.</p>';
   }
   $('haftaDurum').addEventListener('change', haftaCiz);
