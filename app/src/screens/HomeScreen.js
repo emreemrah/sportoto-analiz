@@ -678,13 +678,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
+  // ZİL — çerçevesiz ve zeminsiz (kullanıcı kararı, 2026-08-06: "çanın
+  // kenarları olmasın, kötü görünüyor"). Daire çerçeve, yanındaki yuvarlak
+  // profil resmiyle iki ayrı "düğme halkası" oluşturup başlığı kalabalık
+  // gösteriyordu. Dokunma alanı 42x42 KORUNDU (erişilebilirlik: parmak
+  // hedefi küçültülmedi), yalnız görsel kabuk kaldırıldı.
   topIconBtn: {
     width: 42,
     height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
