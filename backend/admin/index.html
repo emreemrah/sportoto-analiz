@@ -95,6 +95,7 @@
     <button data-sekme="yorumlar">Yorumlar</button>
     <button data-sekme="premium">Premium</button>
     <button data-sekme="bildirimler">Bildirimler</button>
+    <button data-sekme="kayitlar">Kayıtlar</button>
   </nav>
 
   <main>
@@ -224,6 +225,32 @@
       <section class="kart">
         <h2>Kodlar</h2>
         <div id="kodTablo"><p class="kucuk">Yükleniyor…</p></div>
+      </section>
+    </div>
+
+    <!-- ══════════ KAYITLAR (denetim) ══════════ -->
+    <div data-panel="kayitlar" hidden>
+      <section class="kart">
+        <h2>Denetim Kaydı — panelden yapılan her müdahale</h2>
+        <div class="satir" style="margin-bottom:10px">
+          <label style="margin:0">İşlem</label>
+          <select id="kayitTur">
+            <option value="">Hepsi</option>
+            <option value="yorum-sil">Yorum sil</option>
+            <option value="yorum-gizle">Yorum gizle</option>
+            <option value="yorum-goster">Yorum göster</option>
+            <option value="kullanici-engelle">Kullanıcı engelle</option>
+            <option value="engel-kaldir">Engel kaldır</option>
+            <option value="premium-ver">Premium ver</option>
+            <option value="premium-iptal">Premium iptal</option>
+            <option value="kod-uret">Kod üret</option>
+            <option value="kod-iptal">Kod iptal</option>
+            <option value="bulten-yenile">Bülten yenile</option>
+          </select>
+        </div>
+        <div id="kayitTablo"><p class="kucuk">Yükleniyor…</p></div>
+        <p class="kucuk">Bu kayıt <b>salt ekleme</b>dir: güncellenmez, silinmez.
+        Silinen içeriğin kopyasını TUTMAZ — ne olduğunu söyler, geri getirmez.</p>
       </section>
     </div>
 

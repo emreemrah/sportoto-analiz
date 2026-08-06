@@ -62,9 +62,16 @@ test('panel sayfası sunuluyor ve arama motoruna kapalı', () => {
 
 test('panelde gömülü sır veya sabit yönetici şifresi yok', () => {
   // Panel istemcide çalışır; içine yazılan her şey okunabilir.
+  // ARANAN: sırrın KENDİSİ, adı değil. Panel kullanıcıya "SUPABASE_DB_URL
+  // tanımlanınca kurulur" diye yol gösteriyor; bir ortam değişkeninin ADI sır
+  // değildir ve bunu yasaklamak testi gürültüye boğardı. Asıl tehlike
+  // gömülü DEĞER: JWT (eyJ...), service_role anahtarı, sk_ ile başlayan
+  // gizli anahtarlar ve sabit şifre karşılaştırmaları.
   for (const parca of [panel, betik]) {
-    assert.doesNotMatch(parca, /SUPABASE|SERVICE_ROLE|secret|api[_-]?key/i,
-      'panelde sır benzeri bir ifade var');
+    assert.doesNotMatch(parca, /eyJ[A-Za-z0-9_-]{20,}/, 'panelde JWT benzeri gömülü belirteç var');
+    assert.doesNotMatch(parca, /service_role|SUPABASE_SECRET_KEY\s*[:=]\s*['"]/i,
+      'panelde service-role anahtarı geçiyor');
+    assert.doesNotMatch(parca, /\bsk_[A-Za-z0-9]{10,}/, 'panelde gizli anahtar (sk_) gömülü');
     assert.doesNotMatch(parca, /password\s*===|sifre\s*===\s*'/i,
       'panelde sabit şifre karşılaştırması var');
   }
