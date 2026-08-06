@@ -91,6 +91,7 @@
     <button data-sekme="genel" class="acik">Genel</button>
     <button data-sekme="analiz">Analiz</button>
     <button data-sekme="haftalar">Haftalar</button>
+    <button data-sekme="oruntu">🔎 Örüntüler</button>
     <button data-sekme="sinyal">Sinyal Kırılımı</button>
     <button data-sekme="kullanicilar">Kullanıcılar</button>
     <button data-sekme="yorumlar">Yorumlar</button>
@@ -149,6 +150,37 @@
           </select>
         </div>
         <div id="kriterTablo"><p class="kucuk">Yükleniyor…</p></div>
+      </section>
+    </div>
+
+    <!-- ══════════ ÖRÜNTÜLER (sistem kendi bulur) ══════════ -->
+    <div data-panel="oruntu" hidden>
+      <section class="kart">
+        <h2>Sistemin Bulduğu Örüntüler</h2>
+        <p class="kucuk">Tüm sinyaller (master + 5 radar + kriterler) tüm dilimlerde taranır.
+        Aramana gerek yok — liste kendi gelir.</p>
+        <div class="satir">
+          <button id="oruntuTara">🔎 Taramayı çalıştır</button>
+          <label style="margin:0">Göster</label>
+          <select id="oruntuYon">
+            <option value="">Hepsi</option>
+            <option value="guclu">Yalnız güçlü dilimler</option>
+            <option value="zayif">Yalnız zayıf dilimler</option>
+          </select>
+          <label style="margin:0">En az maç</label>
+          <input id="oruntuMinMac" type="number" value="6" min="1" style="width:80px" />
+        </div>
+        <div id="oruntuUyari" style="margin-top:10px"></div>
+      </section>
+
+      <section class="kart">
+        <h2>Sinyal Dilimleri — "şu sırada şu oynanmada daha başarılı"</h2>
+        <div id="oruntuBulgu"><p class="kucuk">Taramayı çalıştır.</p></div>
+      </section>
+
+      <section class="kart">
+        <h2>Sonuç Örüntüleri — sinyalden bağımsız</h2>
+        <div id="oruntuSonuc"><p class="kucuk">—</p></div>
       </section>
     </div>
 

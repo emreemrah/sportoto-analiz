@@ -35,6 +35,7 @@ import {
   kodNormalize, kodUret, kodGecerliMi, premiumDurumu, etkinEngel, bitisHesapla,
 } from '../premiumBan.js';
 import { tamKirilim, benzerVakalar } from '../analysis/sinyalKirilim.js';
+import { oruntuTara, sinyalBasariTara } from '../analysis/oruntuTarayici.js';
 import { sinyalKayitlariniTopla, sinyalKatalogu } from '../analysis/sinyalToplama.js';
 
 const router = Router();
@@ -639,6 +640,83 @@ router.get('/sinyal-kirilim', async (req, res) => {
         : null,
     });
   } catch (e) { safeError(res, e, 'Sinyal kırılımı hesaplanamadı.'); }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/admin/oruntuler — SİSTEM KENDİ BULUR
+// ---------------------------------------------------------------------------
+// Kullanıcının itirazı haklıydı: ilk sürüm ona "sıra ve yüzdeleri yaz, ara"
+// diyen bir kutu veriyordu; keşif işini kullanıcıya yıkıyordu. Bu uç TÜM
+// sinyalleri (40 kriter + 5 radar + master) tüm dilimlerde tarar ve
+// "şu sinyal, şu sırada, şu oynanma bandında, şu kadar maçta şu kadar doğru"
+// cümlelerini KENDİ üretir.
+//
+// MALİYET: tarama sinyal sayısı kadar arşiv okuması gerektirir. Sonuç 10
+// dakika belleklenir — panel her açılışta arşivi baştan taramaz.
+const oruntuBellek = { veri: null, zaman: 0 };
+const ORUNTU_BELLEK_MS = 10 * 60 * 1000;
+
+router.get('/oruntuler', async (req, res) => {
+  try {
+    const zorla = String(req.query.zorla || '') === '1';
+    if (!zorla && oruntuBellek.veri && Date.now() - oruntuBellek.zaman < ORUNTU_BELLEK_MS) {
+      return res.json({ ...oruntuBellek.veri, bellekten: true });
+    }
+
+    const katalog = await sinyalKatalogu();
+    const hedefler = [
+      { tur: 'master', key: 'master', ad: 'Master Analiz (ana tahmin)' },
+      ...(katalog.radarlar || []).map((r) => ({ tur: 'radar', key: r.key, ad: r.ad })),
+      ...(katalog.kriterler || []).map((c) => ({ tur: 'kriter', key: c.key, ad: c.ad })),
+    ];
+
+    const bulgular = [];
+    let sonucOruntuleri = null;
+    let kapsamOrnek = null;
+    let taranan = 0;
+
+    for (const h of hedefler) {
+      let veri;
+      try { veri = await sinyalKayitlariniTopla({ tur: h.tur, key: h.key }); } catch { continue; }
+      if (!kapsamOrnek) kapsamOrnek = veri.kapsam;
+
+      // SONUÇ ÖRÜNTÜLERİ sinyalden bağımsızdır; bir kez hesaplanır.
+      if (!sonucOruntuleri) sonucOruntuleri = oruntuTara(veri.kayitlar);
+
+      const r = sinyalBasariTara(veri.kayitlar);
+      taranan += r.taranan;
+      for (const b of r.bulgular) {
+        bulgular.push({
+          sinyal: h.ad, tur: h.tur, key: h.key,
+          ...b,
+          // Maç listesi çıktıyı çok büyütür; ilk beş yeterli (doğrulama için).
+          maclar: (b.maclar || []).slice(0, 5),
+        });
+      }
+    }
+
+    bulgular.sort((a, b) => (Math.abs(b.sapma) - Math.abs(a.sapma)) || (b.mac - a.mac));
+
+    const cikti = {
+      zaman: new Date().toISOString(),
+      kapsam: kapsamOrnek,
+      sinyalSayisi: hedefler.length,
+      taranan,
+      bulgular: bulgular.slice(0, 200),
+      sonucOruntuleri: sonucOruntuleri
+        ? { ...sonucOruntuleri, oruntuler: (sonucOruntuleri.oruntuler || []).slice(0, 50) }
+        : null,
+      // ÇOKLU KARŞILAŞTIRMA: bu uçta risk daha da büyük, çünkü onlarca sinyal
+      // aynı anda taranıyor. Sayı gizlenmez.
+      uyari: `${hedefler.length} sinyal × ${taranan} dilim tarandı. Çok sayıda kombinasyon `
+        + 'denendiğinde rastgele veride bile çarpıcı görünen dilimler çıkar; '
+        + 'bulguları örneklem sayısı ve güven derecesiyle birlikte oku.',
+      not: 'Bulunanlar GEÇMİŞTEKİ eğilimlerdir; gelecek maç için vaat değildir.',
+    };
+    oruntuBellek.veri = cikti;
+    oruntuBellek.zaman = Date.now();
+    res.json(cikti);
+  } catch (e) { safeError(res, e, 'Örüntü taraması yapılamadı.'); }
 });
 
 // ---------------------------------------------------------------------------
