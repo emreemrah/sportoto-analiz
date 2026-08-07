@@ -6,8 +6,6 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, spacing, radius, shadow } from '../theme';
 import { setDraftPick } from '../coupon/store';
 import { isMatchLocked } from '../couponConfig';
-import { userSelectedAnalysisEngine } from '../analysis/engine';
-import { getActiveProfile, countOn, ensureDefaultProfile } from '../analysisProfile';
 
 const OUT = ['1', 'X', '2'];
 
@@ -24,14 +22,17 @@ export default function CouponPickBlock({ m, navigation }) {
 
   const write = (arr) => { setPick(arr); setDraftPick(m.roundId, m.no, arr); };
   const toggle = (o) => { if (locked) return; const set = new Set(pick); set.has(o) ? set.delete(o) : set.add(o); write(OUT.filter((x) => set.has(x))); };
-  // "Sistemden al" → AKTİF ANALİZ PROFİLİ'ne göre Ana Seçim (1X / X2 / 1X2 vb.).
-  // Profil yoksa/boşsa analiz üretilmez → kullanıcıyı kriter seçimine yönlendir.
+  // "Sistemden al" → RESMÎ SİSTEM TAHMİNİ (2026-08-07).
+  //
+  // Eskiden kullanıcının kendi kriter profilinden hesaplanıyordu; kriter seçme
+  // sistemi kullanıcı kararıyla tamamen kaldırıldığı için artık bültenin resmî
+  // tahmini kullanılır. Tahmin yoksa SEÇİM YAPILMAZ (uydurma sembol yazılmaz).
   const fromSystem = () => {
     if (locked) return;
-    let profile = getActiveProfile();
-    if (!profile) profile = ensureDefaultProfile();   // kurulum istemeden çalışır
-    if (!profile || countOn(profile) === 0) { navigation.navigate('AnalysisSettings'); return; }
-    const main = userSelectedAnalysisEngine(m, profile)?.verdict?.main || '';
+    const sym = m?.prediction?.symbol;
+    if (!sym || sym === '-') return;
+    // Resmî sembol '0' beraberliği gösterir; kupon tarafında 'X' kullanılır.
+    const main = String(sym).split('').map((c) => (c === '0' ? 'X' : c)).join('');
     write(OUT.filter((o) => main.includes(o)));
   };
 

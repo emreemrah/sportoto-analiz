@@ -14,8 +14,10 @@ export const LOCAL_KEYS = [
   'sportoto.coupons.v1',             // eski kupon deposu
   'sportoto.couponCenter.v1',        // kupon merkezi
   'sportoto.couponCenterDraft.v1',   // kupon taslağı
-  'sportoto.analysisProfiles.v2',    // analiz profilleri
-  'sportoto.analysisProfile.v1',     // eski tekil analiz profili
+  // Kriter seçme sistemi 2026-08-07'de kaldırıldı. Anahtarlar listede KALIYOR:
+  // eski sürümden kalan veriyi hesap silme / çıkış akışında temizlemek gerekir.
+  'sportoto.analysisProfiles.v2',    // (kaldırıldı) analiz profilleri
+  'sportoto.analysisProfile.v1',     // (kaldırıldı) eski tekil analiz profili
   'sportoto.notifications.v1',       // bildirim merkezi durumu (okunmuşlar)
   'sportoto.push.v1',                // telefon bildirimi tercihi (aç/kapa + kaç dk önce)
 ];

@@ -31,7 +31,6 @@ import UserDashboardScreen from './src/screens/UserDashboardScreen';
 import SystemDashboardScreen from './src/screens/SystemDashboardScreen';
 import SystemScorecardScreen from './src/screens/SystemScorecardScreen';
 import KriterKirilimScreen from './src/screens/KriterKirilimScreen';
-import AnalysisSettingsScreen from './src/screens/AnalysisSettingsScreen';
 import AboutScreen from './src/screens/AboutScreen';
 import DeleteAccountScreen from './src/screens/DeleteAccountScreen';
 import SecuritySettingsScreen from './src/screens/SecuritySettingsScreen';
@@ -100,15 +99,6 @@ const detailScreen = (
   />
 );
 
-// Analiz Kriterlerim — maç detayından ve profilden erişilir (aynı ekran, çok yerde kayıtlı).
-const analysisSettingsScreen = (
-  <Stack.Screen
-    name="AnalysisSettings"
-    component={AnalysisSettingsScreen}
-    options={{ title: 'Analiz Kriterlerim' }}
-  />
-);
-
 // Alt sekme çubuğu stili TEK yerde durur. Yayın Modu'nda çubuk gizlenirken
 // stilin "undefined" ile ezilmesi (React Navigation seçenekleri yayılarak
 // birleştirir) diğer ekranlarda çubuğu bozardı; bu yüzden iki sabit tutulur.
@@ -136,7 +126,6 @@ function HomeStack() {
       {/* Topluluk (eski "Stadyum" sekmesi) — alt menüden kaldırıldı, Ana Sayfa
           "Toplulukta Gündem" bölümünden erişilir. */}
       <Stack.Screen name="Forum" component={ForumScreen} options={{ headerShown: false }} />
-      {analysisSettingsScreen}
     </Stack.Navigator>
   );
 }
@@ -158,7 +147,6 @@ function BulletinStack() {
       <Stack.Screen name="BulletinDetail" component={BulletinDetailScreen} options={{ title: 'Bülten Detayı' }} />
       <Stack.Screen name="CouponResult" component={CouponResultScreen} options={{ title: 'Kupon Sonucu' }} />
       <Stack.Screen name="CouponShare" component={CouponShareScreen} options={{ title: 'Kuponu Paylaş' }} />
-      {analysisSettingsScreen}
     </Stack.Navigator>
   );
 }
@@ -175,7 +163,6 @@ function AnalizStack() {
       {IS_DEV_BUILD ? (
         <Stack.Screen name="SystemDashboard" component={SystemDashboardScreen} options={{ title: 'Analiz Detayı (Demo)' }} />
       ) : null}
-      {analysisSettingsScreen}
     </Stack.Navigator>
   );
 }
@@ -191,7 +178,6 @@ function CouponsStack() {
       <Stack.Screen name="CouponResult" component={CouponResultScreen} options={{ title: 'Kupon Sonucu' }} />
       <Stack.Screen name="CouponShare" component={CouponShareScreen} options={{ title: 'Kuponu Paylaş' }} />
       {detailScreen}
-      {analysisSettingsScreen}
     </Stack.Navigator>
   );
 }
@@ -204,7 +190,6 @@ function ProfileStack() {
       <Stack.Screen name="TeamPicker" component={TeamPickerScreen} options={{ title: 'Takımını Seç' }} />
       <Stack.Screen name="PremiumCode" component={PremiumCodeScreen} options={{ title: 'Premium Kodu' }} />
       <Stack.Screen name="UserDashboard" component={UserDashboardScreen} options={{ title: 'Başarı Panelim' }} />
-      {analysisSettingsScreen}
       <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Giriş Yap' }} />
       <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Kayıt Ol' }} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: 'Şifremi Unuttum' }} />

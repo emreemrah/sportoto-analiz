@@ -20,11 +20,13 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const kok = join(here, '..', '..');
 
-// Kullanıcıya cümle üreten dosyalar (iki motor + karar katmanı).
-// (decisionEngine.js listeden çıktı — dosya ölü kod olarak kaldırıldı, 2026-08-06.)
+// Kullanıcıya cümle üreten dosyalar.
+// (decisionEngine.js listeden çıktı — ölü kod, 2026-08-06.)
+// (Yayın Stüdyosu 2026-08-06'da kaldırıldı.)
+// (app/src/analysis/engine.js 2026-08-07'de kaldırıldı: kullanıcı kriter
+//  seçme sistemi tamamen kalktı, yerel motor da onunla birlikte gitti.
+//  Kullanıcıya cümle üreten tek motor artık backend'deki masterEngine.)
 const DOSYALAR = [
-  ['app', 'src', 'analysis', 'engine.js'],
-// (Yayın Stüdyosu 2026-08-06'da tamamen kaldırıldı — ilgili dosyalar listeden çıktı.)
   ['backend', 'src', 'analysis', 'masterEngine.js'],
 ];
 
@@ -100,7 +102,10 @@ test('bekçi GERÇEKTEN yakalıyor — yakalamadığı da kanıtlı', () => {
   const toplamSatir = DOSYALAR.reduce(
     (n, yol) => n + satirlar(readFileSync(join(kok, ...yol), 'utf8')).length, 0,
   );
-  assert.ok(toplamSatir > 500, `bekçi dosyaları okuyamamış (${toplamSatir} satır)`);
+  // Eşik 500'dü; listede iki dosya vardı. app tarafındaki yerel motor
+  // 2026-08-07'de kaldırılınca tek dosya kaldı. Eşik dosya sayısına göre
+  // düşürüldü — amaç aynı: bekçi BOŞ listeye bakıp geçmesin.
+  assert.ok(toplamSatir > 200, `bekçi dosyaları okuyamamış (${toplamSatir} satır)`);
 });
 
 test('kapalı tercih cümlesi MALİYETİ de söylüyor', () => {

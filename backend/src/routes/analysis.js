@@ -1,13 +1,12 @@
 // MASTER ANALİZ API'Sİ — /api/analysis/*
 // Katalog + karne + profiller + hesap + kullanıcı analizi + backtest.
-// Girişli kullanıcı: profiller/analizler hesaba bağlanır (requireAuth).
+// Tüm uçlar salt okurdur; kullanıcıya bağlı profil/analiz kaydı YOKTUR
+// (kriter seçme sistemi 2026-08-07'de kaldırıldı).
 // Girişsiz kullanım: hesap uçları 401 döner; uygulama yerel profille çalışmaya
 // devam eder (calculate uçları profili istek gövdesinde kabul eder).
 import { Router } from 'express';
 import { load } from '../cache.js';
-import { requireAuth } from '../mw.js';
 import { getArchiveStore } from '../archive/store.js';
-import { computeFreezeAt } from '../archive/snapshotService.js';
 import { ImmutableError, NotFoundError, ValidationError } from '../archive/errors.js';
 import { CATALOG, CATALOG_MAP, CATALOG_VERSION, ANALYSIS_CATEGORIES } from '../analysis/criterionCatalog.js';
 import {
@@ -16,7 +15,7 @@ import {
 import { kriterKirilimi } from '../analysis/kriterKirilim.js';
 import { sinyalKayitlariniTopla } from '../analysis/sinyalToplama.js';
 import {
-  getAnalysisStore, newProfile, updateProfileVersion, duplicateProfile,
+  getAnalysisStore,
 } from '../analysis/analysisStore.js';
 import {
   ANALYSIS_METHODOLOGY_VERSION, IMPACT_LABELS, IMPACT_ORDER, ANALYSIS_FAMILIES,
@@ -140,118 +139,12 @@ router.get('/methodology', (req, res) => {
 });
 
 /* ─────────── PROFİLLER (hesaba bağlı) ─────────── */
-router.get('/profiles', requireAuth, async (req, res) => {
-  try { res.json({ profiles: await getAnalysisStore().listProfiles(req.user.id) }); } catch (e) { fail(res, e); }
-});
-
-router.post('/profiles', requireAuth, async (req, res) => {
-  try {
-    const store = getAnalysisStore();
-    const profiles = await store.listProfiles(req.user.id);
-    const p = newProfile({
-      name: req.body?.name, criteria: req.body?.criteria || {},
-      mode: req.body?.mode === 'smart' ? 'smart' : 'manual',
-      globalFilters: req.body?.globalFilters || null,
-      isDefault: !!req.body?.isDefault || profiles.length === 0,
-    });
-    if (p.isDefault) profiles.forEach((x) => { x.isDefault = false; });
-    profiles.push(p);
-    await store.saveProfiles(req.user.id, profiles);
-    res.status(201).json(p);
-  } catch (e) { fail(res, e); }
-});
-
-router.get('/profiles/:id', requireAuth, async (req, res) => {
-  try {
-    const p = await getAnalysisStore().getProfile(req.user.id, req.params.id);
-    if (!p) return res.status(404).json({ error: 'Profil bulunamadı.' });
-    res.json(p);
-  } catch (e) { fail(res, e); }
-});
-
-// GÜNCELLEME = YENİ SÜRÜM (eski sürüm korunur; mühürlü analizler eski sürümde kalır).
-router.put('/profiles/:id', requireAuth, async (req, res) => {
-  try {
-    const store = getAnalysisStore();
-    const profiles = await store.listProfiles(req.user.id);
-    const idx = profiles.findIndex((x) => x.id === req.params.id);
-    if (idx === -1) return res.status(404).json({ error: 'Profil bulunamadı.' });
-    profiles[idx] = updateProfileVersion(profiles[idx], {
-      name: req.body?.name, criteria: req.body?.criteria,
-      mode: req.body?.mode, globalFilters: req.body?.globalFilters,
-    });
-    await store.saveProfiles(req.user.id, profiles);
-    res.json(profiles[idx]);
-  } catch (e) { fail(res, e); }
-});
-
-router.post('/profiles/:id/duplicate', requireAuth, async (req, res) => {
-  try {
-    const store = getAnalysisStore();
-    const profiles = await store.listProfiles(req.user.id);
-    const src = profiles.find((x) => x.id === req.params.id);
-    if (!src) return res.status(404).json({ error: 'Profil bulunamadı.' });
-    const copy = duplicateProfile(src, req.body?.name);
-    profiles.push(copy);
-    await store.saveProfiles(req.user.id, profiles);
-    res.status(201).json(copy);
-  } catch (e) { fail(res, e); }
-});
-
-router.delete('/profiles/:id', requireAuth, async (req, res) => {
-  try {
-    const store = getAnalysisStore();
-    const profiles = await store.listProfiles(req.user.id);
-    const idx = profiles.findIndex((x) => x.id === req.params.id);
-    if (idx === -1) return res.status(404).json({ error: 'Profil bulunamadı.' });
-    profiles.splice(idx, 1);
-    await store.saveProfiles(req.user.id, profiles);
-    res.json({ ok: true });
-  } catch (e) { fail(res, e); }
-});
-
-router.post('/profiles/:id/set-default', requireAuth, async (req, res) => {
-  try {
-    const store = getAnalysisStore();
-    const profiles = await store.listProfiles(req.user.id);
-    const target = profiles.find((x) => x.id === req.params.id);
-    if (!target) return res.status(404).json({ error: 'Profil bulunamadı.' });
-    profiles.forEach((x) => { x.isDefault = x.id === target.id; });
-    await store.saveProfiles(req.user.id, profiles);
-    res.json(target);
-  } catch (e) { fail(res, e); }
-});
-
-/* ─────────── HESAPLAMA ─────────── */
-// Profil istek gövdesinde gelir (girişsiz yerel kullanım) veya profileId ile
-// hesaptan okunur. Profil sürümü yanıtın parçasıdır.
-async function resolveProfile(req) {
-  if (req.body?.profileId && req.user) {
-    const p = await getAnalysisStore().getProfile(req.user.id, req.body.profileId);
-    if (!p) throw new NotFoundError('Profil bulunamadı.');
-    return { id: p.id, name: p.name, version: p.currentVersion, mode: p.mode, globalFilters: p.globalFilters, criteria: p.criteria };
-  }
-  if (req.body?.profile) {
-    const p = req.body.profile;
-    return { id: p.id || 'local', name: p.name || 'Yerel Profil', version: p.version ?? p.currentVersion ?? 1, mode: p.mode === 'smart' ? 'smart' : 'manual', globalFilters: p.globalFilters || null, criteria: p.criteria || {} };
-  }
-  return buildOfficialProfile();
-}
-
-async function sealedOrLive(bulletinId, store) {
-  const cur = load('bulletin')?.data;
-  const snap = await store.getSnapshot(String(bulletinId)).catch(() => null);
-  if (snap?.payload?.matches?.some((m) => m.analysisCenter)) return { sealedSnapshot: snap, bulletinData: null };
-  if (cur && String(cur.roundId) === String(bulletinId)) return { sealedSnapshot: null, bulletinData: cur };
-  return null;
-}
-
 router.post('/bulletins/:bulletinId/calculate', async (req, res) => {
   try {
     const store = getArchiveStore();
     const src = await sealedOrLive(req.params.bulletinId, store);
     if (!src) return res.status(404).json({ error: 'Bu bülten için analiz verisi yok (arşivde mühürlü kayıt veya güncel bülten bulunamadı).' });
-    const profile = await resolveProfile(req);
+    const profile = resolveProfile();
     res.json(await calculateWithProfile({ ...src, profile, store }));
   } catch (e) { fail(res, e); }
 });
@@ -261,7 +154,7 @@ router.post('/matches/:matchId/calculate', async (req, res) => {
     const store = getArchiveStore();
     const cur = load('bulletin')?.data;
     if (!cur || cur.pending) return res.status(503).json({ error: 'Güncel bülten hazır değil.' });
-    const profile = await resolveProfile(req);
+    const profile = resolveProfile();
     const out = await calculateWithProfile({ bulletinData: cur, matchNo: req.params.matchId, profile, store });
     if (!out.matches.length) return res.status(404).json({ error: 'Maç bulunamadı.' });
     res.json({ ...out, match: out.matches[0] });
@@ -296,51 +189,12 @@ router.get('/bulletins/:bulletinId/official', async (req, res) => {
 });
 
 // Kullanıcı analizi kaydet — YALNIZ kilitten önce; freeze anında donar.
-router.post('/bulletins/:bulletinId/save-user-analysis', requireAuth, async (req, res) => {
-  try {
-    const store = getArchiveStore();
-    const bulletinId = String(req.params.bulletinId);
-    const cur = load('bulletin')?.data;
-    if (!cur || String(cur.roundId) !== bulletinId) {
-      return res.status(409).json({ error: 'Kullanıcı analizi yalnız güncel bülten için kaydedilebilir.' });
-    }
-    const freezeAt = computeFreezeAt(cur.matches);
-    if (freezeAt && Date.now() >= new Date(freezeAt).getTime()) {
-      return res.status(409).json({ error: 'Bülten kilitlendi — analiz artık kaydedilemez/değiştirilemez.', freezeAt });
-    }
-    const snap = await store.getSnapshot(bulletinId).catch(() => null);
-    if (snap) return res.status(409).json({ error: 'Bülten mühürlendi — analiz artık kaydedilemez.', immutable: true });
-
-    const profile = await resolveProfile(req);
-    const calc = await calculateWithProfile({ bulletinData: cur, profile, store });
-    const entry = {
-      bulletinId, userId: req.user.id,
-      profileId: profile.id, profileVersion: profile.version, mode: profile.mode,
-      savedAt: new Date().toISOString(),
-      locked: false, lockedAt: null,
-      picks: Object.fromEntries(calc.matches.map((m) => [m.no, m.master.mainPrediction ?? null])),
-      matches: calc.matches.map((m) => ({ no: m.no, matchId: m.matchId, master: m.master })),
-      methodologyVersion: ANALYSIS_METHODOLOGY_VERSION,
-    };
-    await getAnalysisStore().saveUserAnalysis(entry);
-    res.status(201).json({ ok: true, savedAt: entry.savedAt, freezeAt, note: 'Analiz kaydedildi; ilk maçtan 5 dk önce otomatik kilitlenecek.' });
-  } catch (e) { fail(res, e); }
-});
-
-router.get('/bulletins/:bulletinId/user', requireAuth, async (req, res) => {
-  try {
-    const list = await getAnalysisStore().listUserAnalyses(String(req.params.bulletinId), req.user.id);
-    if (!list.length) return res.status(404).json({ error: 'Bu bülten için kayıtlı analizin yok.' });
-    res.json(list[0]);
-  } catch (e) { fail(res, e); }
-});
-
 router.get('/bulletins/:bulletinId/matches/:matchId', async (req, res) => {
   try {
     const store = getArchiveStore();
     const src = await sealedOrLive(req.params.bulletinId, store);
     if (!src) return res.status(404).json({ error: 'Analiz verisi yok.' });
-    const profile = await resolveProfile(req);
+    const profile = resolveProfile();
     const out = await calculateWithProfile({ ...src, matchNo: req.params.matchId, profile, store });
     if (!out.matches.length) return res.status(404).json({ error: 'Maç bulunamadı.' });
     res.json({ ...out, match: out.matches[0] });

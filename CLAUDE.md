@@ -76,15 +76,20 @@ kupon oluşturma ve **iki ayrı analiz motoru** (aşağıda; hangisinin nerede
 - Backend API mantığını gereksiz büyütme; mevcut akışı bozma. Takım adlarını/logoları
   koru. Minimum dosya değişikliği; iş sonunda değişenleri özetle; web bundle 200 doğrula.
 - **Yeni paket kurma ve sormadan push/PR/deploy yapma.**
-- **İKİ MOTOR VAR — karıştırma:**
-  - `backend/src/analysis/masterEngine.js` — **ÜRÜN STANDARDI**. 40 kriterli
-    Master Analiz; `analysisService.js` üzerinden `/api/analysis` ve karne
-    uçlarını besler. Analiz ve Radar ekranlarında görünen budur.
-  - `app/src/userMatchEngine.js` — 6 kriterli hafif motor. YALNIZ
-    `broadcastStudio.js` (Haftanın Özeti ekranı) kullanır; ürünün ana analizi
-    DEĞİLDİR. (risk = seçim genişliği: tek=Düşük, çifte=Orta, üçlü=Yüksek)
-  - Belgeler bir dönem ikincisini ana motor gibi tarif ediyordu; bu satır o
-    karışıklığı kapatmak için var. Detay: `HANDOFF.md` §6.
+- **TEK MOTOR VAR** (7 Ağustos 2026'dan itibaren):
+  `backend/src/analysis/masterEngine.js` — 40 kriterli Master Analiz;
+  `analysisService.js` üzerinden `/api/analysis` ve karne uçlarını besler.
+  Analiz ve Radar ekranlarında görünen budur.
+  - Eskiden ikinci bir hafif motor vardı (`app/src/userMatchEngine.js`, sonra
+    `app/src/analysis/engine.js`). İkisi de kaldırıldı; cihazda kriter hesabı
+    YAPILMAZ. Yeni bir yerel motor EKLEME — iki motor iki farklı cevap verir
+    ve bu sessiz bir hatadır.
+- **KULLANICI KRİTER SEÇİMİ YOK** (kullanıcı kararı, 7 Ağustos 2026):
+  Analiz her zaman **resmî profille** hesaplanır. Kriter seçme ekranı, profil
+  sürümleme ve kullanıcı analizi kaydetme tamamen kaldırıldı. Kullanıcı
+  kriterleri seçmez; kriterlerin GEÇMİŞ karnesine bakar (maç detayı → Analiz)
+  ve kararı kendi verir. Bu ekran **hüküm vermez** — "bu kriter iyidir/kötüdür"
+  cümlesi kurulmaz, ham maç listesi gösterilir.
 - `node_modules/`, `.git/`, `dist/`, `build/`, `app/.expo/`, `backend/cache/`,
   `backend/data/`, `backend/public/` üretilen/çıktı — okuma/düzenleme gerekmez.
 

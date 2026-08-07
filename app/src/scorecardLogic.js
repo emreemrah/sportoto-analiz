@@ -32,7 +32,9 @@ export const USER_SECTIONS = [
   { key: 'byResult', label: '1/X/2' },
   { key: 'coverage', label: 'Kapsama' },
   { key: 'radar', label: 'Radar' },
-  { key: 'criteria', label: 'Kriter' },
+  // 'Kriter' sekmesi KALDIRILDI (kullanıcı kararı, 2026-08-07): kriter
+  // başarıları artık maç detayı → Analiz sekmesinde, maç tablosuyla birlikte.
+  // İki yerde durunca hangisinin güncel olduğu belirsizleşiyordu.
   // Kalibrasyon: "kaç tuttu" değil, SÖYLEDİĞİMİZ OLASILIK ne kadar doğruydu.
   { key: 'calibration', label: 'Kalibrasyon' },
   // 'tech' (Kaynak Şeffaflığı) sekmesi KULLANICIDAN KALDIRILDI (2026-08-06):
@@ -76,7 +78,7 @@ export function demoAllowed({ demoMode = false, dev = false } = {}) {
   return demoMode === true || dev === true;
 }
 
-// Eski uç yanıtı resmî gibi mi görünüyor? (AnalysisSettings fallback koruması)
+// Eski uç yanıtı resmî gibi mi görünüyor? (kriter karnesi geri düşüş koruması)
 // Yeni alanlar yoksa (çok eski backend) default-deny: resmî sayma.
 export function criteriaBadgeUsable(cs) {
   if (!cs || cs.hasData !== true) return false;

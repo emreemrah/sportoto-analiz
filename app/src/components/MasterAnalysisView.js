@@ -3,11 +3,10 @@
 // açıklamaları gösterir. Sunucuya ulaşılamazsa dürüst "çevrimdışı" notu düşer
 // (altta mevcut yerel hızlı görünüm çalışmaya devam eder — aynı mantığın
 // parite-testli kopyası). Radar sonucu AYRI sistem olarak kıyaslanır; karışmaz.
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors, spacing, radius } from '../theme';
 import { humanizeVerdictText as insanDili } from '../labels';
-import { getActiveProfile, subscribeProfile, countOn, ensureDefaultProfile } from '../analysisProfile';
 import { calculateMatchMaster } from '../services/masterAnalysisService';
 
 const OUT_NAME = { '1': 'Ev', X: 'Beraberlik', '2': 'Deplasman' };
@@ -41,42 +40,23 @@ function Section({ title, children }) {
   );
 }
 
-export default function MasterAnalysisView({ m, navigation }) {
-  const [profile, setProfile] = useState(() => getActiveProfile());
+// KULLANICI PROFİLİ KALDIRILDI (2026-08-07, kullanıcı kararı). Analiz artık
+// HER ZAMAN resmî profille hesaplanır; kriter seçme sistemi tamamen kalktı.
+// Bileşen profile göndermez (null) → backend `buildOfficialProfile()` kullanır.
+export default function MasterAnalysisView({ m }) {
   const [state, setState] = useState({ loading: true, error: null, data: null, offline: false });
   const [showDetail, setShowDetail] = useState(false);
 
-  useEffect(() => subscribeProfile(() => setProfile(getActiveProfile())), []);
-
-  const onCount = useMemo(() => countOn(profile), [profile]);
-
   useEffect(() => {
     let alive = true;
-    if (!profile || onCount === 0) { setState({ loading: false, error: null, data: null, offline: false }); return undefined; }
     setState((s) => ({ ...s, loading: true, error: null }));
-    calculateMatchMaster(m.no, profile).then((res) => {
+    calculateMatchMaster(m.no, null).then((res) => {
       if (!alive) return;
       if (!res?.match?.master) setState({ loading: false, error: null, data: null, offline: true });
       else setState({ loading: false, error: null, data: res, offline: false });
     });
     return () => { alive = false; };
-  }, [m?.no, profile, onCount]);
-
-  // Hiç profil yoksa önerilen varsayılan set kurulur (bkz. analysisProfile).
-  useEffect(() => { if (!profile) ensureDefaultProfile(); }, [profile]);
-
-  // Kriter seçilmemiş (bilerek kapatılmış) → dürüst boş durum.
-  if (!profile || onCount === 0) {
-    return (
-      <View style={st.wrap}>
-        <Text style={st.head}>🧠 Master Analiz</Text>
-        <Text style={st.mutedTxt}>Analiz için önce kriterlerini seçmelisin — kapalı kriterler sonuca etki etmez.</Text>
-        <TouchableOpacity style={st.cta} onPress={() => navigation?.navigate('AnalysisSettings')}>
-          <Text style={st.ctaTxt}>🧩 Analiz Kriterlerimi Seç</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  }, [m?.no]);
 
   if (state.loading) {
     return (
@@ -123,11 +103,9 @@ export default function MasterAnalysisView({ m, navigation }) {
         <Text style={st.head}>🧠 Master Analiz</Text>
         {freezeStatus === 'sealed' ? <Chip label="🔏 Mühürlü" tone={colors.success} /> : <Chip label="Canlı — kilitte mühürlenecek" />}
       </View>
-      <Text style={st.profLine}>
-        Profil: <Text style={st.bold}>{ms.profileName || profile.name}</Text> (v{ms.profileVersion}) · Mod: {ms.mode === 'smart' ? 'Akıllı Destek' : 'Manuel'}
-      </Text>
+      {/* Profil satırı kaldırıldı: tek profil var (resmî), seçim yok. */}
       <View style={st.metaRow}>
-        <Chip label={`Seçili ${ms.selectedCriteriaCount}`} />
+        <Chip label={`Kriter ${ms.selectedCriteriaCount}`} />
         <Chip label={`Verisi olan ${ms.availableCriteriaCount}`} tone={colors.success} />
         {ms.unavailableCriteriaCount ? <Chip label={`Veri yok ${ms.unavailableCriteriaCount}`} tone={colors.warning} /> : null}
         <Chip label={`Veri yeterliliği %${ms.dataQuality}`} tone={ms.dataQuality >= 70 ? colors.success : colors.warning} />
