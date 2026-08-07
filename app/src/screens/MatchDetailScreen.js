@@ -9,6 +9,7 @@ import { MatchHeader, Tabs, Accordion, SectionCard, Logo } from '../ui';
 import CouponPickBlock from '../components/CouponPickBlock';
 import MatchInfoCard from '../components/MatchInfoCard';
 import KriterBasariListesi from '../components/KriterBasariListesi';
+import MacRadarPaneli from '../components/MacRadarPaneli';
 import { statsFromLog, derivedStats } from '../analysis/criteria';
 import MasterAnalysisView from '../components/MasterAnalysisView';
 import TeamCompareRadar from '../components/TeamCompareRadar';
@@ -17,7 +18,10 @@ import { crestUrlOf } from '../crestUrl';
 import { API_BASE } from '../config';
 
 // Karşılaştırma ayrı sekme DEĞİL: içeriği İstatistik sekmesinin altında (kullanıcı kararı).
-const TABS = ['Özet', 'Analiz', 'İstatistik', 'Yorumlar'];
+// RADAR SEKMESİ (kullanıcı isteği, 2026-08-07): Radar 3/4/5 maçın içinde,
+// YALNIZ bu maçın kendi sırasıyla. Radar ekranı 15 maçı birden listeler;
+// maçın içindeyken tek satır lazım.
+const TABS = ['Özet', 'Analiz', 'İstatistik', 'Radar', 'Yorumlar'];
 const sonRow = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' };
 const sonName = { color: colors.text, fontSize: 13.5, fontWeight: '700', flex: 1, marginRight: 8 };
 const topluLabel = { color: colors.textMuted, fontSize: 12, fontWeight: '800', letterSpacing: 0.5, marginTop: spacing.sm, marginBottom: spacing.sm };
@@ -271,7 +275,7 @@ export default function MatchDetailScreen({ route, navigation }) {
         onHomePress={fiksturVar.home ? () => setTeamModal('home') : undefined}
         onAwayPress={fiksturVar.away ? () => setTeamModal('away') : undefined}
       />
-      <Tabs tabs={TABS} active={tab} onChange={setTab} icons={{ 'Özet': '🕐', 'Analiz': '📈', 'İstatistik': '📊', 'Yorumlar': '💬' }} />
+      <Tabs tabs={TABS} active={tab} onChange={setTab} icons={{ 'Özet': '🕐', 'Analiz': '📈', 'İstatistik': '📊', Radar: '🎯', 'Yorumlar': '💬' }} />
       {tab !== 'Yorumlar' && (
         <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, backgroundColor: colors.bg }}>
           <CouponPickBlock m={m} navigation={navigation} />
@@ -349,6 +353,8 @@ export default function MatchDetailScreen({ route, navigation }) {
           bakarak kendi kararını verir. */}
       <KriterBasariListesi navigation={navigation} />
       </>)}
+
+      {tab === 'Radar' && <MacRadarPaneli m={m} />}
 
       {/* 🎛️ FİLTRELİ KARNE — İstatistik sekmesinin merkezi. Görsel dil: kullanıcının
           referans ekran görüntüsü ("hepsi bu şekilde olsun") — logolu başlık,
