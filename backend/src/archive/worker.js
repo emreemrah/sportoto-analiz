@@ -7,9 +7,11 @@
 // Sonuç geçişi: 5 dakikada bir kilitli bültenlerin resmî sonuçları çekilir,
 // ayrı tabloya yazılır, 15/15 olunca bülten tamamlanır + değerlendirilir.
 import { load } from '../cache.js';
+import { adayOku, adayYaz, adaySil, adayYazilmali, terfiKarari } from './adayMuhur.js';
 import { getArchiveStore } from './store.js';
 import {
   registerBulletinFromData, recordObservationsFromData, freezeBulletinFromData, computeFreezeAt,
+  firstKickoffMs,
 } from './snapshotService.js';
 import { ingestOfficialResults, maybeCompleteAndEvaluate } from './resultsService.js';
 
@@ -30,12 +32,36 @@ async function freezePass({ store, now, log }) {
   if (!freezeAt) return;
 
   const snap = await store.getSnapshot(String(data.roundId));
-  if (snap) return;                                    // zaten kilitli — hiçbir şey yapılmaz
+  const ilkMacMs = firstKickoffMs(data.matches);
+
+  // ——— ADAY MÜHÜR (2026-08-08) ———
+  // Mühür yalnız ilk maçtan 5 dk önce atılıyordu; o dakikada sunucu kapalıysa
+  // hafta SONSUZA DEK kayboluyordu (51. hafta böyle gitti). Artık maç saatine
+  // saatler kala bültenin o anki hâli diske aday olarak yazılır. Sunucu mühür
+  // anında ayaktaysa normal akış çalışır ve aday silinir; değilse aday resmî
+  // mühre terfi eder. Ayrıntı: archive/adayMuhur.js
+  if (!snap) {
+    try {
+      const mevcut = adayOku();
+      if (adayYazilmali({ ilkMacMs, now, mevcut, roundId: data.roundId })) {
+        adayYaz({ data, now, roundId: data.roundId });
+        log(`[arsiv] aday mühür yazıldı (${new Date(now).toISOString()}) — hafta ${data.roundId}`);
+      }
+    } catch (e) {
+      // Aday yazılamaması ana akışı DURDURMAZ ama sessiz de kalmaz.
+      log(`[arsiv] aday mühür yazılamadı: ${e.message}`);
+    }
+  }
+
+  if (snap) {
+    adaySil();                                          // artık gereksiz
+    return;                                             // zaten kilitli
+  }
 
   if (now >= new Date(freezeAt).getTime()) {
     try {
       const r = await freezeBulletinFromData(data, { store, now, trigger: 'worker' });
-      if (r.frozen) _lastFreezeError = null;
+      if (r.frozen) { _lastFreezeError = null; adaySil(); }
     } catch (e) {
       // Hata → logla, audit'e yaz, SONRAKİ TICK'TE YENİDEN DENE (idempotent).
       if (_lastFreezeError !== e.message) {
@@ -48,6 +74,32 @@ async function freezePass({ store, now, log }) {
           });
         } catch { /* audit hatası akışı durdurmasın */ }
       }
+    }
+    return;
+  }
+
+  // ——— TERFİ ———
+  // Buraya yalnız "mühür yok ve mühür anı henüz gelmedi" hâlinde düşülür.
+  // Maç başlamışsa (ilkMacMs geçmişse) normal mühür artık geçersizdir; son
+  // aday varsa o terfi ettirilir. Aday maçtan SONRA yakalanmışsa terfi
+  // ETTİRİLMEZ — geçmişi bilerek yazmak olurdu.
+  if (Number.isFinite(ilkMacMs) && now >= ilkMacMs) {
+    const aday = adayOku();
+    const karar = terfiKarari({ aday, roundId: data.roundId, ilkMacMs, muhurVar: false });
+    if (!karar.terfi) {
+      if (karar.sebep !== 'aday_yok') log(`[arsiv] aday terfi edilmedi: ${karar.sebep}`);
+      return;
+    }
+    try {
+      const r = await freezeBulletinFromData(aday.data, {
+        store, now: karar.lockedAtMs, trigger: 'aday-muhur', force: true,
+      });
+      if (r.frozen) {
+        adaySil();
+        log(`[arsiv] 🔒 aday mühür TERFİ etti — hafta ${data.roundId}, kilit ${aday.capturedAt}`);
+      }
+    } catch (e) {
+      log(`[arsiv] aday terfi hatası (tekrar denenecek): ${e.message}`);
     }
   }
 }

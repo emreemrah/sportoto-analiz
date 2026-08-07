@@ -183,6 +183,43 @@
             + esc(r.alarm.metin) + '</div>'
           : '';
 
+        // ADAY MÜHÜR + ELLE MÜHÜR — haftanın kaybolmasına karşı iki emniyet.
+        var g = r.guncelHafta || null;
+        var a = r.aday || null;
+        var adayMetin = a
+          ? (a.gecerli === false
+            ? '<span class="rozet kotu">aday geçersiz (maç sonrası yakalanmış)</span>'
+            : '<span class="rozet ok">yedek var</span> <span class="kucuk">' + esc(a.hafta)
+              + '. hafta · ' + esc(tarih(a.yakalandi) || a.yakalandi) + '</span>')
+          : '<span class="rozet notr">yedek yok</span>';
+
+        $('muhurYedek').innerHTML =
+          '<div class="izgara" style="margin-bottom:10px">' +
+          kutu('Güncel hafta', g ? esc(g.roundId) : yok, g && g.ilkMac ? 'ilk maç ' + esc(tarih(g.ilkMac)) : '') +
+          kutu('Mühür anı', g && g.muhurAni ? esc(tarih(g.muhurAni)) : yok, 'ilk maç − 5 dk') +
+          kutu('Aday mühür', adayMetin, 'sunucu o an kapalıysa haftayı kurtarır') +
+          '</div>' +
+          '<button id="elleMuhurBtn">🔒 Şimdi mühürle (son çare)</button>' +
+          '<span id="elleMuhurNot" class="kucuk" style="margin-left:10px"></span>' +
+          '<p class="kucuk">Normalde gerekmez — mühür otomatiktir. Otomatik akış ' +
+          'çalışmadıysa maç başlamadan bunu kullan. İlk maç başladıysa bu düğme de ' +
+          'reddeder: geçmişe tahmin yazılmaz.</p>';
+
+        var btn = document.getElementById('elleMuhurBtn');
+        if (btn) {
+          btn.addEventListener('click', function () {
+            btn.disabled = true;
+            document.getElementById('elleMuhurNot').textContent = 'Mühürleniyor…';
+            istek('/api/admin/muhurle', { method: 'POST' })
+              .then(function (x) {
+                document.getElementById('elleMuhurNot').textContent = x.not || 'Tamam';
+                return muhurYukle();
+              })
+              .catch(function (e) { document.getElementById('elleMuhurNot').textContent = 'Olmadı: ' + e.message; })
+              .finally(function () { btn.disabled = false; });
+          });
+        }
+
         var s = r.sayim || {};
         $('muhurTablo').innerHTML =
           '<div class="izgara" style="margin-bottom:12px">' +

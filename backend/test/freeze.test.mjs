@@ -262,3 +262,37 @@ test('snapshot payload her maça playedMovement alanını mühürler', async () 
   assert.ok(digerleri.every((m) => m.playedMovement.signal === null));
   assert.ok(digerleri.every((m) => m.playedMovement.note.includes('bu maçta yok')));
 });
+
+// ---------------------------------------------------------------------------
+// "GEÇ" TANIMI (2026-08-08 düzeltmesi)
+// ---------------------------------------------------------------------------
+// ESKİ KURAL: planlanan mühür anından 2 dakika sonrası "geç" sayılırdı ve o
+// hafta başarı karnesine HİÇ giremezdi. Bu suni bir uçurumdu: mühür 16:55
+// yerine 16:58'de atılsa bile ilk maç 17:00'da başlıyorsa tahmin hâlâ maç
+// öncesidir. İki dakika yüzünden 15 maçlık haftayı çöpe atmak ölçümü
+// korumuyor, sadece veriyi yok ediyordu (51. hafta böyle kaybedildi).
+//
+// YENİ KURAL: geç = İLK MAÇ BAŞLADIKTAN SONRA mühürlendi.
+test('GEÇ DEĞİL: mühür anını 3 dk kaçırsa da ilk maçtan ÖNCEyse hafta geçerli', async () => {
+  const store = tmpStore();
+  const data = makeBulletinData({ roundId: 4210 });
+  // freeze = ilk maç − 5 dk. 3 dk gecikme → hâlâ maçtan 2 dk önce.
+  const r = await freezeBulletinFromData(data, { store, now: FREEZE_MS + 3 * 60 * 1000 });
+  assert.equal(r.frozen, true);
+  const snap = await store.getSnapshot('4210');
+  assert.equal(snap.late, false, 'maç başlamadan atılan mühür GEÇ sayılmamalı');
+});
+
+test('GEÇ: ilk maç başladıktan sonra atılan mühür geç işaretlenir', async () => {
+  const store = tmpStore();
+  const data = makeBulletinData({ roundId: 4211 });
+  const ilkMac = Math.min(...data.matches.map((m) => new Date(m.date).getTime()));
+  const r = await freezeBulletinFromData(data, { store, now: ilkMac + 60 * 1000 });
+  assert.equal(r.frozen, true);
+  const snap = await store.getSnapshot('4211');
+  assert.equal(snap.late, true);
+});
+
+// SINIR DURUMU (tam ilk maç anı) `aday-muhur.test.mjs` içinde saf kontrolle
+// ölçülür; buradaki her freeze testi gerçek snapshot kurduğu için 7-14 sn
+// sürüyor ve süiti gereksiz uzatıyordu.
