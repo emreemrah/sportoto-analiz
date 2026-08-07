@@ -19,6 +19,21 @@
 //
 // DÜRÜSTLÜK: veri yoksa uydurma yüzde/oran yazılmaz; ilgili bölüm sebebini
 // yazar. Gelecek gün seçilirse yüzde basılmaz ("bu gün henüz gelmedi").
+//
+// ═══════════════ PARAMETRE TUZAĞI (2026-08-07 hatası) ══════════════════════
+// `radarDailyPlayed(roundId, matchId)` ve `radarDailyOdds(roundId, matchId)`
+// ikinci parametreyi `matchId` olarak alır ve backend bununla GÖZLEMLERİ
+// süzer (`store.listObservations(rid, req.query.matchId)`).
+//
+// `matchId` BÜLTEN SIRASI DEĞİLDİR — Spor Toto maç kimliğidir
+// (`String(m.sportotoMatchId ?? m.no)`). İlk sürümde buraya sıra numarası (1)
+// geçilmişti; hiçbir gözlemle eşleşmedi, hücreler boş döndü ve ekran
+// "bu gün için kayıt yok" yazdı. Veri vardı, sorgu yanlıştı — ve bu SESSİZ
+// bir hataydı: uç 200 döndü, hata basılmadı, yalnız sayılar yoktu.
+//
+// KURAL: bu iki uç haftanın TAMAMI için çağrılır; maç süzmesi ekranda
+// `item.no` ile yapılır (Radar ekranı da böyle yapıyor). Aşağıdaki bekçi
+// testi bu kuralı kilitler: app/test/radar-panel-parametre.test.mjs
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -97,7 +112,8 @@ export default function MacRadarPaneli({ m }) {
   useEffect(() => {
     let iptal = false;
     if (roundId == null || no == null) return undefined;
-    api.radarDailyPlayed(roundId, no)
+    // matchId GEÇİLMEZ — bkz. dosya başındaki "PARAMETRE TUZAĞI" notu.
+    api.radarDailyPlayed(roundId)
       .then((d) => {
         if (iptal) return;
         setOynanma({ yukleniyor: false, veri: d, hata: null });
@@ -111,7 +127,8 @@ export default function MacRadarPaneli({ m }) {
   useEffect(() => {
     let iptal = false;
     if (roundId == null || no == null) return undefined;
-    api.radarDailyOdds(roundId, no)
+    // matchId GEÇİLMEZ — bkz. dosya başındaki "PARAMETRE TUZAĞI" notu.
+    api.radarDailyOdds(roundId)
       .then((d) => {
         if (iptal) return;
         setOran({ yukleniyor: false, veri: d, hata: null });
