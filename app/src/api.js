@@ -113,6 +113,9 @@ export const api = {
   // profili, söylediği yön, sıra ve kalabalık/piyasa favorisiyle uyum.
   // Ortalama tek başına yanıltıcı olduğu için var.
   analysisCriterionKirilim: (key) => req(`/api/analysis/criteria/${encodeURIComponent(key)}/kirilim`),
+  // KRİTER KARŞILAŞTIRMA: "hangi iş için hangi kriter" — kırılımın tersi.
+  // Kırılım tek kriteri tüm işlerde gösterir; bu, tek işte tüm kriterleri.
+  analysisKriterKarsilastirma: () => req('/api/analysis/kriter-karsilastirma'),
   analysisMethodology: () => req('/api/analysis/methodology'),
   analysisProfiles: () => req('/api/analysis/profiles'),
   analysisProfileCreate: (b) => req('/api/analysis/profiles', { method: 'POST', body: b }),
