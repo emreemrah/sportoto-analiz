@@ -290,6 +290,26 @@
       : '<p class="kucuk">Bu dönemde tutmayan tahmin yok.</p>';
   }
 
+  // WILSON ALT SINIRI (%95) — "güvenilirliğe göre" sıralamanın ölçüsü.
+  //
+  // NEDEN GEREKLİ: ham yüzdeye göre sıralayınca 9 maçta 6 doğru (%67) yapan
+  // kriter, 12 maçta 7 doğru (%58) yapanın ÜSTÜNE çıkar. Oysa 9 maçlık %67'nin
+  // tesadüf olma payı çok daha büyüktür. Alt sınır, "bu oran en kötü ihtimalle
+  // ne olabilir" sorusunu yanıtlar: örneklem küçüldükçe ceza büyür.
+  //
+  // Bu ölçü YALNIZ SIRALAMA içindir; ekranda gösterilen yüzde ham yüzdedir —
+  // kullanıcının gördüğü sayı değiştirilmez.
+  function altSinir(dogru, toplam) {
+    var n = Number(toplam) || 0;
+    if (!n) return -1;
+    var z = 1.96;
+    var p = (Number(dogru) || 0) / n;
+    var payda = 1 + (z * z) / n;
+    var merkez = p + (z * z) / (2 * n);
+    var sapma = z * Math.sqrt((p * (1 - p) + (z * z) / (4 * n)) / n);
+    return (merkez - sapma) / payda;
+  }
+
   function kriterCiz() {
     var c = sonKriter;
     var liste = (c && c.criteria) || [];
@@ -299,6 +319,9 @@
     var sirali = liste.filter(function (x) { return !x.informational; }).slice().sort(function (a, b) {
       if (sira === 'ad') return String(a.label).localeCompare(String(b.label), 'tr');
       if (sira === 'basari') return (pencere(b).rate || -1) - (pencere(a).rate || -1);
+      if (sira === 'guven') {
+        return altSinir(pencere(b).hits, pencere(b).total) - altSinir(pencere(a).hits, pencere(a).total);
+      }
       return (pencere(b).total || 0) - (pencere(a).total || 0);
     });
     // "MAÇ SAYISI NEDEN FARKLI" (2026-08-07). Kullanıcı sordu: bazı kriterler
@@ -327,7 +350,10 @@
             '<td class="sag kucuk" colspan="3">' +
             ((x.noData >= x.evaluated) ? 'veri yok' : 'yön yok') + '</td></tr>';
         }
-        return '<tr><td>' + esc(x.label) + '</td>' +
+        // DÜŞÜK ÖRNEKLEM UYARISI: 10 maçın altında yüzde okumak yanıltıcıdır.
+        var az = (Number(w.total) || 0) < 10
+          ? ' <span class="rozet uyari">az maç</span>' : '';
+        return '<tr><td>' + esc(x.label) + az + '</td>' +
           '<td class="sag kucuk">' + bakilan + '</td>' +
           '<td class="sag kucuk">' + veriYok + '</td>' +
           '<td class="sag kucuk">' + yonYok + '</td>' +
@@ -342,7 +368,11 @@
       'Bakılan − Veri yok − Yön yok = <b>Maç</b>.</p>' +
       (genelMi ? '' : '<p class="kucuk">Kırılım yalnız "Tüm zamanlar" için gösterilir; ' +
         'dönem pencerelerinde bu üç sayı ayrıştırılmıyor — uydurmamak için "—" yazılır.</p>') +
-      '<p class="kucuk">Az maçta yüzde yanıltıcı olabilir; sayılarla birlikte okunmalı.</p>';
+      '<p class="kucuk"><b>Sıralama:</b> "Güvenilirliğe göre" seçeneği, oranın ' +
+      'küçük örneklemde şişmesini cezalandırır (%95 alt sınır). 9 maçta %67, ' +
+      '12 maçta %58\'in üstünde görünse de daha az kanıttır. Gösterilen yüzde ' +
+      'her zaman ham yüzdedir; yalnız sıralama düzeltilir. ' +
+      '<span class="rozet uyari">az maç</span> = 10 maçın altı.</p>';
   }
   $('kriterDonem').addEventListener('change', kriterCiz);
   $('kriterSira').addEventListener('change', kriterCiz);
