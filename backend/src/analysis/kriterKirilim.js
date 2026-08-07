@@ -225,6 +225,9 @@ export function kriterKirilimi(kayitlar) {
     yonler,
     kalabalikUyumu: uyum,
     piyasaUyumu: piyasaUyum,
+    // HER SAYININ ARKASINDAKİ MAÇLAR. Ekran bunu bantlara göre süzer;
+    // böylece "9 maçta 6" satırına basınca o 9 maç görünür.
+    ...macListesi(olculebilir),
     // Ekranın en üstünde duracak dürüstlük cümlesi: hücrelerin çoğu az
     // örneklemliyse bu tablodan sonuç çıkarılamaz ve bu SÖYLENİR.
     uyari: uyariMetni(olculebilir.length),
@@ -247,4 +250,82 @@ export function uyariMetni(macSayisi) {
       + `${AZ_ORNEKLEM} maçın altındaki hücreler işaretlidir ve tesadüfe açıktır.`;
   }
   return `Toplam ${macSayisi} maç. ${AZ_ORNEKLEM} maçın altındaki hücreler işaretlidir.`;
+}
+
+// ---------------------------------------------------------------------------
+// MAÇ LİSTESİ — her sayının arkasındaki maçlar (2026-08-07)
+// ---------------------------------------------------------------------------
+// NEDEN VAR: "9 maçta 6 doğru" bir sonuç değil, bir SORU'dur. Kullanıcı haklı
+// olarak "o 9 maç hangileriydi, favori miydi sürpriz miydi, oranı neydi, kaç
+// oynanmıştı, kaçıncı sıradaydı?" diye sordu. Bu bilgi olmadan yüzde havada
+// kalır ve kimse kriteri gerçekten tanıyamaz.
+//
+// Her satır KENDİ ETİKETLERİNİ taşır; ekran istediği eksene göre süzer.
+// Aynı listeyi her bant için tekrar göndermek yerine tek liste + etiket
+// gönderilir (yanıt küçük kalır, sayılar tek kaynaktan gelir).
+
+/** Sonuç, favoriden farklıysa sürpriz. Favori bilinmiyorsa null (uydurulmaz). */
+export function surprizMi(sonuc, favori) {
+  if (!sonuc || !favori) return null;
+  return sonuc !== favori;
+}
+
+/** Bir maçın en düşük oranı (favori oranı). Yoksa null. */
+export function favoriOrani(oranlar) {
+  if (!oranlar) return null;
+  const d = [oranlar.home, oranlar.draw, oranlar.away].map(sayi).filter((x) => x != null && x > 1);
+  return d.length === 3 ? Math.min(...d) : null;
+}
+
+/**
+ * Ölçülebilir maçları, ekranın süzebileceği etiketlerle döndürür.
+ * @param {Array} kayitlar sinyalToplama çıktısı
+ * @param {number} [limit] yanıtın şişmemesi için üst sınır
+ */
+export function macListesi(kayitlar, limit = 300) {
+  const olculebilir = (kayitlar || []).filter((k) => k && k.sinyal && k.sonuc);
+  // En yeni hafta önce; kesilmesi gerekirse ESKİ maçlar kesilir.
+  const sirali = olculebilir.slice().sort((a, b) => (
+    (sayi(b.roundId) ?? 0) - (sayi(a.roundId) ?? 0) || (sayi(a.no) ?? 0) - (sayi(b.no) ?? 0)
+  ));
+  const kesildi = Math.max(0, sirali.length - limit);
+
+  const maclar = sirali.slice(0, limit).map((k) => {
+    const kalFav = kalabaliginFavorisi(k.oynanma);
+    const piyFav = piyasaninFavorisi(k.oran);
+    return {
+      roundId: k.roundId ?? null,
+      hafta: k.hafta ?? null,
+      no: sayi(k.no),
+      ev: k.home ?? null,
+      deplasman: k.away ?? null,
+      lig: k.lig ?? null,
+      tarih: k.tarih ?? null,
+      skor: k.skor ?? null,
+      sonuc: k.sonuc,
+      sinyal: k.sinyal,
+      dogru: k.sinyal === k.sonuc,
+      // Oranlar: ham üçlü + favori oranı (ekran ikisini de gösterebilsin).
+      oran: k.oran ?? null,
+      favoriOrani: favoriOrani(k.oran),
+      piyasaFavorisi: piyFav,
+      // Oynanma: ham üçlü + kalabalığın favorisi ve payı.
+      oynanma: k.oynanma ?? null,
+      kalabalikFavorisi: kalFav,
+      kalabalikPayi: kalFav ? sayi(k.oynanma?.[kalFav]) : null,
+      // Bantlar — kırılım tablolarıyla BİREBİR aynı fonksiyonlardan gelir,
+      // böylece liste ile özet asla çelişmez.
+      macTipi: macTipi(k.oran),
+      kalabalikProfili: kalabalikProfili(k.oynanma),
+      // SÜRPRİZ: resmî sonuç favoriden farklı mı. İki tanım ayrı verilir,
+      // çünkü kalabalık ile piyasa aynı şeyi söylemeyebilir.
+      surprizPiyasa: surprizMi(k.sonuc, piyFav),
+      surprizKalabalik: surprizMi(k.sonuc, kalFav),
+      kriterKalabalikla: kalFav ? (k.sinyal === kalFav ? 'ayni' : 'ters') : null,
+      kriterPiyasayla: piyFav ? (k.sinyal === piyFav ? 'ayni' : 'ters') : null,
+      kesif: k.kesif === true,
+    };
+  });
+
+  return { maclar, kesildi, toplam: olculebilir.length };
 }
