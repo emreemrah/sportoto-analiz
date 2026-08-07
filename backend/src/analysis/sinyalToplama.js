@@ -168,20 +168,10 @@ export async function sinyalKayitlariniTopla({
       const no = Number(pm.no ?? res.orderNo);
       let sinyal = null;
 
-      // TÜM KRİTERLER MODU: key verilmezse tek kriter seçilmez, maçın bütün
-      // mühürlü değerlendirmeleri satıra iliştirilir (tumKriterKayitlari
-      // bunu kriter kriter ayırır). Tek arşiv geçişiyle 40 kriter çıkar.
-      let degerlendirmeler = null;
-
       if (tur === 'kriter') {
+        const ev = (pm.analysisCenter?.catalogEvaluations || []).find((x) => x.key === key);
         if (!pm.analysisCenter) kapsam.katmanYok += 1;
-        if (key == null) {
-          degerlendirmeler = (pm.analysisCenter?.catalogEvaluations || [])
-            .map((x) => ({ key: x.key, available: !!x.available, signal: x.signal || null }));
-        } else {
-          const ev = (pm.analysisCenter?.catalogEvaluations || []).find((x) => x.key === key);
-          sinyal = ev && ev.available && ev.signal ? ev.signal : null;
-        }
+        sinyal = ev && ev.available && ev.signal ? ev.signal : null;
       } else if (tur === 'radar') {
         const r = pm.radarCenter?.radars?.[key] || pm.radar?.[key] || null;
         if (!pm.radarCenter) kapsam.katmanYok += 1;
@@ -217,8 +207,6 @@ export async function sinyalKayitlariniTopla({
         kesif: !resmi,
         muhurTuru: cls.provenanceType,
         tarih: pm.kickoffAt || null,
-        // Yalnız "tüm kriterler" modunda dolu; tek kriter sorgusunda null.
-        degerlendirmeler,
       });
     }
   }
@@ -260,36 +248,4 @@ export async function sinyalKatalogu({ store = getArchiveStore() } = {}) {
     radarlar: RADARLAR.map((r) => ({ key: r.key, ad: r.ad, no: r.no })),
     master: { key: 'master', ad: 'Master Analiz (ana tahmin)' },
   };
-}
-
-// ---------------------------------------------------------------------------
-// TÜM KRİTERLER TEK GEÇİŞTE (2026-08-07)
-// ---------------------------------------------------------------------------
-// NEDEN VAR: kriterleri BİRBİRİYLE karşılaştırmak için 40 kriterin kaydı
-// gerekiyor. `sinyalKayitlariniTopla` her çağrıda arşivi baştan tarar; 40 kez
-// çağırmak aynı snapshot'ları 40 kez okumak demektir. Bu fonksiyon arşivi BİR
-// KEZ gezer ve her kriter için satırları ayrı ayrı biriktirir.
-//
-// Ortak alanlar (maç, oran, oynanma, sonuç) tek kez hesaplanır; kritere özel
-// olan yalnız `sinyal`dır. Böylece hem hızlı hem de tutarlı olur: iki kriter
-// aynı maça farklı oran/oynanma göremez.
-export async function tumKriterKayitlari({ store = getArchiveStore(), kesif = false } = {}) {
-  const { kayitlar, kapsam } = await sinyalKayitlariniTopla({ tur: 'kriter', key: null, store, kesif });
-  // key=null verildiğinde `sinyal` her satırda null döner; asıl işi burada
-  // yapıyoruz: her maçın mühürlü catalogEvaluations'ını satıra ekliyoruz.
-  // Bunun için ham snapshot'a ikinci kez gitmek yerine toplama sırasında
-  // taşınan `degerlendirmeler` alanını kullanırız (aşağıdaki yamayla eklendi).
-  const byKey = new Map();
-  for (const k of kayitlar) {
-    for (const ev of k.degerlendirmeler || []) {
-      if (!ev?.key) continue;
-      if (!byKey.has(ev.key)) byKey.set(ev.key, []);
-      byKey.get(ev.key).push({
-        ...k,
-        degerlendirmeler: undefined,       // her kriter kendi satırını taşısın
-        sinyal: ev.available && ev.signal ? ev.signal : null,
-      });
-    }
-  }
-  return { byKey, kapsam };
 }
