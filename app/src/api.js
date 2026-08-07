@@ -51,10 +51,6 @@ export const api = {
   // Takımın sezondaki oynanmış + oynanacak maçları (maç detayı → takım kartı).
   teamFixtures: (teamId, seasonId) => req(`/api/team-fixtures/${teamId}?seasonId=${seasonId}`),
   history: (roundId, fresh = false) => req(`/api/history/${roundId}${fresh ? '?fresh=1' : ''}`),
-  // GEÇMİŞ BÜLTEN MAÇ PROFİLİ: mühürlü oran + oynanma yüzdesi + maç tipi ve
-  // kalabalık profili etiketleri. Bülten kartında favori/sürpriz gösterimi
-  // bunu kullanır (kullanıcı isteği, 7 Ağustos).
-  historyProfil: (roundId) => req(`/api/history/${roundId}/profil`),
   systemScorecard: () => req('/api/system-scorecard'),
   criteriaScorecard: () => req('/api/criteria-scorecard'),
 

@@ -41,13 +41,6 @@ import { yorumEklemeLimiti, kuponYazmaLimiti, avatarLimiti, backtestLimiti } fro
 import { acilistaMigrationCalistir, migrationDurumu } from './migrate/index.js';
 import { favoriTakimKatalogu } from './favoriteTeams.js';
 import { kotaDurumu } from './sources/kotaBekcisi.js';
-// GEÇMİŞ BÜLTEN PROFİLİ: maç tipi / kalabalık / sürpriz etiketleri.
-import { getArchiveStore } from './archive/store.js';
-import { collectPlayedDnaRecords } from './radar/playedDnaArchive.js';
-import { sonGunOynanmaIndeksi } from './radar/siraOynanma.js';
-import {
-  macTipi, kalabalikProfili, kalabaliginFavorisi, piyasaninFavorisi, surprizMi, favoriOrani,
-} from './analysis/kriterKirilim.js';
 
 // Bülten maç listesi belleği — gerekçe ve ölçüm: yanitBellegi.js
 const maclarBellegi = yanitBellegi(5000);
@@ -513,78 +506,6 @@ app.get('/api/rounds', async (req, res) => {
 const histFreshAt = new Map();  // roundId -> son taze sorgu zamanı (resmi API'yi korur)
 const liveFootyAt = new Map();  // roundId -> son CANLI footy skoru tazeleme zamanı (throttle)
 // (snapshotJobs kaldırıldı — geçmişe otomatik backfill üretimi tamamen kapalı.)
-// ---------------------------------------------------------------------------
-// GET /api/history/:roundId/profil — GEÇMİŞ BÜLTEN MAÇ PROFİLLERİ
-// ---------------------------------------------------------------------------
-// NEDEN VAR: geçmiş bültende maçın favori mi sürpriz mi olduğu, oranı ve
-// oynanma yüzdesi görünmüyordu. Bu bilgiler arşivde MÜHÜRLÜ duruyordu ama
-// yalnız kriter kırılımı ekranından okunabiliyordu; kullanıcı bunları
-// bültenin kendisinde istedi (7 Ağustos).
-//
-// KAYNAK: mühürlü snapshot (oran) + oynanma DNA arşivi (yüzdeler).
-// Etiketler kriter kırılımıyla AYNI fonksiyonlardan üretilir; iki ekran
-// aynı maça farklı rozet veremez.
-//
-// SALT OKUR. Sonuç/analiz üretmez, arşive dokunmaz. Veri yoksa alan null
-// döner ve uygulama "—" yazar; sıfır ya da tahmin YAZILMAZ.
-app.get('/api/history/:roundId/profil', async (req, res) => {
-  try {
-    const roundId = Number(req.params.roundId);
-    if (!roundId) return res.status(400).json({ error: 'Geçersiz hafta.' });
-
-    const store = getArchiveStore();
-    const snap = await store.getSnapshot(String(roundId)).catch(() => null);
-
-    // Oynanma yüzdeleri — sebebi yutulmaz, dışarı bildirilir.
-    let oynanmaIndeks = new Map();
-    let oynanmaHatasi = null;
-    try {
-      const dna = await collectPlayedDnaRecords(store);
-      oynanmaIndeks = sonGunOynanmaIndeksi(dna, 'nesine') || new Map();
-    } catch (e) {
-      oynanmaHatasi = String(e?.message || e).slice(0, 200);
-    }
-
-    const snapMaclar = snap?.payload?.matches || [];
-    const maclar = [];
-    const enBuyukNo = 15;
-    for (let no = 1; no <= enBuyukNo; no += 1) {
-      const pm = snapMaclar.find((m) => Number(m.no) === no) || null;
-      const oranlar = pm?.market?.odds || null;
-      const oyn = oynanmaIndeks.get(`${roundId}|${no}`)?.pct || null;
-      if (!oranlar && !oyn) continue;                       // bilgi yoksa satır yok
-
-      const piyFav = piyasaninFavorisi(oranlar);
-      const kalFav = kalabaliginFavorisi(oyn);
-      maclar.push({
-        no,
-        oran: oranlar,
-        favoriOrani: favoriOrani(oranlar),
-        piyasaFavorisi: piyFav,
-        oynanma: oyn,
-        kalabalikFavorisi: kalFav,
-        kalabalikPayi: kalFav && oyn ? oyn[kalFav] ?? null : null,
-        macTipi: macTipi(oranlar),
-        kalabalikProfili: kalabalikProfili(oyn),
-        piyasaFavoriSembolu: piyFav,
-      });
-    }
-
-    res.json({
-      roundId,
-      muhurlu: !!snap,
-      oynanmaHatasi,
-      // Sürpriz kararı SONUÇ gerektirir; sonuç bu uçta yok (resmî sonuç
-      // /api/history'den gelir). Uygulama ikisini birleştirip karar verir —
-      // burada yarım bilgiyle "sürpriz" damgası VURULMAZ.
-      maclar,
-    });
-  } catch (e) {
-    console.error('[history-profil]', e?.message || e);
-    res.status(500).json({ error: 'Hafta profili okunamadı.' });
-  }
-});
-
 app.get('/api/history/:roundId', async (req, res) => {
   try {
     const roundId = Number(req.params.roundId);
