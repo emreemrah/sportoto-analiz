@@ -14,8 +14,7 @@ import {
   buildCriterionScorecard, calculateWithProfile, buildOfficialProfile, runBacktest,
 } from '../analysis/analysisService.js';
 import { kriterKirilimi } from '../analysis/kriterKirilim.js';
-import { kriterKarsilastirma } from '../analysis/kriterKarsilastirma.js';
-import { sinyalKayitlariniTopla, tumKriterKayitlari } from '../analysis/sinyalToplama.js';
+import { sinyalKayitlariniTopla } from '../analysis/sinyalToplama.js';
 import {
   getAnalysisStore, newProfile, updateProfileVersion, duplicateProfile,
 } from '../analysis/analysisStore.js';
@@ -79,50 +78,6 @@ router.get('/criteria/:key/scorecard', async (req, res) => {
     const sc = await buildCriterionScorecard({});
     const row = sc.criteria.find((c) => c.key === req.params.key) || null;
     res.json({ generatedAt: sc.generatedAt, hasData: !!row?.signals, note: sc.note, criterion: row });
-  } catch (e) { fail(res, e); }
-});
-
-// ---------------------------------------------------------------------------
-// GET /api/analysis/kriter-karsilastirma — "hangi iş için hangi kriter"
-// ---------------------------------------------------------------------------
-// KULLANICININ TARİFİ: "Claude kod yazmada iyi, ChatGPT dikte ve resimde.
-// Derdimiz maç değil, KRİTERİN KENDİSİ." Yani her iş (ağır favori, denk maç,
-// X demek, kalabalığa ters düşmek, bülten sırası...) için kriterler sıralanır.
-//
-// Kırılım ucu "tek kriter, tüm işler" gösterir; bu uç tabloyu TERS ÇEVİRİR:
-// "tek iş, tüm kriterler".
-//
-// PERFORMANS: 40 kriter için arşivi 40 kez taramak yerine `tumKriterKayitlari`
-// ile TEK geçiş yapılır. Sonuç 10 dakika bellekte tutulur.
-const KARSILASTIRMA_TTL = 10 * 60 * 1000;
-const karsilastirmaBellek = { veri: null, zaman: 0, anahtar: null };
-
-router.get('/kriter-karsilastirma', async (req, res) => {
-  try {
-    const kesif = String(req.query.kesif || '') === '1';
-    const zorla = String(req.query.zorla || '') === '1';
-    const anahtar = kesif ? 'kesif' : 'resmi';
-    if (!zorla && karsilastirmaBellek.veri && karsilastirmaBellek.anahtar === anahtar
-      && Date.now() - karsilastirmaBellek.zaman < KARSILASTIRMA_TTL) {
-      return res.json({ ...karsilastirmaBellek.veri, bellekten: true });
-    }
-
-    const { byKey, kapsam } = await tumKriterKayitlari({ kesif });
-    const adlar = new Map(CATALOG.map((c) => [c.key, c.label]));
-    // BİLGİ kriterleri ölçülmez: yön söylemezler, doğruluk atfedilemez.
-    // Ayrım katalogdaki `outputDirection` alanındadır (informational).
-    for (const c of CATALOG) if (c.outputDirection === 'informational') byKey.delete(c.key);
-
-    const cikti = {
-      olusturuldu: new Date().toISOString(),
-      kesif,
-      kapsam,
-      ...kriterKarsilastirma(byKey, adlar),
-    };
-    karsilastirmaBellek.veri = cikti;
-    karsilastirmaBellek.zaman = Date.now();
-    karsilastirmaBellek.anahtar = anahtar;
-    res.json(cikti);
   } catch (e) { fail(res, e); }
 });
 
