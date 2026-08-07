@@ -1,8 +1,10 @@
-// MASTER ANALİZ GÖRÜNÜMÜ — MatchDetail "Analiz" sekmesinin backend-destekli paneli.
-// Kriter hesabının tek doğruluk kaynağı BACKEND'dir; bu bileşen yalnız sonucu ve
-// açıklamaları gösterir. Sunucuya ulaşılamazsa dürüst "çevrimdışı" notu düşer
-// (altta mevcut yerel hızlı görünüm çalışmaya devam eder — aynı mantığın
-// parite-testli kopyası). Radar sonucu AYRI sistem olarak kıyaslanır; karışmaz.
+// MASTER ANALİZ GÖRÜNÜMÜ — MatchDetail "Analiz" sekmesinin backend paneli.
+// Kriter hesabının TEK doğruluk kaynağı backend'dir; bu bileşen yalnız sonucu
+// ve açıklamaları gösterir.
+//
+// ÇEVRİMDIŞI (2026-08-07): cihazda yedek motor ARTIK YOK — yerel hafif motor
+// kriter seçme sistemiyle birlikte kaldırıldı. Sunucuya ulaşılamazsa analiz
+// GÖSTERİLMEZ; uydurma sonuç üretmek yerine durum dürüstçe yazılır.
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors, spacing, radius } from '../theme';
@@ -72,7 +74,9 @@ export default function MasterAnalysisView({ m }) {
       <View style={st.wrap}>
         <Text style={st.head}>🧠 Master Analiz</Text>
         <Text style={st.offlineTxt}>
-          ⚠ Sunucuya ulaşılamadı — aşağıdaki yerel hızlı görünüm gösteriliyor (aynı kriter mantığının cihaz kopyası).
+          ⚠ Analiz sunucudan alınamadı. Cihazda yedek hesap yapılmaz — yanlış
+          sayı göstermektense hiç göstermemek doğrudur. Bağlantını kontrol edip
+          tekrar dene.
           Mühürlü/resmî sonuçlar için bağlantı gerekir.
         </Text>
       </View>

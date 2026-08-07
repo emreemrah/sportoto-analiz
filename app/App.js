@@ -99,6 +99,18 @@ const detailScreen = (
   />
 );
 
+// KRİTER KIRILIMI — maç detayının "Analiz" sekmesinden açılır. MatchDetail
+// dört ayrı yığında kayıtlı olduğu için bu ekran da hepsinde olmalı; yalnız
+// Profil yığınına konulduğunda diğer sekmelerden "kritere tıklanmıyor"
+// şikâyeti çıkıyordu (rota o yığında YOK, navigate sessizce başarısız olur).
+const kriterKirilimScreen = (
+  <Stack.Screen
+    name="KriterKirilim"
+    component={KriterKirilimScreen}
+    options={{ headerShown: false }}
+  />
+);
+
 // Alt sekme çubuğu stili TEK yerde durur. Yayın Modu'nda çubuk gizlenirken
 // stilin "undefined" ile ezilmesi (React Navigation seçenekleri yayılarak
 // birleştirir) diğer ekranlarda çubuğu bozardı; bu yüzden iki sabit tutulur.
@@ -123,6 +135,7 @@ function HomeStack() {
           ekranlarının kullandığı studioTheme/studioFonts/studioShare/
           couponStudioParts modülleri DURUYOR — onlar stüdyoya ait değil. */}
       {detailScreen}
+      {kriterKirilimScreen}
       {/* Topluluk (eski "Stadyum" sekmesi) — alt menüden kaldırıldı, Ana Sayfa
           "Toplulukta Gündem" bölümünden erişilir. */}
       <Stack.Screen name="Forum" component={ForumScreen} options={{ headerShown: false }} />
@@ -135,6 +148,7 @@ function BulletinStack() {
     <Stack.Navigator screenOptions={header}>
       <Stack.Screen name="Bulletin" component={BulletinScreen} options={{ headerShown: false }} />
       {detailScreen}
+      {kriterKirilimScreen}
       {/* Canlı maç detayı (istatistik/olaylar) — "Canlı" sekmesi Bülten'e taşındı. */}
       <Stack.Screen name="LiveMatchDetail" component={LiveMatchDetailScreen} options={{ headerShown: false }} />
       {/* Geçmiş (mühürlü) maç detayı: maç öncesi ne demişiz + ne olmuş.
@@ -156,6 +170,7 @@ function AnalizStack() {
     <Stack.Navigator screenOptions={header}>
       <Stack.Screen name="Analiz" component={RadarScreen} options={{ headerShown: false }} />
       {detailScreen}
+      {kriterKirilimScreen}
       {/* SİSTEM KARNESİ buradan ÇIKARILDI — 36d5ae0'da Radar başlığı sadeleşti
           ve ekran erişilemez kaldı. Artık yönetici tarafında: ProfileStack. */}
       {/* GELİŞTİRİCİ EKRANI — yalnız geliştirmede kayıtlıdır. Yayın (release)
@@ -178,6 +193,7 @@ function CouponsStack() {
       <Stack.Screen name="CouponResult" component={CouponResultScreen} options={{ title: 'Kupon Sonucu' }} />
       <Stack.Screen name="CouponShare" component={CouponShareScreen} options={{ title: 'Kuponu Paylaş' }} />
       {detailScreen}
+      {kriterKirilimScreen}
     </Stack.Navigator>
   );
 }
@@ -216,8 +232,6 @@ function ProfileStack() {
           yetkiye bağlıdır; kayıt her derlemede yapılır (uçlar zaten açık,
           ekran yalnız görüntüleyici — bkz. yukarıdaki İnceleme notu). */}
       <Stack.Screen name="SystemScorecard" component={SystemScorecardScreen} options={{ title: 'Sistem Karnesi' }} />
-      {/* Kriter kırılımı: karnedeki tek yüzdenin neyi gizlediğini açar. */}
-      <Stack.Screen name="KriterKirilim" component={KriterKirilimScreen} options={{ headerShown: false }} />
       {/* YASAL EKRANLAR — Google Play zorunluluğu: hesap silme yolu uygulama
           içinden de erişilebilir olmalıdır. */}
       <Stack.Screen name="About" component={AboutScreen} options={{ title: 'Hakkında' }} />
