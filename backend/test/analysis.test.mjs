@@ -287,3 +287,38 @@ test('DÜŞÜK VERİ KALİTESİ güçlü güven/banko vermez; boş profil dürü
   assert.equal(empty.ok, false);
   assert.ok(empty.message.includes('kriter'));
 });
+
+// ---------------------------------------------------------------------------
+// "MAÇ SAYISI NEDEN FARKLI" — panelin yazdığı denklem gerçekten tutuyor mu?
+// ---------------------------------------------------------------------------
+// Kullanıcı sordu (7 Ağustos): karnede bazı kriterler 12, bazıları 9, biri 2
+// maç gösteriyordu. Panel artık sebebi yazıyor:
+//     Bakılan − Veri yok − Yön yok = Maç
+// Bu test o denklemi kilitler. Denklem bozulursa panel yanlış bir açıklama
+// yazmış olur — sayıyı gizlemekten daha kötüsü, yanlış açıklamaktır.
+test('KAPSAM DENKLEMİ: evaluated − noData − yönsüz = signals (panel açıklaması doğru)', async () => {
+  const store = tmpStore();
+  const data = makeBulletinData({ roundId: 11260 });
+  data.analysisCenter = computeAnalysisCenterForData(data, { now: FREEZE_MS - 3600e3 });
+  await freezeBulletinFromData(data, { store, now: FREEZE_MS });
+  await ingestOfficialResults('11260', makeOfficialMatches(data, RESULTS), { store });
+
+  const sc = await buildCriterionScorecard({ store });
+  assert.ok(sc.criteria.length > 0);
+
+  for (const c of sc.criteria) {
+    assert.equal(typeof c.evaluated, 'number', `${c.key}: evaluated yok — panel kırılımı yazamaz`);
+    assert.equal(typeof c.noData, 'number', `${c.key}: noData yok`);
+    assert.equal(typeof c.signals, 'number', `${c.key}: signals yok`);
+    // Yön yok = veri vardı ama kriter iki tarafı denk gördü.
+    const yonsuz = c.evaluated - c.noData - c.signals;
+    assert.ok(yonsuz >= 0, `${c.key}: "yön yok" negatif çıktı (${yonsuz}) — sayım hatalı`);
+    assert.ok(c.signals <= c.evaluated, `${c.key}: sinyal, bakılan maçtan çok olamaz`);
+    assert.ok(c.hits <= c.signals, `${c.key}: doğru sayısı sinyal sayısını aşamaz`);
+  }
+
+  // En az bir kriter TÜM maçlarda yön vermemeli — aksi hâlde bu test bir şey
+  // ölçmüyor demektir (karne 12/12 sabitse fark hiç görünmez).
+  const eksikOlan = sc.criteria.filter((c) => c.signals < c.evaluated);
+  assert.ok(eksikOlan.length > 0, 'hiçbir kriterde eksik yok — senaryo bu farkı sınamıyor');
+});
