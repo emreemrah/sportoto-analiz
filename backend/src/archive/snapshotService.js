@@ -501,7 +501,25 @@ export async function freezeBulletinFromData(data, {
     // Bülten kaydı güncel olsun (henüz kilitli değilken kimlikler yazılır).
     await registerBulletinFromData(data, { store, now });
 
-    const late = now - freezeMs > LATE_THRESHOLD_MS;
+    // GEÇ MÜHÜR TANIMI DEĞİŞTİ (2026-08-08).
+    //
+    // ESKİ: planlanan mühür anından 2 dakika sonrası "geç" sayılıyordu. Bu
+    // suni bir uçurumdu: mühür 16:55 yerine 16:58'de atılsa bile maç 17:00'da
+    // başlıyorsa tahmin HÂLÂ maç öncesidir ve ileri-testtir. 2 dakikalık
+    // gecikme yüzünden bütün haftayı çöpe atmak, ölçümü korumuyor; sadece
+    // veriyi yok ediyordu.
+    //
+    // YENİ: geç = İLK MAÇ BAŞLADIKTAN SONRA mühürlendi. Dürüstlüğü sağlayan
+    // gerçek sınır budur — maç başladıktan sonra üretilen kayıt ileri-test
+    // sayılamaz. Maç öncesinde atılan her mühür geçerlidir.
+    //
+    // Not: provenance kapısı zaten `locked_after_first_match` ve
+    // `prediction_after_first_match` denetimlerini ayrıca yapar; bu bayrak
+    // onlarla çelişmez, aynı çizgiyi kullanır.
+    const ilkMac = firstKickoffMs(data.matches);
+    const late = Number.isFinite(ilkMac)
+      ? now > ilkMac
+      : now - freezeMs > LATE_THRESHOLD_MS;   // maç saati bilinmiyorsa eski kural
     const payload = await buildSnapshotPayload(data, { store, now, frozenAt: new Date(now).toISOString(), late });
     const payloadHash = hashPayload(payload);
     const lockedAtIso = new Date(now).toISOString();

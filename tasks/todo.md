@@ -157,3 +157,51 @@ karnesi ve ham maç tablosu kondu.
 - Belgeler güncellendi: CLAUDE.md "İKİ MOTOR" → "TEK MOTOR" + kriter seçimi yok;
   HANDOFF.md §6 ve frontend dosya listesi.
 - **Yapılamadı:** tarayıcıda görsel doğrulama (Chrome eklentisi bağlı değil).
+
+## HAFTA KAYBI ÖNLEMLERİ (2026-08-08)
+
+Kullanıcı: "1 hafta eksik olursa proje komple çöp olur, kayıp kesinlikle
+olmamalı." Haklı: bütün arşivin ayakta kalması, tek bir makinenin TEK BİR
+DAKİKADA açık olmasına bağlıydı. 51. hafta böyle kaybedildi.
+
+### 1. "Geç mühür" tanımı düzeltildi — `snapshotService.js`
+ESKİ: planlanan mühür anından **2 dakika** sonrası geç sayılıyordu ve hafta
+karneye HİÇ giremiyordu. Suni bir uçurumdu: mühür 16:55 yerine 16:58'de atılsa
+bile ilk maç 17:00'daysa tahmin hâlâ maç öncesidir.
+YENİ: **geç = ilk maç başladıktan sonra mühürlendi.** Dürüstlüğü koruyan gerçek
+sınır budur; provenance kapısındaki `locked_after_first_match` ile aynı çizgi.
+→ Kurtarma penceresi 2 dakikadan, maç saatine kadar uzadı.
+
+### 2. Aday mühür (ön-taahhüt) — `archive/adayMuhur.js` (yeni)
+İlk maça **8 saat** kala, **10 dakikada bir**, bültenin o anki hâli diske aday
+mühür olarak yazılır. Mühür anında sunucu ayaktaysa normal akış çalışır ve aday
+silinir. Sunucu o an KAPALIYSA ve maçlar başladıysa, son aday resmî mühre
+**terfi** eder — `lockedAt` olarak YAKALAMA anı kullanılır.
+
+Dürüstlük: terfi geçmişi yazmaz. Aday maç başlamadan yakalanmıştır, gerçek
+veriyi taşır, kayıtta `trigger: 'aday-muhur'` olarak görünür. **Maçtan sonra
+yakalanmış aday ASLA terfi etmez** (`mac_sonrasi_yakalanmis`).
+
+→ Gereksinim "16:55'te makine açık olsun"dan "öğleden sonra bir ara açık
+olsun"a indi.
+
+### 3. Elle mühürleme (son çare) — `POST /api/admin/muhurle`
+Panelde düğme. Otomatik akış çalışmazsa operatör maç başlamadan haftayı
+kurtarır. **İlk maç başladıysa reddeder** — geçmişe tahmin yazılmaz.
+Erken mühre izin verilir (dürüst; yalnız son dakika hareketi snapshot'a girmez).
+
+### 4. Panelde görünürlük
+Genel sekmesi → Mühür Durumu: güncel hafta, mühür anı, **aday mühür var mı**
+(yedek var / yok / geçersiz) + elle mühürle düğmesi.
+
+### Doğrulama
+- `test/aday-muhur.test.mjs` (13) — en kritiği: maç sonrası yakalanmış aday
+  terfi etmiyor; kilit anı terfi anı değil YAKALAMA anı.
+- `test/freeze.test.mjs` (+2) — 3 dk gecikmeli mühür GEÇ DEĞİL; maç sonrası
+  mühür geç.
+- Backend süitleri parça parça: **0 başarısız**.
+
+### AÇIK RİSK (kod çözemez)
+Aday mühür de dosyaya yazılıyor ve o dosya AYNI makinede. Makine hafta boyunca
+hiç açılmazsa hafta yine kaybedilir. Kalıcı çözüm: backend'in 7/24 açık bir
+sunucuda çalışması (Render zaten var, üretimde kullanılmıyor).

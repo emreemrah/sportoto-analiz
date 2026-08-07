@@ -38,6 +38,8 @@ import { tamKirilim, benzerVakalar } from '../analysis/sinyalKirilim.js';
 import { oruntuTara, sinyalBasariTara, ileriDogrula } from '../analysis/oruntuTarayici.js';
 import { sinyalKayitlariniTopla, sinyalKatalogu } from '../analysis/sinyalToplama.js';
 import { muhurSinifla, muhurOzeti } from '../archive/muhurDurumu.js';
+import { adayOku } from '../archive/adayMuhur.js';
+import { freezeBulletinFromData, firstKickoffMs, computeFreezeAt } from '../archive/snapshotService.js';
 import { getArchiveStore } from '../archive/store.js';
 
 const router = Router();
@@ -815,9 +817,74 @@ router.get('/muhur-durumu', async (req, res) => {
       });
     }
 
-    res.json({ zaman: new Date(now).toISOString(), ...muhurOzeti(satirlar), satirlar });
+    // ADAY MÜHÜR: mühür anında sunucu kapalı kalırsa haftayı kurtaran
+    // ön-taahhüt. Operatör "yedeğim var mı" sorusunu buradan görür.
+    const aday = adayOku();
+    const guncel = load('bulletin')?.data || null;
+    const ilkMac = guncel?.matches ? firstKickoffMs(guncel.matches) : null;
+
+    res.json({
+      zaman: new Date(now).toISOString(),
+      ...muhurOzeti(satirlar),
+      aday: aday ? {
+        hafta: aday.roundId,
+        yakalandi: aday.capturedAt,
+        // Terfiye uygun mu: maçtan önce yakalanmış olmalı.
+        gecerli: Number.isFinite(ilkMac) ? aday.capturedAtMs < ilkMac : null,
+      } : null,
+      guncelHafta: guncel ? {
+        roundId: guncel.roundId,
+        ilkMac: Number.isFinite(ilkMac) ? new Date(ilkMac).toISOString() : null,
+        muhurAni: guncel.matches ? computeFreezeAt(guncel.matches) : null,
+      } : null,
+      satirlar,
+    });
   } catch (e) {
     safeError(res, e, 'Mühür durumu okunamadı.');
+  }
+});
+
+
+// ---------------------------------------------------------------------------
+// POST /api/admin/muhurle — ELLE MÜHÜRLEME (son çare)
+// ---------------------------------------------------------------------------
+// NEDEN VAR: mühür otomatiktir ve normalde buna gerek olmaz. Ama otomatik akış
+// bir sebeple çalışmazsa (worker durmuş, hata almış) operatörün maç başlamadan
+// haftayı kurtarabilmesi gerekir. 51. hafta kaybedildiğinde böyle bir düğme
+// yoktu; olan biteni fark eden biri de yapabileceği bir şey bulamazdı.
+//
+// SINIR — ZAMANI GERİ ALMAZ: ilk maç BAŞLADIYSA elle mühür de reddedilir.
+// Geçmişe tahmin yazmak, haftayı kaybetmekten kötüdür.
+router.post('/muhurle', async (req, res) => {
+  try {
+    const data = load('bulletin')?.data;
+    if (!data || data.pending || data.roundId == null) {
+      return res.status(409).json({ error: 'Mühürlenecek güncel bülten yok.' });
+    }
+    const now = Date.now();
+    const ilkMac = firstKickoffMs(data.matches);
+    if (Number.isFinite(ilkMac) && now > ilkMac) {
+      return res.status(409).json({
+        error: 'İlk maç başladı — elle mühür de atılamaz. Geçmişe tahmin yazılmaz.',
+        ilkMac: new Date(ilkMac).toISOString(),
+      });
+    }
+
+    // force: mühür anı henüz gelmemiş olsa bile ERKEN mühre izin verilir.
+    // Erken mühür dürüsttür (maç öncesi); yalnız son dakika oran/oynanma
+    // hareketi snapshot'a giremez. Operatör bu ödünü bilerek verir.
+    const r = await freezeBulletinFromData(data, { store: getArchiveStore(), now, trigger: 'operator', force: true });
+    await kayit(req, 'muhurle', String(data.roundId), { frozen: !!r.frozen, alreadyFrozen: !!r.alreadyFrozen }, true);
+    res.json({
+      ok: true,
+      muhurlendi: !!r.frozen,
+      zatenVardi: !!r.alreadyFrozen,
+      hafta: data.roundId,
+      kilitAni: new Date(now).toISOString(),
+      not: r.frozen ? 'Hafta mühürlendi — başarı karnesine girecek.' : 'Zaten mühürlüydü, dokunulmadı.',
+    });
+  } catch (e) {
+    safeError(res, e, 'Elle mühürleme başarısız.');
   }
 });
 
