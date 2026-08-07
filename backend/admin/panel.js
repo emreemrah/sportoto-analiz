@@ -301,18 +301,48 @@
       if (sira === 'basari') return (pencere(b).rate || -1) - (pencere(a).rate || -1);
       return (pencere(b).total || 0) - (pencere(a).total || 0);
     });
+    // "MAÇ SAYISI NEDEN FARKLI" (2026-08-07). Kullanıcı sordu: bazı kriterler
+    // 12, bazıları 9, biri 2 maç gösteriyordu. Sebep ekranda YAZMIYORDU.
+    // Bir kriter bir maçı ancak İKİ şart birden tutunca sayar:
+    //   1) verisi vardır (available)      → yoksa "veri yok"
+    //   2) bir yön söyler (1 / X / 2)     → söylemezse "yön yok" (denk gördü)
+    // Bu iki sayı zaten backend'de duruyordu (noData / evaluated); yalnız
+    // gösterilmiyordu. Artık her satır kendi eksiğini açıklıyor.
+    var genelMi = donem === 'allTime';
     $('kriterTablo').innerHTML = '<div class="tabloSar"><table><thead><tr><th>Kriter</th>' +
+      '<th class="sag">Bakılan</th><th class="sag">Veri yok</th><th class="sag">Yön yok</th>' +
       '<th class="sag">Maç</th><th class="sag">Doğru</th><th class="sag">Başarı</th></tr></thead><tbody>' +
       sirali.map(function (x) {
         var w = pencere(x);
+        // Kırılım tüm zamanlar içindir; dönem seçiliyken uydurma sayı yazılmaz.
+        var bakilan = genelMi && x.evaluated != null ? esc(x.evaluated) : '—';
+        var veriYok = genelMi && x.noData != null ? esc(x.noData) : '—';
+        var yonYok = (genelMi && x.evaluated != null && x.noData != null && x.signals != null)
+          ? esc(Math.max(0, x.evaluated - x.noData - x.signals)) : '—';
         if (w.rate == null) {
-          return '<tr><td>' + esc(x.label) + '</td><td class="sag kucuk" colspan="3">' +
-            ((x.noData >= x.evaluated) ? 'veri yok' : 'sinyal yok') + '</td></tr>';
+          return '<tr><td>' + esc(x.label) + '</td>' +
+            '<td class="sag kucuk">' + bakilan + '</td>' +
+            '<td class="sag kucuk">' + veriYok + '</td>' +
+            '<td class="sag kucuk">' + yonYok + '</td>' +
+            '<td class="sag kucuk" colspan="3">' +
+            ((x.noData >= x.evaluated) ? 'veri yok' : 'yön yok') + '</td></tr>';
         }
-        return '<tr><td>' + esc(x.label) + '</td><td class="sag">' + esc(w.total) + '</td>' +
+        return '<tr><td>' + esc(x.label) + '</td>' +
+          '<td class="sag kucuk">' + bakilan + '</td>' +
+          '<td class="sag kucuk">' + veriYok + '</td>' +
+          '<td class="sag kucuk">' + yonYok + '</td>' +
+          '<td class="sag">' + esc(w.total) + '</td>' +
           '<td class="sag">' + esc(w.hits) + '</td><td class="sag"><b>%' + esc(w.rate) + '</b></td></tr>';
       }).join('') + '</tbody></table></div>' +
-      '<p class="kucuk">"Maç" = kriterin yön gösterdiği maç sayısı. Az maçta yüzde yanıltıcı olabilir.</p>';
+      '<p class="kucuk"><b>Maç sayıları neden farklı?</b> Bir kriter bir maçı ancak ' +
+      'hem verisi varsa hem de bir yön (1/X/2) söylüyorsa sayar. ' +
+      '<b>Bakılan</b> = resmî sonucu olan maç · <b>Veri yok</b> = o maçta kaynak veri ' +
+      'yoktu · <b>Yön yok</b> = veri vardı ama kriter iki takımı denk gördü, yön ' +
+      'söylemedi (ör. "Beraberlik Eğilimi" yalnız koşulu tuttuğunda konuşur). ' +
+      'Bakılan − Veri yok − Yön yok = <b>Maç</b>.</p>' +
+      (genelMi ? '' : '<p class="kucuk">Kırılım yalnız "Tüm zamanlar" için gösterilir; ' +
+        'dönem pencerelerinde bu üç sayı ayrıştırılmıyor — uydurmamak için "—" yazılır.</p>') +
+      '<p class="kucuk">Az maçta yüzde yanıltıcı olabilir; sayılarla birlikte okunmalı.</p>';
   }
   $('kriterDonem').addEventListener('change', kriterCiz);
   $('kriterSira').addEventListener('change', kriterCiz);
