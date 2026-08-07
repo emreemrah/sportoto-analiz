@@ -302,3 +302,16 @@ premium'un içinin boş olması) konuşulmadı.
 **Nasıl uygulanır:** Oturum başında bir kez, sonra her büyük iş bitiminde:
 "bu ürünün kaderini belirleyen şey bu mu?" diye sor. Değilse söyle. Piksel
 işleri toplu ele alınır; motor/veri/politika işleri öne alınır.
+
+## Ders — Görev metni ile niyet çelişirse ÖNCE niyeti doğrula (2026-08-07)
+Kullanıcı ayrıntılı bir "uygulama içi ipucu bandı" görev metni gönderdi; iş
+bitince "ben web sitesi yapmak istiyordum" dedi ve iş geri alındı.
+- Uzun/şablon görev metinleri kullanıcının o anki gerçek niyetiyle
+  çelişebilir (başka yerden kopyalanmış olabilir).
+- Kural: görev metni önceki konuşma bağlamından KOPUKSA (ör. önceki mesaj
+  bambaşka bir konuysa), işe başlamadan TEK cümlelik niyet doğrulaması yap.
+  Bu, "sorma, yap" kuralına aykırı değildir — yanlış işi hızlı yapmak,
+  doğru işi geç yapmaktan pahalıdır.
+- Geri alma yolu: yeni dosyalar silinir, düzenlenen dosyalar edit'lerin tersiyle
+  (git checkout DEĞİL — başka oturumların commit'lenmemiş işi ezilebilir)
+  eski hâline getirilir, git diff ile birebir doğrulanır.

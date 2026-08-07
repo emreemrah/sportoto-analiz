@@ -105,6 +105,13 @@
 
     <!-- ══════════ GENEL ══════════ -->
     <div data-panel="genel">
+      <!-- MÜHÜR ALARMI: en üstte, çünkü kaçırılan mühür geri alınamaz.
+           51. hafta tam da bu uyarı olmadığı için kaybedildi. -->
+      <div id="muhurAlarm"></div>
+      <section class="kart">
+        <h2>Mühür Durumu <span class="kucuk">— hafta başarı karnesine girebilir mi</span></h2>
+        <div id="muhurTablo"><p class="kucuk">Yükleniyor…</p></div>
+      </section>
       <section class="kart">
         <h2>Sistem Durumu <span class="kucuk" id="zamanBilgi"></span></h2>
         <div class="izgara" id="durumIzgara"></div>
@@ -189,6 +196,11 @@
         <div id="matrisTablo"><p class="kucuk">Taramayı çalıştır.</p></div>
       </section>
 
+      <section class="kart">
+        <h2>İleri-Doğrulama <span class="kucuk">— örüntü, hiç görmediği haftada tuttu mu</span></h2>
+        <p class="kucuk">Bir örüntüyü bulduğu verinin üzerinde ölçmek kendini doğrulamaktır. Burada örüntü ESKİ haftalarda aranır, EN SON hafta sınav olarak ayrılır. Tek gerçek kanıt bu tablodur.</p>
+        <div id="ileriDogrulama"><p class="kucuk">Tarama yapılmadı.</p></div>
+      </section>
       <section class="kart">
         <h2>Sonuç Örüntüleri — sinyalden bağımsız</h2>
         <div id="oruntuSonuc"><p class="kucuk">—</p></div>

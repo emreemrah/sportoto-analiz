@@ -212,6 +212,10 @@ export function oruntuTara(kayitlar, opt = {}) {
         sekilBaslik: sekil.baslik,
         kural: etiket,
         mac: grup.length,
+        // KEŞİF PAYI: grubun kaç maçı başarı karnesine girmeyen (mühürü zayıf)
+        // haftalardan geliyor. Tamamı keşiften geliyorsa bulgu daha temkinli
+        // okunmalı — bu yüzden gizlenmez, sayılır ve ekrana yazılır.
+        kesifMac: grup.filter((m) => m.kesif).length,
         sonuc: d.baskin,
         pay: d.baskinPay,
         tabanPay,
@@ -316,6 +320,7 @@ export function sinyalBasariTara(kayitlar, opt = {}) {
         sekilBaslik: sekil.baslik,
         kural: etiket,
         mac: grup.length,
+        kesifMac: grup.filter((m) => m.kesif).length,
         dogru,
         oran: grupOran,
         tabanOran,
@@ -336,7 +341,12 @@ export function sinyalBasariTara(kayitlar, opt = {}) {
 
   return {
     bulgular,
-    taban: { mac: liste.length, dogru: tabanDogru, oran: tabanOran },
+    taban: {
+      mac: liste.length,
+      dogru: tabanDogru,
+      oran: tabanOran,
+      kesifMac: liste.filter((k) => k.kesif).length,
+    },
     taranan,
     esikler: { minOrneklem, minSapma },
     uyari: liste.length < 60
@@ -370,4 +380,99 @@ export function buHaftayaUyanlar(oruntuler, buHafta) {
     });
   }
   return sonuc.sort((a, b) => a.no - b.no);
+}
+
+// ---------------------------------------------------------------------------
+// İLERİ-DOĞRULAMA (out-of-sample) — 2026-08-07
+// ---------------------------------------------------------------------------
+// BU BÖLÜM, YUKARIDAKİ TARAMANIN EN ZAYIF NOKTASINI KAPATIR.
+//
+// `oruntuTara` bir örüntüyü, o örüntüyü BULDUĞU verinin üzerinde ölçer. Bu
+// kaçınılmaz olarak iyimserdir: yeterince çok kural denenirse rastgele veride
+// bile çarpıcı gruplar çıkar ve aynı veride ölçülünce hepsi "başarılı" görünür.
+// Eşikler bunu azaltır, YOK ETMEZ.
+//
+// Tek gerçek sınav şudur: örüntüyü ESKİ haftalarda bul, HİÇ GÖRMEDİĞİ yeni
+// haftalarda dene. Tutarsa bir şey öğrenmişizdir; tutmazsa geçmişe uydurulmuş
+// bir şekildir. Bu ayrım, "sistem çalışıyor mu" sorusunun tek dürüst cevabıdır.
+//
+// YETERSİZ VERİDE NE OLUR: uydurma sonuç ÜRETİLMEZ. `yeterli:false` döner ve
+// kaç hafta gerektiği yazılır. Bugün elde 1-2 hafta var; bu fonksiyonun ilk
+// işi, o gerçeği ekrana söylemektir.
+
+/** İleri-doğrulama için gereken EN AZ hafta sayısı (eğitim + sınav). */
+export const MIN_HAFTA = 3;
+
+/** Bir kuralın sınav kümesindeki karşılığını ölçer. Saf. */
+function kuralOlc(sekilAd, etiket, liste) {
+  const sekil = KURAL_SEKILLERI.find((k) => k.ad === sekilAd);
+  if (!sekil) return null;
+  return liste.filter((m) => sekil.etiket(m) === etiket);
+}
+
+/**
+ * SONUÇ ÖRÜNTÜLERİ için ileri-doğrulama.
+ * Eski haftalarda bulunan örüntü, son `testHafta` haftada da tuttu mu?
+ *
+ * @param {Array} kayitlar   sinyalToplama çıktısı (roundId taşımalı)
+ * @param {object} [opt]     testHafta + oruntuTara eşikleri
+ */
+export function ileriDogrula(kayitlar, opt = {}) {
+  const testHafta = opt.testHafta ?? 1;
+  const liste = (kayitlar || []).filter((k) => k.sonuc && Number.isFinite(Number(k.roundId)));
+  const haftalar = [...new Set(liste.map((k) => Number(k.roundId)))].sort((a, b) => a - b);
+
+  // DÜRÜSTLÜK KAPISI: veri yetmiyorsa sonuç uydurulmaz.
+  if (haftalar.length < MIN_HAFTA) {
+    return {
+      yeterli: false,
+      hafta: haftalar.length,
+      gerekenHafta: MIN_HAFTA,
+      bulgular: [],
+      sebep: `İleri-doğrulama için en az ${MIN_HAFTA} sonuçlanmış hafta gerekir; `
+        + `şu an ${haftalar.length} hafta var. Bu sayı altında "örüntü tuttu" demek, `
+        + 'örüntüyü bulduğu verinin üzerinde ölçmek olur — kendini doğrulayan bir ölçüdür.',
+    };
+  }
+
+  const sinavHaftalari = new Set(haftalar.slice(-testHafta));
+  const egitim = liste.filter((k) => !sinavHaftalari.has(Number(k.roundId)));
+  const sinav = liste.filter((k) => sinavHaftalari.has(Number(k.roundId)));
+
+  // Örüntüler YALNIZ eğitim verisinde aranır. Sınav verisi burada görülmez.
+  const tarama = oruntuTara(egitim, opt);
+
+  const bulgular = [];
+  for (const o of tarama.oruntuler) {
+    const sinavGrup = kuralOlc(o.sekil, o.kural, sinav) || [];
+    const d = dagilimHesapla(sinavGrup);
+    // Sınavda o kurala hiç maç düşmediyse "tuttu" da "tutmadı" da denmez.
+    const tuttu = d ? (d.dagilim[o.sonuc] ?? 0) : null;
+    bulgular.push({
+      ...o,
+      sinav: {
+        mac: sinavGrup.length,
+        // Eğitimde baskın çıkan sonuç, sınavda kaç maçta gerçekleşti.
+        isabet: sinavGrup.filter((m) => m.sonuc === o.sonuc).length,
+        oran: tuttu,
+        sonuc: tuttu == null ? 'veri yok' : (tuttu >= o.pay ? 'tuttu' : (tuttu >= 50 ? 'kısmen' : 'tutmadı')),
+      },
+    });
+  }
+
+  return {
+    yeterli: true,
+    hafta: haftalar.length,
+    egitimHafta: haftalar.length - sinavHaftalari.size,
+    sinavHafta: sinavHaftalari.size,
+    sinavHaftaListesi: [...sinavHaftalari],
+    egitimMac: egitim.length,
+    sinavMac: sinav.length,
+    taranan: tarama.taranan,
+    bulgular,
+    uyari: bulgular.length
+      ? 'Sınav sütunu, örüntünün HİÇ GÖRMEDİĞİ haftalardaki karşılığıdır. '
+        + 'Yalnız bu sütun gerçek kanıttır; soldaki oranlar örüntünün kendi verisidir.'
+      : 'Eğitim verisinde eşikleri geçen örüntü çıkmadı.',
+  };
 }

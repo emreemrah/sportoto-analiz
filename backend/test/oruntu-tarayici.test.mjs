@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  MIN_ORNEKLEM, bant, dagilimHesapla, guvenDerecesi, oruntuTara, buHaftayaUyanlar,
+  MIN_ORNEKLEM, bant, dagilimHesapla, guvenDerecesi, oruntuTara, buHaftayaUyanlar, sinyalBasariTara,
   KURAL_SEKILLERI,
 } from '../src/analysis/oruntuTarayici.js';
 
@@ -202,4 +202,45 @@ test('sinyalBasariTara: az veride bulgu üretmez, açık uyarı verir', async ()
   const r = sinyalBasariTara([M(1, 1, 'X', { 1: 44, X: 30, 2: 26 }, 'X')]);
   assert.equal(r.bulgular.length, 0);
   assert.ok(r.uyari);
+});
+
+// ---------------------------------------------------------------------------
+// KEŞİF HAVUZU (2026-08-07)
+// ---------------------------------------------------------------------------
+// Bulgunun kaç maçı "mühürü zayıf" haftadan geliyor SAYILMALI ve çıktıda
+// görünmeli. Görünmezse operatör, tamamı keşiften gelen bir bulguyu resmî
+// başarı sanır — bu, projenin "yalnız resmî sonuç kesindir" kuralının ihlali
+// olur. Bu yüzden sayaç isteğe bağlı değil.
+test('kesifMac: bulgudaki keşif kaynaklı maç sayısı raporlanır', () => {
+  const kayitlar = [];
+  for (let i = 0; i < 8; i += 1) {
+    kayitlar.push({ no: 3, sonuc: '1', oynanma: null, sinyal: '1', kesif: i < 5 });
+  }
+  for (let i = 0; i < 8; i += 1) {
+    kayitlar.push({ no: 9, sonuc: '2', oynanma: null, sinyal: '2', kesif: false });
+  }
+  const r = oruntuTara(kayitlar, { minOrneklem: 6, minBaskinlik: 55, minSapma: 10 });
+  const b = r.oruntuler.find((o) => o.kural === '3. sıra');
+  assert.ok(b, '3. sıra bulgusu bekleniyordu');
+  assert.equal(b.mac, 8);
+  assert.equal(b.kesifMac, 5, 'keşif kaynaklı maç sayısı yanlış');
+});
+
+test('kesifMac: etiket yoksa 0 sayılır, undefined bırakılmaz', () => {
+  const kayitlar = Array.from({ length: 8 }, () => ({ no: 4, sonuc: 'X', oynanma: null }));
+  const r = oruntuTara(kayitlar, { minOrneklem: 6, minBaskinlik: 55, minSapma: 5 });
+  for (const o of r.oruntuler) assert.equal(typeof o.kesifMac, 'number');
+});
+
+test('sinyalBasariTara: taban ve bulgu keşif payını taşır', () => {
+  const kayitlar = [];
+  for (let i = 0; i < 10; i += 1) {
+    kayitlar.push({ no: 2, sonuc: '1', sinyal: '1', oynanma: null, kesif: i < 4 });
+  }
+  for (let i = 0; i < 10; i += 1) {
+    kayitlar.push({ no: 7, sonuc: '2', sinyal: '1', oynanma: null, kesif: false });
+  }
+  const r = sinyalBasariTara(kayitlar, { minOrneklem: 6 });
+  assert.equal(r.taban.kesifMac, 4);
+  for (const b of r.bulgular) assert.equal(typeof b.kesifMac, 'number');
 });
