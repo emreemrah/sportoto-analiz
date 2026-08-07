@@ -303,9 +303,8 @@ export default function SystemScorecardScreen({ navigation }) {
               );
             })}
           <Text style={styles.honestNote}>
-            Bir kritere dokun: hangi maç tipinde (ağır favori / denk / açık),
-            kalabalık ne derken ve hangi sırada başarılı olduğunu ayrı ayrı
-            gösterir. Tek ortalama bunları gizler.
+            Bir kritere dokun: o kriterin yön verdiği maçlar tek tabloda —
+            sıra, oran, oynanma yüzdesi, kriterin dediği ve resmî sonuç.
           </Text>
           <Text style={styles.honestNote}>
             "X maçta Y başarı" = kriterin yön gösterdiği maç sayısı ve doğru
