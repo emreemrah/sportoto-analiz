@@ -222,10 +222,6 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.btnLeaderTxt}>📊  Başarı Panelim</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.btn, styles.btnLeader]} onPress={() => navigation.navigate('AnalysisSettings')}>
-        <Text style={styles.btnLeaderTxt}>🧩  Analiz Kriterlerim</Text>
-      </TouchableOpacity>
-
       {/* "Tahmin Sıralaması" (puan tabanlı liderlik) oyunlaştırmayla birlikte kaldırıldı. */}
 
       {/* PREMIUM KODU — operatörün verdiği kodla erişim açma ekranı.

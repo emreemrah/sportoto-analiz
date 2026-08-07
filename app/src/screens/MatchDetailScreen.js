@@ -8,7 +8,7 @@ import CommentsSection from '../CommentsSection';
 import { MatchHeader, Tabs, Accordion, SectionCard, Logo } from '../ui';
 import CouponPickBlock from '../components/CouponPickBlock';
 import MatchInfoCard from '../components/MatchInfoCard';
-import UserAnalysisView from '../components/UserAnalysisView';
+import KriterBasariListesi from '../components/KriterBasariListesi';
 import { statsFromLog, derivedStats } from '../analysis/criteria';
 import MasterAnalysisView from '../components/MasterAnalysisView';
 import TeamCompareRadar from '../components/TeamCompareRadar';
@@ -341,9 +341,13 @@ export default function MatchDetailScreen({ route, navigation }) {
           Kullanıcının seçtiği kriterler sunucuda hesaplanır; mühürlü haftada
           mühürlü değerlendirme gösterilir. Radar kıyası ayrı sistem olarak sunulur. */}
       <MasterAnalysisView m={m} navigation={navigation} />
-      {/* Yerel hızlı görünüm — aynı kriter mantığının cihaz kopyası (parite
-          testli). Çevrimdışı durumda da çalışır; mevcut tasarım korunur. */}
-      <UserAnalysisView m={m} navigation={navigation} />
+      {/* KRİTER BAŞARILARI (kullanıcı kararı, 2026-08-07). Burada eskiden
+          kullanıcının kriter seçtiği panel vardı; o sistem tamamen kaldırıldı.
+          Yerine kriterlerin GEÇMİŞ karnesi geldi: satıra dokununca o kriterin
+          yön verdiği bütün maçlar oranı ve oynanma yüzdesiyle listelenir.
+          Ekran hüküm vermez — "bu kriter iyidir" demez; kullanıcı ham maçlara
+          bakarak kendi kararını verir. */}
+      <KriterBasariListesi navigation={navigation} />
       </>)}
 
       {/* 🎛️ FİLTRELİ KARNE — İstatistik sekmesinin merkezi. Görsel dil: kullanıcının

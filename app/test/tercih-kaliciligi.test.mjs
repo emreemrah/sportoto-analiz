@@ -1,6 +1,6 @@
 // TERCİH KALICILIĞI — telefonda ayarlar uygulama kapanınca kaybolmasın.
 //
-// DOĞRULANMIŞ EKSİK: `prefs.js` ve `analysisProfile.js` yalnız `localStorage`
+// DOĞRULANMIŞ EKSİK: tercih depoları yalnız `localStorage`
 // kullanıyordu. React Native'de localStorage YOKTUR; dolayısıyla telefonda
 //   * görünüm tercihleri (tablo/grafik, sıralama, filtre hatırlama…) ve
 //   * kullanıcının kendi kurduğu analiz profilleri (kriterler, ağırlıklar)
@@ -21,7 +21,9 @@ const KOK = join(dirname(fileURLToPath(import.meta.url)), '..');
 const oku = (p) => readFileSync(join(KOK, 'src', p), 'utf8')
   .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
-const DOSYALAR = ['prefs.js', 'analysisProfile.js'];
+// analysisProfile.js 2026-08-07'de kaldırıldı (kriter seçme sistemi gitti);
+// kalıcılık kuralı yaşayan tek tercih deposu için geçerli.
+const DOSYALAR = ['prefs.js'];
 
 test('iki depo da AsyncStorage yedeğine sahip', () => {
   for (const d of DOSYALAR) {
@@ -58,10 +60,6 @@ test('geç gelen DİSK, kullanıcının taze seçimini EZMİYOR', () => {
   const prefs = oku('prefs.js');
   assert.match(prefs, /\{ \.\.\.defaults, \.\.\.JSON\.parse\(raw\), \.\.\.\(cache \|\| \{\}\) \}/,
     'prefs.js: disk, mevcut seçimin ÜSTÜNE yazıyor');
-
-  const profil = oku('analysisProfile.js');
-  assert.match(profil, /if \(raw == null \|\| bellek\.has\(anahtar\)\) return;/,
-    'analysisProfile.js: disk, mevcut kaydı eziyor');
 });
 
 test('web davranışı DEĞİŞMEDİ (localStorage hâlâ birincil)', () => {

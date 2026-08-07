@@ -27,8 +27,6 @@ import {
 import { OUTCOMES, columnCount, costOf, validPricing, COUPON_MAX_COLUMNS, lockAtOf, lockMapOf } from '../couponConfig';
 import { getCoupon, finalVersion, createCoupon, addVersion, renameCoupon, getDraft, clearDraft } from '../coupon/store';
 import { buildSmartCoupon, diffSelections, proposalFrom, signalsOf } from '../coupon/smart';
-import { getActiveProfile, countOn } from '../analysisProfile';
-import { ekranMotoruylaAktar } from '../kriterAktarim';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 // Backend etiketi ('BANKO' gibi) EKRANA HAM BASILMAZ; sözlükten geçirilir.
@@ -44,8 +42,6 @@ export default function CouponEditorScreen({ route, navigation }) {
   const [name, setName] = useState('');
   const [openNo, setOpenNo] = useState(null);       // detay açık maç
   const [importState, setImportState] = useState(null); // { title, changes, proposed, notes }
-  const [kriterSecim, setKriterSecim] = useState(false); // tekli/geniş seçim penceresi
-  const [kriterYukleniyor, setKriterYukleniyor] = useState(false);
   const [smartOpen, setSmartOpen] = useState(false);
   const [budgetTxt, setBudgetTxt] = useState('');
   const [target, setTarget] = useState(13);
@@ -152,41 +148,6 @@ export default function CouponEditorScreen({ route, navigation }) {
   const applyImport = () => {
     setPicks((p) => ({ ...p, ...importState.proposed }));
     setImportState(null);
-  };
-
-  // ——— KRİTER: kullanıcının SEÇTİĞİ kriterlerle hesap (tekli / geniş). ———
-  const kriterAktar = async (genis) => {
-    setKriterSecim(false);
-    const profil = getActiveProfile();
-    if (!profil || !countOn(profil)) {
-      uyari.alert('Kriter seti yok', 'Önce "Analiz Kriterlerim" ekranından kriterlerini seç — kriter aktarımı senin setinle hesaplanır, uydurulmaz.');
-      return;
-    }
-    setKriterYukleniyor(true);
-    try {
-      // EKRANLA AYNI MOTOR (2026-08-06 ikinci düzeltme): Maç Detayı → Analiz
-      // ekranındaki "Ana Seçim / Alternatif" ile burası birebir aynı sonucu
-      // vermeli. O ekran yerel kriter motorunu kullanıyor; kupon da artık onu
-      // kullanıyor. Backend'e ayrı bir hesap İSTENMEZ — iki motor iki farklı
-      // cevap veriyordu (ekran "1X" derken kupon "1-2" öneriyordu).
-      const { secimler: proposed, uyarilar } = ekranMotoruylaAktar(matches, profil, {
-        genis, kilitliNolar: lockedNos,
-      });
-      if (!Object.keys(proposed).length) {
-        uyari.alert('Veri yok', ['Kriter setinle hesaplanan tahmin bulunamadı.', ...uyarilar].join('\n\n'));
-        return;
-      }
-      const changes = diffSelections(picks, proposed);
-      if (!changes.length) { uyari.alert('Fark yok', 'Kriter önerisi, mevcut seçimlerinle zaten aynı.'); return; }
-      setImportState({
-        title: genis ? 'Kriter analizinden aktar (geniş)' : 'Kriter analizinden aktar (tekli)',
-        changes, proposed, notes: uyarilar,
-      });
-    } catch (e) {
-      uyari.alert('Hesaplanamadı', e.message);
-    } finally {
-      setKriterYukleniyor(false);
-    }
   };
 
   // ——— SEÇİMİM: elle seçim — kilitli olmayan tüm seçimleri temizler. ———
@@ -394,14 +355,14 @@ export default function CouponEditorScreen({ route, navigation }) {
 
       {!allLocked ? (
         <View style={st.footer}>
-          {/* AKTARIM SEÇENEKLERİ YENİLENDİ (kullanıcı kararı, 2026-08-04):
-              "Sistemden/Radardan/Akıllı" yerine üç seçenek:
-              • Sistem  → bülten maç kartındaki tahminler (m.prediction)
-              • Kriter  → kullanıcının SEÇTİĞİ kriterlerle hesap (tekli/geniş)
+          {/* AKTARIM SEÇENEKLERİ (2026-08-07 güncellemesi):
+              • Sistem  → bülten maç kartındaki resmî tahminler (m.prediction)
               • Seçimim → elle seçim: otomatik dolguları temizler
-              Akıllı Kupon kodu ve testleri duruyor; yalnız düğmesi kaldırıldı. */}
+              "Kriter" seçeneği KALDIRILDI: kullanıcının kriter seçme sistemi
+              tamamen kalktığı için o düğme artık "Sistem" ile aynı hesabı
+              yapardı. İki isim tek işi yapınca kullanıcı hangisinin ne olduğunu
+              bilemez; o yüzden tek düğme bırakıldı. */}
           <Dugme k={k} text="⚙ Sistem" onPress={() => startImport('system')} style={{ flex: 1 }} />
-          <Dugme k={k} text="🎛 Kriter" onPress={() => setKriterSecim(true)} style={{ flex: 1 }} />
           <Dugme k={k} text="✍️ Seçimim" onPress={secimimTemizle} style={{ flex: 1 }} />
           <Dugme
             k={k}
@@ -439,30 +400,6 @@ export default function CouponEditorScreen({ route, navigation }) {
       </Modal>
 
       {/* KRİTER AKTARIMI — tekli mi geniş mi? Karar kullanıcının. */}
-      <Modal visible={kriterSecim} transparent animationType="fade" onRequestClose={() => setKriterSecim(false)}>
-        <View style={st.modalBg}>
-          <View style={st.modal}>
-            <Text style={st.mTitle}>🎛 Kriter Analizinden Aktar</Text>
-            <Text style={st.mSub}>
-              Senin seçtiğin kriterlerle hesaplanır ("Analiz Kriterlerim").
-              Tekli: her maça tek işaret. Geniş: gerekli görülen maçlarda
-              alternatifli (çifte) işaret — kolon sayısı artar.
-            </Text>
-            <View style={st.mBtns}>
-              <TouchableOpacity style={st.mCancel} onPress={() => kriterAktar(false)} disabled={kriterYukleniyor}>
-                <Text style={st.mCancelTxt}>Tekli</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={st.mOk} onPress={() => kriterAktar(true)} disabled={kriterYukleniyor}>
-                <Text style={st.mOkTxt}>Geniş</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity onPress={() => setKriterSecim(false)}>
-              <Text style={[st.mCancelTxt, { textAlign: 'center', marginTop: 10 }]}>Vazgeç</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
       {/* AKILLI KUPON — düğmesi kaldırıldı (2026-08-04); kod ve testler duruyor. */}
       <Modal visible={smartOpen} transparent animationType="fade" onRequestClose={() => setSmartOpen(false)}>
         <View style={st.modalBg}>

@@ -114,12 +114,6 @@ export const api = {
   // Ortalama tek başına yanıltıcı olduğu için var.
   analysisCriterionKirilim: (key) => req(`/api/analysis/criteria/${encodeURIComponent(key)}/kirilim`),
   analysisMethodology: () => req('/api/analysis/methodology'),
-  analysisProfiles: () => req('/api/analysis/profiles'),
-  analysisProfileCreate: (b) => req('/api/analysis/profiles', { method: 'POST', body: b }),
-  analysisProfileUpdate: (id, b) => req(`/api/analysis/profiles/${id}`, { method: 'PUT', body: b }),
-  analysisProfileDuplicate: (id, name) => req(`/api/analysis/profiles/${id}/duplicate`, { method: 'POST', body: { name } }),
-  analysisProfileDelete: (id) => req(`/api/analysis/profiles/${id}`, { method: 'DELETE' }),
-  analysisProfileSetDefault: (id) => req(`/api/analysis/profiles/${id}/set-default`, { method: 'POST' }),
   analysisCalcBulletin: (bulletinId, body) => req(`/api/analysis/bulletins/${bulletinId}/calculate`, { method: 'POST', body }),
   analysisCalcMatch: (matchId, body) => req(`/api/analysis/matches/${matchId}/calculate`, { method: 'POST', body }),
   analysisOfficial: (bulletinId) => req(`/api/analysis/bulletins/${bulletinId}/official`),
@@ -129,8 +123,6 @@ export const api = {
   // dondurulmuş değerlendirme döner. Mühür yoksa 404 gelir ve ekran bunu
   // dürüstçe yazar — uydurma analiz üretilmez.
   analysisSealedMatch: (bulletinId, no) => req(`/api/analysis/bulletins/${bulletinId}/matches/${no}`),
-  analysisSaveUser: (bulletinId, body) => req(`/api/analysis/bulletins/${bulletinId}/save-user-analysis`, { method: 'POST', body }),
-  analysisGetUser: (bulletinId) => req(`/api/analysis/bulletins/${bulletinId}/user`),
   analysisBacktest: (b) => req('/api/analysis/backtest', { method: 'POST', body: b }),
   analysisBacktestGet: (runId) => req(`/api/analysis/backtest/${runId}`),
 

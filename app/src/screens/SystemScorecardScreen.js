@@ -34,12 +34,10 @@ const fmtT = (iso) => (iso ? `${matchDate(iso).day} ${matchDate(iso).time}` : '�
 export default function SystemScorecardScreen({ navigation }) {
   const [sc, setSc] = useState(null);          // sistem (resmî + kapsama + provenance)
   const [radar, setRadar] = useState(null);    // resmî radar karnesi
-  const [crit, setCrit] = useState(null);      // resmî kriter karnesi
   const [cal, setCal] = useState(null);        // kalibrasyon (olasılık kalitesi)
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [section, setSection] = useState('ozet'); // sade özet varsayılan (2026-08-06)
-  const [critDonem, setCritDonem] = useState('allTime'); // kriter dönem penceresi
 
   const load = useCallback(async () => {
     try {
@@ -49,7 +47,6 @@ export default function SystemScorecardScreen({ navigation }) {
       // Yan karneler ayrı ayrı — biri düşerse diğerleri görünmeye devam eder.
       // (Retrospektif uç ÇAĞRILMAZ — legacy başarılar kullanıcıya gösterilmez.)
       api.scorecardsRadar().then(setRadar).catch(() => {});
-      api.scorecardsCriteria().then(setCrit).catch(() => {});
       api.scorecardsCalibration().then(setCal).catch(() => {});
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
@@ -242,82 +239,6 @@ export default function SystemScorecardScreen({ navigation }) {
         <EmptyLine text={radar?.note || 'Henüz resmî Radar ileri-test verisi yok. Gerçek bültenler mühürlenip sonuçlandıkça karne oluşacaktır.'} />
       ))}
 
-      {/* 6) KRİTER KARNESİ (resmî) */}
-      {section === 'criteria' && (crit?.hasData ? (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Kriter Başarıları</Text>
-          {/* DÖNEM SEÇİCİ (kullanıcı isteği, 2026-08-06): Genel / Son Hafta /
-              Son 5 / Son 10 / Son 15. Pencereler backend'den mühürlü veriyle
-              gelir; arşiv büyüdükçe kendiliğinden dolar. */}
-          <View style={styles.donemSatir}>
-            {[['allTime', 'Genel'], ['last1', 'Son Hafta'], ['last5', 'Son 5'], ['last10', 'Son 10'], ['last15', 'Son 15']].map(([kk, etiket]) => (
-              <TouchableOpacity
-                key={kk}
-                style={[styles.donemBtn, critDonem === kk && styles.donemBtnAcik]}
-                onPress={() => setCritDonem(kk)}
-              >
-                <Text style={[styles.donemTxt, critDonem === kk && styles.donemTxtAcik]}>{etiket}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          {/* DÖNEM UYARISI: arşivde pencereden az hafta varsa dönemler aynı
-              veriyi gösterir — kullanıcı bunu "bozuk" sanmasın (2026-08-06). */}
-          {Number(crit.includedCount) > 0 && Number(crit.includedCount) < 5 ? (
-            <Text style={styles.ozetAciklama}>
-              ℹ️ Arşivde şu an {crit.includedCount} resmî hafta var — bu yüzden
-              tüm dönemler aynı sayıları gösterir. Haftalar mühürlenip
-              sonuçlandıkça Son 5/10/15 pencereleri kendiliğinden ayrışacak.
-            </Text>
-          ) : null}
-          {/* TÜM kriterler (kullanıcı isteği): sinyal üretmeyenler de listede,
-              dürüstçe "sinyal yok" der — gizlenmez, oran uydurulmaz. */}
-          {[...crit.criteria]
-            .filter((c) => !c.informational)
-            .sort((a, b) => (b.windows?.[critDonem]?.total || 0) - (a.windows?.[critDonem]?.total || 0))
-            .map((c) => {
-              const w = c.windows?.[critDonem] || { rate: null, hits: 0, total: 0 };
-              return (
-                // TIKLANABİLİR (2026-08-07). Kullanıcı bildirimi: "bu kriter
-                // başarılı ama favori maçlarda mı, zor maçlarda mı bilmiyorum —
-                // yoksa yanıltıcı oluyor." Tek ortalama, birbirinin zıddı iki
-                // gerçeği tek sayıya eziyor. Satıra basınca kırılım açılır.
-                <TouchableOpacity
-                  key={c.key}
-                  activeOpacity={0.7}
-                  onPress={() => navigation.navigate('KriterKirilim', { key: c.key, ad: c.label })}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${c.label} kriterinin kırılımını aç`}
-                  style={styles.critRow}
-                >
-                  <Text style={styles.critName} numberOfLines={1}>{c.label}</Text>
-                  {/* "1008 maçta 809 başarı" biçimi (kullanıcı isteği, 2026-08-06):
-                      yüzdenin yanında ham sayılar da görünür — n tek başına
-                      soyut kalıyordu. */}
-                  <Text style={[styles.critVal, w.rate == null && { color: colors.textMuted }]}>
-                    {w.rate != null
-                      ? `${w.total} maçta ${w.hits} başarı · %${w.rate}`
-                      : (c.noData >= c.evaluated ? 'veri yok' : 'sinyal yok')}
-                  </Text>
-                  <Text style={styles.critChevron}>›</Text>
-                </TouchableOpacity>
-              );
-            })}
-          <Text style={styles.honestNote}>
-            Bir kritere dokun: o kriterin yön verdiği maçlar tek tabloda —
-            sıra, oran, oynanma yüzdesi, kriterin dediği ve resmî sonuç.
-          </Text>
-          <Text style={styles.honestNote}>
-            "X maçta Y başarı" = kriterin yön gösterdiği maç sayısı ve doğru
-            çıkan yön sayısı. Az maçta yüzde yanıltıcı olabilir — sayılarla
-            birlikte okunmalı. "Sinyal yok": kriter o dönemde yön göstermedi;
-            "veri yok": kaynak veri hiç yoktu.
-          </Text>
-          {crit.note ? <Text style={styles.honestNote}>{crit.note}</Text> : null}
-        </View>
-      ) : (
-        <EmptyLine text={crit?.note || 'Henüz resmî kriter verisi yok — rozetler gerçek bültenler mühürlenip sonuçlandıkça dolacaktır.'} />
-      ))}
-
       {/* 7) KALİBRASYON — "kaç tuttu" DEĞİL, söylenen olasılığın kalitesi.
           ANA RAKAM skill score'dur; isabet oranı bilerek başlıkta değildir
           (bkz. src/calibrationLogic.js sunum kuralları). */}
@@ -465,13 +386,7 @@ const styles = StyleSheet.create({
 
   // Beş çip 360px'e sığmayıp sonuncusu alt satıra düşüyordu. Dolgu ve punto
   // indirildi; sarma yine açık ama artık tek satırda duruyor.
-  donemSatir: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 8, marginBottom: 10 },
-  donemBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 5, backgroundColor: colors.surfaceSoft },
-  donemBtnAcik: { backgroundColor: colors.primary, borderColor: colors.primary },
-  donemTxt: { color: colors.textSoft, fontSize: 10.5, fontWeight: '800' },
-  donemTxtAcik: { color: '#fff' },
   critRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border },
-  critChevron: { color: colors.textMuted, fontSize: 17, fontWeight: '900' },
   // Değer metni ('1008 maçta 809 başarı · %80') sabit davranıp kriter adını
   // eziyordu; ikisi de kısalabilir oldu, satır tek satır kalır.
   critName: { flex: 1, minWidth: 0, color: colors.text, fontSize: 12.5, fontWeight: '700' },

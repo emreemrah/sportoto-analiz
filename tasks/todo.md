@@ -109,3 +109,51 @@ mı? Eksik id, script'i o satırda öldürür ve ekran "boş ama hatasız" gör�
 **Doğrulama:** backend süitleri parça parça çalıştırıldı, **0 başarısız**.
 Panelin tarayıcıda görsel doğrulaması **yapılamadı** (Chrome eklentisi oturum
 sırasında bağlantıyı kesti) — bu adım açık kaldı.
+
+## Kriter Seçimi Kaldırıldı → Kriter Başarıları Maç İçine (2026-08-07)
+
+Kullanıcı kararı ve gerekçesi: "Yorum katmayacaksın, olanı göstereceksin. Bu
+kriter burada başarılı demeyecek — bunu ben tutan maçlardan kendim bakarak
+anlamam lazım." Kriter seçme paneli kaldırıldı; yerine kriterlerin GEÇMİŞ
+karnesi ve ham maç tablosu kondu.
+
+### Eklenen
+- `app/src/components/KriterBasariListesi.js` — maç detayı → Analiz sekmesinde
+  kriter karnesi (dönem seçici + satır: "12 maçta 7 başarı · %58 ›").
+- `KriterKirilimScreen` sadeleşti: yorum, bant adı ve hüküm YOK; tek ham tablo
+  (sıra · maç · oran 1/X/2 · oynanma % 1/X/2 · kriter · sonuç · skor · hafta ·
+  ✓/✗) + Hepsi/Tuttu/Tutmadı süzgeci + Hafta/Sıra/Oran/Oynanma sıralaması.
+
+### Kaldırılan (kullanıcı onayıyla)
+- `app/src/screens/AnalysisSettingsScreen.js` — "Analiz Kriterlerim" ekranı
+- `app/src/analysisProfile.js` — profil deposu (seçim, etki, Manuel/Akıllı)
+- `app/src/components/UserAnalysisView.js` — kullanıcı seçimli analiz görünümü
+- `app/src/analysis/engine.js` + `thresholds.js` — cihazdaki hafif kriter motoru
+- `app/src/kriterAktarim.js` — kupona kriterle aktarım
+- Kupon editöründeki "🎛 Kriter" düğmesi ve penceresi
+- Sistem Karnesi'ndeki "Kriter" sekmesi (artık maç içinde)
+- Backend: `/api/analysis/profiles*` (7 uç), `save-user-analysis`,
+  `/bulletins/:id/user`; `resolveProfile()` artık HER ZAMAN resmî profil döner
+  (istek gövdesindeki profil YOK SAYILIR — eski istemci arka kapı açamaz).
+- Testler: `analysis-profile`, `kriter-aktarim`, `analysis-honesty`,
+  `esik-birligi` (kaldırılan kodu test ediyorlardı).
+
+### Davranış değişikliği
+- "⚙ Sistemden al" artık bültenin **resmî tahminine** (`m.prediction`) bağlı;
+  tahmin yoksa seçim yapılmaz (uydurma sembol yazılmaz).
+- Master Analiz kutusundaki "Profil: … · Mod: …" satırı kalktı (tek profil var).
+
+### Korundu (bilerek)
+- `backend/src/analysis/analysisStore.js` profil/kullanıcı-analizi metotları ve
+  `analysis_profiles` tablosu: **hesap silme akışı** o tabloyu temizliyor
+  (`accountDeletion.js`). Eski kullanıcı verisi silinebilir kalmalı.
+- `localData.js` içindeki eski profil anahtarları: çıkış/hesap silmede temizlik.
+
+### Doğrulama
+- app: 501 test, 500 geçti (`simple-test.mjs` bu işten ÖNCE de kırıktı).
+- backend: tüm süitler parça parça çalıştırıldı, **0 başarısız**.
+- Kalıntı taraması: `analysisProfile|AnalysisSettings|UserAnalysisView|
+  kriterAktarim|analysis/engine` → yalnız localData anahtarları (kasıtlı).
+- Belgeler güncellendi: CLAUDE.md "İKİ MOTOR" → "TEK MOTOR" + kriter seçimi yok;
+  HANDOFF.md §6 ve frontend dosya listesi.
+- **Yapılamadı:** tarayıcıda görsel doğrulama (Chrome eklentisi bağlı değil).

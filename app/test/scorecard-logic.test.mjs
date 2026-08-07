@@ -43,7 +43,10 @@ test('25. resmî veri yokken doğru dürüst boş durum metinleri', () => {
 test('19+22. YENİ BAŞLANGIÇ: Retrospektif sekmesi ve eski radar rozeti kullanıcıya YOK', () => {
   // Normal kullanıcı sekmelerinde Retrospektif yoktur:
   // (T9: 'calibration' sekmesi eklendi — olasılık kalitesi ölçümü, resmî veriye dayanır.)
-  assert.deepEqual(USER_SECTIONS.map((s) => s.key), ['ozet', 'official', 'weeks', 'byResult', 'coverage', 'radar', 'criteria', 'calibration']);
+  // 'criteria' sekmesi 2026-08-07'de kaldırıldı: kriter başarıları artık maç
+  // detayı → Analiz sekmesinde, ham maç tablosuyla birlikte duruyor.
+  assert.deepEqual(USER_SECTIONS.map((s) => s.key), ['ozet', 'official', 'weeks', 'byResult', 'coverage', 'radar', 'calibration']);
+  assert.ok(!USER_SECTIONS.some((x) => x.key === 'criteria'), 'Kriter sekmesi karneden kaldırıldı — maç içine taşındı');
   assert.equal(USER_SECTIONS[0].key, 'ozet', 'Özet ilk sekme olmalı — sade dil önce (2026-08-06)');
   assert.ok(!USER_SECTIONS.some((x) => x.key === 'tech'), 'Teknik sekme kullanıcıya geri gelmiş — iç ayrıntılar gösterilmez (2026-08-06)');
   assert.ok(!USER_SECTIONS.some((s) => /retro/i.test(s.key) || /retrospektif/i.test(s.label)), 'Retrospektif sekmesi kaldırıldı');

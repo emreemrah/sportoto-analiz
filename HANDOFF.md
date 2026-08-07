@@ -75,38 +75,42 @@ Resmi Spor Toto bültenini + FootyStats/API-Football verisini birleştirip her m
 - `mw.js` — `requireAuth` (Supabase token → req.user).
 
 **Frontend (app/src)**
-- `userMatchEngine.js` — 6 kriterli HAFİF motor; YALNIZ `broadcastStudio.js`
-  (Haftanın Özeti) kullanır. **ANA MOTOR DEĞİLDİR** — ürün standardı
-  `backend/src/analysis/masterEngine.js`'tir (40 kriter, `/api/analysis`).
+- **Cihazda kriter motoru YOKTUR** (2026-08-07). Eskiden iki hafif yerel motor
+  vardı (`userMatchEngine.js`, sonra `analysis/engine.js`); ikisi de kaldırıldı.
+  Tek motor: `backend/src/analysis/masterEngine.js` (40 kriter, `/api/analysis`).
 - `couponStore.js` / `couponConfig.js` — kupon veri/kural + sunucu senkron + taslak.
-- `screens/MatchDetailScreen.js` — maç detay (Özet/Analiz/İstatistik/Karşılaştırma/
-  Yorumlar sekmeleri). "Analiz" sekmesi = UserAnalysisView + Kazanma İhtimalleri.
+- `screens/MatchDetailScreen.js` — maç detay (Özet/Analiz/İstatistik/Yorumlar).
+  **"Analiz" sekmesi (2026-08-07)** = Master Analiz kutusu + `KriterBasariListesi`.
+  Liste satırına dokununca `KriterKirilimScreen` açılır: o kriterin yön verdiği
+  TÜM maçlar ham hâlde (sıra · oran 1/X/2 · oynanma % · kriter · sonuç · ✓/✗)
+  + Hepsi/Tuttu/Tutmadı süzgeci + Hafta/Sıra/Oran/Oynanma sıralaması.
+  Ekran **hüküm vermez**; kullanıcı maçlara bakıp kendi kararını verir.
 - `screens/BulletinScreen.js` — bülten (güncel + geçmiş, canlı skor, filtreler).
 - `screens/CouponCenterScreen.js` / `CouponEditorScreen.js` — Kupon Merkezi / editör.
   (Eski `CouponBuilderScreen`/`CouponsScreen` SİLİNDİ — 2026-07-24 kupon yenilemesi.)
 - `screens/UserDashboardScreen.js` — Başarı Panelim (yalnız resmi sonuç).
 - `screens/RadarScreen.js` — "Radar" sekmesi (sürpriz radarı) + Sistem Karnesi.
-- Kupon aktarımı (2026-08-04): editörde **Sistem · Kriter (tekli/geniş) · Seçimim**.
-  Eski "Sistemden/Radardan/Akıllı" üçlüsü kaldırıldı (Akıllı kodu duruyor, düğmesi yok).
+- Kupon aktarımı: editörde **Sistem · Seçimim**. "Kriter" düğmesi 2026-08-07'de
+  kaldırıldı (kullanıcı kriter seçimi kalkınca "Sistem" ile aynı işi yapıyordu).
+  Maç kartındaki "⚙ Sistemden al" da resmî tahmine (`m.prediction`) bağlıdır.
 - `components/MatchInfoCard.js` — lig/hafta + stadyum + hava kartı.
 - `App.js` — sekmeler: Ana Sayfa · Bülten · Radar · Profil. `api.js`, `auth.js`,
   `theme.js`, `utils.js`, `liveLogic.js`, `prefs.js`.
 
-## 6. İKİ MOTOR — HANGİSİ NEREDE (ÖNEMLİ)
-> ⚠️ **DÜZELTME (2026-08-06 denetimi).** Bu bölüm bir dönem `userMatchEngine.js`'i
-> "ana motor" diye tarif ediyordu; **yanlıştı ve yeni gelenleri yanlış dosyaya
-> yönlendiriyordu.** Doğrusu:
+## 6. TEK MOTOR — MASTER ANALİZ (ÖNEMLİ)
+> ⚠️ **GÜNCELLEME (2026-08-07).** Cihaz tarafındaki hafif motorlar KALDIRILDI.
+> Artık tek motor var: **`backend/src/analysis/masterEngine.js`** (40 kriter).
+> `analysisService.js` üzerinden `/api/analysis` ve karne uçlarını besler;
+> Analiz, Radar ve Sistem Karnesi ekranlarında görünen budur.
 >
-> * **ÜRÜN STANDARDI = `backend/src/analysis/masterEngine.js`** — 40 kriterli
->   Master Analiz. `analysisService.js` üzerinden `/api/analysis` ve karne uçlarını
->   besler. Analiz, Radar ve Sistem Karnesi ekranlarında görünen budur.
-> * **`app/src/userMatchEngine.js`** — aşağıda anlatılan 6 kriterli hafif motor.
->   YALNIZ `broadcastStudio.js` (Haftanın Özeti) kullanır.
+> Ayrıca **kullanıcı kriter seçimi kaldırıldı**: analiz her zaman resmî profille
+> hesaplanır. Kriter seçme ekranı, profil sürümleme, kullanıcı analizi kaydetme
+> ve ilgili uçlar (`/api/analysis/profiles*`, `save-user-analysis`) silindi.
 >
-> Aşağıdaki 6 kriterlik anlatım, o hafif motorun mantığıdır — tarihsel değeri için
-> korunuyor.
+> Aşağıdaki 6 kriterlik anlatım, kaldırılan hafif motorun mantığıdır — tarihsel
+> değeri için korunuyor, **yaşayan kod değildir.**
 
-Dosya: `app/src/userMatchEngine.js` → `analyzeUserMatch(m)`. Yalnız şu kriterler
+(TARİHSEL) Kaldırılan dosya: `app/src/userMatchEngine.js` → `analyzeUserMatch(m)`. Yalnız şu kriterler
 çalışır (başka yok — xG/oran/AI/hakem/hava KARARDA kullanılmaz):
 
 1. **Puan durumu** — güç/güven veren avantaj ≈ 5 maçlık fark = **5×3 = 15 puan**.
