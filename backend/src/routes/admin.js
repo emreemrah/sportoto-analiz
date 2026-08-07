@@ -35,8 +35,10 @@ import {
   kodNormalize, kodUret, kodGecerliMi, premiumDurumu, etkinEngel, bitisHesapla,
 } from '../premiumBan.js';
 import { tamKirilim, benzerVakalar } from '../analysis/sinyalKirilim.js';
-import { oruntuTara, sinyalBasariTara } from '../analysis/oruntuTarayici.js';
+import { oruntuTara, sinyalBasariTara, ileriDogrula } from '../analysis/oruntuTarayici.js';
 import { sinyalKayitlariniTopla, sinyalKatalogu } from '../analysis/sinyalToplama.js';
+import { muhurSinifla, muhurOzeti } from '../archive/muhurDurumu.js';
+import { getArchiveStore } from '../archive/store.js';
 
 const router = Router();
 router.use(uyelikKapisi(supabaseEnabled));
@@ -614,7 +616,8 @@ router.get('/sinyal-kirilim', async (req, res) => {
     const key = String(req.query.key || '');
     if (tur !== 'master' && !key) return res.status(400).json({ error: 'Sinyal seçilmedi.' });
 
-    const { kayitlar, kapsam } = await sinyalKayitlariniTopla({ tur, key });
+    const kesif = String(req.query.kesif || '') === '1';
+    const { kayitlar, kapsam } = await sinyalKayitlariniTopla({ tur, key, kesif });
     const kirilim = tamKirilim(kayitlar);
 
     // BENZERLİK: istenirse bu haftanın oynanma profili verilir ve geçmişte
@@ -653,13 +656,19 @@ router.get('/sinyal-kirilim', async (req, res) => {
 //
 // MALİYET: tarama sinyal sayısı kadar arşiv okuması gerektirir. Sonuç 10
 // dakika belleklenir — panel her açılışta arşivi baştan taramaz.
-const oruntuBellek = { veri: null, zaman: 0 };
+const oruntuBellek = { veri: null, zaman: 0, anahtar: null };
 const ORUNTU_BELLEK_MS = 10 * 60 * 1000;
 
 router.get('/oruntuler', async (req, res) => {
   try {
     const zorla = String(req.query.zorla || '') === '1';
-    if (!zorla && oruntuBellek.veri && Date.now() - oruntuBellek.zaman < ORUNTU_BELLEK_MS) {
+    // KEŞİF HAVUZU varsayılan AÇIK: başarıya sayılan hafta sayısı tek başına
+    // örüntü aramaya yetmiyor (12 maç). Kapatmak için ?kesif=0.
+    // Başarı karnesi uçları bundan ETKİLENMEZ — orada kapı aynen kapalı.
+    const kesif = String(req.query.kesif ?? '1') !== '0';
+    const bellekAnahtar = kesif ? 'kesif' : 'resmi';
+    if (!zorla && oruntuBellek.veri && oruntuBellek.anahtar === bellekAnahtar
+      && Date.now() - oruntuBellek.zaman < ORUNTU_BELLEK_MS) {
       return res.json({ ...oruntuBellek.veri, bellekten: true });
     }
 
@@ -677,16 +686,23 @@ router.get('/oruntuler', async (req, res) => {
     // ek maliyet yok.
     const matris = [];
     let sonucOruntuleri = null;
+    // İLERİ-DOĞRULAMA: örüntüyü eski haftalarda bulup, HİÇ GÖRMEDİĞİ son
+    // haftada dener. Aynı veride ölçülen orandan farkı budur ve tek gerçek
+    // kanıt sütunu odur. Veri yetmiyorsa `yeterli:false` döner — sayı uydurulmaz.
+    let ileri = null;
     let kapsamOrnek = null;
     let taranan = 0;
 
     for (const h of hedefler) {
       let veri;
-      try { veri = await sinyalKayitlariniTopla({ tur: h.tur, key: h.key }); } catch { continue; }
+      try { veri = await sinyalKayitlariniTopla({ tur: h.tur, key: h.key, kesif }); } catch { continue; }
       if (!kapsamOrnek) kapsamOrnek = veri.kapsam;
 
       // SONUÇ ÖRÜNTÜLERİ sinyalden bağımsızdır; bir kez hesaplanır.
-      if (!sonucOruntuleri) sonucOruntuleri = oruntuTara(veri.kayitlar);
+      if (!sonucOruntuleri) {
+        sonucOruntuleri = oruntuTara(veri.kayitlar);
+        ileri = ileriDogrula(veri.kayitlar, { testHafta: 1 });
+      }
 
       // Sıra bazlı başarı — matris satırı.
       const siraOzet = [];
@@ -725,6 +741,8 @@ router.get('/oruntuler', async (req, res) => {
 
     const cikti = {
       zaman: new Date().toISOString(),
+      kesif,
+      ileriDogrulama: ileri,
       kapsam: kapsamOrnek,
       sinyalSayisi: hedefler.length,
       taranan,
@@ -742,6 +760,7 @@ router.get('/oruntuler', async (req, res) => {
     };
     oruntuBellek.veri = cikti;
     oruntuBellek.zaman = Date.now();
+    oruntuBellek.anahtar = bellekAnahtar;
     res.json(cikti);
   } catch (e) { safeError(res, e, 'Örüntü taraması yapılamadı.'); }
 });
@@ -761,6 +780,44 @@ router.get('/kayitlar', async (req, res) => {
   } catch (e) {
     if (tabloYokMu(e)) return res.json({ liste: [], kurulmadi: true });
     safeError(res, e, 'Denetim kaydı okunamadı.');
+  }
+});
+
+
+
+// ---------------------------------------------------------------------------
+// GET /api/admin/muhur-durumu — MÜHÜRLEME ALARMI
+// ---------------------------------------------------------------------------
+// NEDEN VAR: 51. hafta, mührü ilk maçtan sonra atıldığı için başarı karnesine
+// giremedi ve bu SESSİZCE oldu. Bir haftanın mührü kaçırıldığında geri dönüş
+// yoktur — tek savunma önceden uyarmaktır. Bu uç, panelin en üstündeki alarmı
+// besler: "bu haftanın mührü hâlâ atılmadı, ilk maça 4 saat var" gibi.
+//
+// SALT OKUR. Mühür ATMAZ, arşive dokunmaz. Karar operatörde kalır.
+router.get('/muhur-durumu', async (req, res) => {
+  try {
+    const store = getArchiveStore();
+    const now = Date.now();
+    const bulletins = (await store.listBulletins()).sort((a, b) => b.roundId - a.roundId);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 12, 1), 60);
+    const secilen = bulletins.slice(0, limit);
+
+    const satirlar = [];
+    for (const b of secilen) {
+      const snap = await store.getSnapshot(b.id).catch(() => null);
+      const d = muhurSinifla(b, snap, now);
+      satirlar.push({
+        roundId: b.roundId,
+        hafta: b.week || `#${b.roundId}`,
+        ilkMac: b.firstMatchStartAt || null,
+        muhurZamani: snap?.lockedAt || null,
+        ...d,
+      });
+    }
+
+    res.json({ zaman: new Date(now).toISOString(), ...muhurOzeti(satirlar), satirlar });
+  } catch (e) {
+    safeError(res, e, 'Mühür durumu okunamadı.');
   }
 });
 

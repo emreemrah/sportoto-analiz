@@ -94,3 +94,24 @@ test('veri okunamayınca uydurma sayı üretilmiyor', () => {
   assert.match(rota, /catch \{ return null; \}/, 'sayım hatası 0 gibi gösteriliyor olabilir');
   assert.match(betik, /bilinmiyor/, 'panelde "bilinmiyor" karşılığı yok');
 });
+
+// ---------------------------------------------------------------------------
+// BEKÇİ (2026-08-07): panel.js'in aradığı HER id, index.html'de VAR MI?
+// ---------------------------------------------------------------------------
+// NEDEN: panel tek sayfa ve tek script. `$('olmayanId')` null döner, üzerine
+// `.innerHTML` yazılınca script O NOKTADA ÖLÜR — altındaki bölümler hiç
+// çalışmaz. Ekran "boş ama hatasız" görünür; tarayıcı konsolunu açmayan biri
+// bunu asla fark etmez. Yeni bölüm eklerken id'yi HTML'e koymayı unutmak
+// kolaydır; bu test o unutmayı testte yakalar, üretimde değil.
+test('bekçi: panel.js içindeki tüm $(id) çağrıları index.html’de karşılık bulur', () => {
+  const js = readFileSync(new URL('../admin/panel.js', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../admin/index.html', import.meta.url), 'utf8');
+
+  const idler = new Set();
+  for (const m of js.matchAll(/\$\(\s*'([A-Za-z0-9_-]+)'\s*\)/g)) idler.add(m[1]);
+  assert.ok(idler.size > 10, 'panel.js taranamadı — desen değişmiş olabilir');
+
+  const htmlIdler = new Set([...html.matchAll(/\bid="([A-Za-z0-9_-]+)"/g)].map((m) => m[1]));
+  const eksik = [...idler].filter((x) => !htmlIdler.has(x));
+  assert.deepEqual(eksik, [], `HTML'de olmayan id: ${eksik.join(', ')}`);
+});

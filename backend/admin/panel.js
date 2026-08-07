@@ -107,7 +107,7 @@
 
   // ——— SEKME YÖNETİMİ ———
   var yukleyiciler = {
-    genel: function () { return ozetYukle(); },
+    genel: function () { return Promise.all([ozetYukle(), muhurYukle()]); },
     analiz: function () { return karneYukle().then(kriterCiz); },
     haftalar: function () { return haftaYukle(); },
     oruntu: function () { return Promise.resolve(); },
@@ -160,6 +160,53 @@
         kutu('Analizli maç', o.bulten.var ? esc(o.bulten.analizliMac) + ' <span class="kucuk">/ ' + esc(o.bulten.macSayisi) + '</span>' : null) +
         kutu('Son güncelleme', tarih(o.bulten.guncellendi) ? '<span style="font-size:15px">' + esc(tarih(o.bulten.guncellendi)) + '</span>' : null);
     });
+  }
+
+  // ——— MÜHÜR ALARMI ———
+  // Bir haftanın mührü ilk maçtan sonra atılırsa o hafta başarı karnesine ASLA
+  // giremez ve bu geri alınamaz. 51. hafta böyle kaybedildi. Bu blok, kayıp
+  // olmadan önce uyarmak için panelin EN ÜSTÜNDE durur.
+  function muhurRozet(d) {
+    var m = {
+      saglam: ['ok', 'sağlam'], gec: ['uyari', 'geç mühür'], kayip: ['kotu', 'KAYIP'],
+      bekliyor: ['notr', 'bekliyor'], eksik: ['uyari', 'eksik'], bilinmiyor: ['uyari', 'bilinmiyor'],
+    }[d.durum] || ['notr', esc(d.durum)];
+    return '<span class="rozet ' + m[0] + '">' + m[1] + '</span>';
+  }
+
+  function muhurYukle() {
+    return istek('/api/admin/muhur-durumu')
+      .then(function (r) {
+        $('muhurAlarm').innerHTML = r.alarm
+          ? '<div class="' + (r.alarm.seviye === 'kritik' ? 'hata' : 'uyari') + '" style="margin-bottom:14px">'
+            + '<b>' + (r.alarm.seviye === 'kritik' ? 'MÜHÜR ALARMI' : 'Mühür uyarısı') + ':</b> '
+            + esc(r.alarm.metin) + '</div>'
+          : '';
+
+        var s = r.sayim || {};
+        $('muhurTablo').innerHTML =
+          '<div class="izgara" style="margin-bottom:12px">' +
+          kutu('Karneye sayılan', esc(s.saglam || 0), 'mühür maç öncesi + kanıtlı') +
+          kutu('Geç mühür', esc(s.gec || 0), 'yalnız keşif havuzunda kullanılır') +
+          kutu('Kayıp hafta', esc(s.kayip || 0), 'geri dönüşü yok') +
+          kutu('Bekleyen', esc(s.bekliyor || 0), 'henüz mühürlenmedi') +
+          '</div>' +
+          '<div class="tabloSar"><table><thead><tr><th>Hafta</th><th>Durum</th>' +
+          '<th>İlk maç</th><th>Mühür</th><th>Açıklama</th></tr></thead><tbody>' +
+          (r.satirlar || []).map(function (d) {
+            return '<tr><td><b>' + esc(d.hafta) + '</b></td>' +
+              '<td>' + muhurRozet(d) + '</td>' +
+              '<td class="kucuk">' + esc(tarih(d.ilkMac) || 'bilinmiyor') + '</td>' +
+              '<td class="kucuk">' + esc(tarih(d.muhurZamani) || '—') + '</td>' +
+              '<td class="kucuk">' + esc(d.mesaj) + '</td></tr>';
+          }).join('') + '</tbody></table></div>' +
+          '<p class="kucuk">Mühür = tahminin maç başlamadan önce üretildiğinin kanıtı. ' +
+          'Sonradan mühürlemek kanıt sayılmaz; o yüzden kaçan hafta geri gelmez.</p>';
+      })
+      .catch(function (e) {
+        // SESSİZ KALINMAZ: alarm ekranının çalışmaması da bir arızadır.
+        $('muhurTablo').innerHTML = '<p class="hata">Mühür durumu okunamadı: ' + esc(e.message) + '</p>';
+      });
   }
 
   $('bultenBtn').addEventListener('click', function () {
@@ -280,6 +327,16 @@
     return '<span class="rozet ' + sinif + '">' + esc(g) + '</span>';
   }
 
+  // KAYNAK ROZETİ: bulgunun kaç maçı "mühürü zayıf" (keşif) haftadan geliyor.
+  // Tamamı keşiften geliyorsa açıkça yazılır — operatör bunu resmî başarı
+  // sanmasın. Proje kuralı: yalnız resmî ileri-test sonucu kesindir.
+  function kaynakRozet(mac, kesif) {
+    var k = Number(kesif) || 0;
+    if (!k) return '<span class="rozet ok">resmî</span>';
+    if (k >= Number(mac)) return '<span class="rozet uyari">tamamı keşif</span>';
+    return '<span class="rozet uyari">' + esc(k) + '/' + esc(mac) + ' keşif</span>';
+  }
+
   function oruntuCiz() {
     if (!sonOruntu) return;
     var yon = $('oruntuYon').value;
@@ -292,7 +349,7 @@
     $('oruntuBulgu').innerHTML = liste.length
       ? '<div class="tabloSar"><table><thead><tr><th>Sinyal</th><th>Dilim</th>' +
         '<th class="sag">Sonuç</th><th class="sag">Kendi ortalaması</th>' +
-        '<th class="sag">Fark</th><th>Güven</th></tr></thead><tbody>' +
+        '<th class="sag">Fark</th><th>Güven</th><th>Kaynak</th></tr></thead><tbody>' +
         liste.map(function (b) {
           var ok = b.sapma > 0 ? '▲' : '▼';
           var renk = b.sapma > 0 ? 'ok' : 'kotu';
@@ -303,7 +360,8 @@
             '<td class="sag kucuk">%' + esc(b.tabanOran) + '</td>' +
             '<td class="sag"><span class="rozet ' + renk + '">' + ok + ' ' +
               esc(Math.abs(b.sapma)) + ' puan</span></td>' +
-            '<td>' + guvenRozet(b.guven) + '</td></tr>';
+            '<td>' + guvenRozet(b.guven) + '</td>' +
+            '<td>' + kaynakRozet(b.mac, b.kesifMac) + '</td></tr>';
         }).join('') + '</tbody></table></div>' +
         '<p class="kucuk">"Kendi ortalaması" = o sinyalin TÜM maçlardaki başarısı. ' +
         'Fark, dilimin o ortalamadan sapmasıdır. ▼ satırlar sinyalin ZAYIF olduğu ' +
@@ -311,18 +369,47 @@
       : '<p class="kucuk">Bu filtreyle bulgu yok. Eşikleri gevşetebilirsin ama düşük ' +
         'örneklemli bulgular tesadüf olmaya çok yakındır.</p>';
 
+    // ——— İLERİ-DOĞRULAMA ———
+    // Soldaki oranlar örüntünün KENDİ verisidir; tek gerçek kanıt "Sınav"
+    // sütunudur: örüntünün hiç görmediği haftada ne olmuş.
+    var id = sonOruntu.ileriDogrulama;
+    $('ileriDogrulama').innerHTML = !id
+      ? '<p class="kucuk">Hesaplanmadı.</p>'
+      : (!id.yeterli
+        ? '<p class="uyari">' + esc(id.sebep) + '</p>'
+        : '<p class="kucuk">Eğitim: ' + esc(id.egitimHafta) + ' hafta / ' + esc(id.egitimMac) +
+          ' maç · Sınav: ' + esc(id.sinavHafta) + ' hafta / ' + esc(id.sinavMac) + ' maç</p>' +
+          (id.bulgular.length
+            ? '<div class="tabloSar"><table><thead><tr><th>Kural</th>' +
+              '<th class="sag">Eğitimde</th><th class="sag">Sınavda</th><th>Sonuç</th>' +
+              '</tr></thead><tbody>' +
+              id.bulgular.map(function (b) {
+                var sinif = b.sinav.sonuc === 'tuttu' ? 'ok'
+                  : b.sinav.sonuc === 'tutmadı' ? 'kotu' : 'notr';
+                return '<tr><td>' + esc(b.kural) + '<div class="kucuk">' + esc(b.sekilBaslik) + '</div></td>' +
+                  '<td class="sag">' + esc(b.sonuc) + ' · %' + esc(b.pay) +
+                    '<div class="kucuk">' + esc(b.mac) + ' maç</div></td>' +
+                  '<td class="sag">' + (b.sinav.mac
+                    ? esc(b.sinav.isabet) + '/' + esc(b.sinav.mac) + ' · %' + esc(b.sinav.oran)
+                    : '<span class="kucuk">maç düşmedi</span>') + '</td>' +
+                  '<td><span class="rozet ' + sinif + '">' + esc(b.sinav.sonuc) + '</span></td></tr>';
+              }).join('') + '</tbody></table></div>' +
+              '<p class="kucuk">' + esc(id.uyari) + '</p>'
+            : '<p class="kucuk">' + esc(id.uyari) + '</p>'));
+
     var so = sonOruntu.sonucOruntuleri;
     $('oruntuSonuc').innerHTML = so && so.oruntuler && so.oruntuler.length
       ? '<div class="tabloSar"><table><thead><tr><th>Dilim</th><th class="sag">Maç</th>' +
         '<th class="sag">Baskın sonuç</th><th class="sag">Pay</th><th class="sag">Genel</th>' +
-        '<th>Güven</th></tr></thead><tbody>' +
+        '<th>Güven</th><th>Kaynak</th></tr></thead><tbody>' +
         so.oruntuler.map(function (o) {
           return '<tr><td>' + esc(o.kural) + '<div class="kucuk">' + esc(o.sekilBaslik) + '</div></td>' +
             '<td class="sag">' + esc(o.mac) + '</td>' +
             '<td class="sag"><b>' + esc(o.sonuc) + '</b></td>' +
             '<td class="sag"><b>%' + esc(o.pay) + '</b></td>' +
             '<td class="sag kucuk">%' + esc(o.tabanPay) + '</td>' +
-            '<td>' + guvenRozet(o.guven) + '</td></tr>';
+            '<td>' + guvenRozet(o.guven) + '</td>' +
+            '<td>' + kaynakRozet(o.mac, o.kesifMac) + '</td></tr>';
         }).join('') + '</tbody></table></div>' +
         (so.uyari ? '<p class="uyari" style="margin-top:10px">' + esc(so.uyari) + '</p>' : '')
       : '<p class="kucuk">' + esc((so && so.uyari) || 'Sonuç örüntüsü bulunamadı.') + '</p>';
@@ -345,9 +432,18 @@
           kutu('Taranan sinyal', esc(r.sinyalSayisi)) +
           kutu('Taranan dilim', esc(r.taranan)) +
           kutu('Bulgu', esc((r.bulgular || []).length)) +
-          kutu('Sayılan hafta', esc(k.haftaDahil), esc(k.haftaDislanan) + ' hafta dışlandı') +
+          kutu('Resmî hafta', esc(k.haftaDahil), 'başarı karnesine sayılan') +
+          kutu('Keşif haftası', esc(k.haftaKesif || 0), esc(k.macKesif || 0) + ' maç, karneye SAYILMAZ') +
           '</div>' +
           '<p class="uyari">' + esc(r.uyari) + '</p>' +
+          (r.kesif
+            ? '<p class="kucuk"><b>Keşif havuzu açık.</b> Mührü geç atılmış haftalar da ' +
+              'taramaya dahil edildi, çünkü yalnız resmî haftalarla örneklem örüntü ' +
+              'aramaya yetmiyor. Bu kayıtlar <b>başarı karnesini beslemez</b>; yalnız ' +
+              '"geçmişte şu dilimde şu olmuş" gözlemine girer ve tabloda ' +
+              '<span class="rozet uyari">keşif</span> etiketiyle görünür. ' +
+              'Kapatmak için: <code>/api/admin/oruntuler?kesif=0&zorla=1</code></p>'
+            : '') +
           (r.bellekten ? '<p class="kucuk">Bellekten geldi (10 dk). Yeniden hesaplamak için sayfayı yenile.</p>' : '');
         oruntuCiz();
         matrisCiz();

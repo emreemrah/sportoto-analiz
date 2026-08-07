@@ -73,7 +73,9 @@ export function radarYonu(radar) {
  *   key: kriter anahtarı ('xgAgainst' gibi) veya radar anahtarı
  * @returns {{kayitlar: Array, kapsam: object}}
  */
-export async function sinyalKayitlariniTopla({ tur = 'kriter', key = null, store = getArchiveStore() } = {}) {
+export async function sinyalKayitlariniTopla({
+  tur = 'kriter', key = null, store = getArchiveStore(), kesif = false,
+} = {}) {
   const bulletins = (await store.listBulletins()).sort((x, y) => y.roundId - x.roundId);
 
   const kayitlar = [];
@@ -88,6 +90,9 @@ export async function sinyalKayitlariniTopla({ tur = 'kriter', key = null, store
     katmanYok: 0,          // eski snapshot: analysisCenter/radarCenter yok
     oynanmaKaydi: 0,       // DNA arşivinden kaç ham kayıt okundu
     oynanmaHatasi: null,   // okunamadıysa SEBEBİ (sessizce yutulmasın)
+    kesifModu: !!kesif,
+    haftaKesif: 0,         // keşif havuzuna alınan (mühürü zayıf) hafta sayısı
+    macKesif: 0,           // o haftalardan gelen maç sayısı
   };
 
   // Oynanma yüzdeleri: TEK SEFERDE okunur, hafta hafta sorgu atılmaz.
@@ -112,12 +117,39 @@ export async function sinyalKayitlariniTopla({ tur = 'kriter', key = null, store
     const snap = await store.getSnapshot(b.id).catch(() => null);
     if (!snap?.payload?.matches?.length) continue;
 
-    // AYNI KAPI: kriter karnesiyle birebir aynı provenance kuralı.
+    // RESMÎ İLERİ-TEST KAPISI — kriter karnesiyle birebir aynı kural.
     const cls = classifyRecord(recordFromArchive(b, snap), { requireOfficialProfile: false });
-    if (!cls.isOfficialForward) {
+    const resmi = cls.isOfficialForward === true;
+
+    // KEŞİF HAVUZU (2026-08-07). Sorun: başarıya sayılan tek hafta var (12 maç);
+    // bu boyutta örüntü aramak gürültü üretir. Arşivde 51 ve 49. haftalar
+    // DURUYOR ama mühürleri geç atıldığı için (late_lock) karneye giremiyor.
+    //
+    // KARAR: o haftalar BAŞARI KARNESİNE GİRMEZ — kural aynen duruyor ve
+    // scorecard uçlarına DOKUNULMADI. Yalnız ÖRÜNTÜ ARAMASI için, `kesif:true`
+    // etiketiyle ayrı bir havuza alınır. Örneklem 12'den ~40'a çıkar.
+    //
+    // NEDEN GÜVENLİ: bu kayıtlar "sistem şu kadar başarılı" cümlesini
+    // beslemez; yalnız "geçmişte şu dilimde şu olmuş" gözlemine girer ve her
+    // satır keşif olduğunu söyler. Karıştırılamaz, çünkü etiket kayıtta durur.
+    if (!resmi) {
       kapsam.haftaDislanan += 1;
       kapsam.dislamaTuru[cls.provenanceType] = (kapsam.dislamaTuru[cls.provenanceType] || 0) + 1;
-      continue;
+      if (!kesif) continue;
+      // BEYAZ LİSTE — kara liste değil. Keşif havuzuna YALNIZ `late_unverified`
+      // girer: mühür ATILMIŞTIR, sadece ideal kesim anından geç atılmıştır.
+      // Yani tahminin maçtan önce üretildiğine dair kanıt VARDIR, resmî karne
+      // için yeterince güçlü değildir.
+      //
+      // Dışarıda kalanlar ve NEDENİ:
+      //  • demo / legacy_backfill / retrospective_backtest → gerçek gözlem
+      //    değil, sonradan üretilmiş veri. Örüntü aramaya sokulursa motor
+      //    kendi ürettiği veriden "örüntü" bulur; bu bir aynadır, bilgi değil.
+      //  • unknown → zaman kanıtı HİÇ yok. Tahminin maçtan sonra üretilmiş
+      //    olmadığını gösteremiyoruz. Sinyal başarısına karışırsa geriye dönük
+      //    bilgiyle şişmiş bir başarı oranı üretir. Kanıtsız kayıt alınmaz.
+      if (cls.provenanceType !== 'late_unverified') continue;
+      kapsam.haftaKesif += 1;
     }
 
     const sonuclar = await store.listOfficialResults(b.id).catch(() => []);
@@ -125,12 +157,13 @@ export async function sinyalKayitlariniTopla({ tur = 'kriter', key = null, store
     // orderNo ve skor DÜŞÜRÜLMÜYOR: sıra kırılımı için ikisi de gerekli.
     const sonucBy = new Map(sonuclar.map((r) => [String(r.matchId), r]));
 
-    kapsam.haftaDahil += 1;
+    if (resmi) kapsam.haftaDahil += 1;
 
     for (const pm of snap.payload.matches) {
       const res = sonucBy.get(String(pm.matchId));
       if (!res?.officialResult) continue;              // resmî sonuç yoksa sayılmaz
       kapsam.macToplam += 1;
+      if (!resmi) kapsam.macKesif += 1;
 
       const no = Number(pm.no ?? res.orderNo);
       let sinyal = null;
@@ -169,6 +202,10 @@ export async function sinyalKayitlariniTopla({ tur = 'kriter', key = null, store
         // bırakmaktı (kullanıcı bildirimi, 2026-08-06).
         oran: pm.market?.odds || null,
         lig: pm.league || null,
+        // KEŞİF ETİKETİ: bu satır başarı karnesine girmeyen bir haftadan
+        // geliyorsa true. Ekranda ayrı gösterilir, sayı karıştırılmaz.
+        kesif: !resmi,
+        muhurTuru: cls.provenanceType,
         tarih: pm.kickoffAt || null,
       });
     }
