@@ -119,6 +119,12 @@ export const api = {
   analysisCalcBulletin: (bulletinId, body) => req(`/api/analysis/bulletins/${bulletinId}/calculate`, { method: 'POST', body }),
   analysisCalcMatch: (matchId, body) => req(`/api/analysis/matches/${matchId}/calculate`, { method: 'POST', body }),
   analysisOfficial: (bulletinId) => req(`/api/analysis/bulletins/${bulletinId}/official`),
+  // GEÇMİŞ (MÜHÜRLÜ) MAÇIN ANALİZİ — arşivdeki mühürlü kayıttan okunur.
+  // Backend `sealedOrLive` ile önce mühürlü snapshot'a bakar; o yüzden geçmiş
+  // hafta için bugünkü motor/veriyle YENİDEN HESAP YAPILMAZ, maç öncesi
+  // dondurulmuş değerlendirme döner. Mühür yoksa 404 gelir ve ekran bunu
+  // dürüstçe yazar — uydurma analiz üretilmez.
+  analysisSealedMatch: (bulletinId, no) => req(`/api/analysis/bulletins/${bulletinId}/matches/${no}`),
   analysisSaveUser: (bulletinId, body) => req(`/api/analysis/bulletins/${bulletinId}/save-user-analysis`, { method: 'POST', body }),
   analysisGetUser: (bulletinId) => req(`/api/analysis/bulletins/${bulletinId}/user`),
   analysisBacktest: (b) => req('/api/analysis/backtest', { method: 'POST', body: b }),

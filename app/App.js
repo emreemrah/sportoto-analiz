@@ -14,6 +14,7 @@ import BulletinScreen from './src/screens/BulletinScreen';
 import MatchDetailScreen from './src/screens/MatchDetailScreen';
 import RadarScreen from './src/screens/RadarScreen';
 import LiveMatchDetailScreen from './src/screens/LiveMatchDetailScreen';
+import GecmisMacDetayScreen from './src/screens/GecmisMacDetayScreen';
 import ForumScreen from './src/screens/ForumScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import AvatarPickerScreen from './src/screens/AvatarPickerScreen';
@@ -146,6 +147,10 @@ function BulletinStack() {
       {detailScreen}
       {/* Canlı maç detayı (istatistik/olaylar) — "Canlı" sekmesi Bülten'e taşındı. */}
       <Stack.Screen name="LiveMatchDetail" component={LiveMatchDetailScreen} options={{ headerShown: false }} />
+      {/* Geçmiş (mühürlü) maç detayı: maç öncesi ne demişiz + ne olmuş.
+          Güncel maç detayından AYRI ekran, çünkü kaynağı farklı: burada
+          canlı veri değil, arşivdeki mühürlü kayıt okunur. */}
+      <Stack.Screen name="GecmisMacDetay" component={GecmisMacDetayScreen} options={{ headerShown: false }} />
       <Stack.Screen name="CouponEditor" component={CouponEditorScreen} options={{ title: 'Kupon Hazırla' }} />
       <Stack.Screen name="CouponCenter" component={CouponCenterScreen} options={{ headerShown: false }} />
       <Stack.Screen name="BulletinHistory" component={BulletinHistoryScreen} options={{ title: 'Bülten Geçmişi' }} />

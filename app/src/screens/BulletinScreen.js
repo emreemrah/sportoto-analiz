@@ -400,7 +400,19 @@ export default function BulletinScreen({ navigation }) {
     if (sysSym) sysMark = resolved ? (pickHits(sysSym, item.result) ? 'correct' : 'wrong') : 'pending';
     const rec = (r, align) => (r ? <RecordBadges wins={r.w} draws={r.d} losses={r.l} played={r.p} align={align} /> : null);
     return (
-      <View style={[styles.mCard, corr && styles.mCardCorr]}>
+      // TIKLANABİLİR (2026-08-07). Geçmiş bültende kart düz bir <View>'dı;
+      // maçın içine girmenin hiçbir yolu yoktu. Oysa mühürlü haftada en
+      // değerli bilgi orada: maç öncesi ne demişiz, sonra ne olmuş.
+      // Detay ekranı arşivdeki MÜHÜRLÜ kaydı okur; yeniden hesap yapmaz.
+      <TouchableOpacity
+        activeOpacity={0.75}
+        onPress={() => navigation.navigate('GecmisMacDetay', {
+          roundId: effectiveId, no: item.no, mac: item,
+        })}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.no}. maç ${item.home?.name} - ${item.away?.name} detayını aç`}
+        style={[styles.mCard, corr && styles.mCardCorr]}
+      >
         {/* Ülke satırı (kullanıcı isteği, 2026-08-04). Geçmiş bültende lig alanı
             "Final" gibi tur adı olabilir — ülke çıkarılamıyorsa satır çizilmez,
             ülke uydurulmaz (gizleTanimsiz). */}
@@ -520,8 +532,10 @@ export default function BulletinScreen({ navigation }) {
           {corr ? (
             <TouchableOpacity onPress={() => setRefreshSheet({ correction: corr })} style={styles.corrBadge}><Text style={styles.corrTxt}>Düzeltme</Text></TouchableOpacity>
           ) : null}
+          {/* Tıklanabilir olduğunu belli eden tek işaret — ek satır açmadan. */}
+          <Text style={styles.mDetay}>›</Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -820,6 +834,7 @@ const styles = StyleSheet.create({
   mCard: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: colors.border, ...shadow.soft },
   mUlke: { marginBottom: 7 },
   mCardCorr: { borderColor: colors.warning },
+  mDetay: { color: colors.muted, fontSize: 20, fontWeight: '900', marginLeft: 6 },
   mRow: { flexDirection: 'row', alignItems: 'center' },
   mNo: { color: colors.muted, fontSize: 11, fontWeight: '900', width: 16, textAlign: 'center', marginRight: 4 },
   mTeam: { flex: 1, gap: 6, minWidth: 0 },
