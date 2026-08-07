@@ -109,6 +109,10 @@ export const api = {
   analysisCriterion: (key) => req(`/api/analysis/criteria/${encodeURIComponent(key)}`),
   analysisCriteriaScorecard: () => req('/api/analysis/criteria-scorecard'),
   analysisCriterionScorecard: (key) => req(`/api/analysis/criteria/${encodeURIComponent(key)}/scorecard`),
+  // KRİTER KIRILIMI: "bu kriter NEREDE başarılı" — maç tipi, kalabalık
+  // profili, söylediği yön, sıra ve kalabalık/piyasa favorisiyle uyum.
+  // Ortalama tek başına yanıltıcı olduğu için var.
+  analysisCriterionKirilim: (key) => req(`/api/analysis/criteria/${encodeURIComponent(key)}/kirilim`),
   analysisMethodology: () => req('/api/analysis/methodology'),
   analysisProfiles: () => req('/api/analysis/profiles'),
   analysisProfileCreate: (b) => req('/api/analysis/profiles', { method: 'POST', body: b }),
