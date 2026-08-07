@@ -15,7 +15,7 @@
 // Radar 4 (oran) bu kuralı zaten uyguluyordu; test ikisini de kilitler.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildDailyPlayed, buildDailyOdds } from '../src/radar/dailyOdds.js';
+import { buildDailyPlayed, buildDailyOdds, buildDayWindow } from '../src/radar/dailyOdds.js';
 
 // Europe/Istanbul (+03) — gün anahtarları buna göre çıkar.
 const IST = (gunSaat) => new Date(`2026-08-${gunSaat}+03:00`).getTime();
@@ -97,4 +97,32 @@ test('Radar 4 (oran) de taşımıyor — iki radar aynı kuralda', () => {
   const m = cagir(buildDailyOdds, [pazarOran], now).matches[0];
   assert.ok(m.cells['2026-08-02'], 'pazar dolu');
   assert.equal(m.cells['2026-08-03'], null, 'pazartesi boş');
+});
+
+// ---------------------------------------------------------------------------
+// CUMARTESİ PENCEREYE GİRİYOR MU (2026-08-07, kullanıcı bildirimi)
+// ---------------------------------------------------------------------------
+// "Nadir de olsa Cuma günü maç olmadığında kapanış Cumartesi'ye kayıyor."
+// Pencere Cuma'da bitiyordu; o haftalarda kapanış günü ekranda HİÇ görünmüyor,
+// veri arşivde durup görünmez oluyordu.
+//
+// Kural: çıpa Cuma'sının ertesi Cumartesi'si İLK MAÇ GÜNÜNÜ geçmiyorsa
+// pencereye eklenir. Maçtan sonraki gün ASLA eklenmez.
+test('gün penceresi: ilk maç Pazar ise Cumartesi de pencerede olur', () => {
+  const g = buildDayWindow({ firstKickoffMs: new Date('2026-08-09T18:00:00+03:00').getTime() });
+  assert.equal(g.length, 7);
+  assert.equal(g[0], '2026-08-02', 'Pazar başlangıcı korunmalı');
+  assert.equal(g[g.length - 1], '2026-08-08', 'kapanış Cumartesi görünmeli');
+});
+
+test('gün penceresi: ilk maç Cumartesi ise o gün pencerede', () => {
+  const g = buildDayWindow({ firstKickoffMs: new Date('2026-08-08T16:00:00+03:00').getTime() });
+  assert.equal(g[g.length - 1], '2026-08-08');
+});
+
+// GERİLEME KORUMASI: normal (Cuma başlangıçlı) haftalarda davranış DEĞİŞMEZ.
+test('gün penceresi: ilk maç Cuma ise Cumartesi EKLENMEZ (maç sonrası gün yok)', () => {
+  const g = buildDayWindow({ firstKickoffMs: new Date('2026-08-07T21:00:00+03:00').getTime() });
+  assert.equal(g.length, 6);
+  assert.equal(g[g.length - 1], '2026-08-07');
 });
