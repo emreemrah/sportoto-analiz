@@ -277,7 +277,18 @@ export default function SystemScorecardScreen({ navigation }) {
             .map((c) => {
               const w = c.windows?.[critDonem] || { rate: null, hits: 0, total: 0 };
               return (
-                <View key={c.key} style={styles.critRow}>
+                // TIKLANABİLİR (2026-08-07). Kullanıcı bildirimi: "bu kriter
+                // başarılı ama favori maçlarda mı, zor maçlarda mı bilmiyorum —
+                // yoksa yanıltıcı oluyor." Tek ortalama, birbirinin zıddı iki
+                // gerçeği tek sayıya eziyor. Satıra basınca kırılım açılır.
+                <TouchableOpacity
+                  key={c.key}
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('KriterKirilim', { key: c.key, ad: c.label })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${c.label} kriterinin kırılımını aç`}
+                  style={styles.critRow}
+                >
                   <Text style={styles.critName} numberOfLines={1}>{c.label}</Text>
                   {/* "1008 maçta 809 başarı" biçimi (kullanıcı isteği, 2026-08-06):
                       yüzdenin yanında ham sayılar da görünür — n tek başına
@@ -287,9 +298,15 @@ export default function SystemScorecardScreen({ navigation }) {
                       ? `${w.total} maçta ${w.hits} başarı · %${w.rate}`
                       : (c.noData >= c.evaluated ? 'veri yok' : 'sinyal yok')}
                   </Text>
-                </View>
+                  <Text style={styles.critChevron}>›</Text>
+                </TouchableOpacity>
               );
             })}
+          <Text style={styles.honestNote}>
+            Bir kritere dokun: hangi maç tipinde (ağır favori / denk / açık),
+            kalabalık ne derken ve hangi sırada başarılı olduğunu ayrı ayrı
+            gösterir. Tek ortalama bunları gizler.
+          </Text>
           <Text style={styles.honestNote}>
             "X maçta Y başarı" = kriterin yön gösterdiği maç sayısı ve doğru
             çıkan yön sayısı. Az maçta yüzde yanıltıcı olabilir — sayılarla
@@ -454,7 +471,8 @@ const styles = StyleSheet.create({
   donemBtnAcik: { backgroundColor: colors.primary, borderColor: colors.primary },
   donemTxt: { color: colors.textSoft, fontSize: 10.5, fontWeight: '800' },
   donemTxtAcik: { color: '#fff' },
-  critRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border },
+  critRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border },
+  critChevron: { color: colors.textMuted, fontSize: 17, fontWeight: '900' },
   // Değer metni ('1008 maçta 809 başarı · %80') sabit davranıp kriter adını
   // eziyordu; ikisi de kısalabilir oldu, satır tek satır kalır.
   critName: { flex: 1, minWidth: 0, color: colors.text, fontSize: 12.5, fontWeight: '700' },

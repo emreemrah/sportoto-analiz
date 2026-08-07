@@ -30,6 +30,7 @@ import CouponCenterScreen from './src/screens/CouponCenterScreen';
 import UserDashboardScreen from './src/screens/UserDashboardScreen';
 import SystemDashboardScreen from './src/screens/SystemDashboardScreen';
 import SystemScorecardScreen from './src/screens/SystemScorecardScreen';
+import KriterKirilimScreen from './src/screens/KriterKirilimScreen';
 import AnalysisSettingsScreen from './src/screens/AnalysisSettingsScreen';
 import AboutScreen from './src/screens/AboutScreen';
 import DeleteAccountScreen from './src/screens/DeleteAccountScreen';
@@ -230,6 +231,8 @@ function ProfileStack() {
           yetkiye bağlıdır; kayıt her derlemede yapılır (uçlar zaten açık,
           ekran yalnız görüntüleyici — bkz. yukarıdaki İnceleme notu). */}
       <Stack.Screen name="SystemScorecard" component={SystemScorecardScreen} options={{ title: 'Sistem Karnesi' }} />
+      {/* Kriter kırılımı: karnedeki tek yüzdenin neyi gizlediğini açar. */}
+      <Stack.Screen name="KriterKirilim" component={KriterKirilimScreen} options={{ headerShown: false }} />
       {/* YASAL EKRANLAR — Google Play zorunluluğu: hesap silme yolu uygulama
           içinden de erişilebilir olmalıdır. */}
       <Stack.Screen name="About" component={AboutScreen} options={{ title: 'Hakkında' }} />

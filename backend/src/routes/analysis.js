@@ -13,6 +13,8 @@ import { CATALOG, CATALOG_MAP, CATALOG_VERSION, ANALYSIS_CATEGORIES } from '../a
 import {
   buildCriterionScorecard, calculateWithProfile, buildOfficialProfile, runBacktest,
 } from '../analysis/analysisService.js';
+import { kriterKirilimi } from '../analysis/kriterKirilim.js';
+import { sinyalKayitlariniTopla } from '../analysis/sinyalToplama.js';
 import {
   getAnalysisStore, newProfile, updateProfileVersion, duplicateProfile,
 } from '../analysis/analysisStore.js';
@@ -76,6 +78,34 @@ router.get('/criteria/:key/scorecard', async (req, res) => {
     const sc = await buildCriterionScorecard({});
     const row = sc.criteria.find((c) => c.key === req.params.key) || null;
     res.json({ generatedAt: sc.generatedAt, hasData: !!row?.signals, note: sc.note, criterion: row });
+  } catch (e) { fail(res, e); }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/analysis/criteria/:key/kirilim — "bu kriter NEREDE başarılı"
+// ---------------------------------------------------------------------------
+// NEDEN VAR: karnedeki tek yüzde yanıltıcı. Bir kriter ağır favorili maçlarda
+// %80, açık maçlarda %35 tutuyor olabilir; ortalaması ikisini de gizler.
+// Bu uç aynı geçmişi beş eksende keser (sıra, maç tipi, kalabalık profili,
+// söylenen yön, kalabalık/piyasa favorisiyle uyum).
+//
+// KAYNAK: mühürlü arşiv (sinyalKayitlariniTopla). Karne kapısı AYNEN geçerli —
+// varsayılan yalnız resmî ileri-test haftaları. ?kesif=1 ile mührü geç atılmış
+// haftalar da katılır ve yanıtta ayrıca sayılır; karıştırılmaz.
+router.get('/criteria/:key/kirilim', async (req, res) => {
+  try {
+    const key = req.params.key;
+    if (!CATALOG_MAP[key]) return res.status(404).json({ error: 'Kriter bulunamadı.' });
+    const kesif = String(req.query.kesif || '') === '1';
+    const { kayitlar, kapsam } = await sinyalKayitlariniTopla({ tur: 'kriter', key, kesif });
+    res.json({
+      key,
+      ad: CATALOG_MAP[key].label,
+      olusturuldu: new Date().toISOString(),
+      kesif,
+      kapsam,
+      ...kriterKirilimi(kayitlar),
+    });
   } catch (e) { fail(res, e); }
 });
 
