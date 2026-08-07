@@ -22,6 +22,16 @@ import BultenEmptyState from '../components/BultenEmptyState';
 import UlkeEtiketi from '../components/UlkeEtiketi';
 import TakimLogoZemin from '../components/TakimLogoZemin';
 
+// Maç profili etiketleri — backend'deki kriterKirilim.js ile AYNI adlar.
+// İki ekran aynı maça farklı isim vermesin diye anahtarlar birebir kopyalandı.
+const MAC_TIPI_ADI = {
+  agirFavori: 'Ağır favori', favori: 'Favori var', denk: 'Denk', acik: 'Açık / zor',
+};
+const KALABALIK_ADI = {
+  cokEmin: 'Kalabalık çok emin', kararli: 'Kalabalık kararlı',
+  bolunmus: 'Kalabalık bölünmüş', dagimik: 'Kalabalık dağınık',
+};
+
 const MARK = { correct: '✅', wrong: '❌', pending: '⏳', none: '' };
 
 // Resmi sonuç 1/X/2 (sadece resmi skordan). null → henüz yok.
@@ -89,6 +99,12 @@ export default function BulletinScreen({ navigation }) {
   const [rounds, setRounds] = useState(null);       // { currentRoundId, rounds:[{id,name,year,...}] }
   const [selectedId, setSelectedId] = useState(null); // görüntülenen hafta (null = güncel)
   const [hist, setHist] = useState(null);           // geçmiş hafta verisi { roundId, matches, prize }
+  // MAÇ PROFİLİ (2026-08-07): mühürlü oran + oynanma yüzdesi + maç tipi ve
+  // kalabalık profili etiketleri. Kullanıcı bunları kriter kırılımında görüp
+  // "bunu bülten geçmişinde de istiyorum" dedi. AYRI istek: geçmiş bülten
+  // yanıtı bu veriyi taşımıyor ve taşıması da doğru değil (biri resmî sonuç
+  // kaynağı, diğeri arşiv). Profil gelmezse kart eskisi gibi çalışır.
+  const [profil, setProfil] = useState(null);       // { roundId, maclar: [...] }
   const [histLoading, setHistLoading] = useState(false);
   const [histError, setHistError] = useState(null);
   const [histChecking, setHistChecking] = useState(false);      // "Resmi sonuçlar kontrol ediliyor"
@@ -208,6 +224,13 @@ export default function BulletinScreen({ navigation }) {
       .then((h) => { if (alive) { setHist({ ...h, roundId: effectiveId }); checkOfficial(effectiveId); } })
       .catch((e) => { if (alive) setHistError(e.message); })
       .finally(() => { if (alive) setHistLoading(false); });
+    // Profil AYRI ve İSTEĞE BAĞLI: hata verirse bülten yine görünür, yalnız
+    // rozetler çizilmez. Sessizce yutulmuyor — durum profil=null olur ve
+    // kart "bu hafta için oran/oynanma kaydı yok" yazar.
+    setProfil(null);
+    api.historyProfil(effectiveId)
+      .then((p) => { if (alive) setProfil({ ...p, roundId: effectiveId }); })
+      .catch(() => { if (alive) setProfil({ roundId: effectiveId, maclar: [], hata: true }); });
     return () => { alive = false; };
   }, [effectiveId, viewingCurrent]); // eslint-disable-line
 
@@ -389,6 +412,10 @@ export default function BulletinScreen({ navigation }) {
   // ——— Geçmiş bülten satırı — RESMİ sonuç odaklı. Resmi sonuç yoksa ASLA "-"
   // yazmaz; "Resmi sonuç bekleniyor 🔄" + yenile gösterir. (Geçmiş bültende
   // canlı/geçici skor tutulmaz; canlı takip ayrı "Canlı Bülten" ekranında.)
+  // Sıra numarasına göre profil satırını bulur. Profil gelmediyse null döner
+  // ve kart eskisi gibi çizilir (özellik isteğe bağlı, kartı kırmaz).
+  const prof = (no) => (profil?.maclar || []).find((x) => Number(x.no) === Number(no)) || null;
+
   const renderHistoryItem = ({ item }) => {
     const resolved = officialResolved(item);
     const corr = corrections.find((c) => c.no === item.no);
@@ -535,6 +562,49 @@ export default function BulletinScreen({ navigation }) {
           {/* Tıklanabilir olduğunu belli eden tek işaret — ek satır açmadan. */}
           <Text style={styles.mDetay}>›</Text>
         </View>
+
+        {/* ——— MAÇ PROFİLİ (2026-08-07) ———
+            Kullanıcı isteği: favori miydi sürpriz mi çıktı, oranı neydi, kaç
+            oynanmıştı — bunlar bültenin kendisinde görünsün.
+            SÜRPRİZ kararı burada verilir: RESMÎ sonuç + piyasa favorisi.
+            Resmî sonuç yoksa damga vurulmaz ("sonuç bekleniyor").
+            flexWrap + numberOfLines ile dar ekranda taşma engellendi (§11). */}
+        {(() => {
+          const pr = prof(item.no);
+          if (!pr) {
+            return profil?.hata || (profil && !profil.maclar?.length) ? (
+              <Text style={styles.pfYok}>Bu hafta için oran/oynanma kaydı yok.</Text>
+            ) : null;
+          }
+          const surpriz = (resolved && item.result && pr.piyasaFavorisi)
+            ? item.result !== pr.piyasaFavorisi
+            : null;
+          return (
+            <View style={styles.pfKutu}>
+              <View style={styles.pfRozetler}>
+                {surpriz === true ? (
+                  <Text style={[styles.pfRozet, styles.pfSurpriz]}>SÜRPRİZ</Text>
+                ) : surpriz === false ? (
+                  <Text style={[styles.pfRozet, styles.pfFavori]}>favori kazandı</Text>
+                ) : (
+                  <Text style={[styles.pfRozet, styles.pfNotr]}>sonuç bekleniyor</Text>
+                )}
+                {pr.macTipi ? (
+                  <Text style={styles.pfRozet}>{MAC_TIPI_ADI[pr.macTipi] || pr.macTipi}</Text>
+                ) : null}
+                {pr.kalabalikProfili ? (
+                  <Text style={styles.pfRozet}>{KALABALIK_ADI[pr.kalabalikProfili] || pr.kalabalikProfili}</Text>
+                ) : null}
+              </View>
+              <Text style={styles.pfSatir} numberOfLines={1}>
+                <Text style={styles.pfEtiket}>Oran </Text>
+                {pr.oran ? `${pr.oran.home ?? '—'} / ${pr.oran.draw ?? '—'} / ${pr.oran.away ?? '—'}` : '—'}
+                <Text style={styles.pfEtiket}>   Oynanma % </Text>
+                {pr.oynanma ? `${pr.oynanma['1'] ?? '—'} / ${pr.oynanma.X ?? '—'} / ${pr.oynanma['2'] ?? '—'}` : '—'}
+              </Text>
+            </View>
+          );
+        })()}
       </TouchableOpacity>
     );
   };
@@ -835,6 +905,19 @@ const styles = StyleSheet.create({
   mUlke: { marginBottom: 7 },
   mCardCorr: { borderColor: colors.warning },
   mDetay: { color: colors.muted, fontSize: 20, fontWeight: '900', marginLeft: 6 },
+  // ——— MAÇ PROFİLİ ———
+  pfKutu: { marginTop: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 7 },
+  pfRozetler: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 4 },
+  pfRozet: {
+    fontSize: 9.5, fontWeight: '800', color: colors.textSoft, backgroundColor: colors.bgAlt,
+    borderWidth: 1, borderColor: colors.border, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2,
+  },
+  pfSurpriz: { color: colors.danger, borderColor: colors.danger, backgroundColor: colors.dangerSoft },
+  pfFavori: { color: colors.textSoft },
+  pfNotr: { color: colors.muted },
+  pfSatir: { color: colors.text, fontSize: 11, fontWeight: '700' },
+  pfEtiket: { color: colors.muted, fontSize: 10, fontWeight: '600' },
+  pfYok: { color: colors.muted, fontSize: 10, marginTop: 7 },
   mRow: { flexDirection: 'row', alignItems: 'center' },
   mNo: { color: colors.muted, fontSize: 11, fontWeight: '900', width: 16, textAlign: 'center', marginRight: 4 },
   mTeam: { flex: 1, gap: 6, minWidth: 0 },
