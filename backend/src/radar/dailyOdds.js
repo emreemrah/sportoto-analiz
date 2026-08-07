@@ -89,14 +89,35 @@ function addDaysKey(dayKey, delta) {
   return `${nd.getUTCFullYear()}-${String(nd.getUTCMonth() + 1).padStart(2, '0')}-${String(nd.getUTCDate()).padStart(2, '0')}`;
 }
 
-// Takip penceresi (Pazar→Cuma). İlk maça (İstanbul) en yakın <= Cuma çıpa alınır.
+// Takip penceresi (Pazar→Cuma, gerekiyorsa Cumartesi de).
+//
+// Çıpa: ilk maça (İstanbul) en yakın <= Cuma. Pencere o Cuma'dan geriye
+// 6 gün, yani Pazar..Cuma.
+//
+// CUMARTESİ (kullanıcı bildirimi, 2026-08-07): "nadir de olsa Cuma günü maç
+// olmadığında kapanış Cumartesi'ye kayıyor." O haftalarda son gün Cuma değil
+// Cumartesi'dir ve pencere Cuma'da bitince kapanış günü EKRANDA HİÇ GÖRÜNMEZ
+// — veri arşivde durur ama kimse göremez.
+//
+// KURAL: çıpa Cuma'sının ertesi Cumartesi'si, İLK MAÇ GÜNÜNÜ GEÇMİYORSA
+// pencereye eklenir. Böylece:
+//   • İlk maç Cumartesi/Pazar ise → Pazar..Cumartesi (7 gün), kapanış görünür.
+//   • İlk maç Cuma ise            → Pazar..Cuma (6 gün), değişiklik yok.
+// Maçtan SONRAKİ gün asla eklenmez; takip ilk maçta biter.
 export function buildDayWindow({ firstKickoffMs = null, now = Date.now() } = {}) {
   const anchorMs = firstKickoffMs || now;
   const wd = istanbulParts(anchorMs).weekday;   // 0..6
   const back = (wd - 5 + 7) % 7;                 // Cuma=5 → 0, Cmt=6 → 1, Paz=0 → 2 ...
-  const anchorFriday = addDaysKey(dayKeyOf(anchorMs), -back);
+  const ilkMacGunu = dayKeyOf(anchorMs);
+  const anchorFriday = addDaysKey(ilkMacGunu, -back);
   const days = [];
   for (let i = 5; i >= 0; i--) days.push(addDaysKey(anchorFriday, -i)); // Pazar..Cuma
+
+  // Gün anahtarı 'YYYY-MM-DD' olduğu için metin karşılaştırması tarih
+  // sırasıyla aynıdır — ayrı bir tarih ayrıştırmaya gerek yok.
+  const cumartesi = addDaysKey(anchorFriday, 1);
+  if (cumartesi <= ilkMacGunu) days.push(cumartesi);
+
   return days;
 }
 
