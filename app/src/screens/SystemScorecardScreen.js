@@ -302,6 +302,16 @@ export default function SystemScorecardScreen({ navigation }) {
                 </TouchableOpacity>
               );
             })}
+          {/* KARŞILAŞTIRMA GİRİŞİ: tek kriterin kırılımı yetmez, kriterleri
+              BİRBİRİYLE karşılaştırmak gerekir — "bu iş için hangisi iyi?" */}
+          <TouchableOpacity
+            style={styles.karsBtn}
+            onPress={() => navigation.navigate('KriterKarsilastirma')}
+            accessibilityRole="button"
+            accessibilityLabel="Kriterleri karşılaştır"
+          >
+            <Text style={styles.karsBtnTxt}>Kriterleri karşılaştır — hangi iş için hangisi? ›</Text>
+          </TouchableOpacity>
           <Text style={styles.honestNote}>
             Bir kritere dokun: hangi maç tipinde (ağır favori / denk / açık),
             kalabalık ne derken ve hangi sırada başarılı olduğunu ayrı ayrı
@@ -473,6 +483,11 @@ const styles = StyleSheet.create({
   donemTxtAcik: { color: '#fff' },
   critRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border },
   critChevron: { color: colors.textMuted, fontSize: 17, fontWeight: '900' },
+  karsBtn: {
+    marginTop: spacing.md, backgroundColor: colors.primarySoft, borderRadius: radius.sm,
+    paddingVertical: 10, paddingHorizontal: spacing.md, alignItems: 'center',
+  },
+  karsBtnTxt: { color: colors.primary, fontSize: 12.5, fontWeight: '900' },
   // Değer metni ('1008 maçta 809 başarı · %80') sabit davranıp kriter adını
   // eziyordu; ikisi de kısalabilir oldu, satır tek satır kalır.
   critName: { flex: 1, minWidth: 0, color: colors.text, fontSize: 12.5, fontWeight: '700' },
