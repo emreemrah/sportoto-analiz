@@ -214,9 +214,28 @@ Kullanıcı kararları (soruldu, cevaplandı):
 3. Oran filtresi de eklenecek — geçmişte oran verisi az; ekran kaç maçın oranı
    olduğunu AÇIKÇA yazacak, eksik veriyle yüzde uydurulmayacak.
 
+### Tasarım (kullanıcı netleştirdi, 2026-08-08)
+İKİ KATMANLI filtre:
+
+  ÜST KATMAN (mod):
+    Tüm Haftalar · Son 5 · Son 10 · Son 15 · **Oynanma %** · **Oran**
+
+  ALT KATMAN (yalnız Oynanma % / Oran seçiliyken görünür):
+    Son 5 maç · Son 10 maç · Son 15 maç
+
+BİRİM FARKI — ATLANMAMASI GEREKEN NOKTA: üst katmanda birim HAFTA (bülten),
+alt katmanda birim MAÇ. "Son 5 maç" = bu sıranın yüzdesine uyan son 5 maç,
+5 hafta değil. Radar 3'teki played-dna ekranında bu ayrım zaten var
+(`limit` = maç, `tol` = yakınlık); aynı dil kullanılacak, yeni kavram
+uydurulmayacak.
+
+HER SATIR KENDİ MAÇINA BAKAR: 1. sıra, güncel haftanın 1. sırasındaki maçın
+oynanma yüzdesine yakın geçmiş maçları; 6. sıra kendi maçınınkini süzer.
+Tek bir "hafta yüzdesi" YOKTUR.
+
 ### Nerede
-`RadarScreen` → Radar 5 (Bülten DNA) → dönem filtresi satırının yanına
-(Tüm Haftalar / Son 5 / Son 10 / Son 15 çiplerinin altına ikinci sıra).
+`RadarScreen` → Radar 5 (Bülten DNA) → dönem filtresi satırı + altına ikinci
+satır (yalnız ilgili modda).
 
 ### Yapılacaklar
 1. `history/positionDna.js` → `computePositionDna(matches, { ..., sec })`
