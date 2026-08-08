@@ -187,6 +187,10 @@ const s = StyleSheet.create({
   no: {
     color: colors.textSoft, fontSize: 15, fontWeight: '900',
     width: SIRA_SUTUNU, textAlign: 'center', marginRight: SIRA_BOSLUK,
+    // DİKEY ORTALAMA: `row` içindeki diğer sütunlar (takım + rozetler) iki
+    // satır yüksekliğinde; numara tek satır olduğu için üste yapışıyordu.
+    // alignSelf: 'center' ile satırın dikey ortasına oturur.
+    alignSelf: 'center',
   },
   team: { flex: 1, gap: 6, minWidth: 0 },
   teamR: { alignItems: 'flex-end' },
