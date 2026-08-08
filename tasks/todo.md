@@ -205,3 +205,40 @@ Genel sekmesi → Mühür Durumu: güncel hafta, mühür anı, **aday mühür va
 Aday mühür de dosyaya yazılıyor ve o dosya AYNI makinede. Makine hafta boyunca
 hiç açılmazsa hafta yine kaybedilir. Kalıcı çözüm: backend'in 7/24 açık bir
 sunucuda çalışması (Render zaten var, üretimde kullanılmıyor).
+
+## SIRADAKİ İŞ — Radar 5'e oynanma + oran filtresi (spec, 2026-08-08)
+
+Kullanıcı kararları (soruldu, cevaplandı):
+1. Filtre **hem üstteki 1/X/2 dağılımını hem alttaki maç listesini** süzer.
+2. Oynanma filtresi **bu maça yakınlık**: birebir / ±3 / ±5 / ±10 (Radar 3 dili).
+3. Oran filtresi de eklenecek — geçmişte oran verisi az; ekran kaç maçın oranı
+   olduğunu AÇIKÇA yazacak, eksik veriyle yüzde uydurulmayacak.
+
+### Nerede
+`RadarScreen` → Radar 5 (Bülten DNA) → dönem filtresi satırının yanına
+(Tüm Haftalar / Son 5 / Son 10 / Son 15 çiplerinin altına ikinci sıra).
+
+### Yapılacaklar
+1. `history/positionDna.js` → `computePositionDna(matches, { ..., sec })`
+   `sec(m)` yüklemi eklenecek; `usable` süzgecine girecek. SAF kalmalı.
+2. `routes/radar.js` → `/position-dna`:
+   - `?oynanmaTol=0|3|5|10` ve `?oranTol=...` parametreleri.
+   - Geçmiş maçların oynanma yüzdesi için `collectPlayedDnaRecords` +
+     `sonGunOynanmaIndeksi` (position-matches dalında ZATEN var, oraya taşınacak
+     ya da paylaşılacak — iki kopya OLMASIN).
+   - Karşılaştırma noktası: GÜNCEL haftanın aynı sıradaki maçının yüzdesi.
+     Yani yakınlık sıra bazında ayrı hesaplanır.
+   - **Önbellek anahtarına filtre parametreleri EKLENECEK** — yoksa filtre
+     değişince eski sonuç döner (sessiz hata).
+3. `/position-matches` aynı parametreleri alacak (liste ile dağılım aynı
+   süzgeci kullanmalı; ikisi ayrışırsa hangisi doğru bilinmez).
+4. App: `RadarScreen`'e ikinci filtre satırı + `api.radarPositionDna/Matches`
+   imzalarına parametre.
+5. Testler: (a) yakınlık süzgeci doğru maçları seçiyor, (b) filtre değişince
+   önbellek yenileniyor, (c) oran verisi olmayan maç sayısı ekranda yazılıyor,
+   (d) süzgeç sonrası örneklem düşünce yüzde yerine "yetersiz" deniyor.
+
+### Neden bugün başlanmadı
+Değişiklik DNA hesabına ve önbellek anahtarına dokunuyor; yarım bırakılırsa
+Radar 5 sessizce yanlış sayı gösterir (en tehlikeli hata sınıfı). Temiz bir
+oturumda, testleriyle birlikte yapılacak.
