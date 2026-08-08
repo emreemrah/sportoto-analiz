@@ -36,6 +36,9 @@ import {
   oynanmaSuzgeci, suzgecModuMu, MAC_LIMIT_DEGERI, MAC_LIMIT_ETIKET,
   SUZGEC_ETIKET, TOLERANS,
 } from '../radar/oynanmaSuzgeci';
+// "Oran" modunda satırın SAĞINDA son günün 1/X/2 oranı yazar. Gün seçimi ve
+// geçerlilik kuralı saf modülde: radar/oranOzeti.js.
+import { sonGunOranOzeti, oranYaz, ORAN_ALANLARI } from '../radar/oranOzeti';
 
 // RADAR 3 OTOMATİK TAZELEME — sekme açıkken ekran kendiliğinden yenilenir.
 // Sağlayıcı gözlemi arka planda 15 dk'da bir yazıldığı için 60 sn'lik ekran
@@ -289,8 +292,15 @@ export default function RadarScreen({ navigation }) {
   // Radar 4 (Oran Takibi): sekme açılınca gösterilen haftanın günlük mühürlü
   // oranları çekilir. Hafta değişince yeniden çekilir; varsayılan gün = veri
   // olan SON gün (yoksa penceredeki son gün — Cuma).
+  //
+  // RADAR 5 "ORAN" MODU DA ÇEKER (kullanıcı isteği, 8 Ağustos 2026): o modda
+  // satırın sağında son günün 1/X/2 ORANI yazıyor. Yeni uç DEĞİL, aynı uç ve
+  // aynı kilit (`cekilenOran`) — Radar 4'e uğramış kullanıcı için ikinci istek
+  // GİTMEZ. Yalnız mod seçilince çekilir: Radar 5'e giren herkese oran isteği
+  // atmak, kullanmayacağı veri için ağ trafiği olurdu.
   useEffect(() => {
-    if (tab !== 'market') return;
+    const oranModu = tab === 'bulletinMemory' && dnaPeriod === 'oran';
+    if (tab !== 'market' && !oranModu) return;
     const rid = view?.roundId ?? selectedId;
     if (rid == null) return;
     if (zatenCekildi(cekilenOran, rid)) return;
@@ -301,7 +311,7 @@ export default function RadarScreen({ navigation }) {
       // sayılmaz. Bu iki kusur birlikte Radar 3'ü CUMA gününde kilitlemişti.
       setOddsDay(varsayilanGun(d?.days, d?.matches));
     }).catch(() => { cekilenOran.current = null; });
-  }, [tab, selectedId, view]);
+  }, [tab, dnaPeriod, selectedId, view]);
 
   // Radar 3 (Oynanma DNA): gösterilen haftanın günlük mühürlü yüzdelerini çeker.
   // Tazelemede SEÇİLİ GÜN korunur — kullanıcının seçimi otomatik yenilemeyle
@@ -560,6 +570,18 @@ export default function RadarScreen({ navigation }) {
     }
   }
 
+  // "ORAN" MODU — satırın sağında oynanma yüzdesi yerine SON GÜNÜN 1/X/2 ORANI
+  // yazar (kullanıcı isteği, 8 Ağustos 2026). Gün seçimi oynanma tarafındaki
+  // mantığın aynısıdır (gerçek kaydı olan son geçmiş/bugün günü; gelecek gün
+  // asla), yalnız burada "kayıt" ORAN demektir — bkz. radar/oranOzeti.js.
+  //
+  // AYRI İSTEK YOK: ekranda zaten yüklü `dailyOdds` kullanılır (Radar 4'ün ucu).
+  const oranOzet = suzgecModu === 'oran' ? sonGunOranOzeti(dailyOdds) : null;
+  // Gün adı, oynanma tarafındaki gibi KISALTILIR ("Pazar"/"Pazartesi" ilk üç
+  // harfte aynı olduğu için kesme değil açık eşleme).
+  const oranGunKisa = oranOzet?.weekday
+    ? (KISA_GUN[oranOzet.weekday] || oranOzet.weekday) : null;
+
   const renderMemoryRow = ({ item }) => {
     const bugunKaynaklar = bugunPctByNo.get(item.no) || null;
     // SATIR AÇILIMI — dokununca bu SIRANIN geçmiş maçları listelenir. Yüzdenin
@@ -584,7 +606,11 @@ export default function RadarScreen({ navigation }) {
     // Yüzde yazılmadığında SEBEBİ söylenir; boş bırakmak "veri yok" ile
     // "henüz hesaplanmadı"yı aynı gösterirdi.
     const yuzdeYokSebebi = () => {
-      if (suzgecModu === 'oran') return 'Geçmiş maçların oran kaydı yok — bu modda yüzde hesaplanmaz.';
+      // ORAN SÜZMESİ HENÜZ YOK: /position-matches yalnız oynanma yüzdesi taşır,
+      // geçmiş maçların oranı arşivde tutulmuyor. Bu yüzden liste orana göre
+      // SÜZÜLEMEZ ve yüzde de hesaplanamaz. Eksiklik açıkça söylenir; yaklaşık
+      // ya da tahmini bir oran eşleştirmesi ÜRETİLMEZ.
+      if (suzgecModu === 'oran') return 'Geçmiş maçların oran kaydı arşivde yok — bu süzgeç veri biriktikçe çalışacak.';
       if (suzgecModu === 'oynanmaYuzdesi') {
         if (kayit?.hata) return `Geçmiş maçlar okunamadı: ${kayit.hata}`;
         if (!kayit || kayit.yukleniyor) return 'Benzer maçlar aranıyor…';
@@ -607,6 +633,84 @@ export default function RadarScreen({ navigation }) {
     // kaydı olduğu gibi geçer ki tablo kendi durumunu yazabilsin.
     const listeKaydi = suz && kayit?.liste ? { ...kayit, liste: suz.maclar } : kayit;
 
+    // ---- SATIRIN SAĞ TARAFI: moda göre YÜZDE ya da ORAN --------------------
+    // "Oynanma %" ve hafta pencerelerinde BUGÜNÜN oynanma yüzdeleri (eski
+    // davranış, aynen), "Oran" modunda SON GÜNÜN 1/X/2 oranı. İkisi aynı yerde
+    // durur ama birimi farklıdır — gün adının yanındaki değer bunu söyler:
+    // yüzdede "%51", oranda "1.61".
+    //
+    // `alt` = dar ekran yerleşimi: blok maçın altına iner (takım adı ezilmesin).
+    const oranUclu = oranOzet?.oranlar.get(item.no) || null;
+    const sagOzet = (alt) => {
+      const kutuStil = [styles.memBugunYan, alt && styles.memBugunAlt];
+      if (suzgecModu === 'oran') {
+        // Gün seçilemediyse (yanıt gelmedi / hiç oran kaydı yok) SAYI YAZILMAZ,
+        // sebep yazılır. Uydurma oran ya da "0.00" gösterilmez.
+        if (!oranUclu) {
+          const yok = oranOzet?.sebep === 'yukleniyor'
+            ? 'oran yükleniyor…'
+            : (oranOzet?.sebepler.get(item.no) || 'oran kaydı yok');
+          return (
+            <View style={[...kutuStil, styles.memOranYan]}>
+              {oranGunKisa ? <Text style={styles.memBugunGun}>{oranGunKisa}</Text> : null}
+              <Text style={styles.memOranYok} numberOfLines={1}>{yok}</Text>
+            </View>
+          );
+        }
+        const etiket = ORAN_ALANLARI.map(([h, a]) => `${h} ${oranYaz(oranUclu[a])}`).join(', ');
+        return (
+          <View
+            style={[...kutuStil, styles.memOranYan]}
+            accessibilityRole="text"
+            accessibilityLabel={`${oranOzet.weekday || 'Son gün'} oranları: ${etiket}`}
+          >
+            <Text style={styles.memBugunGun}>{oranGunKisa || 'Son gün'}</Text>
+            <View style={styles.memOranUclu}>
+              {ORAN_ALANLARI.map(([harf, alan]) => (
+                <View key={harf} style={styles.memBugunOge}>
+                  <Text style={styles.memBugunHarf}>{harf}</Text>
+                  <View style={styles.memBugunKutu}>
+                    <Text style={styles.memBugunPct} numberOfLines={1}>{oranYaz(oranUclu[alan])}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        );
+      }
+      if (!bugunKaynaklar) return null;
+      return (
+        <View style={kutuStil}>
+          <Text style={styles.memBugunGun}>{bugunGunKisa || 'Bugün'}</Text>
+          {bugunKaynaklar.map(({ kaynak, pct: kp }) => (
+            <View key={kaynak} style={styles.memBugunKaynak}>
+              {/* Kaynak RENKLİ NOKTAYLA gösterilir; adı hiçbir yerde geçmez
+                  (yasal/mağaza kısıtı). Etiket renk adını söyler. */}
+              <View
+                style={[styles.memBugunNokta, { backgroundColor: providerColor(kaynak) }]}
+                accessibilityLabel={providerLabel(kaynak)}
+                testID={`radar5-bugun-nokta-${kaynakKodu(kaynak)}`}
+              />
+              {/* KUTU DÜZENİ (kullanıcı kararı): yüzde, "Geçmiş N. sıra"
+                  satırındaki gibi yuvarlak kenarlı kutunun İÇİNDE; 1/X/2
+                  harfi kutunun DIŞINDA ve RENKSİZ. Alt satırdaki rozetler
+                  renkli (mavi/sarı/kırmızı); burada renk kullanılsaydı iki
+                  satır aynı şeymiş gibi görünürdü — oysa biri bu haftanın
+                  oynanması, öteki geçmişin sonucu. */}
+              {['1', 'X', '2'].map((k) => (
+                <View key={k} style={styles.memBugunOge}>
+                  <Text style={styles.memBugunHarf}>{k}</Text>
+                  <View style={styles.memBugunKutu}>
+                    <Text style={styles.memBugunPct}>%{kp[k]}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ))}
+        </View>
+      );
+    };
+
     return (
       <View style={styles.memRow}>
         <TouchableOpacity
@@ -618,65 +722,15 @@ export default function RadarScreen({ navigation }) {
           <View style={styles.memTop}>
             <Text style={styles.memNo}>{item.no}</Text>
             <Text style={styles.memTeams} numberOfLines={1}>{item.home} – {item.away}</Text>
-            {/* BUGÜNÜN oynanma yüzdesi — maçın YANINDA (kullanıcı kararı:
-                "altında değil yanında"). Gün adı önde durur, yoksa alttaki
-                "Geçmiş N. sıra" satırıyla karışır: biri BU MAÇA bu hafta ne
-                oynandığını, öteki o SIRADA geçmişte ne çıktığını söyler. */}
-            {bugunKaynaklar && !darEkran ? (
-              <View style={styles.memBugunYan}>
-                <Text style={styles.memBugunGun}>{bugunGunKisa || 'Bugün'}</Text>
-                {bugunKaynaklar.map(({ kaynak, pct: kp }) => (
-                  <View key={kaynak} style={styles.memBugunKaynak}>
-                    {/* Kaynak RENKLİ NOKTAYLA gösterilir; adı hiçbir yerde
-                        geçmez (yasal/mağaza kısıtı). Etiket renk adını söyler. */}
-                    <View
-                      style={[styles.memBugunNokta, { backgroundColor: providerColor(kaynak) }]}
-                      accessibilityLabel={providerLabel(kaynak)}
-                      testID={`radar5-bugun-nokta-${kaynakKodu(kaynak)}`}
-                    />
-                    {/* KUTU DÜZENİ (kullanıcı kararı): yüzde, "Geçmiş N. sıra"
-                        satırındaki gibi yuvarlak kenarlı kutunun İÇİNDE; 1/X/2
-                        harfi kutunun DIŞINDA ve RENKSİZ. Alt satırdaki rozetler
-                        renkli (mavi/sarı/kırmızı); burada renk kullanılsaydı iki
-                        satır aynı şeymiş gibi görünürdü — oysa biri bu haftanın
-                        oynanması, öteki geçmişin sonucu. */}
-                    {['1', 'X', '2'].map((k) => (
-                      <View key={k} style={styles.memBugunOge}>
-                        <Text style={styles.memBugunHarf}>{k}</Text>
-                        <View style={styles.memBugunKutu}>
-                          <Text style={styles.memBugunPct}>%{kp[k]}</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                ))}
-              </View>
-            ) : null}
+            {/* SAĞ TARAF — maçın YANINDA (kullanıcı kararı: "altında değil
+                yanında"). Gün adı önde durur, yoksa alttaki "Geçmiş N. sıra"
+                satırıyla karışır: biri BU MAÇIN bu haftaki değeri (oynanma
+                yüzdesi ya da oran), öteki o SIRADA geçmişte ne çıktığıdır. */}
+            {!darEkran ? sagOzet(false) : null}
             <Text style={styles.memAc}>{acik ? '▲' : '▼'}</Text>
           </View>
           {/* DAR EKRAN: aynı bilgi, alt satırda — takım adı ezilmesin. */}
-          {bugunKaynaklar && darEkran ? (
-            <View style={[styles.memBugunYan, styles.memBugunAlt]}>
-              <Text style={styles.memBugunGun}>{bugunGunKisa || 'Bugün'}</Text>
-              {bugunKaynaklar.map(({ kaynak, pct: kp }) => (
-                <View key={kaynak} style={styles.memBugunKaynak}>
-                  <View
-                    style={[styles.memBugunNokta, { backgroundColor: providerColor(kaynak) }]}
-                    accessibilityLabel={providerLabel(kaynak)}
-                    testID={`radar5-bugun-nokta-${kaynakKodu(kaynak)}`}
-                  />
-                  {['1', 'X', '2'].map((k) => (
-                    <View key={k} style={styles.memBugunOge}>
-                      <Text style={styles.memBugunHarf}>{k}</Text>
-                      <View style={styles.memBugunKutu}>
-                        <Text style={styles.memBugunPct}>%{kp[k]}</Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              ))}
-            </View>
-          ) : null}
+          {darEkran ? sagOzet(true) : null}
         </TouchableOpacity>
         {pct ? (
           <>
@@ -726,7 +780,7 @@ export default function RadarScreen({ navigation }) {
             ustYuzdeNotu={suz
               ? 'Üstteki yüzde tam olarak bu listeden hesaplanır.'
               : suzgecModu === 'oran'
-                ? 'Geçmiş oran kaydı olmadığı için bu modda üstte yüzde yazılmaz.'
+                ? 'Geçmiş maçların oran kaydı arşivde yok — bu liste orana göre süzülmedi.'
                 : undefined}
             bosMesaj={suzgecModu === 'oynanmaYuzdesi'
               ? `Bu haftanın oynanma yüzdesine ±${TOLERANS} puan yakın geçmiş maç yok.`
@@ -1038,6 +1092,14 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   memBugunPct: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  // "ORAN" MODU — aynı yer, farklı birim. Oran üçlüsü yüzdeden GENİŞTİR
+  // ("1.61" > "%51"), o yüzden burada blok esneyebilir olmalı: takım adı
+  // kısalır, satır TAŞMAZ (tasks/lessons.md §11).
+  memOranYan: { flexShrink: 1, minWidth: 0 },
+  // Gruplar arası boşluk oynanmadakinden bir tık dar (12 → 8): üç oran yan yana
+  // dar ekranda 12'lik boşlukla satırdan taşıyordu.
+  memOranUclu: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, minWidth: 0 },
+  memOranYok: { color: colors.textMuted, fontSize: 12, fontStyle: 'italic', flexShrink: 1, minWidth: 0 },
   memNone: { color: colors.textMuted, fontSize: 12, fontStyle: 'italic', marginTop: 6, marginLeft: 34 },
   // RADAR 5 SATIR AÇILIMI — o sıranın geçmiş maçları.
   memAc: { color: colors.primary, fontSize: 11, fontWeight: '900', marginLeft: 6 },
