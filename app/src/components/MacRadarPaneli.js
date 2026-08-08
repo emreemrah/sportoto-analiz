@@ -1,20 +1,22 @@
 // ---------------------------------------------------------------------------
-// MAÇ RADAR PANELİ — Radar 3 / 4 / 5, YALNIZ BU MAÇ İÇİN (2026-08-07)
+// MAÇ RADAR PANELİ — Radar 3 / 4, YALNIZ BU MAÇ İÇİN (2026-08-07)
 // ---------------------------------------------------------------------------
 // KULLANICI İSTEĞİ: "Radar 3-4-5'i maç detayına koyalım ama her maçın KENDİ
-// sırasını koyacağız." Radar sekmesinde bu üç panel bültenin 15 maçını birden
+// sırasını koyacağız." Radar sekmesinde bu paneller bültenin 15 maçını birden
 // listeliyor; maçın içindeyken o kalabalığa gerek yok — tek satır lazım.
+//
+// RADAR 5 KALDIRILDI (2026-08-08): kullanıcı "radar5 bugün yaptığımızı
+// beğenmedim" dedi. Bülten DNA bölümü buradan çıkarıldı; Radar sekmesindeki
+// Radar 5 ekranı olduğu gibi duruyor. Geri getirmek için: commit b2c27fd.
 //
 // NE GÖSTERİR (hepsi mevcut uçlardan, yeni uç açılmadı):
 //   • Radar 3 — Oynanma DNA: bu maçın günlük 1/X/2 oynanma yüzdeleri, her
 //     kaynak ayrı satır. Kaynak satırına dokununca geçmiş DNA paneli açılır.
 //   • Radar 4 — Oran Takibi: bu maçın seçili gündeki mühürlü 1/X/2 oranı ve
 //     bir önceki güne göre yönü.
-//   • Radar 5 — Bülten DNA: bu maçın BÜLTEN SIRASININ geçmişi (aynı sırada
-//     oynanmış maçlar, sonuçlarıyla).
 //
 // TASARIM KARARI: satırları Radar ekranındaki bileşenlerin AYNISI çizer
-// (`RadarDayRows`, `SiraGecmisListesi`). Kopya bileşen yazılmadı; iki ekran
+// (`RadarDayRows`). Kopya bileşen yazılmadı; iki ekran
 // aynı veriyi farklı gösterirse hangisinin doğru olduğu bilinemez.
 //
 // DÜRÜSTLÜK: veri yoksa uydurma yüzde/oran yazılmaz; ilgili bölüm sebebini
@@ -43,7 +45,6 @@ import {
 import { api } from '../api';
 import { colors, spacing, radius } from '../theme';
 import { MarketRow, PublicRow } from './RadarDayRows';
-import SiraGecmisListesi from './SiraGecmisListesi';
 
 const KISA_GUN = {
   Pazartesi: 'Pzt', Salı: 'Sal', Çarşamba: 'Çar', Perşembe: 'Per',
@@ -101,9 +102,6 @@ export default function MacRadarPaneli({ m }) {
 
   const [oynanma, setOynanma] = useState({ yukleniyor: true, veri: null, hata: null });
   const [oran, setOran] = useState({ yukleniyor: true, veri: null, hata: null });
-  const [siraDna, setSiraDna] = useState({ yukleniyor: true, veri: null, hata: null });
-  const [siraMaclari, setSiraMaclari] = useState({ yukleniyor: true, liste: [], hata: null });
-
   const [oynanmaGun, setOynanmaGun] = useState(null);
   const [oranGun, setOranGun] = useState(null);
   const [acikDna, setAcikDna] = useState(null);   // "<no>|<kaynak>"
@@ -138,19 +136,6 @@ export default function MacRadarPaneli({ m }) {
     return () => { iptal = true; };
   }, [roundId, no]);
 
-  // Radar 5 — bu SIRANIN bülten DNA'sı + aynı sırada oynanmış geçmiş maçlar.
-  useEffect(() => {
-    let iptal = false;
-    if (roundId == null || no == null) return undefined;
-    api.radarPositionDna(roundId)
-      .then((d) => { if (!iptal) setSiraDna({ yukleniyor: false, veri: d, hata: null }); })
-      .catch((e) => { if (!iptal) setSiraDna({ yukleniyor: false, veri: null, hata: e?.message || 'okunamadı' }); });
-    api.radarPositionMatches(no, roundId)
-      .then((d) => { if (!iptal) setSiraMaclari({ yukleniyor: false, liste: d?.matches || [], hata: null }); })
-      .catch((e) => { if (!iptal) setSiraMaclari({ yukleniyor: false, liste: [], hata: e?.message || 'okunamadı' }); });
-    return () => { iptal = true; };
-  }, [roundId, no]);
-
   if (roundId == null || no == null) {
     return (
       <View style={st.kart}>
@@ -165,9 +150,6 @@ export default function MacRadarPaneli({ m }) {
     home: m?.home?.mediumName || m?.home?.name || 'Ev sahibi',
     away: m?.away?.mediumName || m?.away?.name || 'Deplasman',
   };
-
-  // Radar 5: bu sıranın geçmiş dağılımı (varsa).
-  const siraKaydi = (siraDna.veri?.dna?.positions || []).find((p) => Number(p.position) === Number(no)) || null;
 
   return (
     <View>
@@ -213,43 +195,6 @@ export default function MacRadarPaneli({ m }) {
         )}
       </Bolum>
 
-      {/* ——— RADAR 5 ——— */}
-      <Bolum
-        baslik="Radar 5 · Bülten DNA"
-        alt={`${no}. sırada geçmişte oynanmış maçlar ve sonuçları. Bu maça değil, BU SIRAYA bakar.`}
-      >
-        {siraDna.yukleniyor ? (
-          <ActivityIndicator color={colors.primary} style={st.bekle} />
-        ) : siraDna.hata ? (
-          <Text style={st.bos}>Sıra DNA'sı okunamadı: {siraDna.hata}</Text>
-        ) : (
-          <>
-            {(() => {
-              // Dağılım TÜM ZAMANLAR penceresinden okunur; örneklem yoksa
-              // yüzde YAZILMAZ (0 göstermek "hiç olmamış" demek olurdu).
-              const w = siraKaydi?.windows?.allTime || null;
-              if (!w || !w.sample) {
-                return <Text style={st.bos}>Bu sıra için doğrulanmış geçmiş dağılım yok.</Text>;
-              }
-              return (
-                <View style={st.dagilim}>
-                  {['1', 'X', '2'].map((k) => (
-                    <View key={k} style={st.dagilimHucre}>
-                      <Text style={st.dagilimK}>{k}</Text>
-                      <Text style={st.dagilimV}>{w.pct?.[k] == null ? '–' : `%${w.pct[k]}`}</Text>
-                    </View>
-                  ))}
-                  <Text style={st.dagilimNot}>
-                    {`${w.sample} sonuçlanmış maç`}
-                    {siraKaydi.sampleLabel ? ` · ${siraKaydi.sampleLabel}` : ''}
-                  </Text>
-                </View>
-              );
-            })()}
-            <SiraGecmisListesi kayit={siraMaclari} />
-          </>
-        )}
-      </Bolum>
     </View>
   );
 }
@@ -274,13 +219,4 @@ const st = StyleSheet.create({
   gunTxt: { color: colors.textSoft, fontSize: 11, fontWeight: '800' },
   gunTxtAcik: { color: colors.white },
   gunAlt: { color: colors.textMuted, fontSize: 9 },
-
-  dagilim: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' },
-  dagilimHucre: {
-    backgroundColor: colors.bgAlt, borderRadius: radius.sm,
-    paddingHorizontal: 9, paddingVertical: 4, alignItems: 'center', minWidth: 52,
-  },
-  dagilimK: { color: colors.textMuted, fontSize: 9.5, fontWeight: '900' },
-  dagilimV: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  dagilimNot: { color: colors.textMuted, fontSize: 10 },
 });
