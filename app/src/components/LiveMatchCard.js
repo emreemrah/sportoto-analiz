@@ -123,13 +123,13 @@ export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'impor
               `last5detail` yoksa iç saha/deplasman bilinmez — ikon uydurmak
               yerine eski harfli şeride düşülür. */}
           {match.stats?.home?.last5detail?.length ? (
-            <VenueFormStrip detail={match.stats.home.last5detail} size={15} limit={5} />
+            <VenueFormStrip detail={match.stats.home.last5detail} size={19} limit={5} />
           ) : (
             <FormStrip form={match.stats?.home?.last5} size={14} />
           )}
           <Text style={s.formMid}>son maçlar</Text>
           {match.stats?.away?.last5detail?.length ? (
-            <VenueFormStrip detail={match.stats.away.last5detail} size={15} limit={5} sag />
+            <VenueFormStrip detail={match.stats.away.last5detail} size={19} limit={5} sag />
           ) : (
             <FormStrip form={match.stats?.away?.last5} size={14} />
           )}
