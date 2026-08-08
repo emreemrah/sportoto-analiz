@@ -15,7 +15,6 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-nati
 import InfoIpucu from './InfoIpucu';
 import { colors, spacing, radius } from '../theme';
 import { DNA_PERIODS } from '../radarScreenData';
-import { DNA_SUZGEC_MODLARI, MAC_LIMITLERI, suzgecModuMu, TOLERANS } from '../radar/oynanmaSuzgeci';
 
 // OYNANMA YÜZDESİ KAYNAKLARI — uygulama marka kimliğini HİÇ GÖRMEZ.
 //
@@ -140,7 +139,6 @@ export default function RadarTabHeader({
   dailyOdds, oddsDay, onSelectOddsDay,
   dailyPlayed, playedDay, onSelectPlayedDay,
   positionDna, dnaPeriod, onSelectDnaPeriod,
-  macLimiti, onSelectMacLimiti, suzgecAcik = false,
   muhurluHafta, muhurluRadar5Yok, meta,
 }) {
   if (!centerMode || tab === 'master') return null;
@@ -220,58 +218,22 @@ export default function RadarTabHeader({
     // SADE MAÇ ODAKLI GÖRÜNÜM: üstte yalnız küçük dönem filtresi. Sıra
     // yüzdeleri her maçın kendi kartında görünür. Teknik bilgiler (n, arşiv
     // sayısı, shrinkage) ana ekranda YOK — yalnız metodolojide.
-    // ÜST SATIR = HAFTA penceresi + (varsa) süzgeç modları.
-    // ALT SATIR = MAÇ sayısı; YALNIZ süzgeç modunda görünür.
-    // İki satırın BİRİMİ FARKLIDIR (hafta ≠ maç) — bu yüzden alt satır ayrı
-    // görünür ve altındaki ipucu farkı açıkça yazar. Aynı görünen iki şerit
-    // sessizce yanlış okunur.
-    const suzgecte = suzgecAcik && suzgecModuMu(dnaPeriod);
-    const ustCipler = suzgecAcik ? [...DNA_PERIODS, ...DNA_SUZGEC_MODLARI] : DNA_PERIODS;
     return (
       <View style={styles.dnaFilterWrap}>
         <View style={styles.dnaFilterRow}>
-          {ustCipler.map((p) => {
+          {DNA_PERIODS.map((p) => {
             const on = dnaPeriod === p.k;
             return (
               // ÇİP YALNIZ FİLTREDİR. Üzerinde "· %66.7" ve eğilim oku (▲▼—)
               // duruyordu; kullanıcı kararıyla kaldırıldı ("dönem başarısı kafa
               // karıştırıyor"). Aynı sayı maç satırında da tekrarlanıyordu.
               <TouchableOpacity key={p.k} onPress={() => onSelectDnaPeriod(p.k)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                accessibilityLabel={`${p.label} — dönem filtresi${on ? ' (seçili)' : ''}`}
                 style={[styles.dnaPeriodChip, on && styles.dnaPeriodChipOn]} activeOpacity={0.85}>
                 <Text style={[styles.dnaPeriodTxt, on && styles.dnaPeriodTxtOn]}>{p.label}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
-        {suzgecte ? (
-          <>
-            {/* Dar ekranda taşmasın diye SARMALI (flexWrap) — çip sayısı
-                arttıkça alt satıra iner, hiçbir çip ekran dışında kalmaz. */}
-            <View style={[styles.dnaFilterRow, styles.dnaLimitRow]}>
-              {MAC_LIMITLERI.map((p) => {
-                const on = macLimiti === p.k;
-                return (
-                  <TouchableOpacity key={p.k} onPress={() => onSelectMacLimiti(p.k)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: on }}
-                    accessibilityLabel={`${p.label} — kaç geçmiş maç alınacağı${on ? ' (seçili)' : ''}`}
-                    style={[styles.dnaPeriodChip, styles.dnaLimitChip, on && styles.dnaPeriodChipOn]} activeOpacity={0.85}>
-                    <Text style={[styles.dnaPeriodTxt, on && styles.dnaPeriodTxtOn]}>{p.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            {/* BİRİM FARKI AÇIKÇA YAZILIR + modun ne yaptığı tek cümlede. */}
-            <Text style={styles.dnaHint}>
-              {dnaPeriod === 'oynanmaYuzdesi'
-                ? `Üst satır HAFTA, alt satır MAÇ sayar. Her sıra için bu haftanın oynanma yüzdesine ±${TOLERANS} puan yakın geçmiş maçlar süzülür; yüzdeler yalnız o maçlardan hesaplanır.`
-                : 'Üst satır HAFTA, alt satır MAÇ sayar. Geçmiş maçların ORANI arşivde yok — bu modda yüzde hesaplanmaz, satırlar bunu yazar.'}
-            </Text>
-          </>
-        ) : null}
         {positionDna && !positionDna.hasData ? (
           <Text style={styles.dnaHint}>
             {positionDna.note || 'Resmî geçmiş arşiv birikiyor — veri geldikçe sıra yüzdeleri görünür.'}
@@ -325,10 +287,6 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   dnaFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  // ALT SATIR (maç sayısı) üst satırdan GÖRSEL OLARAK ayrılır: içeriden başlar
-  // ve çipleri daha küçüktür. Birimi farklı olan iki şerit aynı görünmemeli.
-  dnaLimitRow: { marginTop: 6, marginLeft: 10 },
-  dnaLimitChip: { paddingHorizontal: 10, paddingVertical: 5, borderStyle: 'dashed' },
   dnaPeriodChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   dnaPeriodChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
   dnaPeriodTxt: { color: colors.textSoft, fontSize: 12, fontWeight: '800' },
