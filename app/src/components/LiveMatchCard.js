@@ -8,6 +8,7 @@ import { matchDate, crestOf } from '../utils';
 import { matchPicks } from '../liveLogic';
 import { Logo } from '../ui';
 import { RecordBadges, FormStrip } from '../components';
+import VenueFormStrip from './VenueFormStrip';
 import { favoriteSide } from '../favoriteTeam';
 import { useAuth } from '../auth';
 import UlkeEtiketi from './UlkeEtiketi';
@@ -116,9 +117,22 @@ export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'impor
           bağlamıyla birlikte duruyor — silinmedi, listeden çıkarıldı. */}
       {st === 'notStarted' && (match.stats?.home?.last5?.length || match.stats?.away?.last5?.length) ? (
         <View style={s.formRow}>
-          <FormStrip form={match.stats?.home?.last5} size={14} />
+          {/* SAHA İKONLARI (kullanıcı isteği, 2026-08-08): harfli renkli kareler
+              yerine maç detayındaki ev/uçak ikonlarının aynısı. Aynı bilgi iki
+              ekranda aynı görünsün diye tek bileşenden gelir.
+              `last5detail` yoksa iç saha/deplasman bilinmez — ikon uydurmak
+              yerine eski harfli şeride düşülür. */}
+          {match.stats?.home?.last5detail?.length ? (
+            <VenueFormStrip detail={match.stats.home.last5detail} size={15} limit={5} />
+          ) : (
+            <FormStrip form={match.stats?.home?.last5} size={14} />
+          )}
           <Text style={s.formMid}>son maçlar</Text>
-          <FormStrip form={match.stats?.away?.last5} size={14} />
+          {match.stats?.away?.last5detail?.length ? (
+            <VenueFormStrip detail={match.stats.away.last5detail} size={15} limit={5} sag />
+          ) : (
+            <FormStrip form={match.stats?.away?.last5} size={14} />
+          )}
         </View>
       ) : null}
 
