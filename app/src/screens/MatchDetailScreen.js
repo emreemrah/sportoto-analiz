@@ -12,6 +12,7 @@ import KriterBasariListesi from '../components/KriterBasariListesi';
 import MacRadarPaneli from '../components/MacRadarPaneli';
 import { statsFromLog, derivedStats } from '../analysis/criteria';
 import MasterAnalysisView from '../components/MasterAnalysisView';
+import VenueFormStrip, { VenueIcon } from '../components/VenueFormStrip';
 import TeamCompareRadar from '../components/TeamCompareRadar';
 import TakimFiksturModal from '../components/TakimFiksturModal';
 import { crestUrlOf } from '../crestUrl';
@@ -53,38 +54,18 @@ function formRating(form) {
   return Math.round((pts / form.length) * 5 * 10) / 10;
 }
 
-// Tek simge: iç saha (ev) / deplasman (uçak), sonuç rengi — hazır ikon görselleri.
-const VENUE_ICONS = {
-  home: {
-    G: require('../../assets/venue/home-win.png'),
-    M: require('../../assets/venue/home-loss.png'),
-    B: require('../../assets/venue/home-draw.png'),
-  },
-  away: {
-    G: require('../../assets/venue/away-win.png'),
-    M: require('../../assets/venue/away-loss.png'),
-    B: require('../../assets/venue/away-draw.png'),
-  },
-};
-function VenueIcon({ result, isHome, size = 22 }) {
-  const set = VENUE_ICONS[isHome ? 'home' : 'away'];
-  const src = set[result] || set.B; // G=galibiyet · M=mağlubiyet · diğer=beraberlik
-  return <Image source={src} style={{ width: size, height: size }} resizeMode="contain" />;
-}
+// Saha ikonları (ev/uçak) ARTIK PAYLAŞILAN BİLEŞENDE: components/VenueFormStrip.
+// Bülten kartı da aynı ikonları kullanıyor; iki yerde ayrı eşleme tutulsaydı
+// biri değişip diğeri unutulur, aynı maç iki ekranda farklı görünürdü.
 // Takım istatistik penceresi — logoya basınca açılır. Maçta zaten gelen
 // stats.home/away verisiyle (yeni backend gerekmez). Sadece o takımın verisi.
 // NOT: takım kartındaki sezon istatistiği modalı (TeamStatsModal) kaldırıldı —
 // takım kartı artık fikstür açıyor (bkz. TakimFiksturModal). Sezon
 // istatistikleri "İstatistik" sekmesinde duruyor.
-// Son 5 şeridi (eski → yeni)
+// Son 5 şeridi (eski → yeni) — paylaşılan bileşenin ince sarmalayıcısı.
 function VenueForm({ detail }) {
-  const arr = [...(detail || [])].reverse();
-  if (!arr.length) return <Text style={{ color: colors.textMuted }}>–</Text>;
-  return (
-    <View style={{ flexDirection: 'row', gap: 4, flexWrap: 'wrap' }}>
-      {arr.map((d, i) => <VenueIcon key={i} result={d.result} isHome={d.isHome} size={22} />)}
-    </View>
-  );
+  if (!detail?.length) return <Text style={{ color: colors.textMuted }}>–</Text>;
+  return <VenueFormStrip detail={detail} size={22} eskiOnce />;
 }
 
 // ——— "Karşılaştırma" sekmesi bileşenleri ———
