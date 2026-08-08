@@ -188,7 +188,16 @@ const s = StyleSheet.create({
   badgeTxt: { fontSize: 9.5, fontWeight: '900' },
   time: { color: colors.text, fontSize: 14, fontWeight: '800' },
   day: { color: colors.muted, fontSize: 10, fontWeight: '700' },
-  formRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
+  // HİZA (kullanıcı isteği, 2026-08-08): form şeridi kartın soluna dayanıyordu,
+  // üstündeki takım/rozet sütunu ise sıra numarasından SONRA başlıyor. İkisi
+  // aynı hizada değildi. Sıra sütununun genişliği kadar (s.no width 16 +
+  // marginRight 4 = 20) sola boşluk verilerek şerit takım sütunuyla hizalandı.
+  // Sağ taraf zaten kart kenarına dayalı ve üstteki deplasman rozetleriyle
+  // aynı çizgide — simetri böyle kurulur.
+  formRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: 6, paddingLeft: 20,
+  },
   formMid: { color: colors.textMuted, fontSize: 10, fontWeight: '700' },
   divider: { height: 1, backgroundColor: colors.border, marginTop: 12, marginBottom: 9 },
   foot: { flexDirection: 'row', alignItems: 'center', gap: 8 },
