@@ -10,6 +10,15 @@
 // biri değişip diğeri unutulurdu ve aynı maç iki ekranda farklı görünürdü.
 // Tek kaynak burada.
 //
+// İKON DOSYALARI NORMALLENDİ (2026-08-08). Kullanıcı "biri küçük biri büyük
+// gibi duruyor, kenarlık varsa kaldır" dedi. Ölçtük:
+//   • Altı PNG de 1254×1254 tuvaldi ama içindeki renkli döşeme %64 ile %100
+//     arasında değişiyordu. Aynı kutuda çizilince biri küçük görünüyordu.
+//   • Arka plan saydam değil BEYAZDI; kart üstünde "kenarlık/kutu" gibi duruyordu.
+// Yapılan: her dosya renkli döşemesine kırpıldı, dış beyaz saydamlaştırıldı
+// (içerideki beyaz glif korunarak), simetrik kareye oturtuldu, 256×256'ya
+// indirildi. Toplam 5.2 MB → 356 KB. Artık altısı da birebir aynı ölçüde.
+//
 // VERİ: `last5detail` → [{ result: 'G'|'B'|'M', isHome: bool }, ...]
 // Detay yoksa şerit ÇİZİLMEZ (null döner); çağıran harfli şeride düşer.
 // İç saha/deplasman bilgisi olmadan ev/uçak ikonu seçmek UYDURMAK olurdu.
