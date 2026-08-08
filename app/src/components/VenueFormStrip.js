@@ -56,6 +56,12 @@ export default function VenueFormStrip({
       gap: 3,
       flexWrap: 'nowrap',
       justifyContent: sag ? 'flex-end' : 'flex-start',
+      // TAŞMA KORUMASI (ders §11): şerit, dar ekranda satırı zorlamak yerine
+      // kendi kutusunda küçülsün. `flexShrink` olmadan ikonlar sabit genişlik
+      // olduğu için satırı dışarı itiyordu.
+      flexShrink: 1,
+      minWidth: 0,
+      overflow: 'hidden',
     }}
     >
       {dizi.map((d, i) => (
