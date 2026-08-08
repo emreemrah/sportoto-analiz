@@ -30,6 +30,12 @@ import {
 // Veri türetme (filtre/sıralama/sayaç/biçim) ekrandan ayrıldı — bkz.
 // radarScreenData.js. Ekran yalnız ÇİZER; ne göstereceğine orası karar verir.
 import { MASTER_FILTERS, fmtClock, birOndalik, classCountsOf, filterMaster, sortMaster, legacyCountsOf, legacyFiltered, DONEM_MAC_SAYISI, DNA_PERIOD_LABELS } from '../radarScreenData';
+// Radar 5 dönem satırındaki iki YENİ mod ("Oynanma %" / "Oran") ve onların
+// MAÇ birimli alt satırı. Süzme mantığı saf modülde: radar/oynanmaSuzgeci.js.
+import {
+  oynanmaSuzgeci, suzgecModuMu, MAC_LIMIT_DEGERI, MAC_LIMIT_ETIKET,
+  SUZGEC_ETIKET, TOLERANS,
+} from '../radar/oynanmaSuzgeci';
 
 // RADAR 3 OTOMATİK TAZELEME — sekme açıkken ekran kendiliğinden yenilenir.
 // Sağlayıcı gözlemi arka planda 15 dk'da bir yazıldığı için 60 sn'lik ekran
@@ -69,7 +75,11 @@ export default function RadarScreen({ navigation }) {
   const [expandedNo, setExpandedNo] = useState(null);
   const [picks, setPicks] = useState({});
   const [positionDna, setPositionDna] = useState(null); // Bülten DNA (Radar 5 detayı)
-  const [dnaPeriod, setDnaPeriod] = useState('allTime'); // dönem filtresi (Tüm/5/10/15)
+  const [dnaPeriod, setDnaPeriod] = useState('allTime'); // dönem filtresi (Tüm/5/10/15 hafta | oynanmaYuzdesi | oran)
+  // SÜZGEÇ MODLARININ ALT SATIRI — birimi MAÇ'tır (üst satır HAFTA sayar).
+  // Varsayılan 'tum': hiçbir eşleşen maç baştan gizlenmesin, örneklem en geniş
+  // hâliyle görünsün; daraltma kullanıcının kararı.
+  const [macLimiti, setMacLimiti] = useState('tum');
   const [acikSira, setAcikSira] = useState(null);        // Radar 5'te açık satır (sıra no)
   const [siraMaclari, setSiraMaclari] = useState({});    // { sıra: {yukleniyor|hata|liste} }
   const [secAcik, setSecAcik] = useState(null);          // hafta seçici: null|'sezon'|'hafta'
@@ -347,6 +357,30 @@ export default function RadarScreen({ navigation }) {
 
 
 
+  // SÜZGEÇ MODU ÖN YÜKLEMESİ — "Oynanma %" seçilince satır başlığındaki 1/X/2
+  // ARTIK o sıranın süzülmüş geçmiş maçlarından hesaplanıyor. Yani yüzdeyi
+  // yazabilmek için satır AÇILMADAN da listenin elde olması gerekir.
+  //
+  // Yeni istek DEĞİL, aynı uç: `siraMaclariniGetir` hafta+sıra başına bir kez
+  // çeker (cekilenSira kilidi). Sunucu 15 sıranın tamamını tek geçişte
+  // hesaplayıp önbelleğe koyduğu için sonraki 14 çağrı ucuzdur.
+  //
+  // MÜHÜRLÜ HAFTADA ÇALIŞMAZ: orada tek doğru kaynak snapshot'tır; canlı arşivle
+  // yeniden hesap mührü bozardı.
+  useEffect(() => {
+    if (tab !== 'bulletinMemory') return;
+    if (dnaPeriod !== 'oynanmaYuzdesi') return;
+    if (meta?.current === false) return;
+    for (const m of view?.matches || []) siraMaclariniGetir(m.no);
+  }, [tab, dnaPeriod, view, meta, siraMaclariniGetir]);
+
+  // MÜHÜRLÜ HAFTAYA GEÇİLİRSE süzgeç modu bırakılır. Orada çipler gizlenir;
+  // seçim üstte kalsaydı hiçbir çip seçili görünmez, kullanıcı hangi dönemin
+  // geçerli olduğunu ekrandan okuyamazdı.
+  useEffect(() => {
+    if (meta?.current === false && suzgecModuMu(dnaPeriod)) setDnaPeriod('allTime');
+  }, [meta, dnaPeriod]);
+
   // Karttan kupona işle (yalnız güncel hafta) — mevcut akış korunur; kullanıcı
   // onayı olmadan mevcut kupon EZİLMEZ (yalnız paylaşılan taslağa yazar).
   const togglePick = (no, o) => {
@@ -429,6 +463,9 @@ export default function RadarScreen({ navigation }) {
       dailyOdds={dailyOdds} oddsDay={oddsDay} onSelectOddsDay={setOddsDay}
       dailyPlayed={dailyPlayed} playedDay={playedDay} onSelectPlayedDay={setPlayedDay}
       positionDna={positionDna} dnaPeriod={dnaPeriod} onSelectDnaPeriod={setDnaPeriod}
+      // Süzgeç modları YALNIZ mühürsüz haftada seçilebilir (mühürlü hafta
+      // snapshot'tır; canlı süzme o görüntüyü değiştirirdi).
+      macLimiti={macLimiti} onSelectMacLimiti={setMacLimiti} suzgecAcik={!muhurluHafta}
       muhurluHafta={muhurluHafta} muhurluRadar5Yok={muhurluRadar5Yok} meta={meta}
     />
   );
@@ -498,13 +535,78 @@ export default function RadarScreen({ navigation }) {
     if (kaynaklar.length) bugunPctByNo.set(m.no, kaynaklar);
   }
 
+  // ---- RADAR 5 SÜZGEÇ MODLARI: "Oynanma %" ve "Oran" -----------------------
+  // Üst satırın HAFTA pencerelerinden (allTime/last5/…) farkı: burada geçmiş
+  // maçlar hafta sayısına göre değil, BU HAFTANIN OYNANMA YÜZDESİNE YAKINLIĞA
+  // göre süzülür; alt satırdaki çipler de hafta değil MAÇ sayar.
+  //
+  // MÜHÜRLÜ HAFTADA KAPALI: o ekranda tek doğru kaynak snapshot'tır. Canlı
+  // arşivden yeniden hesap yapmak mührü bozardı.
+  const suzgecModu = !muhurluHafta && suzgecModuMu(dnaPeriod) ? dnaPeriod : null;
+  const macLimitDegeri = MAC_LIMIT_DEGERI[macLimiti] ?? null;
+
+  // HEDEF YÜZDE = bu haftanın maçına oynanan yüzde. YALNIZ TEK KAYNAK (k1):
+  // geçmiş maçların yüzdesi arka uçta tek kaynaktan çıkarılıyor
+  // (backend/src/radar/siraOynanma.js → sonGunOynanmaIndeksi, k1). Başka bir
+  // kaynağın bugünkü yüzdesini k1'in geçmişiyle kıyaslamak iki farklı ölçeği
+  // karşılaştırmak olurdu. Kaynaklar ORTALANMAZ (Radar 3 kuralı), o yüzden
+  // "hepsinin ortalaması" gibi bir üçüncü sayı da üretilmez.
+  const REFERANS_KAYNAK = 'k1';
+  const hedefYuzdeler = new Map();
+  if (suzgecModu === 'oynanmaYuzdesi') {
+    for (const [no, kaynaklar] of bugunPctByNo) {
+      const ref = kaynaklar.find((x) => kaynakKodu(x.kaynak) === REFERANS_KAYNAK);
+      if (ref?.pct) hedefYuzdeler.set(no, ref.pct);
+    }
+  }
+
   const renderMemoryRow = ({ item }) => {
-    const pct = birOndalik(dnaByPosition.get(item.no));
     const bugunKaynaklar = bugunPctByNo.get(item.no) || null;
     // SATIR AÇILIMI — dokununca bu SIRANIN geçmiş maçları listelenir. Yüzdenin
     // arkasındaki maçlar gösterilmezse kullanıcı sayıyı doğrulayamaz.
     const acik = acikSira === item.no;
     const kayit = siraMaclari[item.no];
+
+    // SÜZGEÇ: yüzde de, açılan tablo da AYNI diziden (suz.maclar) gelir —
+    // başlık ile liste yapısal olarak çelişemez (tasks/lessons.md §8).
+    const suz = suzgecModu === 'oynanmaYuzdesi'
+      ? oynanmaSuzgeci({
+        liste: kayit?.liste,
+        hedefPct: hedefYuzdeler.get(item.no),
+        limit: macLimitDegeri,
+      })
+      : null;
+    // "Oran" modunda geçmiş oran arşivi YOKTUR → yüzde üretilmez (uydurulmaz).
+    const pct = suzgecModu === 'oran' ? null
+      : suz ? birOndalik(suz.pct)
+        : birOndalik(dnaByPosition.get(item.no));
+
+    // Yüzde yazılmadığında SEBEBİ söylenir; boş bırakmak "veri yok" ile
+    // "henüz hesaplanmadı"yı aynı gösterirdi.
+    const yuzdeYokSebebi = () => {
+      if (suzgecModu === 'oran') return 'Geçmiş maçların oran kaydı yok — bu modda yüzde hesaplanmaz.';
+      if (suzgecModu === 'oynanmaYuzdesi') {
+        if (kayit?.hata) return `Geçmiş maçlar okunamadı: ${kayit.hata}`;
+        if (!kayit || kayit.yukleniyor) return 'Benzer maçlar aranıyor…';
+        // İki farklı eksiklik: hiç yüzde gelmemiş olabilir ya da yüzde var ama
+        // GEÇMİŞLE AYNI kaynaktan (referans) değildir. İkisi tek cümleye
+        // indirilirse kullanıcı eksiği yanlış yere yıkar.
+        if (suz?.sebep === 'hedefYok') {
+          return bugunKaynaklar
+            ? 'Bu maçta geçmişle kıyaslanabilir kaynak yüzdesi yok — benzerlik kurulamadı.'
+            : 'Bu maçın bu haftaki oynanma yüzdesi yok — benzerlik kurulamadı.';
+        }
+        return `Bu yüzdeye ±${TOLERANS} puan yakın geçmiş maç yok.`;
+      }
+      return muhurluRadar5Yok
+        ? 'Bu hafta için mühürlü Radar 5 kaydı yok.'
+        : 'Bu dönemde geçmiş sonuç yok.';
+    };
+
+    // Süzgeç modunda liste de SÜZÜLMÜŞ hâliyle verilir. Yükleniyor/hata
+    // kaydı olduğu gibi geçer ki tablo kendi durumunu yazabilsin.
+    const listeKaydi = suz && kayit?.liste ? { ...kayit, liste: suz.maclar } : kayit;
+
     return (
       <View style={styles.memRow}>
         <TouchableOpacity
@@ -587,7 +689,16 @@ export default function RadarScreen({ navigation }) {
               {/* Hafta sayısı parantez içinde yazılıyordu, kullanıcı kararıyla
                   kaldırıldı ("52/51/50 ne demek?"). Az örneklem uyarısı ALTTA
                   duruyor — sezon başında tek maçtan gelen "%100" için gerekli. */}
-              <Text style={styles.memPctLabel}>Geçmiş {item.no}. sıra</Text>
+              {/* SÜZGEÇ MODUNDA ETİKET DEĞİŞİR: sayının tabanı artık "tüm
+                  geçmiş" değil, bu haftanın yüzdesine yakın maçlardır. Kaç
+                  maçtan geldiği de burada yazar — ekrandaki her sayı kendi
+                  kapsamını söylemeli (tasks/lessons.md §10). Örneklem 5'in
+                  altındaysa "az" eklenir; tesadüfe açık olduğu gizlenmez. */}
+              <Text style={styles.memPctLabel} numberOfLines={1}>
+                {suz
+                  ? `Benzer oynanma · ${suz.ornek} maç${suz.az ? ' · az' : ''}`
+                  : `Geçmiş ${item.no}. sıra`}
+              </Text>
               <View style={[styles.memOutcomes, darEkran && styles.memOutcomesDar]}>
                 <View style={[styles.memOutcome, darEkran && styles.memOutcomeDar]}><Text style={[styles.memOutcomeKey, styles.memOutcomeOneKey]}>1</Text><Text style={styles.memOutcomeValue}>%{pct['1']}</Text></View>
                 <View style={[styles.memOutcome, darEkran && styles.memOutcomeDar]}><Text style={[styles.memOutcomeKey, styles.memOutcomeDrawKey]}>X</Text><Text style={styles.memOutcomeValue}>%{pct.X}</Text></View>
@@ -596,11 +707,7 @@ export default function RadarScreen({ navigation }) {
             </View>
           </>
         ) : (
-          <Text style={styles.memNone}>
-            {muhurluRadar5Yok
-              ? 'Bu hafta için mühürlü Radar 5 kaydı yok.'
-              : 'Bu dönemde geçmiş sonuç yok.'}
-          </Text>
+          <Text style={styles.memNone}>{yuzdeYokSebebi()}</Text>
         )}
         {/* Geçmiş maç listesi components/SiraGecmisListesi.js'te. Düzen (orantılı
             oynanma şeridi + tek satır açıklama) orada; ekran yalnız hangi kaydı
@@ -609,9 +716,21 @@ export default function RadarScreen({ navigation }) {
             göstermek, üstteki yüzdeyle uyuşmayan bir liste olurdu. */}
         {acik ? (
           <SiraGecmisListesi
-            kayit={kayit}
-            donemEtiketi={DNA_PERIOD_LABELS[dnaPeriod]}
-            limit={DONEM_MAC_SAYISI[dnaPeriod]}
+            kayit={listeKaydi}
+            donemEtiketi={suzgecModu
+              ? `${SUZGEC_ETIKET[suzgecModu]} · ${MAC_LIMIT_ETIKET[macLimiti]}`
+              : DNA_PERIOD_LABELS[dnaPeriod]}
+            // Süzgeç modunda liste ZATEN kesilmiş geldi (suz.maclar); ikinci
+            // kez kesmek gerekmez. "Oran" modunda süzme yok, kesim burada.
+            limit={suzgecModu ? (suz ? null : macLimitDegeri) : DONEM_MAC_SAYISI[dnaPeriod]}
+            ustYuzdeNotu={suz
+              ? 'Üstteki yüzde tam olarak bu listeden hesaplanır.'
+              : suzgecModu === 'oran'
+                ? 'Geçmiş oran kaydı olmadığı için bu modda üstte yüzde yazılmaz.'
+                : undefined}
+            bosMesaj={suzgecModu === 'oynanmaYuzdesi'
+              ? `Bu haftanın oynanma yüzdesine ±${TOLERANS} puan yakın geçmiş maç yok.`
+              : undefined}
           />
         ) : null}
       </View>
@@ -773,7 +892,7 @@ export default function RadarScreen({ navigation }) {
 
       <FlatList
         data={listData}
-        extraData={[tab, legacyView, filter, legacyFilter, sortMode, expandedNo, picks, dnaPeriod, acikSira, siraMaclari, secAcik, navSezon, positionDna, dailyOdds, oddsDay, dailyPlayed, playedDay, dnaKey]}
+        extraData={[tab, legacyView, filter, legacyFilter, sortMode, expandedNo, picks, dnaPeriod, macLimiti, acikSira, siraMaclari, secAcik, navSezon, positionDna, dailyOdds, oddsDay, dailyPlayed, playedDay, dnaKey]}
         keyExtractor={(r) => String(r.no)}
         // BUG DÜZELTMESİ: Web'de FlatList varsayılan ilk 10 satırı çizer
         // (initialNumToRender=10) ve filtre küçülüp "Tümü"ne dönünce

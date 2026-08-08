@@ -80,7 +80,13 @@ function Satir({ mac, cift }) {
   );
 }
 
-export default function SiraGecmisListesi({ kayit, donemEtiketi, limit }) {
+// ustYuzdeNotu / bosMesaj DIŞARIDAN VERİLİR — çünkü bu tabloya yazılan cümle
+// üstteki yüzdenin NEREDEN geldiğine bağlıdır ve o karar ekrandadır.
+// Süzgeç modunda ("Oynanma %") yüzde tam olarak BU listeden hesaplanır;
+// varsayılan cümle ("tüm haftalardan hesaplanır") orada YALAN olurdu.
+// Ekrandaki açıklama tasarımın kanıtı değildir; tutarsızlığı örtmemeli
+// (tasks/lessons.md §8).
+export default function SiraGecmisListesi({ kayit, donemEtiketi, limit, ustYuzdeNotu, bosMesaj }) {
   // Kapsam notları varsayılan KAPALI — tablo daha çok yer bulsun.
   // Kanca (hook) erken dönüşlerin ÜSTÜNDE: aşağıdaki `return`'ler koşullu
   // olduğu için buradan sonra tanımlanırsa kanca sırası bozulur.
@@ -90,7 +96,13 @@ export default function SiraGecmisListesi({ kayit, donemEtiketi, limit }) {
   if (kayit?.hata) return <View style={s.kutu}><Text style={s.bilgi}>Maçlar okunamadı: {kayit.hata}</Text></View>;
 
   const tumu = kayit?.liste || [];
-  if (!tumu.length) return <View style={s.kutu}><Text style={s.bilgi}>Bu sıra için doğrulanmış geçmiş sonuç yok.</Text></View>;
+  if (!tumu.length) {
+    return (
+      <View style={s.kutu}>
+        <Text style={s.bilgi}>{bosMesaj || 'Bu sıra için doğrulanmış geçmiş sonuç yok.'}</Text>
+      </View>
+    );
+  }
 
   const liste = tumu.slice(0, limit ?? tumu.length);
   const enEski = liste[liste.length - 1]?.week;
@@ -137,7 +149,7 @@ export default function SiraGecmisListesi({ kayit, donemEtiketi, limit }) {
         <Text style={s.bilgi}>
           {donemEtiketi || 'Seçili dönem'} · {liste.length} maç · liste {enEski || 'kayıt başlangıcı'}'ndan başlar
           {kayitsiz ? ` · ${kayitsiz} maçta oynanma kaydı yok (–)` : ''}
-          {'\n'}Üstteki yüzde tüm haftalardan hesaplanır.
+          {'\n'}{ustYuzdeNotu || 'Üstteki yüzde tüm haftalardan hesaplanır.'}
         </Text>
       ) : null}
     </View>

@@ -261,3 +261,46 @@ satır (yalnız ilgili modda).
 Değişiklik DNA hesabına ve önbellek anahtarına dokunuyor; yarım bırakılırsa
 Radar 5 sessizce yanlış sayı gösterir (en tehlikeli hata sınıfı). Temiz bir
 oturumda, testleriyle birlikte yapılacak.
+
+## YAPILDI — Radar 5 süzgeç modları (2026-08-08)
+
+Spec uygulandı, ama **BACKEND'E HİÇ DOKUNULMADAN**: yukarıdaki 1-3. maddeler
+(DNA hesabına yüklem, `/position-dna` ve `/position-matches`'e parametre,
+önbellek anahtarı) **YAPILMADI**. Gerekçe, spec'in kendi uyarısı: filtre
+parametresi önbellek anahtarına eklenmezse eski sonuç sessizce döner. Bu tuzağa
+hiç girilmedi — süzme tamamen uygulamada, zaten çekilmiş veri üzerinde yapılıyor:
+
+- Yüzde hedefi: `dailyPlayed` (ekranda zaten yüklü, Radar 3 verisi), **yalnız
+  referans kaynak k1** — geçmiş yüzdeler arka uçta tek kaynaktan çıkarılıyor
+  (`radar/siraOynanma.js`), iki farklı kaynağı kıyaslamak iki farklı ölçeği
+  kıyaslamak olurdu.
+- Geçmiş maçlar: `/position-matches` yanıtındaki `played.pct` (uç DEĞİŞMEDİ).
+- Yüzde ve liste **aynı diziden** üretilir → başlık ile tablo yapısal olarak
+  çelişemez (lessons.md §8'in kalıcı çözümü).
+
+### Spec'ten sapmalar (bilerek)
+- **Tolerans seçicisi YOK** (birebir/±3/±5/±10). Sabit **±3** (kullanıcı: sade
+  olsun). Sabit `TOLERANS` tek yerde duruyor, ekrandaki metin onu okuyor.
+- **"Tüm maçlar"** çipi eklendi (spec'te 5/10/15 vardı) ve varsayılan odur —
+  eşleşen maç baştan gizlenmesin diye.
+- **Oran modu** yüzde üretmez: geçmiş oran arşivi yok. Uydurma yüzde yerine
+  her satır "geçmiş maçların oran kaydı yok" yazar; çip yine seçilebilir.
+- **Mühürlü haftada süzgeç kapalı** — orada tek doğru kaynak snapshot'tır.
+
+### Dosyalar
+- YENİ `app/src/radar/oynanmaSuzgeci.js` (saf süzme + mod/limit sabitleri)
+- `app/src/screens/RadarScreen.js` (mod durumu, ön yükleme, satır çizimi)
+- `app/src/components/RadarTabHeaders.js` (ikinci çip satırı + birim ipucu)
+- `app/src/components/SiraGecmisListesi.js` (kapsam notu dışarıdan verilir —
+  süzgeç modunda "tüm haftalardan hesaplanır" cümlesi YALAN olurdu)
+- YENİ `app/test/oynanma-suzgeci.test.mjs` (11) · `app/test-ui/radar-ekrani.test.jsx` (+7)
+
+### Doğrulama
+- app node testleri: 516 test, 515 geçti (`simple-test.mjs` bu işten ÖNCE de kırık).
+- jest UI: 165 test, 149 geçti — başarısız 16'nın **tamamı bu işten önce de**
+  başarısızdı (HEAD kopyasıyla birebir karşılaştırıldı).
+- Bozarak doğrulama (lessons.md §5): `sayi()` naive yapıldı → 3 test kırmızı;
+  `slice(0,limit)` → `slice(-limit)` → 1 test kırmızı; tolerans 3→4 → 1 test
+  kırmızı. Hepsi geri alındı.
+- Web bundle: `http://localhost:8081/index.bundle?platform=web&dev=true` → **200**
+  (953 modül, yeni modül pakette).
