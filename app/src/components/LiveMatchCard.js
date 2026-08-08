@@ -171,11 +171,23 @@ export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'impor
   );
 }
 
+// Sıra sütunu ölçüleri TEK YERDE. Numara ile form şeridinin hizası buna bağlı;
+// iki ayrı sayı yazılsaydı biri değişince hiza sessizce bozulurdu.
+const SIRA_SUTUNU = 20;
+const SIRA_BOSLUK = 4;
+
 const s = StyleSheet.create({
   card: { backgroundColor: 'rgba(255,255,255,0.86)', borderRadius: radius.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: colors.border, ...shadow.soft },
   ulke: { marginBottom: 7 },
   row: { flexDirection: 'row', alignItems: 'center' },
-  no: { color: colors.muted, fontSize: 11, fontWeight: '900', width: 16, textAlign: 'center', marginRight: 4 },
+  // MAÇ SIRASI (kullanıcı: "çok ufak kalmış, anlaşılmıyor"): 11 px soluk gri
+  // idi, kart üzerinde okunmuyordu. 15 px'e çıkarıldı ve rengi koyulaştırıldı.
+  // Genişlik SIRA_SUTUNU sabitinden gelir; form şeridinin sol boşluğu da aynı
+  // sabiti kullanır — biri değişip diğeri unutulursa hiza yine bozulurdu.
+  no: {
+    color: colors.textSoft, fontSize: 15, fontWeight: '900',
+    width: SIRA_SUTUNU, textAlign: 'center', marginRight: SIRA_BOSLUK,
+  },
   team: { flex: 1, gap: 6, minWidth: 0 },
   teamR: { alignItems: 'flex-end' },
   teamLine: { flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'stretch' },
@@ -196,7 +208,7 @@ const s = StyleSheet.create({
   // aynı çizgide — simetri böyle kurulur.
   formRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginTop: 6, paddingLeft: 20,
+    marginTop: 6, paddingLeft: SIRA_SUTUNU + SIRA_BOSLUK,
   },
   formMid: { color: colors.textMuted, fontSize: 10, fontWeight: '700' },
   divider: { height: 1, backgroundColor: colors.border, marginTop: 12, marginBottom: 9 },
