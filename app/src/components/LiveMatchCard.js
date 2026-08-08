@@ -74,10 +74,17 @@ export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'impor
     <TouchableOpacity style={s.card} activeOpacity={0.85} onPress={onPress}>
       {/* Ülke satırı — hangi ülkenin maçı (kullanıcı isteği, 2026-08-04). */}
       <UlkeEtiketi league={match.league} style={s.ulke} />
-      <View style={s.row}>
+      {/* ÜST BLOK: solda sıra numarası, sağda takım satırı + son maçlar şeridi.
+          Numara artık takım satırının içinde DEĞİL; iki satırın tamamına göre
+          dikey ortalanıyor. Kullanıcı isteği (2026-08-08): "oynanan maçın
+          hizasında olsun" — böylece rakam, alttaki ev/uçak şeridiyle aynı
+          göz hizasına oturuyor ve şeridin olmadığı maçlarda da kayboluyor
+          değil, takım satırına göre ortalı kalıyor. */}
+      <View style={s.ustBlok}>
         <Text style={s.no}>{match.no}</Text>
-
-        <View style={s.team}>
+        <View style={s.ustSag}>
+          <View style={s.row}>
+            <View style={s.team}>
           <View style={s.teamLine}>
             <Logo uri={crestOf(match, 'home')} name={homeName} size={20} />
             <Text style={s.name} numberOfLines={1}>{favSide === 'home' ? '⭐ ' : ''}{homeName}</Text>
@@ -142,6 +149,8 @@ export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'impor
           )}
         </View>
       ) : null}
+        </View>
+      </View>
 
       <View style={s.divider} />
 
@@ -179,6 +188,11 @@ const SIRA_BOSLUK = 4;
 const s = StyleSheet.create({
   card: { backgroundColor: 'rgba(255,255,255,0.86)', borderRadius: radius.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: colors.border, ...shadow.soft },
   ulke: { marginBottom: 7 },
+  // Üst blok: numara sütunu + (takım satırı ⊕ son maçlar şeridi).
+  // `alignItems: 'center'` numarayı İKİ SATIRIN tamamına göre ortalar; rakam
+  // böylece alttaki ev/uçak şeridiyle aynı göz hizasına düşer.
+  ustBlok: { flexDirection: 'row', alignItems: 'center' },
+  ustSag: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0 },
   row: { flexDirection: 'row', alignItems: 'center' },
   // MAÇ SIRASI (kullanıcı: "çok ufak kalmış, anlaşılmıyor"): 11 px soluk gri
   // idi, kart üzerinde okunmuyordu. 15 px'e çıkarıldı ve rengi koyulaştırıldı.
@@ -194,6 +208,8 @@ const s = StyleSheet.create({
     // İnce ayar (kullanıcı: "2 tık aşağı çek"): rakamın optik ağırlığı üstte
     // kalıyordu; iki piksel aşağı alındı.
     marginTop: 2,
+    // Numara artık üst bloğun tamamına göre ortalanıyor (bkz. ustBlok).
+    alignSelf: undefined,
   },
   team: { flex: 1, gap: 6, minWidth: 0 },
   teamR: { alignItems: 'flex-end' },
@@ -215,7 +231,9 @@ const s = StyleSheet.create({
   // aynı çizgide — simetri böyle kurulur.
   formRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginTop: 6, paddingLeft: SIRA_SUTUNU + SIRA_BOSLUK,
+    // Sol boşluk KALKTI: şerit artık numara sütununun SAĞINDAKİ kolonun
+    // içinde; takım satırıyla zaten aynı hizada başlıyor.
+    marginTop: 6,
   },
   formMid: { color: colors.textMuted, fontSize: 10, fontWeight: '700' },
   divider: { height: 1, backgroundColor: colors.border, marginTop: 12, marginBottom: 9 },
