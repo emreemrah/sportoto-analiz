@@ -7,7 +7,7 @@ import { colors, spacing, radius, shadow } from '../theme';
 import { matchDate, crestOf } from '../utils';
 import { matchPicks } from '../liveLogic';
 import { Logo } from '../ui';
-import { RecordBadges, SurpriseBadge, FormStrip } from '../components';
+import { RecordBadges, FormStrip } from '../components';
 import { favoriteSide } from '../favoriteTeam';
 import { useAuth } from '../auth';
 import UlkeEtiketi from './UlkeEtiketi';
@@ -26,6 +26,11 @@ function statusMeta(st, m) {
   }
 }
 
+// `community`: analiz özeti satırıyla birlikte 2026-08-08'de kullanımdan
+// kalktı. Prop imzada BIRAKILDI — çağıran (LiveBulletinView) hâlâ gönderiyor
+// ve topluluk oyu ileride kartta yeniden gösterilmek istenirse veri akışı
+// kurulu kalsın. Kullanılmadığı buraya yazılmasa, "neden bu prop var" sorusu
+// bir sonraki okuyanı yanlış yere götürürdü.
 export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'important', userPick = null, community = null }) {
   const p = matchPicks(match, userPick);
   const st = p.status;
@@ -104,28 +109,11 @@ export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'impor
         </View>
       </View>
 
-      {/* ANALİZ ÖZETİ — başlamamış maçta bir bakışta: sürpriz etiketi + favori
-          yüzdesi (Radar ile aynı veri, aynı dil). Veri yoksa satır hiç çıkmaz. */}
-      {st === 'notStarted' && match.analysis && (match.analysis.label || match.analysis.favorite) ? (
-        <View style={s.analysisRow}>
-          {match.analysis.label ? <SurpriseBadge label={match.analysis.label} labelColor={match.analysis.labelColor} small /> : null}
-          {match.analysis.favorite ? (
-            <Text style={s.favTxt}>
-              Favori <Text style={s.favStrong}>{String(match.analysis.favorite.symbol).replace('0', 'X')}</Text> · %{match.analysis.favorite.percent}{match.analysis.estimated ? ' ≈' : ''}
-            </Text>
-          ) : null}
-          {match.analysis.surpriseScore != null ? <Text style={s.favTxt}>Sürpriz {match.analysis.surpriseScore}</Text> : null}
-          {(() => {
-            // TOPLULUK: en az 5 oy varsa gösterilir (küçük örneklem yanıltıcı olur).
-            if (!community || (community.total || 0) < 5) return null;
-            const opts = [['1', community.home || 0], ['X', community.draw || 0], ['2', community.away || 0]];
-            opts.sort((a, b) => b[1] - a[1]);
-            const [sym, cnt] = opts[0];
-            const pct = Math.round((cnt / community.total) * 100);
-            return <Text style={s.favTxt}>Topluluk %{pct} → <Text style={s.favStrong}>{sym}</Text> ({community.total} oy)</Text>;
-          })()}
-        </View>
-      ) : null}
+      {/* ANALİZ ÖZETİ KALDIRILDI (kullanıcı kararı, 2026-08-08).
+          Kartta "SÜRPRİZE AÇIK · Favori 1 · %44 · Sürpriz 78" satırı vardı.
+          Kaldırıldı: bülten listesi maçların KİMLİĞİNİ göstersin, hükmü değil.
+          Aynı bilgiler maç detayında (Özet sekmesi) ve Radar ekranında,
+          bağlamıyla birlikte duruyor — silinmedi, listeden çıkarıldı. */}
       {st === 'notStarted' && (match.stats?.home?.last5?.length || match.stats?.away?.last5?.length) ? (
         <View style={s.formRow}>
           <FormStrip form={match.stats?.home?.last5} size={14} />
@@ -179,9 +167,6 @@ const s = StyleSheet.create({
   badgeTxt: { fontSize: 9.5, fontWeight: '900' },
   time: { color: colors.text, fontSize: 14, fontWeight: '800' },
   day: { color: colors.muted, fontSize: 10, fontWeight: '700' },
-  analysisRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 7, flexWrap: 'wrap' },
-  favTxt: { color: colors.textMuted, fontSize: 11.5, fontWeight: '700' },
-  favStrong: { color: colors.text, fontWeight: '900' },
   formRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
   formMid: { color: colors.textMuted, fontSize: 10, fontWeight: '700' },
   divider: { height: 1, backgroundColor: colors.border, marginTop: 12, marginBottom: 9 },
