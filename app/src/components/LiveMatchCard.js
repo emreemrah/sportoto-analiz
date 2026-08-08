@@ -123,20 +123,20 @@ export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'impor
               `last5detail` yoksa iç saha/deplasman bilinmez — ikon uydurmak
               yerine eski harfli şeride düşülür.
 
-              BOYUT/ADET DENGESİ (2026-08-08, "2 katı büyüt"):
-              Dar telefonda kart içi ~300dp; ortadaki "son maçlar" yazısı ~55dp
-              düşünce her tarafa ~120dp kalıyor. 36 px ikonla satıra 3 maç
-              sığar (3×36 + 2×3 boşluk = 114dp). Beş maç istenirse ikon 21 px'i
-              geçemez — o yüzden büyütme, gösterilen maç sayısını 3'e indirdi.
-              Taşma yerine bilinçli ödün: §11 (taşan tasarım kabul edilmez). */}
+              BOYUT/ADET DENGESİ (2026-08-08): dar telefonda kart içi ~300dp;
+              ortadaki "son maçlar" yazısı düşünce her tarafa ~120dp kalıyor.
+              18 px ikonla 5 maç rahat sığıyor (5×18 + 4×3 boşluk = 102dp).
+              Boyut yolculuğu: 15 → 19 → 36 (çok büyük) → 18. 36'da satıra
+              yalnız 3 maç sığdığı için maç sayısı düşmüştü; 18'e inince
+              beşi de geri geldi. */}
           {match.stats?.home?.last5detail?.length ? (
-            <VenueFormStrip detail={match.stats.home.last5detail} size={36} limit={3} />
+            <VenueFormStrip detail={match.stats.home.last5detail} size={18} limit={5} />
           ) : (
             <FormStrip form={match.stats?.home?.last5} size={14} />
           )}
           <Text style={s.formMid}>son maçlar</Text>
           {match.stats?.away?.last5detail?.length ? (
-            <VenueFormStrip detail={match.stats.away.last5detail} size={36} limit={3} sag />
+            <VenueFormStrip detail={match.stats.away.last5detail} size={18} limit={5} sag />
           ) : (
             <FormStrip form={match.stats?.away?.last5} size={14} />
           )}
