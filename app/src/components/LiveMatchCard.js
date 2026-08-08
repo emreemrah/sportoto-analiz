@@ -173,7 +173,7 @@ export default function LiveMatchCard({ match, onPress, onRefresh, anim = 'impor
 
 // Sıra sütunu ölçüleri TEK YERDE. Numara ile form şeridinin hizası buna bağlı;
 // iki ayrı sayı yazılsaydı biri değişince hiza sessizce bozulurdu.
-const SIRA_SUTUNU = 28;   // 23 px yazı + iki haneli sıralar (10-15) sığsın
+const SIRA_SUTUNU = 30;   // 25 px yazı + iki haneli sıralar (10-15) sığsın
 const SIRA_BOSLUK = 4;
 
 const s = StyleSheet.create({
@@ -185,12 +185,15 @@ const s = StyleSheet.create({
   // Genişlik SIRA_SUTUNU sabitinden gelir; form şeridinin sol boşluğu da aynı
   // sabiti kullanır — biri değişip diğeri unutulursa hiza yine bozulurdu.
   no: {
-    color: colors.textSoft, fontSize: 23, fontWeight: '900',
+    color: colors.textSoft, fontSize: 25, fontWeight: '900',
     width: SIRA_SUTUNU, textAlign: 'center', marginRight: SIRA_BOSLUK,
     // DİKEY ORTALAMA: `row` içindeki diğer sütunlar (takım + rozetler) iki
     // satır yüksekliğinde; numara tek satır olduğu için üste yapışıyordu.
     // alignSelf: 'center' ile satırın dikey ortasına oturur.
     alignSelf: 'center',
+    // İnce ayar (kullanıcı: "2 tık aşağı çek"): rakamın optik ağırlığı üstte
+    // kalıyordu; iki piksel aşağı alındı.
+    marginTop: 2,
   },
   team: { flex: 1, gap: 6, minWidth: 0 },
   teamR: { alignItems: 'flex-end' },
