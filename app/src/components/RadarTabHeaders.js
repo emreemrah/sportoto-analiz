@@ -268,7 +268,7 @@ export default function RadarTabHeader({
             <Text style={styles.dnaHint}>
               {dnaPeriod === 'oynanmaYuzdesi'
                 ? `Üst satır HAFTA, alt satır MAÇ sayar. Her sıra için bu haftanın oynanma yüzdesine ±${TOLERANS} puan yakın geçmiş maçlar süzülür; yüzdeler yalnız o maçlardan hesaplanır.`
-                : 'Üst satır HAFTA, alt satır MAÇ sayar. Sağda her maçın SON GÜNE ait 1/X/2 ORANI yazar. Geçmiş maçların oran kaydı arşivde yok — orana göre süzme veri biriktikçe çalışacak, o yüzden bu modda yüzde hesaplanmaz.'}
+                : 'Üst satır HAFTA, alt satır MAÇ sayar. Geçmiş maçların ORANI arşivde yok — bu modda yüzde hesaplanmaz, satırlar bunu yazar.'}
             </Text>
           </>
         ) : null}

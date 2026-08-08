@@ -904,78 +904,9 @@ describe('Radar 5 süzgeç modları (Oynanma % / Oran)', () => {
     await radar5();
     fireEvent.press(screen.getByText('Oran'));
     expect(await screen.findByText('Son 5 maç')).toBeTruthy();   // çip seçilebilir
-    expect(screen.getAllByText(/oran kaydı arşivde yok — bu süzgeç veri biriktikçe çalışacak/).length).toBe(3);
+    expect(screen.getAllByText(/oran kaydı yok — bu modda yüzde hesaplanmaz/).length).toBe(3);
     expect(screen.queryByText('%54.5')).toBeNull();
     expect(screen.queryByText('%66.7')).toBeNull();
-  });
-
-  // SAĞ TARAF MODA GÖRE DEĞİŞİR (kullanıcı isteği, 8 Ağustos 2026):
-  // "Oynanma %" → bugünün oynanma yüzdesi · "Oran" → SON GÜNÜN 1/X/2 oranı.
-  // İkisi aynı yerde durduğu için birim karışması en pahalı hatadır: "1.61"
-  // ile "%51" aynı köşede yazar, hangisi olduğu gün adının yanındaki değerden
-  // okunur. Bu yüzden hem oranın GELDİĞİ hem yüzdenin GİTTİĞİ sınanır.
-  const ORANLAR = {
-    roundId: 1600,
-    days: [
-      { date: '2026-08-02', weekday: 'Pazar', future: false },
-      { date: '2026-08-03', weekday: 'Pazartesi', future: false },
-      { date: '2026-08-07', weekday: 'Cuma', future: true },
-    ],
-    matches: [
-      {
-        no: 1,
-        cells: {
-          '2026-08-02': { odds: { home: 2.10, draw: 3.30, away: 3.40 } },
-          '2026-08-03': { odds: { home: 1.61, draw: 3.20, away: 4.25 } },
-          // Gelecek günde kayıt olsa bile seçilmemeli.
-          '2026-08-07': { odds: { home: 1.40, draw: 4.00, away: 6.50 } },
-        },
-      },
-      { no: 2, cells: { '2026-08-02': { odds: { home: 1.90, draw: 3.40, away: 3.90 } } }, notes: { '2026-08-03': { text: 'Bu gün mühür alınamadı' } } },
-      { no: 3, cells: {} },
-    ],
-  };
-
-  test('"Oran" modunda sağ tarafta SON GÜNÜN oranı yazar; yüzde yerini bırakır', async () => {
-    await radar5({ '/api/radar/daily-odds': ORANLAR });
-    // Önce "Oynanma %": sağda bu haftanın yüzdesi duruyor.
-    fireEvent.press(screen.getByText('Oynanma %'));
-    expect(await screen.findByText('%44')).toBeTruthy();
-
-    fireEvent.press(screen.getByText('Oran'));
-    // 1. maç: son DOLU ve geçmiş gün Pazartesi — Pazar'ın 2.10'u da, Cuma'nın
-    // (gelecek) 1.40'ı da DEĞİL.
-    expect(await screen.findByText('1.61')).toBeTruthy();
-    expect(screen.getByText('3.20')).toBeTruthy();
-    expect(screen.getByText('4.25')).toBeTruthy();
-    expect(screen.getAllByText('Pzt').length).toBe(3);
-    expect(screen.queryByText('2.10')).toBeNull();
-    expect(screen.queryByText('1.40')).toBeNull();
-    // Oynanma yüzdesi artık sağda DEĞİL (birim karışmasın).
-    expect(screen.queryByText('%44')).toBeNull();
-    // Kaydı olmayan maçlarda sayı UYDURULMAZ; sebep arka uçtan taşınır.
-    expect(screen.getByText('Bu gün mühür alınamadı')).toBeTruthy();
-    expect(screen.getByText('oran kaydı yok')).toBeTruthy();
-    expect(screen.queryByText('0.00')).toBeNull();
-  });
-
-  test('oran verisi hiç gelmediyse "kayıt yok" DENMEZ (sebep karıştırılmaz)', async () => {
-    await radar5();   // /api/radar/daily-odds tanımsız → 404
-    fireEvent.press(screen.getByText('Oran'));
-    expect(await screen.findByText('Son 5 maç')).toBeTruthy();
-    expect(screen.getAllByText('oran yükleniyor…').length).toBe(3);
-    expect(screen.queryByText('oran kaydı yok')).toBeNull();
-  });
-
-  test('"Oynanma %" modunda sağ taraf ESKİSİ GİBİ yüzde gösterir (gerileme yok)', async () => {
-    await radar5({ '/api/radar/daily-odds': ORANLAR });
-    fireEvent.press(screen.getByText('Oran'));
-    await screen.findByText('1.61');
-    fireEvent.press(screen.getByText('Oynanma %'));
-    // Yüzde geri gelir, oran gider.
-    expect(await screen.findByText('%44')).toBeTruthy();
-    expect(screen.getByText('%30')).toBeTruthy();
-    expect(screen.queryByText('1.61')).toBeNull();
   });
 
   test('hafta pencerelerine dönünce ESKİ davranış aynen sürer (gerileme yok)', async () => {
