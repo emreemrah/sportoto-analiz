@@ -54,6 +54,7 @@ import 'features/profile/profile_screen.dart';
 import 'features/profile/security_settings_screen.dart';
 import 'features/profile/team_picker_screen.dart';
 import 'features/radar/radar_screen.dart';
+import 'features/security/biometric_lock_screen.dart';
 import 'features/week/week_recap_screen.dart';
 import 'features/week/week_summary_screen.dart';
 import 'widgets/tab_icons.dart';
@@ -94,6 +95,17 @@ List<GoRoute> _ortakRotalar() => [
       kriterKey: state.pathParameters['key']!,
       ad: state.uri.queryParameters['ad'],
     ),
+  ),
+  // BÜLTEN DETAYI — kaynakta `HomeScreen.js:367` geçmiş hafta maçına
+  // dokununca `navigate('BulletinDetail', { bulletinId: match.roundId })`
+  // diyor. O gezinme SEKME DEĞİŞTİRMEZ, bulunulan yığına biner; bu yüzden
+  // rota `/bulten/gecmis/:id` altında bırakılmadı (oraya gitmek kullanıcıyı
+  // Bülten sekmesine atardı ve geri dönünce Ana Sayfa'ya değil Bülten'e
+  // düşerdi). Ortak rota olarak her dala eklenir — `mac/:no` ile aynı gerekçe.
+  GoRoute(
+    path: 'bulten-detay/:bulletinId',
+    builder: (context, state) =>
+        BulletinDetailScreen(bulletinId: state.pathParameters['bulletinId']!),
   ),
 ];
 
@@ -294,18 +306,50 @@ final _router = GoRouter(
   ],
 );
 
-class MasterAnalizApp extends StatelessWidget {
-  const MasterAnalizApp({super.key});
+/// KAYNAK: App.js — `locked ? <BiometricLockScreen/> : <NavigationContainer/>`
+///
+/// Kilitliyken yönlendirici (router) ağacı HİÇ KURULMAZ; korunan ekranlar bir
+/// kare bile çizilmez. `MaterialApp.router`ın `builder`ına bindirmek yeterli
+/// olmazdı: orada router alt ağacı yine kurulur ve ekranlar arka planda
+/// oluşturulurdu.
+class MasterAnalizApp extends StatefulWidget {
+  const MasterAnalizApp({super.key, this.baslangictaKilitli = false});
+
+  /// `main.dart` oturumu yükledikten SONRA hesaplar (bkz. `needsLockOnLaunch`).
+  /// Karar burada değil orada verilir; widget yalnız sonucu taşır.
+  final bool baslangictaKilitli;
 
   @override
-  Widget build(BuildContext context) => MaterialApp.router(
-    // Kaynakta `documentTitle` merkezî marka kaynağından besleniyordu;
-    // aynı sabit kullanılır — ekran adları başlığa SIZMAZ.
-    title: kAppName,
-    debugShowCheckedModeBanner: false,
-    theme: AppTheme.light,
-    routerConfig: _router,
-  );
+  State<MasterAnalizApp> createState() => _MasterAnalizAppState();
+}
+
+class _MasterAnalizAppState extends State<MasterAnalizApp> {
+  late bool _kilitli = widget.baslangictaKilitli;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_kilitli) {
+      // Router YOK: yalnız kilit ekranı. Tema aynı kalır ki kilit kalkınca
+      // renk sıçraması olmasın.
+      return MaterialApp(
+        title: kAppName,
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        home: BiometricLockScreen(
+          onUnlock: () => setState(() => _kilitli = false),
+        ),
+      );
+    }
+
+    return MaterialApp.router(
+      // Kaynakta `documentTitle` merkezî marka kaynağından besleniyordu;
+      // aynı sabit kullanılır — ekran adları başlığa SIZMAZ.
+      title: kAppName,
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light,
+      routerConfig: _router,
+    );
+  }
 }
 
 class _AnaKabuk extends StatelessWidget {

@@ -131,32 +131,19 @@ void main() {
         isFalse,
       );
       expect(
-        canOfferBiometrics(
-          platform: 'ios',
-          hasHardware: false,
-          enrolled: true,
-        ),
+        canOfferBiometrics(platform: 'ios', hasHardware: false, enrolled: true),
         isFalse,
       );
     });
 
-    test('açılış kilidi: üç koşul birden', () {
-      expect(
-        shouldLockOnLaunch(loggedIn: true, enabled: true, supported: true),
-        isTrue,
-      );
-      expect(
-        shouldLockOnLaunch(loggedIn: false, enabled: true, supported: true),
-        isFalse,
-      );
-      expect(
-        shouldLockOnLaunch(loggedIn: true, enabled: false, supported: true),
-        isFalse,
-      );
-      expect(
-        shouldLockOnLaunch(loggedIn: true, enabled: true, supported: false),
-        isFalse,
-      );
+    test('açılış kilidi: girişli + tercih açık İKİLİSİ', () {
+      // 2026-08-09 güvenlik kararı: `supported` parametresi KALDIRILDI —
+      // cihaz desteği kaybı (kayıt silme, sensör kilidi) korumayı sessizce
+      // kapatamaz. Ayrıntı: bio_lock_policy.dart ve
+      // test/biyometrik_kilit_test.dart.
+      expect(shouldLockOnLaunch(loggedIn: true, enabled: true), isTrue);
+      expect(shouldLockOnLaunch(loggedIn: false, enabled: true), isFalse);
+      expect(shouldLockOnLaunch(loggedIn: true, enabled: false), isFalse);
     });
 
     test('başarısızlık sonrası deneme hakkı ASLA kısıtlanmaz', () {

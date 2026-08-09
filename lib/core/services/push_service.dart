@@ -112,10 +112,10 @@ Future<void> pushIlklendir() async {
 }
 
 PushOrtam get _ortam => ortamiSinifla(
-      platformOS: _platformOS,
-      ilklendi: _ilklendi,
-      yuklemeHatasi: _yuklemeHatasi,
-    );
+  platformOS: _platformOS,
+  ilklendi: _ilklendi,
+  yuklemeHatasi: _yuklemeHatasi,
+);
 
 /// Ekranın gösterdiği ortam açıklaması.
 String ortamMesaji() {
@@ -146,13 +146,15 @@ class _Native implements PushNative {
   @override
   String get kaynak => _ortam.kaynak;
 
-  AndroidFlutterLocalNotificationsPlugin? get _android =>
-      _plugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
+  AndroidFlutterLocalNotificationsPlugin? get _android => _plugin
+      .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+      >();
 
-  IOSFlutterLocalNotificationsPlugin? get _ios =>
-      _plugin.resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin>();
+  IOSFlutterLocalNotificationsPlugin? get _ios => _plugin
+      .resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin
+      >();
 
   @override
   Future<String> izinOku() async {
@@ -319,49 +321,50 @@ Future<PushDurumOzet> pushDurumu() =>
     durumOku(nat: _nat.destek ? _nat : null, store: _store);
 
 Future<({bool enabled, String izin, SenkronSonuc? senkron, int iptal})>
-    setPushEnabled(
-  bool istenen, {
-  int? now,
-  Map? bulletin,
-  List? coupons,
-}) =>
-        ayariDegistir(
-          nat: _nat.destek ? _nat : null,
-          store: _store,
-          ac: istenen,
-          now: now ?? DateTime.now().millisecondsSinceEpoch,
-          bulletin: bulletin,
-          coupons: coupons,
-        );
-
-Future<SenkronSonuc> syncMatchReminders({
-  int? now,
-  Map? bulletin,
-  List? coupons,
-}) =>
-    macSenkron(
+setPushEnabled(bool istenen, {int? now, Map? bulletin, List? coupons}) =>
+    ayariDegistir(
       nat: _nat.destek ? _nat : null,
       store: _store,
+      ac: istenen,
       now: now ?? DateTime.now().millisecondsSinceEpoch,
       bulletin: bulletin,
       coupons: coupons,
     );
 
+Future<SenkronSonuc> syncMatchReminders({
+  int? now,
+  Map? bulletin,
+  List? coupons,
+}) => macSenkron(
+  nat: _nat.destek ? _nat : null,
+  store: _store,
+  now: now ?? DateTime.now().millisecondsSinceEpoch,
+  bulletin: bulletin,
+  coupons: coupons,
+);
+
 Future<TestSonuc> testBildirimiGonder({int? now}) => testKur(
-      nat: _nat.destek ? _nat : null,
-      store: _store,
-      now: now ?? DateTime.now().millisecondsSinceEpoch,
-    );
+  nat: _nat.destek ? _nat : null,
+  store: _store,
+  now: now ?? DateTime.now().millisecondsSinceEpoch,
+);
 
 Future<TestMacSonuc> macTestiGonder({int? now, Map? bulletin}) => testMacKur(
-      nat: _nat.destek ? _nat : null,
-      store: _store,
-      now: now ?? DateTime.now().millisecondsSinceEpoch,
-      bulletin: bulletin,
-    );
+  nat: _nat.destek ? _nat : null,
+  store: _store,
+  now: now ?? DateTime.now().millisecondsSinceEpoch,
+  bulletin: bulletin,
+);
 
-/// Hesap silinirken çağrılır: bizim kurduğumuz HER kayıt temizlenir.
-/// Aksi hâlde hesap silindikten SONRA da telefon çalmaya devam ederdi.
+/// Oturum biterken çağrılır: bizim kurduğumuz HER kayıt temizlenir.
+///
+/// Üç yol da buraya bağlıdır (kaynakta `auth.js` ile aynı): normal çıkış,
+/// uzaktan kapatılan oturum ve hesap silme. Aksi hâlde hesap kapandıktan
+/// SONRA da telefon çalmaya devam eder; cihazı devralan kişiye eski
+/// kullanıcının maçları hatırlatılır.
+///
+/// KAPSAM: yalnız BİZİM kimlik kalıbımızdaki kayıtlar (`hepsiniIptal` →
+/// `ayikla`). Başka uygulamaların ya da sistemin bildirimlerine dokunulmaz.
 Future<void> cancelAllOurNotifications() async {
   await hepsiniIptal(_nat.destek ? _nat : null);
 }

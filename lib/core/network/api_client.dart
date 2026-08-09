@@ -6,6 +6,7 @@
 // çeviride kaybolursa bir sonraki geliştirici aynı hatayı tekrar yapar.
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../session/refresh_client.dart';
 import '../session/session_state.dart';
@@ -17,11 +18,23 @@ class ApiException implements Exception {
     this.message, {
     this.status,
     this.needsVerification = false,
+    this.gecici = false,
   });
 
   final String message;
   final int? status;
   final bool needsVerification;
+
+  /// HATA GEÇİCİ Mİ? (2026-08-09'da eklendi)
+  ///
+  /// `status == 401` tek başına "oturum geçersiz" demek DEĞİLDİR: belirtecin
+  /// süresi dolmuş olabilir ve sessiz yenileme ağ/sunucu sorunu yüzünden hiç
+  /// yapılamamış olabilir. O durumda sunucu oturumu reddetmiş değildir; yalnız
+  /// soruyu SORAMADIK. Bu bayrak `true` iken 401 KESİN RET SAYILAMAZ —
+  /// kullanıcı çıkışa düşürülmez, yerel oturum silinmez (bkz. auth.dart
+  /// `initAuthUzak`). Kaynakta bu ayrım yoktu; tek bir kopuk bağlantı geçerli
+  /// bir oturumu kalıcı olarak düşürebiliyordu.
+  final bool gecici;
 
   @override
   String toString() => message;
@@ -41,6 +54,12 @@ class ApiClient {
           );
 
   final Dio _dio;
+
+  /// Taşıyıcı değişimi — testler genel `api` nesnesinin isteklerini ağa
+  /// çıkmadan yakalayabilsin diye (kupon deposu gibi katmanlar doğrudan bu
+  /// nesneyi kullanıyor ve Dio enjekte edemiyor). Üretimde dokunulmaz.
+  @visibleForTesting
+  set tasiyici(HttpClientAdapter a) => _dio.httpClientAdapter = a;
 
   Map<String, String> _baseHeaders() => {
     'ngrok-skip-browser-warning': 'true',
@@ -63,12 +82,24 @@ class ApiClient {
   }
 
   /// Kaynaktaki `req(path, { method, body })`.
+  ///
+  /// HER İSTEK BAŞLADIĞI OTURUMA BAĞLIDIR (2026-08-09): başlıklar her HTTP
+  /// denemesinde o anki oturumdan kurulduğu için, araya çıkış/yeni giriş
+  /// girerse ESKİ bir istek yeni kullanıcının kimliğiyle iş yapabilirdi.
+  /// Bunu önlemek için istek başlarken oturum nesli kaydedilir ve yenileme
+  /// ile tekrar denemesi ondan önce doğrulanır.
   Future<dynamic> req(
     String path, {
     String method = 'GET',
     Object? body,
     bool hasBody = false,
   }) async {
+    final nesil = oturumNesli;
+
+    // 401 alındı ama yenileme SONUÇLANDIRILAMADI mı? (ağ/sunucu sorunu ya da
+    // araya giren oturum değişimi) Öyleyse bu 401 kesin ret sayılamaz.
+    var gecici = false;
+
     var res = await _rawFetch(
       path,
       method: method,
@@ -78,17 +109,34 @@ class ApiClient {
 
     // Belirteç süresi dolduysa: SESSİZCE yenile ve isteği BİR KEZ tekrarla.
     // Kullanıcıdan tekrar giriş istenmez ("beni hatırla" güvenli biçimde çalışır).
+    //
+    // `nesil == oturumNesli` KOŞULU: araya başka bir oturum girdiyse bu 401
+    // artık ESKİ kullanıcının cevabıdır. O yüzden yenileme BAŞLATILMAZ —
+    // yoksa yeni kullanıcının tek kullanımlık yenileme anahtarı eski istek
+    // için harcanır, reddedilirse de yeni oturum kapatılırdı. Denetim ile
+    // `getRefreshToken()` okuması arasında `await` YOKTUR; Dart tek iş
+    // parçacıklı olduğu için arada oturum değişemez.
     if (res.statusCode == 401 &&
         !path.startsWith('/api/auth/') &&
+        nesil == oturumNesli &&
         (getRefreshToken() != null || isCookieMode())) {
-      final renewed = await tryRefresh();
-      if (renewed) {
+      final sonuc = await tryRefresh();
+      // Tekrar da aynı oturuma bağlıdır: yenileme sürerken kimlik değiştiyse
+      // istek YENİ kullanıcı adına gönderilmez.
+      if (sonuc == YenilemeSonucu.yenilendi && nesil == oturumNesli) {
         res = await _rawFetch(
           path,
           method: method,
           body: body,
           hasBody: hasBody,
         );
+      } else if (sonuc != YenilemeSonucu.kesinRet) {
+        // `gecici` ya da "yenilendi ama oturum değişti": iki durumda da
+        // sunucunun oturum hakkındaki KESİN sözünü almış değiliz. Aşağıdaki
+        // 401 bu bayrakla işaretlenir; `initAuthUzak` onu görüp oturumu
+        // silmez. Yalnız `kesinRet` bayrağı KAPALI bırakır — o dalda oturum
+        // refresh_client tarafından zaten temizlenmiştir.
+        gecici = true;
       }
     }
 
@@ -106,6 +154,7 @@ class ApiClient {
         msg,
         status: status,
         needsVerification: needsVerification,
+        gecici: gecici,
       );
     }
     if (status == 204) return null;

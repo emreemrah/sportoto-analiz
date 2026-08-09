@@ -16,8 +16,9 @@
 //  2. FAVORİ TAKIM ARMASI — ad → arma eşlemesi katalogdan yapılır.
 //     Bulunamazsa nötr ⚽ kalır; BAŞKA kulübün arması ASLA konmaz.
 //
-// HENÜZ ÇEVRİLMEDİ: resim yükleme (kaynakta da yalnız web'de çalışıyor,
-// tarayıcı canvas'ı kullanıyor) — Adım 4'te cihaz yetenekleriyle gelecek.
+// ÇEVRİLMEDİ: profil resmi YÜKLEME. Kaynakta da yalnız web'de çalışıyor
+// (tarayıcı canvas'ı kullanıyor), mobilde karşılığı yok. Hazır avatar seçimi
+// ve "Resmi Kaldır" çalışır; sunucudan gelen bir resim varsa gösterilir.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -443,10 +444,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _git(String alt) {
-    // Alt ekranların çoğu henüz çevrilmedi; sessiz kalmak yerine söylenir.
-    // Çevrilen her ekran bu kümeye eklenir — burada olmayan bir yola
-    // `go` demek go_router'da SESSİZ başarısızlıktır, kullanıcı hiçbir şey
-    // olmadığını sanır. Bu yüzden liste elle tutulur.
+    // Bu ekrandan açılan alt ekranların HEPSİ çevrildi; küme yine de duruyor
+    // çünkü kayıtlı OLMAYAN bir yola `go` demek go_router'da SESSİZ
+    // başarısızlıktır — kullanıcı dokunur, hiçbir şey olmaz, hata da çıkmaz.
+    // Yeni bir alt ekran eklenirken buraya da eklenmezse aşağıdaki dal
+    // devreye girer ve sorunu görünür kılar.
     const hazir = <String>{
       'takim-sec',
       'avatar',
@@ -464,9 +466,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       GoRouter.of(context).go('/profil/$alt');
       return;
     }
+    // Buraya düşmek bir GELİŞTİRME hatasıdır: `hazir` kümesine eklenmemiş bir
+    // yola gidilmeye çalışılıyor. Kullanıcıya "çevrilmedi" demek yanlış olur
+    // (ekran çevrilmiş olabilir, bağlantı unutulmuştur); durum olduğu gibi
+    // söylenir.
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('"$alt" ekranı henüz çevrilmedi'),
+        content: Text('"$alt" ekranı açılamadı — rota tanımlı değil.'),
         duration: const Duration(seconds: 2),
       ),
     );

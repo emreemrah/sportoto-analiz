@@ -173,11 +173,26 @@ SyncState getSyncState() => SyncState(
   loggedIn: _hasToken(),
 );
 
-Future<bool> _pushNow() async {
+/// [beklenenNesil]: yükleme hangi oturum ADINA başlatıldıysa o oturumun
+/// nesli. `_persist` disk yazımında beklerken kullanıcı değişmiş olabilir;
+/// bu durumda gövde (`_cache`) artık YENİ kullanıcının verisidir ama niyet
+/// ESKİ kullanıcınındı — yükleme yapılmaz. Verilmezse (retrySync, ekran
+/// tetiklemesi) "şu anki oturum adına" demektir.
+Future<bool> _pushNow({int? beklenenNesil}) async {
   if (!_hasToken()) return false;
+  // Gövde/cache okunmadan HEMEN ÖNCE doğrulanır; bu satırla `putCoupons`
+  // çağrısı arasında `await` yoktur (Dart tek iş parçacıklı — arada oturum
+  // değişemez).
+  final nesil = beklenenNesil ?? oturumNesli;
+  if (nesil != oturumNesli) return false;
   try {
     // Eski (v1) sunucu kayıtları KORUNARAK geri yazılır — yeni sisteme karışmaz.
+    // Gövde ve başlıklar BU SATIRDA, yani hâlâ bu oturumdayken kurulur.
     await api.putCoupons([..._serverLegacy, ..._cache]);
+    // Araya oturum değişimi girdiyse durum yazısı ARTIK BAŞKASININ ekranına
+    // ait olurdu: yeni kullanıcı, eski kullanıcının yüklemesi için "kaydedildi"
+    // görürdü. Veri değil, gösterge tutarlılığı için.
+    if (nesil != oturumNesli) return false;
     _syncState = SyncState(
       pending: false,
       lastOkAt: DateTime.now().toIso8601String(),
@@ -185,6 +200,7 @@ Future<bool> _pushNow() async {
     _emit();
     return true;
   } catch (e) {
+    if (nesil != oturumNesli) return false;
     _syncState = SyncState(pending: true, error: '$e');
     _emit();
     return false;
@@ -197,20 +213,46 @@ Future<void> _persist(
   List<Map<String, dynamic>> list, {
   bool push = true,
 }) async {
+  // Bu yazma HANGİ oturum adına? Aşağıdaki disk yazımı beklerken kullanıcı
+  // değişebilir (çıkış + yeni giriş); eski işlemin o durumda `_pushNow`
+  // başlatması, yeni kullanıcının sunucudaki kuponlarını eski niyetle (en
+  // kötüsünde boş listeyle) ezmek olurdu. Nesil, merkezî sayaçtır
+  // (session_state.oturumNesli); belirteç ROTASYONU onu artırmaz, bu yüzden
+  // aynı kullanıcının işlemi gereksiz iptal edilmez.
+  final nesil = oturumNesli;
   _cache = list;
   try {
     await _sp?.setString(_key, jsonEncode(list));
   } catch (_) {
     /* yerelde tutulamadıysa bellek kopyası yine doğru */
   }
-  if (push) unawaited(_pushNow());
+  if (push && nesil == oturumNesli) {
+    unawaited(_pushNow(beklenenNesil: nesil));
+  }
   _emit();
 }
 
+/// Sunucudaki kuponları yerelle birleştirir.
+///
+/// OTURUM NESLİ KORUMASI (2026-08-09): `api.getCoupons()` ağda beklerken
+/// kullanıcı çıkabilir ve BAŞKA biri girebilir (bu iş açılışta
+/// `couponSahipKancasi` ile arka planda da başlatılıyor). Korunmasaydı A'nın
+/// geç gelen cevabı şunları yapardı:
+///   • `_mergeById(_cache, ...)` → A'nın kuponları B'nin deposuna KARIŞIR;
+///   • `_persist(...)` → bu karışım B'nin cihazına yazılır;
+///   • `_pushNow()` → A'nın kuponları B'NİN HESABINA yüklenir (başlıklar artık
+///     B'nin belirtecini taşır).
+/// Dosyanın başındaki "önceki kullanıcının kuponu yeni hesaba karışmaz" sözü
+/// tam olarak burada delinirdi. Nesil `session_state`teki TEK sayaçtır; bu
+/// dosya onu zaten içe aktarıyor (`isAuthenticated`), yeni bağımlılık yok.
 Future<bool> syncFromServer() async {
   if (!_hasToken()) return false;
+  final nesil = oturumNesli;
   try {
     final resp = await api.getCoupons();
+    // Cevap ESKİ oturuma aitse hiçbir şeye dokunma: ne belleğe, ne diske, ne
+    // sunucuya. Sessizce başarısız sayılır.
+    if (nesil != oturumNesli) return false;
     final server = ((resp as Map?)?['coupons'] as List?) ?? const [];
     _serverLegacy = server
         .cast<Map>()
@@ -224,7 +266,12 @@ Future<bool> syncFromServer() async {
         .toList();
     final merged = _mergeById(_cache, serverV2);
     await _persist(merged, push: false);
-    if (jsonEncode(merged) != jsonEncode(serverV2)) unawaited(_pushNow());
+    // Kuyruk yüklemesi de BU senkronun oturumuna bağlıdır: `_persist` disk
+    // yazımında beklerken kullanıcı değiştiyse `_pushNow` gövdeyi okumadan
+    // vazgeçer.
+    if (jsonEncode(merged) != jsonEncode(serverV2)) {
+      unawaited(_pushNow(beklenenNesil: nesil));
+    }
     return true;
   } catch (_) {
     return false;

@@ -21,13 +21,20 @@ bool canOfferBiometrics({
   return hasHardware && enrolled; // donanım + kayıtlı biyometri şart
 }
 
-/// Açılışta kilit gerekli mi?
-/// Yalnız: kullanıcı girişli + kilidi kendisi açmış + cihaz destekliyor.
-bool shouldLockOnLaunch({
-  required bool loggedIn,
-  required bool enabled,
-  required bool supported,
-}) => loggedIn && enabled && supported;
+/// Açılışta kilit gerekli mi? Yalnız: kullanıcı girişli + kilidi kendisi
+/// açmış.
+///
+/// GÜVENLİK KARARI (2026-08-09, kullanıcı isteğiyle KAYNAKTAN BİLİNÇLİ
+/// SAPMA): kaynak (bioLockPolicy.js) karara `supported` (cihaz desteği)
+/// koşulunu da katıyordu. Bu, korumayı SESSİZCE kapatan bir yol açıyordu:
+/// kilidi açan kullanıcı kayıtlı parmak izlerini silince, sensör geçici
+/// kilitlenince ya da sistem biyometriyi kilitleyince `supported=false`
+/// oluyor ve korunan içerik kilitsiz açılıyordu. Artık cihaz durumu kilidin
+/// ATLANMASINA değil, kilit ekranının NE ANLATACAĞINA karar verir; cihaz
+/// ekran kilidi (PIN/desen) her zaman alternatiftir (`biometricOnly: false`)
+/// ve o da yoksa "şifreyle giriş" güvenli çıkış yoludur.
+bool shouldLockOnLaunch({required bool loggedIn, required bool enabled}) =>
+    loggedIn && enabled;
 
 // Üst üste bu kadar başarısızlıkta şifreyle giriş ÖNE ÇIKARILIR
 // (buton her denemede zaten görünür; bu eşik yalnız vurguyu değiştirir).

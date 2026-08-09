@@ -77,22 +77,43 @@ Future<bool> biometricsSupported() async {
   }
 }
 
-/// Açılışta kilit gerekli mi? (girişli + tercih açık + cihaz destekli)
+/// Açılışta kilit gerekli mi? (girişli + tercih açık — cihaz desteğine
+/// BAKILMAZ; gerekçe bio_lock_policy.dart'taki güvenlik kararında.)
+///
+/// Web istisnadır: biyometri orada hiç sunulmaz ve mobilden kalan bir ayar
+/// web açılışını kilitleyemez (platform politikası). `biometricsSupported()`
+/// bu karara ÇAĞRILMAZ — çağıran eklenirse koruma yine sessizce delinir;
+/// bunu bir kaynak-tarama testi bekliyor (biyometrik_kilit_test.dart).
 Future<bool> needsLockOnLaunch(bool loggedIn) async {
   if (_isWeb || !loggedIn) return false;
   final enabled = await isBioLockEnabled();
-  final supported = await biometricsSupported();
-  return shouldLockOnLaunch(
-    loggedIn: loggedIn,
-    enabled: enabled,
-    supported: supported,
-  );
+  return shouldLockOnLaunch(loggedIn: loggedIn, enabled: enabled);
 }
 
-/// Cihazın biyometrik doğrulamasını başlatır → 'unlocked' | 'locked'.
+/// Cihazın biyometrik doğrulamasını başlatır.
+///
+/// Dönüş: `'unlocked'` | `'locked'` | `'locked:<kod>'`. Kod, local_auth'un
+/// `LocalAuthExceptionCode.name` değeridir (örn. `locked:temporaryLockout`);
+/// kilit ekranı bundan kullanıcıya anlaşılır bir açıklama üretir. Enum'a yeni
+/// değer eklenmesi kırıcı sayılmadığı için bilinmeyen kod düz `'locked'`a
+/// düşer (paketin kendi uyarısı: "clients should always include a default").
 ///
 /// `biometricOnly: false` — kaynaktaki `disableDeviceFallback: false` ile
-/// aynı: cihaz PIN'i de güvenli alternatif olarak kalır.
+/// aynı: cihaz ekran kilidi (PIN/desen) güvenli alternatif olarak kalır;
+/// kayıtlı biyometri silinmiş olsa bile doğrulama bu yoldan çalışır.
+///
+/// ZAMAN AŞIMI BİLEREK YOK (60 sn'lik sınır 2026-08-09'da kaldırıldı):
+///   • `persistAcrossBackgrounding: true` doğrulamanın arka plana atılıp
+///     öne dönüşte OTOMATİK yeniden denenmesi demektir (local_auth 3.0.2,
+///     `authenticate` belgesi) — meşru bir doğrulama dakikalarca sürebilir;
+///     uygulama katmanındaki bir sayaç bu akışı yarıda keserdi.
+///   • Platformun KENDİ zaman aşımı zaten var: cihaz sınırına takılan istem
+///     `LocalAuthExceptionCode.timeout` ile döner ve aşağıdaki catch'e düşer.
+///   • `.timeout()` işletim sisteminin istemini KAPATAMAZ; bizim taraf pes
+///     ederken ekranda istem açık kalır ve geç sonuç çöpe giderdi — görünür
+///     bir tutarsızlık. Takılı istemde kullanıcının hapsolmaması ekran
+///     katmanında çözülür: "Şifreyle giriş" düğmesi doğrulama sürerken de
+///     açıktır (biometric_lock_screen.dart).
 Future<String> authenticate() async {
   try {
     // local_auth 3.x'te seçenekler doğrudan adlandırılmış parametre;
@@ -101,12 +122,29 @@ Future<String> authenticate() async {
     final ok = await _localAuth.authenticate(
       localizedReason: 'Uygulama kilidini aç',
       biometricOnly: false,
-      // Kaynaktaki davranış: uygulama arka plana atılıp geri gelirse
-      // doğrulama YENİDEN denenir, hata verip kilitli kalmaz.
       persistAcrossBackgrounding: true,
     );
     return outcomeFromResult(ok);
+  } on LocalAuthException catch (e) {
+    // Hata kilidi AÇMAZ (güvenli taraf); kod, ekran metni için taşınır.
+    return 'locked:${e.code.name}';
   } catch (_) {
-    return 'locked'; // cihaz hatasında kilit AÇILMAZ (güvenli taraf)
+    return 'locked';
+  }
+}
+
+/// Süren doğrulamayı EN İYİ ÇABA ile durdurur.
+///
+/// local_auth 3.0.2 `stopAuthentication` belgesi: "may not be supported by
+/// all platforms" ve hata/desteksizlikte false döner — bu yüzden sonuç
+/// beklenmez, hata yutulur. Kilit ekranı bunu yalnız kullanıcı "Şifreyle
+/// giriş"e geçerken çağırır ki Android'de açık kalan istem kapansın; kilidin
+/// güvenliği buna DAYANMAZ (geç sonuçlar deneme-nesli koruması ve `mounted`
+/// denetimiyle zaten yok sayılır).
+Future<void> dogrulamayiDurdur() async {
+  try {
+    await _localAuth.stopAuthentication();
+  } catch (_) {
+    // desteklenmeyen platform / süren doğrulama yok — önemsiz
   }
 }

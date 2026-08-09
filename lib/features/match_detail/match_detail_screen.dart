@@ -12,9 +12,8 @@
 // koymamaktır. Backend uçları (`/api/predictions/*`) api_client.dart içinde
 // duruyor — bölüm kaynakta canlandırılırsa çeviri buradan devam eder.
 //
-// KUPONA İŞLE bloğu ARTIK ÇALIŞIYOR: kupon taslak deposu (Adım 3) bağlandı,
-// seçim diske yazılıyor. "Kupon Oluştur" düğmesinin gideceği editör ekranı
-// henüz çevrilmedi ve bunu söylüyor.
+// KUPONA İŞLE bloğu çalışır: kupon taslak deposu bağlı, seçim diske yazılır
+// ve "Kupon Oluştur" düğmesi kupon editörünü açar.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

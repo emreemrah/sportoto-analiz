@@ -374,13 +374,16 @@ class _BiometricCardState extends State<_BiometricCard> {
   void initState() {
     super.initState();
     () async {
+      // İkisi de HER durumda okunur: destek kaybolmuş olsa bile kilit AÇIK
+      // kalabilir (açılış kararı artık desteğe bakmıyor — güvenlik kararı,
+      // bio_lock_policy.dart) ve kullanıcı buradan kapatabilmelidir.
       final s = await biometricsSupported();
+      final e = await isBioLockEnabled();
       if (!mounted) return;
-      setState(() => _supported = s);
-      if (s) {
-        final e = await isBioLockEnabled();
-        if (mounted) setState(() => _enabled = e);
-      }
+      setState(() {
+        _supported = s;
+        _enabled = e;
+      });
     }();
   }
 
@@ -413,7 +416,11 @@ class _BiometricCardState extends State<_BiometricCard> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_supported) return const SizedBox.shrink();
+    // Destek yok + kilit kapalı → sunulacak bir şey yok (kaynak davranışı:
+    // desteksiz cihazda AÇMA seçeneği hiç gösterilmez; web'de hiç görünmez).
+    // Destek yok ama kilit AÇIK → kart KALIR: kilit her açılışta çalışmaya
+    // devam ediyor (güvenlik kararı); kullanıcı kapatma yolunu kaybetmemeli.
+    if (!_supported && !_enabled) return const SizedBox.shrink();
     return _Kart(
       baslik: '🫆 Biyometrik Kilit',
       children: [
@@ -422,6 +429,14 @@ class _BiometricCardState extends State<_BiometricCard> {
           'verilerin cihazından asla çıkmaz ve uygulama tarafından kaydedilmez; '
           'doğrulama başarısız olursa şifreyle giriş her zaman mümkündür.',
         ),
+        if (!_supported)
+          const _Ipucu(
+            'Bu cihazda şu an kullanılabilir biyometri yok (kayıtlı parmak '
+            'izi/yüz silinmiş ya da sensör kullanılamıyor olabilir). Kilit '
+            'açık olduğu için açılışta doğrulama istenmeye devam eder; '
+            'kapatmak istersen aşağıdaki anahtarı kullan — değişiklik cihaz '
+            'ekran kilidinle (PIN/desen) doğrulanır.',
+          ),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [

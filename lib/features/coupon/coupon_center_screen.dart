@@ -17,9 +17,10 @@
 //  2. "OYNADIM" YALNIZ BEYANDIR. Operatör entegrasyonu YOK; işaret her yerde
 //     "kullanıcı beyanı (doğrulanmamış)" etiketiyle görünür.
 //
-// HENÜZ ÇEVRİLMEDİ: yayın stüdyosu tablo görünümü (couponStudioParts —
-// arma + 1-0-2 kutulu resmî bülten tablosu). Yerine sade kupon kartı çizilir
-// ve bu ekranda açıkça yazar.
+// KAPSAM DIŞI — YAYIN STÜDYOSU: `studioParts.js` tablo görünümü (arma +
+// 1-0-2 kutulu resmî bülten tablosu) kullanıcı kararıyla projeden
+// çıkarılmıştır. Eksik çeviri DEĞİLDİR: parite denetimlerinde eksik özellik
+// sayılmaz ve yeniden eklenmez. Bu ekran sade kupon kartını çizer.
 
 import 'dart:async';
 
@@ -287,13 +288,6 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
                   selectedId: selectedId,
                   selMeta: selMeta,
                 ),
-
-            const SizedBox(height: 8),
-            const Text(
-              'Yayın stüdyosu tablo görünümü (arma + 1-0-2 kutulu resmî bülten '
-              'tablosu) henüz çevrilmedi.',
-              style: _notStil,
-            ),
           ],
         ),
       ),

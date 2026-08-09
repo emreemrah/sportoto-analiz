@@ -272,7 +272,6 @@ class HomeScreen extends ConsumerWidget {
     final v = (m['analysis'] as Map?)?['surpriseScore'];
     return v is num ? v.toDouble() : 0;
   }
-
 }
 
 class _Header extends StatelessWidget {
@@ -1048,13 +1047,11 @@ class _KickoffCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
+        // KAYNAK: HomeScreen.js:367 — geçmiş hafta maçı MAÇ detayına değil
+        // BÜLTEN detayına gider (o hafta artık oynanmıştır; değerli olan tek
+        // maç değil haftanın mühürlü kaydıdır).
         if (oncekiHafta) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Bülten Detayı ekranı henüz çevrilmedi'),
-              duration: Duration(seconds: 2),
-            ),
-          );
+          _acBultenDetay(context, match['roundId']);
           return;
         }
         _acDetay(context, match['no']);
@@ -1157,4 +1154,26 @@ class _KickoffCard extends StatelessWidget {
 void _acDetay(BuildContext context, Object? no) {
   if (no == null) return;
   GoRouter.of(context).go('/ana-sayfa/mac/$no');
+}
+
+/// Geçmiş hafta maçından o haftanın MÜHÜRLÜ bülten detayına gider.
+///
+/// KİMLİK: `yaklasan_maclar.dart` her kayda kaynak haftanın `roundId`'sini
+/// koyar (satır 84). Arşiv ucu `/api/bulletins/:id` aynı değeri bekler —
+/// sunucuda `rounds[].id` SAYI (1527), `bulletins[].id` METİN ('1527'); tek
+/// fark tiptir ve yol parametresine yazılırken erir. Kaynak da aynı eşlemeyi
+/// yapıyor (`HomeScreen.js:367` → `bulletinId: match.roundId`).
+void _acBultenDetay(BuildContext context, Object? roundId) {
+  // Kimlik yoksa sessizce hiçbir şey yapmak, dokunmanın kaybolması demektir.
+  // Kullanıcı nedenini görsün.
+  if (roundId == null || '$roundId'.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Bu maçın hafta kimliği gelmedi — detay açılamıyor.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    return;
+  }
+  GoRouter.of(context).go('/ana-sayfa/bulten-detay/$roundId');
 }
