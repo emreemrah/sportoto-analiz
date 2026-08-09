@@ -90,8 +90,13 @@ Eksiklik varsa:
 
 ## Çalışma zamanı durumu
 
-`football-data` komutları `sports-skills` Python paketini kullanır. Bu makinede
-Python kurulu değil; komutlar çalıştırılamaz. Ayrıntı ve kurulan kaynak sürüm
-için: `references/calisma-zamani.md`.
+`football-data` komutları `sports-skills` Python paketini kullanır. Bu
+makinede çalışma zamanı KURULU (2026-08-09, kullanıcı onayıyla):
 
-Python yoksa: komut uydurma, "çalıştırdım" deme, kullanıcıya durumu bildir.
+```text
+.venv-sports\Scripts\sports-skills.exe football <komut> ...
+```
+
+Ayrıntı, sürüm sabitleme ve venv silinirse yeniden kurulum:
+`references/calisma-zamani.md`. Venv yoksa: komut uydurma, "çalıştırdım"
+deme, kullanıcıya durumu bildir ve kurulum için açık onay iste.

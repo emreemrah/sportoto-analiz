@@ -98,3 +98,7 @@ skills-lock.json
 .claude/skills/betting
 .claude/skills/sports-reporter
 .claude/skills/sports-news
+
+# Spor skill'lerinin Python çalışma zamanı (proje-yerel izole venv).
+# Kurulumu: calisma-zamani.md — sabitli commit arşivinden pip ile.
+.venv-sports/

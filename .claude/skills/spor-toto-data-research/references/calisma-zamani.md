@@ -86,26 +86,30 @@ ekleyen ve diske yazan bir işlemdir; kendiliğinden başlatılmaz.
 - `skills-lock.json` `.gitignore`'dadır: **temiz klonda otomatik gelmez**,
   yukarıdaki kurulum komutu çalıştırılınca yeniden oluşur.
 
-## Python çalışma zamanı: KURULU DEĞİL
-
-Kurulum sırasında yapılan salt okunur kontroller:
+## Python çalışma zamanı: KURULU (2026-08-09, kullanıcı onayıyla)
 
 ```text
-node    : v24.18.0      ✓
-npx     : 11.17.0       ✓
-py -3   : bulunamadı
-python  : bulunamadı
-python3 : bulunamadı
-sports-skills : PATH'te yok
+Python        : 3.12.10 — %LOCALAPPDATA%\Programs\Python\Python312
+                (PATH'te değil; venv tam yolla oluşturuldu, globale dokunulmadı)
+venv          : E:\flt\kodu cevir\.venv-sports  (proje-yerel, izole)
+sports-skills : 0.30.1 — yukarıdaki sabitli commit arşivinden pip ile
+çağrı biçimi  : .venv-sports\Scripts\sports-skills.exe football <komut> ...
+.gitignore    : `.venv-sports/` girdisi eklendi — venv depoya girmez
 ```
 
-Yaygın kurulum dizinleri (`%LOCALAPPDATA%\Programs\Python`, `C:\Python3xx`,
-`%ProgramFiles%\Python3xx`) de tarandı; Python bulunamadı.
+Kurulum sonrası canlı doğrulama: `get_current_season(premier-league)` →
+`premier-league-2026` ve `get_missing_players` gerçek FPL verisi döndürdü.
 
-**Sonuç:** kaynak skill'lerin veri çeken/hesaplayan komutları
-(`sports-skills football-data ...`, `sports-skills betting ...`) bu makinede
-**çalıştırılamaz**. Skill tanımları ve dokümantasyonu kuruludur; yalnız
-çalışma zamanı eksiktir.
+Bu bölümün ÖNCEKİ hâli "Python kurulu değil" diyordu; ilk kurulum sırasındaki
+o tespit ve venv'in daha sonra kullanıcı onayıyla silinip (B seçeneği,
+2026-08-09'dan önce) bugün yine onayla geri kurulduğu bilgisi tarihçe olarak
+buradadır. Venv yeniden silinirse aşağıdaki eski kurallar aynen geçerlidir.
+
+### Venv yokken (eski durum — silinirse yine geçerli)
+
+Kaynak skill'lerin veri çeken/hesaplayan komutları venv olmadan
+**çalıştırılamaz**; skill tanımları ve dokümantasyon kurulu kalır, yalnız
+çalışma zamanı eksik olur.
 
 ### İki ayrı soru — karıştırılmamalı
 
