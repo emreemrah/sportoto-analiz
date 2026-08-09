@@ -83,13 +83,9 @@ assets/android-icon-*.png
 # `.claude/skills/` altındaki aynı adlı girdiler oraya symlink'tir.
 # `skills-lock.json` bu kurulumun kayıt dosyasıdır.
 #
-# Bunlar proje kaynak kodu değil, dışarıdan çekilen bağımlılıktır — kurulum
-# şu komutla tekrarlanır:
-#   npx skills add machina-sports/sports-skills --skill <ad> --yes
+# Bunlar proje kaynak kodu değil, dışarıdan çekilen bağımlılıktır.
 #
-# Kurulum anındaki upstream sürümü .claude/skills/spor-toto-data-research/
-# references/calisma-zamani.md dosyasında yazılıdır (commit SHA dahil); o
-# dosya DEPODA DURUR, böylece aynı sürüm yeniden kurulabilir.
+# Spor skill'lerini yeniden kurma talimatı: .claude/skills/spor-toto-data-research/references/calisma-zamani.md
 .agents/
 skills-lock.json
 

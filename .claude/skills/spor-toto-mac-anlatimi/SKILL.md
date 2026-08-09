@@ -67,6 +67,29 @@ Kaynak `sports-reporter` ile `football-data` arasında komut adı/parametre
 çelişkisi varsa **güncel `football-data` komut tablosu** ve bu projenin
 wrapper kuralları esas alınır.
 
+## Bağımlılık ön kontrolü
+
+Bu skill kaynak `sports-reporter` skill'ine dayanır. Onun **veri veya CLI
+komutu** kullanılacaksa, önce şunları doğrula:
+
+```text
+.agents/skills/sports-reporter/SKILL.md   → dosya var mı
+.claude/skills/sports-reporter            → bağlantı var mı, hedefi açılıyor mu
+```
+
+Sonra `../spor-toto-data-research/references/calisma-zamani.md` dosyasını oku.
+
+Eksiklik varsa:
+
+- **Otomatik kurulum yapma.** Kullanıcıya bildir, açık onay iste; kurulum
+  komutu yukarıdaki çalışma zamanı belgesindedir.
+- **Yasaklı skill'e geçme** (`markets`, `kalshi`, `polymarket`,
+  `polymarket-trading`, `machina`, `world-cup`).
+- Kaynak skill eksikken **veri çekilmiş gibi gösterme**; istatistik uydurma.
+- Bu belgedeki kurallar (yalnız mühürlü snapshot, iddialı dil yasağı, analiz
+  ile sonuç ayrımı) **yine de geçerlidir**. Mühürlü snapshot backend'den
+  gelir; `sports-reporter` yalnız anlatım disiplinidir, veri kaynağı değildir.
+
 ## Çalışma zamanı
 
 Veri çeken komutlar `sports-skills` Python paketini ister; bu makinede Python

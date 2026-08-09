@@ -64,10 +64,34 @@ Güven seviyesi: yüksek / orta / düşük — ve neden
 - **Verisi bulunmayan alan tahmin ederek doldurulmaz.** "Bilinmiyor" geçerli
   ve tercih edilen cevaptır.
 
+## Bağımlılık ön kontrolü
+
+Bu skill kaynak `football-data` skill'ine dayanır. Onun **veri veya CLI
+komutu** kullanılacaksa, önce şunları doğrula:
+
+```text
+.agents/skills/football-data/SKILL.md   → dosya var mı
+.claude/skills/football-data           → bağlantı var mı, hedefi açılıyor mu
+```
+
+Sonra `references/calisma-zamani.md` dosyasını oku (çalışma zamanı ve sürüm
+durumu oradadır).
+
+Eksiklik varsa:
+
+- **Otomatik kurulum yapma.** Eksikliği kullanıcıya bildir ve kurulum için
+  açık onay iste; kurulum komutu `references/calisma-zamani.md` içindedir.
+- **Yasaklı başka bir skill'e geçme** (`markets`, `kalshi`, `polymarket`,
+  `polymarket-trading`, `machina`, `world-cup`).
+- Kaynak skill eksikken **veri çekilmiş gibi gösterme**; çıktı uydurma.
+- Bu belgedeki proje kuralları (üretim/araştırma ayrımı, xG kapsamı, kaynak
+  ve güven etiketi) **yine de geçerlidir** — yalnız veri komutları devre dışı
+  kalır.
+
 ## Çalışma zamanı durumu
 
 `football-data` komutları `sports-skills` Python paketini kullanır. Bu makinede
-Python kurulu değil; komutlar çalıştırılamaz. Ayrıntı ve kurulum anındaki
-upstream sürümü için: `references/calisma-zamani.md`.
+Python kurulu değil; komutlar çalıştırılamaz. Ayrıntı ve kurulan kaynak sürüm
+için: `references/calisma-zamani.md`.
 
 Python yoksa: komut uydurma, "çalıştırdım" deme, kullanıcıya durumu bildir.

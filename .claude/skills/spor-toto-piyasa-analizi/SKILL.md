@@ -76,6 +76,28 @@ Her sonuç hangi iki kavramdan üretildiği yazılarak sunulur.
 Bu skill **hesaplama yöntemini tarif eder**. Üretimdeki hesap Node.js
 backend'de uygulanır; burada üretilen sayılar doğrudan uygulamaya yazılmaz.
 
+## Bağımlılık ön kontrolü
+
+Bu skill kaynak `betting` skill'ine dayanır. Onun **veri veya CLI komutu**
+kullanılacaksa, önce şunları doğrula:
+
+```text
+.agents/skills/betting/SKILL.md   → dosya var mı
+.claude/skills/betting            → bağlantı var mı, hedefi açılıyor mu
+```
+
+Sonra `../spor-toto-data-research/references/calisma-zamani.md` dosyasını oku.
+
+Eksiklik varsa:
+
+- **Otomatik kurulum yapma.** Kullanıcıya bildir, açık onay iste; kurulum
+  komutu yukarıdaki çalışma zamanı belgesindedir.
+- **Yasaklı skill'e geçme** (`markets`, `kalshi`, `polymarket`,
+  `polymarket-trading`, `machina`, `world-cup`).
+- Kaynak skill eksikken **hesap yapılmış gibi gösterme**; sayı uydurma.
+- Bu belgedeki kavram ayrımı ve yasaklar (de-vig/EV/Kelly/arbitraj sınırları,
+  banko dili yasağı) **yine de geçerlidir**.
+
 ## Çalışma zamanı
 
 `betting` komutları `sports-skills` Python paketini ister; bu makinede Python
