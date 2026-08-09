@@ -207,7 +207,8 @@ class MemoryRow extends StatelessWidget {
         children: [
           Semantics(
             button: true,
-            label: '${item['no']}. sıranın geçmiş maçları${acik ? ' — kapat' : ''}',
+            label:
+                '${item['no']}. sıranın geçmiş maçları${acik ? ' — kapat' : ''}',
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: onToggle,
@@ -413,6 +414,7 @@ class MemoryRow extends StatelessWidget {
             // Kaynak RENKLİ NOKTAYLA gösterilir; adı hiçbir yerde geçmez
             // (yasal/mağaza kısıtı). Etiket renk adını söyler.
             Semantics(
+              key: Key('radar5-bugun-nokta-${kaynakKodu(k.kaynak)}'),
               label: providerLabel(k.kaynak),
               child: Container(
                 width: 9,
@@ -440,10 +442,7 @@ class MemoryRow extends StatelessWidget {
               ),
               const SizedBox(width: 3),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 7,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceSoft,
                   borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -529,7 +528,11 @@ class _SiraGecmisListesiState extends State<SiraGecmisListesi> {
         : tumu;
     final enEski = (liste.last as Map)['week'];
     final kayitsiz = liste
-        .where((m) => (m as Map)['played'] is! Map || (m['played'] as Map)['pct'] == null)
+        .where(
+          (m) =>
+              (m as Map)['played'] is! Map ||
+              (m['played'] as Map)['pct'] == null,
+        )
         .length;
 
     return _kutu(
@@ -569,7 +572,9 @@ class _SiraGecmisListesiState extends State<SiraGecmisListesi> {
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              border: Border.all(color: const Color(0x99FFFFFF)),
+                              border: Border.all(
+                                color: const Color(0x99FFFFFF),
+                              ),
                             ),
                             child: Text(
                               _notAcik ? '✕' : 'i',

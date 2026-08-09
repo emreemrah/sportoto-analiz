@@ -145,6 +145,9 @@ class _PlayedDnaPanelState extends State<PlayedDnaPanel> {
     final hasData = d?['hasData'] == true;
 
     return Container(
+      // Panelin dürüstlük kurallarını EKRANIN geri kalanından ayrı sınamak
+      // için kimlik (kaynaktaki testID karşılığı).
+      key: Key('oynanma-dna-${widget.no}-${widget.source}'),
       margin: const EdgeInsets.only(top: 6, left: 34),
       padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
@@ -181,9 +184,7 @@ class _PlayedDnaPanelState extends State<PlayedDnaPanel> {
 
           if (_dnaBusy) _soluk('Geçmiş kayıtlar taranıyor…'),
           if (!_dnaBusy && !hasData)
-            _soluk(
-              '${d?['note'] ?? 'Bu dağılıma yakın geçmiş sonuç yok'}',
-            ),
+            _soluk('${d?['note'] ?? 'Bu dağılıma yakın geçmiş sonuç yok'}'),
 
           if (!_dnaBusy && hasData) ...[
             _baslik('Mevcut oynanma'),
@@ -423,9 +424,7 @@ class _DnaSatir extends StatelessWidget {
           _PlayedDnaPanelState._etiket('$etiket:'),
           // Veri yoksa sessiz sıfır değil, açık ifade.
           _PlayedDnaPanelState._deger(
-            (metin == null || '$metin'.isEmpty)
-                ? 'Geçmiş sonuç yok'
-                : '$metin',
+            (metin == null || '$metin'.isEmpty) ? 'Geçmiş sonuç yok' : '$metin',
           ),
         ],
       ),

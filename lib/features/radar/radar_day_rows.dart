@@ -327,6 +327,7 @@ class PublicRow extends StatelessWidget {
                 // yerde geçmez. Erişilebilirlik: renk tek ayırt edici olmasın
                 // diye etiket kaynağın RENK ADINI söyler.
                 Semantics(
+                  key: Key('kaynak-nokta-${kaynakKodu(pv)}'),
                   label: providerLabel(pv),
                   child: Container(
                     width: 11,

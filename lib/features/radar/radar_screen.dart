@@ -31,6 +31,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/tokens.dart';
 import '../../widgets/app_ui.dart';
+import 'hafta_secici.dart';
 import 'legacy_radar_card.dart';
 import 'played_dna_panel.dart';
 import 'radar_center_cards.dart';
@@ -106,7 +107,10 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
   String? _playedDay;
   String? _oddsDay;
   String? _dnaKey;
-  bool _haftaAcik = false;
+  // Hafta seçici: hangi açılır liste açık (null | 'sezon' | 'hafta') ve
+  // kullanıcının elle seçtiği sezon (kaynaktaki secAcik/navSezon durumları).
+  String? _secAcik;
+  String? _navSezon;
   // Radar 5: dönem filtresi (Tüm/5/10/15) ve açık satır (sıra no).
   String _dnaPeriod = 'allTime';
   Object? _acikSira;
@@ -151,6 +155,14 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
       'frozenAt': d?['radarFrozenAt'] ?? d?['sealedAt'],
       'note': d?['note'],
       'pending': d?['pending'] == true,
+      // Doğrulama karması KISALTILMIŞ gösterilir (10 hane) — kaynaktaki
+      // `shortHash` türetimi.
+      'shortHash': d?['verificationHash'] is String
+          ? '${d!['verificationHash']}'.substring(
+              0,
+              '${d['verificationHash']}'.length.clamp(0, 10),
+            )
+          : null,
     };
 
     final durum = deriveScreenState(
@@ -161,11 +173,8 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
       meta: meta,
     );
 
-    final secici = haftaSeciciVerisi(
-      normalized.weeks,
-      curId: curId,
-      selectedId: gosterilen,
-    );
+    // Hafta seçici verisini bileşen kendisi türetir (kaynaktaki gibi);
+    // buradan yalnız ham hafta listesi geçer.
 
     // Radar Merkezi kaydı yok ama eski sürpriz radarı arşivi var → LEGACY.
     // O görünüm DONMUŞTUR; yeni sistemin sekmeleri/rozetleri gösterilmez.
@@ -184,7 +193,8 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         bottom: false,
         child: Column(
           children: [
-            _haftaSecici(secici, curId),
+            _ekranBasligi(meta),
+            _haftaSecici(normalized.weeks, curId, gosterilen),
             _sekmeCubugu(legacyMode),
             Expanded(
               child: RefreshIndicator(
@@ -366,17 +376,51 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         (bugunGunu?['weekday'] as String?);
     final bugunler = bugunPctByNo(dailyPlayed, bugunTarih);
 
+    // FİLTRE ŞERİDİ YAPIŞIK — kaynakta `stickyHeaderIndices: [0]` yalnız bu
+    // sekmeye verilir. Flutter karşılığı: şerit listenin DIŞINDA, üstte sabit;
+    // maç satırları altında kayar. (Radar 4'ün uzun ⓘ paneli LİSTEYLE kayar —
+    // dondurulursa ekranın yarısını kaplardı; yapışıklık yalnız Radar 5'e ait.)
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            Spacing.md,
+            Spacing.md,
+            Spacing.md,
+            0,
+          ),
+          child: DnaDonemFiltresi(
+            positionDna: positionDna,
+            dnaPeriod: _dnaPeriod,
+            onSelect: (k) => setState(() => _dnaPeriod = k),
+            muhurluHafta: muhurluHafta,
+            muhurluRadar5Yok: dna.muhurluRadar5Yok,
+            sealedAt: meta['sealedAt'],
+          ),
+        ),
+        Expanded(
+          child: _bultenDnasiListesi(
+            matches,
+            gosterilen,
+            dna,
+            bugunler,
+            bugunGunKisa,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _bultenDnasiListesi(
+    List matches,
+    Object? gosterilen,
+    ({Map<Object, Map?> byPosition, bool muhurluRadar5Yok}) dna,
+    Map<Object, List<({Object kaynak, Map pct})>> bugunler,
+    String? bugunGunKisa,
+  ) {
     return ListView(
       padding: const EdgeInsets.all(Spacing.md),
       children: [
-        DnaDonemFiltresi(
-          positionDna: positionDna,
-          dnaPeriod: _dnaPeriod,
-          onSelect: (k) => setState(() => _dnaPeriod = k),
-          muhurluHafta: muhurluHafta,
-          muhurluRadar5Yok: dna.muhurluRadar5Yok,
-          sealedAt: meta['sealedAt'],
-        ),
         for (final m in matches.cast<Map>())
           MemoryRow(
             item: m,
@@ -601,157 +645,91 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
   // alt satırda tarih + o günün son çekim saati, maç günü ⚽ işareti ve
   // verisiz gün solukluğu da kaynaktaki gibi.
 
-  Widget _haftaSecici(HaftaSeciciVerisi s, Object? curId) => Container(
-    padding: const EdgeInsets.symmetric(
-      horizontal: Spacing.md,
-      vertical: Spacing.sm,
-    ),
-    decoration: const BoxDecoration(
-      color: AppColors.surface,
-      border: Border(bottom: BorderSide(color: AppColors.border)),
-    ),
+  /// SADE BAŞLIK — kaynaktaki gibi yalnız hangi haftaya bakıldığı yazar;
+  /// yeşil saha paneli ve alt başlık kaldırılmıştı. MÜHÜR ROZETİ KALIYOR:
+  /// teknik gösterge değil, GEÇMİŞ bir haftaya bakan kullanıcıya verilen
+  /// sözdür ("sonuçlar gelse de değişmez").
+  Widget _ekranBasligi(Map meta) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.sm, Spacing.md, 0),
+    color: AppColors.surface,
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            const Text(
-              'Radar Merkezi',
-              style: TextStyle(
-                color: AppColors.text,
-                fontSize: 17,
-                fontWeight: AppFont.black,
-              ),
-            ),
-            const Spacer(),
-            if (s.sezonlar.length > 1)
-              Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: Text(
-                  s.sezonAdi,
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 11,
-                    fontWeight: AppFont.bold,
-                  ),
-                ),
-              ),
-            GestureDetector(
-              onTap: () => setState(() => _haftaAcik = !_haftaAcik),
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.cardAlt,
-                  borderRadius: AppRadius.smR,
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      s.haftaAdi ?? '—',
-                      style: const TextStyle(
-                        color: AppColors.text,
-                        fontSize: 12,
-                        fontWeight: AppFont.heavy,
-                      ),
-                    ),
-                    if (s.haftaGuncelMi)
-                      const Padding(
-                        padding: EdgeInsets.only(left: 5),
-                        child: Text(
-                          'GÜNCEL',
-                          style: TextStyle(
-                            color: AppColors.accent,
-                            fontSize: 8.5,
-                            fontWeight: AppFont.black,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _haftaAcik ? '▲' : '▼',
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 9,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+        Text(
+          meta['round'] != null
+              ? '${meta['round']} · Radar Merkezi'
+              : 'Radar Merkezi',
+          style: const TextStyle(
+            color: AppColors.text,
+            fontSize: 17,
+            fontWeight: AppFont.black,
+          ),
         ),
-        if (_haftaAcik)
+        if (meta['sealed'] == true || meta['frozenAt'] != null)
           Container(
-            constraints: const BoxConstraints(maxHeight: 220),
-            margin: const EdgeInsets.only(top: 8),
+            margin: const EdgeInsets.only(top: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
             decoration: BoxDecoration(
               color: AppColors.card,
               borderRadius: AppRadius.smR,
               border: Border.all(color: AppColors.border),
             ),
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                for (final w in s.liste)
-                  GestureDetector(
-                    onTap: () => setState(() {
-                      _selectedId = w.roundId;
-                      _haftaAcik = false;
-                      // SEKME KORUMASI: hafta değişince sekme DEĞİŞMEZ.
-                      _expandedNo = null;
-                      _playedDay = null;
-                      _oddsDay = null;
-                    }),
-                    behavior: HitTestBehavior.opaque,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 9,
-                      ),
-                      color: w.roundId == (_selectedId ?? curId)
-                          ? AppColors.primarySoft
-                          : Colors.transparent,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              w.ad,
-                              style: TextStyle(
-                                color: w.roundId == (_selectedId ?? curId)
-                                    ? AppColors.primary
-                                    : AppColors.text,
-                                fontSize: 12.5,
-                                fontWeight: AppFont.bold,
-                              ),
-                            ),
-                          ),
-                          if (w.guncel)
-                            const Text(
-                              'GÜNCEL',
-                              style: TextStyle(
-                                color: AppColors.accent,
-                                fontSize: 8.5,
-                                fontWeight: AppFont.black,
-                              ),
-                            )
-                          else if (w.kilitli)
-                            const Text('🔏', style: TextStyle(fontSize: 11)),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
+            child: Text(
+              '🔏 Mühürlü analiz · '
+              '${fmtClock(meta['sealedAt'] ?? meta['frozenAt'])} itibarıyla '
+              'kilitlendi — sonuçlar gelse de bu görüntü değişmez'
+              '${meta['shortHash'] != null ? ' · Doğrulama #${meta['shortHash']}' : ''}',
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 10.5,
+                fontWeight: AppFont.bold,
+                height: 14 / 10.5,
+              ),
             ),
           ),
       ],
     ),
   );
+
+  /// HAFTA SEÇİCİ — resmî listedeki gezinti: [sezon ▼] [hafta ▼]
+  /// (hafta_secici.dart, kaynaktaki HaftaSecici.js). Durum burada yaşar.
+  Widget _haftaSecici(List weeks, Object? curId, Object? gosterilen) {
+    if (weeks.isEmpty) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: Spacing.md,
+        vertical: Spacing.sm,
+      ),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: HaftaSecici(
+        weeks: weeks,
+        curId: curId,
+        selectedId: gosterilen,
+        acik: _secAcik,
+        onToggle: (k) => setState(() => _secAcik = _secAcik == k ? null : k),
+        navSezon: _navSezon,
+        // Sezon seçilince hafta listesi açılır: resmî sitedeki akışla aynı,
+        // sıradaki doğal adım hafta seçmektir.
+        onSelectSezon: (y) => setState(() {
+          _navSezon = y;
+          _secAcik = 'hafta';
+        }),
+        onSelectWeek: (rid) => setState(() {
+          _secAcik = null;
+          _selectedId = rid;
+          // SEKME KORUMASI: hafta değişince sekme DEĞİŞMEZ.
+          _expandedNo = null;
+          _playedDay = null;
+          _oddsDay = null;
+        }),
+      ),
+    );
+  }
 
   /// SEKMELER — Master + Radar 1-5 şeridi legacy haftalar DIŞINDA her durumda
   /// görünür (boş/bekleyen/hatalı durumlarda da iskelet korunur). Legacy
