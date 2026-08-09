@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AÇILIŞ EKRANI — KAYNAK: app/app.json.
+     Kaynak Expo yapılandırmasında AYRI bir `splash` bloğu yoktur; marka rengi
+     `primaryColor: #0B1B3A` ve açılış görseli `assets/splash-icon.png` olarak
+     duruyor. Burada ikisi birleştirildi: lacivert zemin + ortada marka
+     görseli. Flutter ilk kareyi çizince bu ekran kendiliğinden kalkar. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/brand_primary" />
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/splash_icon" />
+    </item>
+</layer-list>

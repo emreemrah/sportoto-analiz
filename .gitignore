@@ -1,0 +1,77 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# YAYIN İMZASI — parola ve anahtar deposu ASLA depoya girmez.
+android/key.properties
+*.jks
+*.keystore
+
+# YAYIN SEMBOLLERİ — .symbols dosyaları depoda DURMAZ (her biri ~3 MB ve
+# derleme çıktısıdır), ama SAKLANMALARI ZORUNLUDUR: karartılmış bir sürümün
+# çökme raporu ancak kendi sembol dosyasıyla okunabilir ve geriye dönük
+# üretilemez. Yayınlanan her sürümün sembollerini derleme sisteminde /
+# yedekte tutun. Ayrıntı: yayin-sembolleri/BENIOKU.md
+yayin-sembolleri/**/*.symbols
+
+# KULLANILMAYAN GÖRSELLER — DİSKTE DURUR, DEPOYA GİRMEZ.
+#
+# Bu dosyalar kaynak Expo uygulamasından kopyalandı ama ne burada ne KAYNAKTA
+# kullanılıyor (hero-*: hiç import edilmiyor · ic-*/icons/: birbirinin kopyası
+# ve ölü · tab-stadium/tab-analysis: kaynakta TAB_ICONS'ta tanımlı ama hiç
+# çizilmiyor, o iki sekme SVG/CustomPainter ikon kullanır). Toplam ~12 MB ve
+# uygulama paketine de girmiyorlar (pubspec'te listeli değiller).
+#
+# Gerekirse kaynak depodan (app/assets) yeniden alınabilir. Launcher/açılış
+# ikonlarını ÜRETEN dosyalar assets/brand/ altındadır ve depoda DURUR.
+assets/hero-*.png
+assets/ic-*.png
+assets/icons/
+assets/tab-stadium.png
+assets/tab-analysis.png
+assets/icon.png
+assets/splash-icon.png
+assets/favicon.png
+assets/android-icon-*.png

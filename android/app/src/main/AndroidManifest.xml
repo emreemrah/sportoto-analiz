@@ -1,0 +1,84 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- KAYNAK: app/app.json → android.permissions
+         Uygulamanın istediği TEK izin budur: maç hatırlatması bildirimi.
+         Konum, kamera, kişiler, mikrofon, depolama İSTENMEZ. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- KAYNAK: app/app.json → android.blockedPermissions
+         Bir bağımlılık bu izinleri kendi manifestine eklerse birleştirme
+         sırasında SÖKÜLÜR. Yoksa mağaza sayfasında uygulamanın istemediği
+         izinler görünür ve inceleme gecikir. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_CONTACTS" tools:node="remove"/>
+    <uses-permission android:name="android.permission.CAMERA" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
+
+    <!-- TAM ALARM İZNİ İSTENMEZ: bildirimler `inexactAllowWhileIdle` ile
+         kurulur. Maç hatırlatmasında birkaç dakikalık sapma kabul edilebilir;
+         izin istemek, vermeyen kullanıcıda HİÇ hatırlatma kurulamamasına yol
+         açardı (bkz. core/services/push_service.dart). -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove"/>
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" tools:node="remove"/>
+
+    <application
+        android:label="Sportoto Master Analiz"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <!-- DİKEY KİLİT — KAYNAK: app.json → "orientation": "portrait".
+             Bülten tablosu ve kupon editörü sütun genişlikleri dar telefona
+             göre hesaplanır; kaynak yatay kullanımı hiç desteklemiyor. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:screenOrientation="portrait"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Yasal sayfaları (gizlilik, topluluk kuralları, sorumlu oyun)
+             tarayıcıda açabilmek için. Android 11+ bu sorgu olmadan
+             `canLaunchUrl` DAİMA false döner ve bağlantılar sessizce
+             çalışmaz. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+    </queries>
+</manifest>
