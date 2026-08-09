@@ -31,6 +31,19 @@ const fail = (res, e) => {
   return res.status(500).json({ error: 'Analiz isteği işlenemedi.' });
 };
 
+// HESAPTA KULLANILACAK PROFİL — HER ZAMAN RESMÎ PROFİL.
+//
+// Bu fonksiyon 7 Ağustos 2026'daki "kriter seçme sistemi kaldırıldı"
+// temizliğinde SİLİNMİŞ ama üç çağrı yeri (aşağıda) kalmıştı. Sonuç: calculate
+// uçları `resolveProfile is not defined` ile 500 dönüyordu ve Master Analiz
+// uygulamada HİÇ çalışmıyordu — hata yalnız sunucu logunda görünüyor, istemci
+// "sunucudan alınamadı" yazıp susuyordu.
+//
+// Neden gövdedeki profil OKUNMUYOR: proje kuralı "KULLANICI KRİTER SEÇİMİ YOK"
+// (CLAUDE.md, 7 Ağustos 2026) — analiz her zaman resmî profille hesaplanır.
+// Uygulama zaten `profile: null` gönderiyor (MasterAnalysisView).
+const resolveProfile = () => buildOfficialProfile();
+
 // Katalog meta (evaluate fonksiyonları dışarı verilmez) + güncel veri durumu.
 function catalogView() {
   const cur = load('bulletin')?.data;
