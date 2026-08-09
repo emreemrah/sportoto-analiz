@@ -38,6 +38,7 @@ import 'radar_memory.dart';
 import 'radar_day_rows.dart';
 import 'radar_screen_data.dart';
 import 'radar_screen_logic.dart';
+import 'radar_tab_headers.dart';
 
 /// `/api/radar/weeks` — hafta listesi.
 final _weeksProvider = FutureProvider.autoDispose<Map<String, dynamic>>(
@@ -254,6 +255,10 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
     return ListView(
       padding: const EdgeInsets.all(Spacing.md),
       children: [
+        // Performans sekmesinde metodoloji ⓘ'si; hiçbir maçta veri yoksa
+        // "devre dışı" paneli (kaynak RadarTabHeader'ın bu dalları eksikti,
+        // 2026-08-09'da tamamlandı).
+        RadarSekmePaneli(tab: _tab, matches: matches),
         for (final m in matches.cast<Map>())
           RadarTabCard(item: m, radarId: _tab),
       ],
@@ -513,11 +518,31 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         ? ref.watch(_dailyPlayedProvider(gosterilen))
         : ref.watch(_dailyOddsProvider(gosterilen));
 
+    // Gün seçimi iki radar için ortak (kaynak RadarTabHeader'daki onSelect).
+    void gunSec(String g) => setState(() {
+      if (oynanma) {
+        _playedDay = g;
+      } else {
+        _oddsDay = g;
+      }
+    });
+
     return async.when(
+      // Kaynakta üst panel istek sürerken de çizilir ve "yükleniyor" metnini
+      // kendisi yazar (dd/dp null dalı) — spinner tek başına kalmaz.
       loading: () => ListView(
-        children: const [
-          SizedBox(height: 40),
-          Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        padding: const EdgeInsets.all(Spacing.md),
+        children: [
+          RadarGunlukUstPanel(
+            oynanma: oynanma,
+            data: null,
+            seciliGun: null,
+            onGunSec: gunSec,
+          ),
+          const SizedBox(height: 24),
+          const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
         ],
       ),
       error: (e, _) => ListView(
@@ -538,16 +563,11 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         return ListView(
           padding: const EdgeInsets.all(Spacing.md),
           children: [
-            _gunSecici(
-              days,
-              secili,
-              (g) => setState(() {
-                if (oynanma) {
-                  _playedDay = g;
-                } else {
-                  _oddsDay = g;
-                }
-              }),
+            RadarGunlukUstPanel(
+              oynanma: oynanma,
+              data: data,
+              seciliGun: secili,
+              onGunSec: gunSec,
             ),
             for (final m in matches.cast<Map>())
               if (oynanma)
@@ -576,29 +596,10 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
     );
   }
 
-  Widget _gunSecici(List? days, String? secili, ValueChanged<String> onSec) {
-    if (days == null || days.isEmpty) return const SizedBox.shrink();
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          for (final g in days.cast<Map>()) ...[
-            Opacity(
-              opacity: g['future'] == true ? 0.55 : 1,
-              child: _cip(
-                '${g['weekday'] ?? g['date']}\n'
-                '${'${g['date']}'.length > 5 ? '${g['date']}'.substring(5) : g['date']}',
-                acik: g['date'] == secili,
-                onTap: () => onSec('${g['date']}'),
-              ),
-            ),
-            const SizedBox(width: 5),
-          ],
-        ],
-      ),
-    );
-  }
+  // Eski `_gunSecici` kaldırıldı (2026-08-09): gün çipleri artık kaynaktaki
+  // DayChipsRow'un birebir çevirisiyle çiziliyor (radar_tab_headers.dart) —
+  // alt satırda tarih + o günün son çekim saati, maç günü ⚽ işareti ve
+  // verisiz gün solukluğu da kaynaktaki gibi.
 
   Widget _haftaSecici(HaftaSeciciVerisi s, Object? curId) => Container(
     padding: const EdgeInsets.symmetric(
