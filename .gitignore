@@ -75,3 +75,30 @@ assets/icon.png
 assets/splash-icon.png
 assets/favicon.png
 assets/android-icon-*.png
+
+# SPOR VERİSİ SKILL'LERİ (machina-sports/sports-skills) — DEPOYA GİRMEZ.
+#
+# `.agents/skills/` upstream'den `npx skills add` ile kurulan skill
+# dosyalarıdır (football-data · betting · sports-reporter · sports-news);
+# `.claude/skills/` altındaki aynı adlı girdiler oraya symlink'tir.
+# `skills-lock.json` bu kurulumun kayıt dosyasıdır.
+#
+# Bunlar proje kaynak kodu değil, dışarıdan çekilen bağımlılıktır — kurulum
+# şu komutla tekrarlanır:
+#   npx skills add machina-sports/sports-skills --skill <ad> --yes
+#
+# Kurulum anındaki upstream sürümü .claude/skills/spor-toto-data-research/
+# references/calisma-zamani.md dosyasında yazılıdır (commit SHA dahil); o
+# dosya DEPODA DURUR, böylece aynı sürüm yeniden kurulabilir.
+.agents/
+skills-lock.json
+
+# Yukarıdaki upstream skill'lerin `.claude/skills/` altındaki SYMLINK'leri de
+# depoya girmez: hedefleri `.agents/` altında ve o klasör izlenmiyor — link
+# depoda kalsaydı klonlayan kişide KIRIK olurdu. Kurulum komutu bu linkleri
+# yeniden oluşturur. (Bizim yazdığımız `spor-toto-*` wrapper'ları GERÇEK
+# klasördür ve depoda DURUR.)
+.claude/skills/football-data
+.claude/skills/betting
+.claude/skills/sports-reporter
+.claude/skills/sports-news
