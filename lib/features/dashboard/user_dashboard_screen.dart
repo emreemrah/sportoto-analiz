@@ -19,10 +19,12 @@ import '../../widgets/score_legend.dart';
 import '../../widgets/states.dart';
 
 /// JS'te `!!(m.result && m.score)` — boş dizge de FALSY sayılır.
+/// KAYNAKTAN BİLİNÇLİ SAPMA (2026-08-10): noter kararlı (viaNotary) maç
+/// skorsuz da çözülmüş sayılır — bkz. bulletin_format.officialResolved.
 bool _officialResolved(Map? m) {
   final r = m?['result'];
   final s = m?['score'];
-  return r != null && '$r'.isNotEmpty && s != null;
+  return r != null && '$r'.isNotEmpty && (s != null || m?['viaNotary'] == true);
 }
 
 String? _sysSymOf(Map m) {
@@ -32,7 +34,12 @@ String? _sysSymOf(Map m) {
   return '$sym';
 }
 
-typedef SkorGorunum = ({Color color, String score, String? result, String kind});
+typedef SkorGorunum = ({
+  Color color,
+  String score,
+  String? result,
+  String kind,
+});
 
 /// Skor renk kuralı (ANA KURAL): yeşil = resmi sonuç · sarı = henüz resmi değil ·
 /// kırmızı = canlı. Resmi yoksa geçici skor gösterilir ama başarıya SAYILMAZ —
@@ -116,13 +123,14 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
       // Varsayılan: en son SONUÇLANMIŞ hafta (güncelden bir önceki) — hemen
       // başarı görünür.
       final all = (r['rounds'] as List?) ?? const [];
-      final curIdx =
-          all.indexWhere((x) => (x as Map)['id'] == r['currentRoundId']);
+      final curIdx = all.indexWhere(
+        (x) => (x as Map)['id'] == r['currentRoundId'],
+      );
       final nav = curIdx >= 0 ? all.sublist(0, curIdx + 1) : all;
       final def = nav.length >= 2
           ? (nav[nav.length - 2] as Map)['id']
           : (r['currentRoundId'] ??
-              (nav.isNotEmpty ? (nav.last as Map)['id'] : null));
+                (nav.isNotEmpty ? (nav.last as Map)['id'] : null));
       setState(() => _selectedId = def);
       _haftaYukle();
     } catch (e) {
@@ -153,7 +161,9 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading && _rounds == null) {
-      return _kabuk(const LoadingState(message: 'Başarı panelin hazırlanıyor…'));
+      return _kabuk(
+        const LoadingState(message: 'Başarı panelin hazırlanıyor…'),
+      );
     }
     if (_error != null) {
       return _kabuk(
@@ -209,10 +219,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           const SizedBox(height: Spacing.md),
           _haftaGezme(navRounds, selIdx, selMeta, canPrev, canNext),
           Padding(
-            padding: const EdgeInsets.only(
-              top: Spacing.md,
-              bottom: Spacing.sm,
-            ),
+            padding: const EdgeInsets.only(top: Spacing.md, bottom: Spacing.sm),
             child: Align(
               alignment: Alignment.centerLeft,
               child: ViewModeToggle(
@@ -333,8 +340,9 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
       );
     }
 
-    final coupons =
-        _selectedId != null ? getWeekCoupons(_selectedId) : <Map<String, dynamic>>[];
+    final coupons = _selectedId != null
+        ? getWeekCoupons(_selectedId)
+        : <Map<String, dynamic>>[];
     final ranked = getRankedCoupon(_selectedId);
     final rankedRes = ranked != null ? couponResult(ranked) : null;
     final others = <KuponSonuc>[
@@ -347,7 +355,8 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     if (ranked != null) {
       final rv = finalVersion(ranked);
       if (rv != null) {
-        for (final sc in ((rv['selections'] as List?) ?? const []).cast<Map>()) {
+        for (final sc
+            in ((rv['selections'] as List?) ?? const []).cast<Map>()) {
           final sec = (sc['selectedOutcomes'] as List?) ?? const [];
           if (sec.isNotEmpty) rankedPicks[sc['no'] as Object] = sec;
         }
@@ -388,52 +397,51 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     Map? selMeta,
     bool canPrev,
     bool canNext,
-  ) =>
-      Container(
-        padding: const EdgeInsets.all(Spacing.sm),
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          boxShadow: AppShadow.card,
-        ),
-        child: Row(
-          children: [
-            _ok('‹', canPrev, 'Önceki hafta', () {
-              setState(() => _selectedId = (all[selIdx - 1] as Map)['id']);
-              _haftaYukle();
-            }),
-            Expanded(
-              child: Column(
-                children: [
-                  Text(
-                    '${selMeta?['name'] ?? '—'}',
-                    style: const TextStyle(
-                      color: AppColors.white,
-                      fontSize: 17,
-                      fontWeight: AppFont.black,
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      '${selMeta?['year'] ?? ''} Sezonu',
-                      style: const TextStyle(
-                        color: Color(0xFF9DB0CD),
-                        fontSize: 11,
-                        fontWeight: AppFont.bold,
-                      ),
-                    ),
-                  ),
-                ],
+  ) => Container(
+    padding: const EdgeInsets.all(Spacing.sm),
+    decoration: BoxDecoration(
+      color: AppColors.primary,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      boxShadow: AppShadow.card,
+    ),
+    child: Row(
+      children: [
+        _ok('‹', canPrev, 'Önceki hafta', () {
+          setState(() => _selectedId = (all[selIdx - 1] as Map)['id']);
+          _haftaYukle();
+        }),
+        Expanded(
+          child: Column(
+            children: [
+              Text(
+                '${selMeta?['name'] ?? '—'}',
+                style: const TextStyle(
+                  color: AppColors.white,
+                  fontSize: 17,
+                  fontWeight: AppFont.black,
+                ),
               ),
-            ),
-            _ok('›', canNext, 'Sonraki hafta', () {
-              setState(() => _selectedId = (all[selIdx + 1] as Map)['id']);
-              _haftaYukle();
-            }),
-          ],
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  '${selMeta?['year'] ?? ''} Sezonu',
+                  style: const TextStyle(
+                    color: Color(0xFF9DB0CD),
+                    fontSize: 11,
+                    fontWeight: AppFont.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      );
+        _ok('›', canNext, 'Sonraki hafta', () {
+          setState(() => _selectedId = (all[selIdx + 1] as Map)['id']);
+          _haftaYukle();
+        }),
+      ],
+    ),
+  );
 
   Widget _ok(String isaret, bool acik, String etiket, VoidCallback onTap) =>
       Opacity(
@@ -474,7 +482,10 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
       border: Border.all(color: AppColors.border),
       boxShadow: AppShadow.soft,
     ),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    ),
   );
 
   Widget _kuponDurumu(_Hafta week) {
@@ -601,9 +612,8 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
   Widget _digerKuponSatiri(KuponSonuc o) => GestureDetector(
     // 'Coupons' diye bir ekran YOK — kaynakta bu satır hiçbir yere gitmiyordu.
     // Kuponlarım sekmesindeki GERÇEK sonuç ekranına gider.
-    onTap: () => context.go(
-      '/kuponlarim/kupon-sonuc/$_selectedId?couponId=${o.id}',
-    ),
+    onTap: () =>
+        context.go('/kuponlarim/kupon-sonuc/$_selectedId?couponId=${o.id}'),
     behavior: HitTestBehavior.opaque,
     child: Container(
       padding: const EdgeInsets.symmetric(vertical: 7),
@@ -689,8 +699,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
 
   /// HAFTA KAPANIŞI — seçili haftanın sen vs sistem karnesi.
   Widget _kapanisBaglantisi() => GestureDetector(
-    onTap: () =>
-        context.go('/ana-sayfa/hafta-kapanisi?roundId=$_selectedId'),
+    onTap: () => context.go('/ana-sayfa/hafta-kapanisi?roundId=$_selectedId'),
     behavior: HitTestBehavior.opaque,
     child: Container(
       margin: const EdgeInsets.only(bottom: Spacing.md),
@@ -822,9 +831,13 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     final res = _officialResolved(m);
     final sv = _scoreView(m);
     final sym = _sysSymOf(m);
-    final sysHit = (res && sym != null) ? pickHits(sym, '${m['result']}') : null;
+    final sysHit = (res && sym != null)
+        ? pickHits(sym, '${m['result']}')
+        : null;
     final myPick = week.rankedPicks[m['no']];
-    final myHit = (res && myPick != null) ? myPick.contains('${m['result']}') : null;
+    final myHit = (res && myPick != null)
+        ? myPick.contains('${m['result']}')
+        : null;
     final d = matchDate(m['date'] as String?);
 
     return Container(
@@ -959,10 +972,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     _teknikSatir('Sezon', '${selMeta?['year'] ?? '—'}'),
     _teknikSatir('Hafta', '${selMeta?['name'] ?? '—'}'),
     _teknikSatir('roundId / bulletinId', '${_selectedId ?? '—'}'),
-    _teknikSatir(
-      'Resmi sonuç',
-      '${week.resolvedCount}/${week.total} geldi',
-    ),
+    _teknikSatir('Resmi sonuç', '${week.resolvedCount}/${week.total} geldi'),
     _teknikSatir(
       'Kupon',
       week.hasCoupon
@@ -1010,10 +1020,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
   );
 
   Widget _genelOzet(Map overall, Map? bestWeek, Map? worstWeek) => _kart([
-    MetricBar(
-      label: 'Sistem genel isabeti',
-      value: _num(overall['accuracy']),
-    ),
+    MetricBar(label: 'Sistem genel isabeti', value: _num(overall['accuracy'])),
     Row(
       children: [
         _ozetHucre('Toplam maç', '${overall['total']}'),
@@ -1043,41 +1050,35 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
       ),
   ]);
 
-  Widget _ozetHucre(
-    String label,
-    String v, [
-    Color? c,
-    bool kucuk = false,
-  ]) {
+  Widget _ozetHucre(String label, String v, [Color? c, bool kucuk = false]) {
     return _ozetHucreIc(label, v, c, kucuk);
   }
 
-  Widget _ozetHucreIc(String label, String v, Color? c, bool kucuk) =>
-      Expanded(
-        child: Column(
-          children: [
-            Text(
-              v,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: c ?? AppColors.text,
-                fontSize: kucuk ? 12.5 : 18,
-                fontWeight: AppFont.black,
-              ),
-            ),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 10.5,
-                fontWeight: AppFont.bold,
-              ),
-            ),
-          ],
+  Widget _ozetHucreIc(String label, String v, Color? c, bool kucuk) => Expanded(
+    child: Column(
+      children: [
+        Text(
+          v,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: c ?? AppColors.text,
+            fontSize: kucuk ? 12.5 : 18,
+            fontWeight: AppFont.black,
+          ),
         ),
-      );
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: AppColors.textMuted,
+            fontSize: 10.5,
+            fontWeight: AppFont.bold,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _Hafta {

@@ -386,6 +386,36 @@ class HistoryMatchCard extends StatelessWidget {
       );
     }
 
+    // NOTER KARARI (ertelenen maç): resmî işaret VAR, skor YOK — skor yerine
+    // 'NOTER' yazılır (2026-08-10; skor uydurulmaz, "$h - $a" null basardı).
+    if (resolved && item['viaNotary'] == true) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'NOTER',
+            style: TextStyle(
+              color: AppColors.success,
+              fontSize: 13,
+              fontWeight: AppFont.black,
+              letterSpacing: 1.2,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Text(
+              '${item['result'] ?? ''}',
+              style: const TextStyle(
+                color: AppColors.success,
+                fontSize: 15,
+                fontWeight: AppFont.black,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     if (resolved || prov != null) {
       // RESMÎ ile GEÇİCİ sonuç ayrımı RENKLE YETİNMEZ, YAZIYLA da söylenir.
       // Renk tek ayırt ediciyken renk körü kullanıcı — ya da rengin anlamını
@@ -466,6 +496,18 @@ class HistoryMatchCard extends StatelessWidget {
   }
 
   Widget _durumYazisi(bool resolved, bool notStarted, Map? prov) {
+    if (resolved && item['viaNotary'] == true) {
+      // Ertelenen maç: sonuç noter kararıyla — skor değil karar resmî.
+      return const Text(
+        'Ertelendi · Noter Kararı',
+        style: TextStyle(
+          color: AppColors.success,
+          fontSize: 11,
+          fontWeight: AppFont.black,
+          letterSpacing: 0.2,
+        ),
+      );
+    }
     if (resolved) {
       return const Text(
         'MS · Resmi Sonuç',

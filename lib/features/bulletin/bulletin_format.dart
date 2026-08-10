@@ -6,8 +6,16 @@
 // test edilebilir kılar.
 
 /// Resmi sonuç 1/X/2 (sadece resmi skordan). false → henüz yok.
+///
+/// KAYNAKTAN BİLİNÇLİ SAPMA (2026-08-10): ertelenen maçın NOTER KARARI da
+/// resmî sonuçtur ama SKORU YOKTUR (maç oynanmadı; skor uydurulmaz). RN
+/// kaynağı bu durumu tanımıyordu ve 53. Hafta 14. maç sonsuza dek "Resmi
+/// sonuç bekliyor" görünüyordu. viaNotary işaretli satır skorsuz da
+/// çözülmüş sayılır; ekran skoru değil "Noter" rozetini basar.
 bool officialResolved(Map? m) =>
-    m != null && m['result'] != null && m['score'] != null;
+    m != null &&
+    m['result'] != null &&
+    (m['score'] != null || m['viaNotary'] == true);
 
 /// Geçmiş maç durumu: resmi sonuç / geçici skor / bekliyor.
 String histCategory(Map? m) => officialResolved(m)

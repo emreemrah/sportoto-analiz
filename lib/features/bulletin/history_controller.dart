@@ -150,19 +150,27 @@ class HistoryController extends StateNotifier<HistoryState> {
       for (final nm in merged.cast<Map>()) {
         final pm = prevBy[nm['no']];
         if (!officialResolved(pm) || !officialResolved(nm)) continue;
-        final ps = pm!['score'] as Map;
-        final ns = nm['score'] as Map;
+        // Noter maçında skor yoktur — null cast çökerdi; skorsuz çiftte
+        // yalnız İŞARET değişimi düzeltme sayılır.
+        final ps = pm!['score'] as Map?;
+        final ns = nm['score'] as Map?;
+        if (ps == null || ns == null) {
+          if (pm['result'] == nm['result']) continue;
+        }
         if (pm['result'] != nm['result'] ||
-            ps['home'] != ns['home'] ||
-            ps['away'] != ns['away']) {
+            (ps != null &&
+                ns != null &&
+                (ps['home'] != ns['home'] || ps['away'] != ns['away']))) {
           newCorr.add(
             Duzeltme(
               no: nm['no'] as Object,
               home: (nm['home'] as Map?)?['name'] as String?,
               away: (nm['away'] as Map?)?['name'] as String?,
-              oldScore: ps,
+              // Noter maçında skor yok — boş harita geçilir (ekran skoru
+              // basmıyor; corrections yalnız sayım/işaret için kullanılıyor).
+              oldScore: ps ?? const {},
               oldResult: pm['result'] as String?,
-              newScore: ns,
+              newScore: ns ?? const {},
               newResult: nm['result'] as String?,
             ),
           );
