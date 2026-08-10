@@ -177,9 +177,28 @@ export function combineMaster(radars, { surpriseDna: dnaIn = null } = {}) {
   }
 
   // Güven (tahmin güveni) — veri yeterliliğinden AYRI gösterilir.
-  const confidence = scores && favorite
-    ? clamp(Math.round(favorite.percent * 0.6 + (favorite.gap ?? 0) * 1.2 + dq * 0.2 - conflict.score * 0.25), 5, 95)
+  // 1.4.0 KAYNAK ÇEŞİTLİLİĞİ TAVANI: formül puanı kaç bağımsız radarın
+  // konuştuğunu saymıyordu — sezon başında tek kaynaklı (halk yüzdesi) bir maç
+  // gap teriminden %95 güvene çıkabiliyordu. İki radarla tavan %70; üç ve
+  // üzeri eski tavanda (95). Tek radar bu satıra hiç gelmez (sınıf kapısı
+  // insufficient yapar ve aşağıda güven null'a çekilir).
+  const cesitlilikTavani = activeRadarCount >= 3 ? 95 : 70;
+  let confidence = scores && favorite
+    ? clamp(Math.round(favorite.percent * 0.6 + (favorite.gap ?? 0) * 1.2 + dq * 0.2 - conflict.score * 0.25), 5, cesitlilikTavani)
     : null;
+
+  // 1.4.0 SINIF ÜRETİLMEDİYSE TAHMİN DE ÜRETİLMEZ: "Analiz hazır değil"
+  // derken ana tahmin + güven basmak kendi sözümüzle çelişiyordu; karne de
+  // (feedBucket, mainPrediction şartı) bu tahminleri genel isabete sayıyordu.
+  // favorite + scores BİLGİ olarak kalır (ekranlar halk/oran dağılımını kendi
+  // atfıyla gösterebilir); tahmin alanları null döner, karne bu maçı saymaz.
+  // Mühürlü geçmiş etkilenmez: eski haftalar eski sürümle mühürlüdür.
+  if (classification === CLASSIFICATIONS.INSUFFICIENT) {
+    mainPrediction = null;
+    alternativePrediction = null;
+    exactDirection = null;
+    confidence = null;
+  }
 
   // Gerekçeler: aktif radarların pozitif/negatiflerinden ağırlık sırasıyla derlenir.
   const collect = (field) => {

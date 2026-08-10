@@ -9,7 +9,13 @@
 // (ör. 1 %61→%44) sadece panel metniydi ve sayısal etkisi SIFIRDI. Artık:
 // (a) en büyük YÜKSELİŞ kendi tarafına sinyal verir (büyük bir düşüş artık
 // yükselişi maskelemez), (b) favorideki büyük düşüş failureRisk'e katkı yapar.
-export const METHODOLOGY_VERSION = 'radar-center-1.3.0';
+// 1.4.0 (2026-08-10, Master gözden geçirmesi): (a) SINIF ÜRETİLMEDİYSE TAHMİN
+// DE ÜRETİLMEZ — insufficient_data'da mainPrediction/alternatif/exactDirection/
+// confidence null döner (favorite+scores bilgi olarak kalır); karne bu maçları
+// artık genel isabete saymaz. Sezon başında tek kaynak (halk yüzdesi) "Favori
+// %88 · Güven %95" üretebiliyordu. (b) GÜVENE KAYNAK ÇEŞİTLİLİĞİ TAVANI —
+// 2 aktif radarla güven %70'i aşamaz; 3+ radar eski tavanda (95).
+export const METHODOLOGY_VERSION = 'radar-center-1.4.0';
 
 export const RADAR_IDS = {
   PERFORMANCE: 'performance',
