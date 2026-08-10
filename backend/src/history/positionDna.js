@@ -49,12 +49,19 @@ export function computePositionDna(matches, {
   upToRoundCloseAt = null,      // öğrenme sınırı: bu tarihten (dahil değil) sonrası HARİÇ
   excludeRoundId = null,        // güncel haftanın kendisi asla dahil edilmez
   seasonYear = null,
+  // İsteğe bağlı EK SÜZGEÇ (Radar 5 oynanma/oran filtresi): sec(m) true
+  // dönmeyen maç hesaba hiç girmez. Süzme pencere kesiminden ÖNCE olduğu
+  // için last5/last10/last15 dilimleri "süzgece uyan son N maç" anlamına
+  // gelir (alt katmanın birimi MAÇtır, hafta değil). Modül saf kalır:
+  // yüklemi kuran taraf veriyi nereden bulacağını bilir, burası bilmez.
+  sec = null,
 } = {}) {
   const usable = (matches || []).filter((m) =>
     m?.result && ['1', 'X', '2'].includes(m.result) && m.position >= 1 && m.position <= 15
     && (excludeRoundId == null || String(m.roundId) !== String(excludeRoundId))
     && (seasonYear == null || String(m.seasonYear) === String(seasonYear))
-    && (upToRoundCloseAt == null || (m.roundCloseAt && m.roundCloseAt < upToRoundCloseAt)));
+    && (upToRoundCloseAt == null || (m.roundCloseAt && m.roundCloseAt < upToRoundCloseAt))
+    && (sec == null || sec(m)));
 
   // Global dağılım (shrinkage prior'u + bülten başına ortalama).
   const globalW = countWindow(usable);

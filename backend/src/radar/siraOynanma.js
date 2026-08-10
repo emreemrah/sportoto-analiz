@@ -45,8 +45,10 @@ export function eskiHaftalariAt(matches, baslangic = LISTE_BASLANGIC_ROUND_ID) {
 }
 
 // Yüzdeler arşivde 0-100 ya da 0-1 olarak durabiliyor (kaydın yaşına göre).
-// Ölçek TOPLAMDAN tespit edilir; tahmin edilmez.
-function yuzdeye(pct) {
+// Ölçek TOPLAMDAN tespit edilir; tahmin edilmez. Dışa açık: Radar 5 filtre
+// yüklemi (siraFiltre.js) güncel haftanın değerini AYNI ölçeğe çekmek için
+// bunu kullanır — ikinci bir ölçek tanımı yazılamaz.
+export function yuzdeye(pct) {
   if (!pct) return null;
   const v = SECENEKLER.map((k) => {
     const x = pct[k];

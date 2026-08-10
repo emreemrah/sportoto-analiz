@@ -28,7 +28,10 @@ import {
 } from '../radar/playedDnaArchive.js';
 import { PUBLIC_BANDS } from '../radar/config.js';
 import { kaynakKodu, kaynakId, anahtarlariKodla } from '../providers/kaynakKodu.js';
-import { sonGunOynanmaIndeksi, oynanmaEkle, eskiHaftalariAt } from '../radar/siraOynanma.js';
+import { sonGunOynanmaIndeksi, oynanmaEkle, eskiHaftalariAt, LISTE_BASLANGIC_ROUND_ID } from '../radar/siraOynanma.js';
+import {
+  OYNANMA_TOLERANSLARI, ORAN_TOLERANSLARI, oynanmaYakin, oranYakin, sonGunDegerleri,
+} from '../radar/siraFiltre.js';
 // Etkin oynanma sağlayıcıları — susan kaynağın satırı da görünsün diye.
 import { enabledProviders } from '../providers/playedPercentages.js';
 import { getHistoryStore } from '../history/historyStore.js';
@@ -510,6 +513,107 @@ export async function archivePositionMatches(store, { beforeRoundId = null, know
   return out;
 }
 
+// ---- RADAR 5 FİLTRESİ (oynanma + oran yakınlığı) ----------------------------
+// İki uç (/position-dna ve /position-matches) AYNI yardımcıları kullanır;
+// süzgeç mantığının iki kopyası OLMAZ (liste ile dağılım ayrışırsa hangisi
+// doğru bilinmez).
+
+// İstekten filtre seçimini okur. Üst katman TEK modludur: oynanmaTol ve
+// oranTol birlikte gelemez. Geçersiz değer SESSİZCE varsayılana düşürülmez —
+// filtre uygulanmış SANILIP uygulanmamış (ya da başka toleransla) sonuç
+// dönmesi bu ekranın en tehlikeli hata sınıfıdır; 400 döner.
+function filtreSecimi(req) {
+  // BOŞ DEĞER "YOK" DEMEKTİR: Number('') === 0 olduğundan `?oynanmaTol=`
+  // normalizasyonsuz SESSİZCE "birebir" filtreye dönüşürdü.
+  const temiz = (v) => (v == null || v === '' ? null : v);
+  const oyn = temiz(req.query.oynanmaTol);
+  const orn = temiz(req.query.oranTol);
+  if (oyn == null && orn == null) return null;
+  if (oyn != null && orn != null) {
+    return { hata: 'oynanmaTol ve oranTol birlikte kullanılamaz — filtre tek modludur.' };
+  }
+  if (oyn != null) {
+    const tol = Number(oyn);
+    if (!OYNANMA_TOLERANSLARI.includes(tol)) {
+      return { hata: `oynanmaTol şu değerlerden biri olmalı: ${OYNANMA_TOLERANSLARI.join(', ')}` };
+    }
+    return { mod: 'oynanma', tol };
+  }
+  const tol = Number(orn);
+  if (!ORAN_TOLERANSLARI.includes(tol)) {
+    return { hata: `oranTol şu değerlerden biri olmalı: ${ORAN_TOLERANSLARI.join(', ')}` };
+  }
+  return { mod: 'oran', tol };
+}
+
+// Görüntülenen haftanın sıra → SON kayıtlı gün değeri (karşılaştırma noktası).
+// Gün-mühürleme dailyOdds.js motorundan aynen gelir — ikinci tanım yazılmaz.
+// Oynanma kaynağı 'nesine' sabittir: geçmiş taraf (sonGunOynanmaIndeksi) da
+// aynı kaynakla çalışır; kaynaklar karşılaştırmada asla karışmaz.
+async function guncelSiraDegerleri(store, cur, roundId, mod) {
+  const ctx = await resolveDailyContext({ query: { roundId } }, store, cur);
+  if (!ctx) return new Map();
+  const girdi = {
+    roundId: ctx.rid, round: ctx.round, matches: ctx.matches, observations: ctx.observations,
+    firstKickoffMs: ctx.firstMs, freezeAt: ctx.freezeAt, sealed: ctx.sealed, now: Date.now(),
+  };
+  return mod === 'oynanma'
+    ? sonGunDegerleri(buildDailyPlayed(girdi), { metric: 'played', source: 'nesine' })
+    : sonGunDegerleri(buildDailyOdds(girdi), { metric: 'odds' });
+}
+
+// Filtre için geçmiş oynanma indeksi — sızma sınırı AÇIK (beforeRoundId):
+// görüntülenen haftadan sonraki kayıt indekse hiç girmez. Gösterim indeksi
+// (/position-matches'ın satır süsü) bundan ayrıdır ve olduğu gibi kalır.
+const oynanmaFiltreIndeksi = async (store, cutRoundId) => sonGunOynanmaIndeksi(
+  await collectPlayedDnaRecords(store, { maxRounds: 40, beforeRoundId: cutRoundId }),
+  'nesine',
+);
+
+// GEÇMİŞ MAÇLARIN SON GÜN ORANI — (tur, sıra) → haftanın son kayıtlı gününün
+// birincil kaynak oranı. sonGunOynanmaIndeksi'nin oran eşleniği. Gün mührü
+// buildDailyOdds'tan aynen gelir; bağlam kurulumu resolveDailyContext'ten
+// paylaşılır (arşiv satırı → maç/saat/gözlem çevirisinin ikinci kopyası yok).
+// Oran filtresi yalnız listede görünen haftalara uygulanabildiği için tarama
+// LISTE_BASLANGIC_ROUND_ID'den başlar.
+let _oranIx = { at: 0, key: null, val: null };
+async function oranIndeksi(store, cur, { beforeRoundId = null } = {}) {
+  const key = String(beforeRoundId ?? '');
+  if (_oranIx.val && _oranIx.key === key && Date.now() - _oranIx.at < 10 * 60 * 1000) {
+    return _oranIx.val;
+  }
+  const ust = beforeRoundId == null ? null : Number(beforeRoundId);
+  const bulletins = await store.listBulletins().catch(() => []);
+  const aday = (bulletins || []).filter((b) => {
+    const n = Number(b?.roundId ?? b?.id);
+    if (!Number.isFinite(n)) return false;
+    if (n < LISTE_BASLANGIC_ROUND_ID) return false;
+    if (ust != null && Number.isFinite(ust) && n >= ust) return false;
+    return true;
+  }).slice(0, 40);
+
+  const ix = new Map();
+  for (const b of aday) {
+    const rid = String(b.roundId ?? b.id);
+    try {
+      const ctx = await resolveDailyContext({ query: { roundId: rid } }, store, cur);
+      if (!ctx) continue;
+      const gorunum = buildDailyOdds({
+        roundId: ctx.rid, round: ctx.round, matches: ctx.matches, observations: ctx.observations,
+        firstKickoffMs: ctx.firstMs, freezeAt: ctx.freezeAt, sealed: ctx.sealed, now: Date.now(),
+      });
+      for (const [no, v] of sonGunDegerleri(gorunum, { metric: 'odds' })) ix.set(`${rid}|${no}`, v);
+    } catch { continue; /* tek tur okunamazsa o turun maçları oransız kalır */ }
+  }
+  _oranIx = { at: Date.now(), key, val: ix };
+  return ix;
+}
+
+// Süzgecin iki yüzü tek yerde: geçmiş değeri indeks kaydından çıkarma + yakınlık.
+const filtreAraclari = (filtre) => (filtre.mod === 'oynanma'
+  ? { gecmisDeger: (h) => h?.pct ?? null, yakin: oynanmaYakin }
+  : { gecmisDeger: (h) => h?.deger ?? null, yakin: oranYakin });
+
 // ---- SIRA MAÇ LİSTESİ (Radar 5 satır açılımı) -------------------------------
 // "%54.5 hangi maçlardan geliyor?" — kullanıcı bir karşılaşmaya dokununca o
 // SIRANIN geçmiş maçları listelenir. Yüzdenin arkasındaki maçlar gösterilmezse
@@ -527,6 +631,8 @@ router.get('/position-matches', async (req, res) => {
     if (!(position >= 1 && position <= 15)) {
       return res.status(400).json({ error: 'Sıra 1–15 arasında olmalı.' });
     }
+    const filtre = filtreSecimi(req);
+    if (filtre?.hata) return res.status(400).json({ error: filtre.hata });
     const cur = load('bulletin')?.data;
     const store = getArchiveStore();
     const cutRoundId = req.query.roundId != null ? Number(req.query.roundId)
@@ -587,6 +693,58 @@ router.get('/position-matches', async (req, res) => {
     const ham = _liste.val.byPosition[position] || [];
     // Her satıra O HAFTANIN CUMA yüzdesi iliştirilir. Veri yoksa alan null'dır.
     const { matches, yuzdeliSayi } = oynanmaEkle(ham, _liste.val.oynanmaIx || new Map(), position);
+
+    // FİLTRELİ MOD: liste, /position-dna İLE AYNI süzgeç araçlarından geçer.
+    // Süzme, tur bazlı önbelleğin ÜSTÜNDE her istekte yeniden yapılır — böylece
+    // filtre değişince bayat sonuç dönmesi yapısal olarak imkânsızdır (ağır
+    // kısım olan liste kurulumu önbellekte kalır, süzgeç bellek içidir).
+    if (filtre) {
+      const { gecmisDeger, yakin } = filtreAraclari(filtre);
+      const cutRid = _liste.val.roundId;
+      const guncel = (await guncelSiraDegerleri(store, cur, cutRid, filtre.mod))
+        .get(Number(position)) || null;
+      const gecmisIx = filtre.mod === 'oynanma'
+        ? await oynanmaFiltreIndeksi(store, cutRid)
+        : await oranIndeksi(store, cur, { beforeRoundId: cutRid });
+
+      // Oran modunda satıra oran da iliştirilir: kullanıcı "neye benzedi"yi
+      // satırda görmeli. Oynanma modunda satırda `played` zaten var.
+      const zengin = matches.map((m) => {
+        const h = gecmisIx.get(`${m.roundId}|${Number(position)}`);
+        const deger = gecmisDeger(h);
+        const satir = filtre.mod === 'oran' ? { ...m, oran: deger ?? null, oranGun: h?.gun ?? null } : m;
+        return { satir, deger };
+      });
+      const verili = zengin.filter((z) => z.deger != null).length;
+      const suzulmus = guncel == null ? []
+        : zengin.filter((z) => z.deger != null && yakin(guncel.deger, z.deger, filtre.tol))
+          .map((z) => z.satir);
+      return res.json({
+        hasData: suzulmus.length > 0,
+        position,
+        roundId: _liste.val.roundId,
+        season: _liste.val.season,
+        count: suzulmus.length,
+        playedCount: suzulmus.filter((m) => m.played != null).length,
+        // KAPSAM DÜRÜSTLÜĞÜ: aday = süzgeç öncesi liste, verili = değeri
+        // gerçekten BİLİNEN maç sayısı. Ekran "12 maçın 5'inin oranı var,
+        // 2'si uydu" diyebilmeli — eksik veri yüzdeye çevrilip gizlenmez.
+        filtre: {
+          mod: filtre.mod,
+          tol: filtre.tol,
+          guncel: guncel?.deger ?? null,
+          guncelGun: guncel?.gun ?? null,
+          aday: matches.length,
+          verili,
+          uyan: suzulmus.length,
+        },
+        matches: suzulmus,
+        note: suzulmus.length ? null
+          : (guncel == null
+            ? 'Bu sıranın güncel maçı için karşılaştırılacak kayıt yok — filtre uygulanamadı.'
+            : 'Bu yakınlıkta geçmiş maç yok.'),
+      });
+    }
     res.json({
       hasData: matches.length > 0,
       position,
@@ -606,6 +764,8 @@ router.get('/position-matches', async (req, res) => {
 let _dnaCache = { at: 0, key: null, val: null };
 router.get('/position-dna', async (req, res) => {
   try {
+    const filtre = filtreSecimi(req);
+    if (filtre?.hata) return res.status(400).json({ error: filtre.hata });
     const cur = load('bulletin')?.data;
     const store = getArchiveStore();
 
@@ -656,12 +816,25 @@ router.get('/position-dna', async (req, res) => {
           cut: sealedRadar5?.cut ?? { roundId: cutRoundId },
           dna: sealedRadar5?.dna ?? null,
           periods: sealedRadar5?.periods ?? null,
+          // MÜHÜRLÜ HAFTADA FİLTRE UYGULANMAZ (kullanıcı kararı, 2026-08-10):
+          // snapshot filtresiz mühürlendi; filtreli değer üretmek yeniden hesap
+          // demektir ve mühür ilkesini bozar. İstek SESSİZCE yutulmaz — yok
+          // sayıldığı yanıtla açıkça söylenir, ekran filtre satırını kapatır.
+          filtre: filtre ? {
+            mod: filtre.mod,
+            tol: filtre.tol,
+            uygulanmadi: true,
+            notu: 'Mühürlü haftada filtre uygulanmaz — mühürlü değer yeniden hesaplanmaz.',
+          } : null,
           note: 'Bu hafta mühürlü — Radar 5 yalnız mühürlü snapshot’tan gösterilir; yeniden hesaplanmaz.',
         });
       }
     }
 
-    const key = `${cutRoundId}|${sig}`;
+    // ÖNBELLEK ANAHTARINDA FİLTRE DE VAR: yoksa filtre değişince 10 dk boyunca
+    // eski filtrenin sonucu dönerdi — ekran filtreli sanır, sayı filtresizdir
+    // (sessiz hata; bu ekranın en tehlikeli sınıfı).
+    const key = `${cutRoundId}|${sig}|${filtre ? `${filtre.mod}:${filtre.tol}` : ''}`;
     if (_dnaCache.val && _dnaCache.key === key && Date.now() - _dnaCache.at < 10 * 60 * 1000) {
       return res.json(_dnaCache.val);
     }
@@ -701,10 +874,68 @@ router.get('/position-dna', async (req, res) => {
     // bu hesap kesilmiyordu: ekran "2 maç" derken yüzde 768 maçtan geliyor,
     // dönem filtresi değiştikçe elde olmayan haftalara göre oynuyordu. İki uç
     // AYNI kesimi kullanmazsa kullanıcı ekrandaki sayıyı doğrulayamaz.
-    const dna = computePositionDna(eskiHaftalariAt([...histMatches, ...arsivMaclari]), {
+    const kaynakArr = eskiHaftalariAt([...histMatches, ...arsivMaclari]);
+
+    // FİLTRELİ MOD: üstteki 1/X/2 dağılımı da listeyle AYNI süzgeçten geçer.
+    // sec pencere kesiminden ÖNCE uygulandığı için last5/last10/last15
+    // dilimleri "süzgece uyan son N MAÇ" olur (alt katmanın birimi maçtır).
+    let sec = null;
+    let filtreKaynak = null;
+    if (filtre) {
+      const { gecmisDeger, yakin } = filtreAraclari(filtre);
+      const guncelMap = await guncelSiraDegerleri(store, cur, cutRoundId, filtre.mod);
+      const gecmisIx = filtre.mod === 'oynanma'
+        ? await oynanmaFiltreIndeksi(store, cutRoundId)
+        : await oranIndeksi(store, cur, { beforeRoundId: cutRoundId });
+      sec = (m) => {
+        const g = guncelMap.get(Number(m.position));
+        const h = gecmisDeger(gecmisIx.get(`${m.roundId}|${Number(m.position)}`));
+        return g != null && h != null && yakin(g.deger, h, filtre.tol);
+      };
+      filtreKaynak = { guncelMap, gecmisIx, gecmisDeger };
+    }
+
+    const dna = computePositionDna(kaynakArr, {
       excludeRoundId: cutRoundId,
       seasonYear: activeSeason,
+      sec,
     });
+
+    // FİLTRE ÖZETİ — kapsam dürüstlüğü sıra sıra: aday (süzgeç öncesi), verili
+    // (değeri gerçekten bilinen), uyan (süzgeci geçen) ve güncel maçın değeri.
+    // Aday/verili sayıları da computePositionDna'dan çıkar: "kullanılabilir
+    // maç" tanımının tek sahibi odur, sayaç için ikinci tanım yazılmaz. Üç
+    // koşu da bellek içidir ve sonuç 10 dk önbelleğe girer.
+    let filtreOzeti = null;
+    if (filtre) {
+      const ham = computePositionDna(kaynakArr, { excludeRoundId: cutRoundId, seasonYear: activeSeason });
+      const verili = computePositionDna(kaynakArr, {
+        excludeRoundId: cutRoundId,
+        seasonYear: activeSeason,
+        sec: (m) => filtreKaynak.gecmisDeger(
+          filtreKaynak.gecmisIx.get(`${m.roundId}|${Number(m.position)}`),
+        ) != null,
+      });
+      const positions = {};
+      for (let p = 1; p <= 15; p += 1) {
+        const g = filtreKaynak.guncelMap.get(p) || null;
+        positions[p] = {
+          guncel: g?.deger ?? null,     // null → bu sırada filtre uygulanamaz (güncel veri yok)
+          gun: g?.gun ?? null,
+          aday: ham.positions.find((x) => x.position === p)?.sample ?? 0,
+          verili: verili.positions.find((x) => x.position === p)?.sample ?? 0,
+          uyan: dna.positions.find((x) => x.position === p)?.sample ?? 0,
+        };
+      }
+      filtreOzeti = {
+        mod: filtre.mod,
+        tol: filtre.tol,
+        positions,
+        notu: 'Süzgeç, görüntülenen haftanın aynı sırasındaki maçın son kayıtlı değerine '
+          + 'yakınlıkla uygulanır; değeri bilinmeyen geçmiş maç eşleşmez, güncel değeri '
+          + 'olmayan sırada filtre uygulanamaz.',
+      };
+    }
 
     // İleri-test (official_forward) sıra istatistikleri — geçmiş arşivle birleşik özet.
     let combined = null;
@@ -733,11 +964,18 @@ router.get('/position-dna', async (req, res) => {
       // Eski haftada snapshot yoksa bu ekran yalnız geçmiş sonuçlardan yeniden
       // üretilmiş bir simülasyondur; resmî mühür olarak sunulmaz.
       retrospective: !guncelMi,
+      // Filtresiz istekte null — mevcut okuyucular için yanıt şekli değişmez.
+      // combined BİLEREK filtresiz kalır: o alan radar formül köprüsüdür
+      // (ileri-test istatistikleriyle birleşim); ekrandaki 1/X/2 dağılımı
+      // dna.positions[].windows'tan okunur ve süzgeç orada uygulanır.
+      filtre: filtreOzeti,
       dna,
       combined,
       examples: [4, 14].map((p) => positionSummaryText(dna, p, 'last50')),
       note: dna.totalMatches > 0 ? null
-        : 'Resmî geçmiş arşiv içe aktarımı sürüyor — veri biriktikçe bu bölüm dolar.',
+        : (filtre
+          ? 'Seçilen yakınlıkta geçmiş maç yok — süzgeci genişletmeyi deneyebilirsiniz.'
+          : 'Resmî geçmiş arşiv içe aktarımı sürüyor — veri biriktikçe bu bölüm dolar.'),
       disclaimer: dna.disclaimer,
     };
     _dnaCache = { at: Date.now(), key, val: body };
