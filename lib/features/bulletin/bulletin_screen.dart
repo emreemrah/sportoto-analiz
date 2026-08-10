@@ -3,14 +3,16 @@
 // GÜNCEL BÜLTEN yolu çevrildi: başlık, hafta/sezon seçici, mühür şeridi,
 // LiveBulletinView + LiveMatchCard listesi, 15 sn canlı yenileme.
 //
-// HENÜZ ÇEVRİLMEDİ (Adım 1'in kalanı, ekranda da açıkça yazıyor):
-//   • Geçmiş hafta görünümü: renderHistoryItem, ikramiye bölümü
-//     (list/table/card), checkOfficial 15 sn oto kontrol, resmî sonuç
-//     düzeltme denetimi + toast, histSort sıralaması.
-//   • Kullanıcının dereceli kupon seçimleri ("Sen" satırı) — coupon/store.js
-//     Adım 3'te geliyor; o zamana kadar "Kupon yok" yazar ki bu DOĞRUDUR,
-//     uydurma bir seçim gösterilmez.
-//   • Favori takım yıldızı + zemin filigranı — oturum katmanı Adım 3'te.
+// SONRADAN ÇEVRİLDİ:
+//   • Geçmiş hafta görünümü: renderHistoryItem, ikramiye bölümü,
+//     checkOfficial 15 sn oto kontrol, resmî sonuç düzeltme denetimi +
+//     toast, histSort sıralaması. İkramiye bölümünde kaynaktan sapma var:
+//     bölüm EN ÜSTTE ve tek görünüm — resmî Liste yazımı
+//     (bkz. prize_section.dart).
+//   • Kullanıcının dereceli kupon seçimleri ("Sen" satırı) — coupon_store
+//     Adım 3'te geldi; kupon yoksa kart "Kupon yok" yazar (uydurma seçim
+//     gösterilmez).
+//   • Favori takım yıldızı + zemin filigranı — live_match_card'da.
 
 import 'dart:async';
 
@@ -484,6 +486,16 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
             ),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                // KAYNAKTAN BİLİNÇLİ SAPMA (2026-08-10, kullanıcı isteği):
+                // ikramiye & bilen kişi kaynakta listenin EN ALTINDAydı;
+                // geçmiş haftanın en değerli özeti olduğu için EN ÜSTE alındı.
+                PrizeSection(
+                  prize: hist.hist?['prize'] as Map?,
+                  resolvedCount: resolvedCount,
+                  totalM: totalM,
+                  fullyResolved: fullyResolved,
+                  selMetaCloseDate: selMetaCloseDate,
+                ),
                 // Güncel bültenle BİREBİR AYNI sade başlık.
                 const ScoreLegend(),
                 if (hist.checking)
@@ -580,13 +592,6 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                               ),
                             ),
                     ),
-                PrizeSection(
-                  prize: hist.hist?['prize'] as Map?,
-                  resolvedCount: resolvedCount,
-                  totalM: totalM,
-                  fullyResolved: fullyResolved,
-                  selMetaCloseDate: selMetaCloseDate,
-                ),
               ]),
             ),
           ),

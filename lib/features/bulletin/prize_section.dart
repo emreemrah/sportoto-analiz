@@ -1,16 +1,23 @@
 // KAYNAK: app/src/screens/BulletinScreen.js → `PrizeSection`
 //
-// İkramiye & bilen kişi — YALNIZ en altta. 15/15 resmî sonuç gelmeden
-// gösterilmez: eksik veriyle "ikramiye" yazmak, tamamlanmamış bir haftayı
-// tamamlanmış göstermek olurdu.
+// İkramiye & bilen kişi. 15/15 resmî sonuç gelmeden içerik gösterilmez:
+// eksik veriyle "ikramiye" yazmak, tamamlanmamış bir haftayı tamamlanmış
+// göstermek olurdu.
+//
+// KAYNAKTAN BİLİNÇLİ SAPMA (2026-08-10, kullanıcı isteği): kaynakta bölüm
+// geçmiş listenin EN ALTINDA ve üç görünümlüydü (list/table/card, `prizeView`
+// tercihiyle). Burada bölüm geçmiş bülten gövdesinin EN ÜSTÜNE alındı ve
+// görünüm TEKE indi: yalnız resmî Liste yazımı ("9 ADET 4.035.942,42 ₺").
+// Tablo ve Kart kaldırıldı — bölüm üstteyken kart ızgarası maç listesini
+// ekranın çok altına itiyordu. `prizeView` tercihi de kaldırıldı; diskte
+// kalmış eski değer okunmaz.
 
 import 'package:flutter/material.dart';
 
-import '../../core/prefs.dart';
 import '../../core/theme/tokens.dart';
 import 'bulletin_format.dart';
 
-class PrizeSection extends StatefulWidget {
+class PrizeSection extends StatelessWidget {
   const PrizeSection({
     super.key,
     required this.prize,
@@ -27,18 +34,11 @@ class PrizeSection extends StatefulWidget {
   final String? selMetaCloseDate;
 
   @override
-  State<PrizeSection> createState() => _PrizeSectionState();
-}
-
-class _PrizeSectionState extends State<PrizeSection> {
-  late String _view = '${getPref('prizeView') ?? 'table'}';
-
-  @override
   Widget build(BuildContext context) {
-    final hasPrize = widget.prize != null;
+    final hasPrize = prize != null;
 
     return Container(
-      margin: const EdgeInsets.only(top: Spacing.sm),
+      margin: const EdgeInsets.only(bottom: Spacing.sm),
       padding: const EdgeInsets.all(Spacing.md),
       decoration: BoxDecoration(
         color: AppColors.card,
@@ -56,12 +56,12 @@ class _PrizeSectionState extends State<PrizeSection> {
             ),
           ),
           const SizedBox(height: 10),
-          if (!widget.fullyResolved)
+          if (!fullyResolved)
             _bos(
-              widget.resolvedCount == 0
+              resolvedCount == 0
                   ? 'Resmi sonuçlar bekleniyor. Tüm maçlar tamamlanınca '
                         'ikramiye burada görünecek.'
-                  : 'Şu ana kadar ${widget.resolvedCount}/${widget.totalM} '
+                  : 'Şu ana kadar $resolvedCount/$totalM '
                         'resmi sonuç geldi. Tüm sonuçlar tamamlanınca ikramiye '
                         'görünecek.',
             )
@@ -86,88 +86,21 @@ class _PrizeSectionState extends State<PrizeSection> {
   );
 
   List<Widget> _icerik() {
-    final tiers = (widget.prize!['tiers'] as List?) ?? const [];
+    final tiers = (prize!['tiers'] as List?) ?? const [];
     final kapanis = kapanisResmi(
-      (widget.prize!['closeDate'] as String?) ?? widget.selMetaCloseDate,
+      (prize!['closeDate'] as String?) ?? selMetaCloseDate,
     );
-    final aciklama = widget.prize!['description'] as String?;
+    final aciklama = prize!['description'] as String?;
 
     return [
-      // Görünüm seçici
-      Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Row(
-          children: [
-            for (final v in const [
-              (k: 'list', l: 'Liste'),
-              (k: 'table', l: 'Tablo'),
-              (k: 'card', l: 'Kart'),
-            ]) ...[
-              GestureDetector(
-                onTap: () {
-                  setState(() => _view = v.k);
-                  setPref('prizeView', v.k);
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(right: 6),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _view == v.k ? AppColors.primary : AppColors.cardAlt,
-                    borderRadius: AppRadius.smR,
-                  ),
-                  child: Text(
-                    v.l,
-                    style: TextStyle(
-                      color: _view == v.k
-                          ? AppColors.white
-                          : AppColors.textSoft,
-                      fontSize: 11.5,
-                      fontWeight: AppFont.heavy,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-
-      if (_view == 'table') ...[
+      // LİSTE — RESMÎ yazımda: "9 ADET 4.035.942,42 ₺".
+      for (final t in tiers.cast<Map>())
         _satir(
-          hit: 'Derece',
-          count: 'Kişi',
-          amt: 'İkramiye',
-          baslik: true,
-          ustCizgi: false,
+          hit: '${t['hit']} Bilen',
+          count: '${fmtCount(t['count'] as num?)} ADET',
+          amt: t['count'] == 0 ? 'Devretti' : fmtTLResmi(t['prize'] as num?),
+          devretti: t['count'] == 0,
         ),
-        for (final t in tiers.cast<Map>())
-          _satir(
-            hit: '${t['hit']}',
-            count: fmtCount(t['count'] as num?),
-            amt: t['count'] == 0 ? 'Devretti' : fmtTL(t['prize'] as num?),
-            devretti: t['count'] == 0,
-          ),
-      ] else if (_view == 'card')
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final t in tiers.cast<Map>())
-              LayoutBuilder(builder: (context, _) => _kart(t)),
-          ],
-        )
-      else
-        // LİSTE görünümü RESMÎ yazımda: "9 ADET 4.035.942,42 ₺".
-        for (final t in tiers.cast<Map>())
-          _satir(
-            hit: '${t['hit']} Bilen',
-            count: '${fmtCount(t['count'] as num?)} ADET',
-            amt: t['count'] == 0 ? 'Devretti' : fmtTLResmi(t['prize'] as num?),
-            devretti: t['count'] == 0,
-          ),
 
       // KAPANIŞ ve AÇIKLAMALAR — resmî listede etiketli satır olarak duruyor.
       // Veri yoksa satır ÇİZİLMEZ (uydurulmaz).
@@ -181,62 +114,44 @@ class _PrizeSectionState extends State<PrizeSection> {
     required String hit,
     required String count,
     required String amt,
-    bool baslik = false,
     bool devretti = false,
-    bool ustCizgi = true,
   }) {
-    final basStil = baslik
-        ? const TextStyle(
-            color: AppColors.textMuted,
-            fontWeight: AppFont.black,
-            fontSize: 11,
-          )
-        : null;
-
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 7),
-      decoration: ustCizgi
-          ? const BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.border)),
-            )
-          : null,
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
       child: Row(
         children: [
           SizedBox(
             width: 78,
             child: Text(
               hit,
-              style:
-                  basStil ??
-                  const TextStyle(
-                    color: AppColors.text,
-                    fontSize: 13,
-                    fontWeight: AppFont.heavy,
-                  ),
+              style: const TextStyle(
+                color: AppColors.text,
+                fontSize: 13,
+                fontWeight: AppFont.heavy,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               count,
-              style:
-                  basStil ??
-                  const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 12.5,
-                    fontWeight: AppFont.semibold,
-                  ),
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 12.5,
+                fontWeight: AppFont.semibold,
+              ),
             ),
           ),
           Text(
             amt,
-            style:
-                basStil ??
-                TextStyle(
-                  color: devretti ? AppColors.textMuted : AppColors.green,
-                  fontSize: 13,
-                  fontWeight: devretti ? AppFont.bold : AppFont.heavy,
-                  fontStyle: devretti ? FontStyle.italic : FontStyle.normal,
-                ),
+            style: TextStyle(
+              color: devretti ? AppColors.textMuted : AppColors.green,
+              fontSize: 13,
+              fontWeight: devretti ? AppFont.bold : AppFont.heavy,
+              fontStyle: devretti ? FontStyle.italic : FontStyle.normal,
+            ),
           ),
         ],
       ),
@@ -276,52 +191,4 @@ class _PrizeSectionState extends State<PrizeSection> {
       ],
     ),
   );
-
-  Widget _kart(Map t) {
-    final devretti = t['count'] == 0;
-    return FractionallySizedBox(
-      widthFactor: 1,
-      child: Container(
-        width: (MediaQuery.sizeOf(context).width - Spacing.md * 4 - 8) / 2,
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceSoft,
-          borderRadius: AppRadius.mdR,
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${t['hit']} Bilen',
-              style: const TextStyle(
-                color: AppColors.text,
-                fontSize: 13,
-                fontWeight: AppFont.black,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              '${fmtCount(t['count'] as num?)} kişi',
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 11.5,
-                fontWeight: AppFont.bold,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              devretti ? 'Devretti' : fmtTL(t['prize'] as num?),
-              style: TextStyle(
-                color: devretti ? AppColors.textMuted : AppColors.green,
-                fontSize: 13,
-                fontWeight: devretti ? AppFont.bold : AppFont.heavy,
-                fontStyle: devretti ? FontStyle.italic : FontStyle.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

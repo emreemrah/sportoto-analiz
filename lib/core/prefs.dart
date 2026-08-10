@@ -26,7 +26,9 @@ const Map<String, Object?> kPrefDefaults = {
   'rememberFilter': true, // filtre seçimini hatırla
   'liveLastFilter': 'all', // 'all' | 'live' | 'risk' | 'coupon' | 'done'
   'liveAnim': 'important', // 'on' | 'off' | 'important'
-  'prizeView': 'table', // ikramiye görünümü: 'list' | 'table' | 'card'
+  // SAPMA (2026-08-10): kaynaktaki 'prizeView' ('list'|'table'|'card')
+  // KALDIRILDI — ikramiye bölümü tek görünüm (resmî Liste yazımı,
+  // prize_section.dart). Diskte kalmış eski değer okunmaz, zararsızdır.
   'histResultMode': 'simple', // 'simple' | 'detailed' | 'technical'
   'histSort': 'bulletin', // 'bulletin' | 'resolvedTop' | 'waitingBottom'
   'sysDashView': 'simple', // 'simple' | 'detailed' | 'technical'
