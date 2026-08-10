@@ -70,6 +70,57 @@ export async function ingestOfficialResults(bulletinId, officialMatches, {
 }
 
 // --------------------------------------------------------------------------
+// NOTER KARARI — ertelenen/oynanmayan maçın resmî işareti (2026-08-10).
+//
+// NEDEN VAR: ertelenen maçın sonucu sağlayıcıdan ASLA gelmez (yukarıdaki skor
+// şartı yapısal olarak dışlar) ve hafta sonsuza dek 'locked' kalıyordu
+// (53. Hafta 14. maç, Raków–Zagłębie ile yaşandı). Spor Toto böyle maçları
+// noter kararıyla sonuçlandırır; bu kayıt o resmî kararı sisteme taşır.
+//
+// SINIRLAR (resmî sonuçlara dokunmama kuralının ruhu korunur):
+//  • YALNIZ sonucu OLMAYAN maça yazılabilir — mevcut sonucu değiştiremez.
+//  • fullTimeScore NULL kalır: oynanmamış maça skor uydurulmaz.
+//  • resultType='notary_decision' ayrı kimliktir: radar karnesi bu maçı motor
+//    isabetine SAYMAZ (maç oynanmadı, tahmin sınanamadı); kupon değerlendirmesi
+//    Spor Toto kuralı gereği işareti sayar ve satır viaNotary ile işaretlenir.
+//  • Her giriş audit'e yazılır.
+// --------------------------------------------------------------------------
+export async function recordNotaryResult(bulletinId, { orderNo, sonuc }, {
+  store = getArchiveStore(), actor = 'operator', now = Date.now(),
+} = {}) {
+  const id = String(bulletinId);
+  if (!VALID_RESULTS.has(String(sonuc))) {
+    throw new ValidationError('Noter kararı 1, X ya da 2 olmalı.');
+  }
+  const no = Number(orderNo);
+  if (!(no >= 1 && no <= 15)) throw new ValidationError('orderNo 1–15 aralığında olmalı.');
+  const matches = await store.getMatches(id);
+  const m = (matches || []).find((x) => Number(x.orderNo) === no);
+  if (!m) throw new NotFoundError(`Bültende ${no}. sıra yok (${id}).`);
+  const mevcut = (await store.listOfficialResults(id))
+    .find((r) => String(r.matchId) === String(m.matchId));
+  if (mevcut) {
+    throw new ValidationError(
+      `${no}. sıranın resmî sonucu zaten var — noter kararı yalnız sonuçsuz (ertelenen) maça yazılabilir.`,
+    );
+  }
+  await store.upsertOfficialResult({
+    bulletinId: id,
+    matchId: String(m.matchId),
+    orderNo: no,
+    officialResult: String(sonuc),
+    fullTimeScore: null,
+    resultSource: 'Noter kararı',
+    resultType: 'notary_decision',
+  });
+  await store.appendAudit({
+    bulletinId: id, action: 'notary_result', actor,
+    newValue: { orderNo: no, sonuc: String(sonuc) },
+  });
+  return maybeCompleteAndEvaluate(id, { store, now });
+}
+
+// --------------------------------------------------------------------------
 // TAMAMLAMA + DEĞERLENDİRME
 // 15 maçın resmî sonucu geldiyse: status=completed + snapshot_evaluations kaydı.
 // Değerlendirme YALNIZ kilitli snapshot payload'ı + resmî sonuçlardan üretilir
@@ -112,6 +163,10 @@ export async function maybeCompleteAndEvaluate(bulletinId, { store = getArchiveS
       no: m.no, matchId: m.matchId,
       frozenPrediction: frozen, frozenDisplay: m.systemPrediction?.display ?? null,
       officialResult: r.officialResult, fullTimeScore: r.fullTimeScore,
+      // Kupon kuralı gereği noter işareti SAYILIR (correct hesaplanır) ama
+      // satır işaretlenir: ekranlar "noter kararıyla" diye gösterebilsin,
+      // radar karnesi de bu maçı motor isabetine katmasın.
+      viaNotary: r.resultType === 'notary_decision' ? true : undefined,
       resultSource: r.resultSource, correctionVersion: r.correctionVersion || 1,
       correct, isSingle,
       banko, surprise,

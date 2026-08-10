@@ -251,7 +251,19 @@ export class SupabaseArchiveStore {
     if (error) throwDb(error, 'sonuçlar okunamadı');
     return (data || []).map((r) => ({
       bulletinId: r.bulletin_id, matchId: r.match_id, orderNo: r.order_no,
-      officialResult: r.official_result, fullTimeScore: r.full_time_score,
+      officialResult: r.official_result,
+      // NOTER KAYDINDA SKOR YOKTUR. Şemadaki NOT NULL kısıtı yüzünden noter
+      // satırı {home:null, away:null} olarak durur; okuyana NULL normalize
+      // edilir ki dosya deposuyla AYNI şekil dönsün (012 göçü uygulanırsa
+      // gerçek NULL yazılabilir, bu normalizasyon yine doğru kalır).
+      fullTimeScore: (r.full_time_score
+        && (r.full_time_score.home != null || r.full_time_score.away != null))
+        ? r.full_time_score : null,
+      // NULL = normal sonuç · 'notary_decision' = ertelenen maçın noter kararı.
+      // result_type kolonu 012 göçüne kadar YOK olabilir; o durumda kimlik
+      // kaynak sabitinden türetilir (öncelik her zaman kolonda).
+      resultType: r.result_type
+        ?? (r.result_source === 'Noter kararı' ? 'notary_decision' : null),
       resultSource: r.result_source, confirmedAt: r.confirmed_at,
       sourceUpdatedAt: r.source_updated_at, correctionVersion: r.correction_version,
       corrections: r.corrections || [],
@@ -263,9 +275,15 @@ export class SupabaseArchiveStore {
       .find((r) => String(r.matchId) === String(row.matchId));
     const now = new Date().toISOString();
     if (!existing) {
+      // NOTER KAYDI: full_time_score NOT NULL kısıtı 012 göçüne kadar durur;
+      // skor UYDURULMAZ — alanları null bir nesne yazılır ve okuma katmanı
+      // bunu NULL'a çevirir. result_type kolonu da göç öncesi olmayabilir;
+      // gönderilmez, kimlik result_source sabitinden türetilir (üstteki map).
+      const notary = row.resultType === 'notary_decision';
       const { error } = await this.sb.from('match_official_results').insert({
         bulletin_id: String(row.bulletinId), match_id: String(row.matchId), order_no: row.orderNo ?? null,
-        official_result: row.officialResult, full_time_score: row.fullTimeScore,
+        official_result: row.officialResult,
+        full_time_score: row.fullTimeScore ?? (notary ? { home: null, away: null } : null),
         result_source: row.resultSource || 'Spor Toto resmi API',
         confirmed_at: now, source_updated_at: now, correction_version: 1, corrections: [],
       });

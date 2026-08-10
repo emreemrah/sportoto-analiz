@@ -124,6 +124,10 @@ export async function buildRadarScorecard({ store = getArchiveStore() } = {}) {
       if (!m.radarCenter) continue;
       const official = resByMatch.get(String(m.matchId));
       if (!official) continue;                                           // resmî sonuç yoksa sayılmaz
+      // NOTER KARARI radar karnesine GİRMEZ (2026-08-10): maç oynanmadı,
+      // tahmin sınanamadı — işaret kupon kuralı gereği geçerli ama motor
+      // isabetini ölçemez. Kupon tarafı evaluation'da viaNotary ile ayrı.
+      if (official.resultType === 'notary_decision') continue;
       used = true;
       feedBucket(all, m, official);
       feedBucket(roundBucket, m, official);

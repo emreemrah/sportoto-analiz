@@ -33,6 +33,7 @@ import { legacySystemScorecardResponse, legacyCriteriaScorecardResponse } from '
 import { buildCriterionScorecard } from './analysis/analysisService.js';
 import { startArchiveWorker } from './archive/worker.js';
 import { getArchiveStatus } from './archive/snapshotService.js';
+import { getArchiveStore } from './archive/store.js';
 import { sbAdmin, supabaseEnabled } from './supabase.js';
 import { sarmala, hataKatmani, surecAginiKur } from './security/asyncGuard.js';
 import { securityHeaders } from './security/headers.js';
@@ -521,7 +522,25 @@ app.get('/api/history/:roundId', async (req, res) => {
         getBulletinByRoundId(roundId),
         getRoundResult(roundId),
       ]);
-      const resolvedCount = bulletin.matches.filter((m) => m.result && m.score).length;
+      // NOTER KARARI KATMANI (2026-08-10): resmî Spor Toto API'si ertelenen
+      // maçın noter kararını HİÇ dönmez (53. Hafta 14. maç, Raków–Zagłębie
+      // ile yaşandı — ekran sonsuza dek 'Resmi sonuç bekliyor' gösteriyordu).
+      // Arşivdeki resmî noter kaydı (operatör girişli, audit'li) görüntüye
+      // eklenir: işaret VAR, skor YOK (uydurulmaz), viaNotary açık yazılır.
+      // Kural bozulmaz: arşive buradan hiçbir şey YAZILMAZ, yalnız okunur.
+      try {
+        const noter = (await getArchiveStore().listOfficialResults(String(roundId)))
+          .filter((r) => r.resultType === 'notary_decision');
+        for (const r of noter) {
+          const mm = bulletin.matches.find((m) => m.no === r.orderNo);
+          if (mm && !(mm.result && mm.score)) {
+            mm.result = r.officialResult;
+            mm.viaNotary = true;
+          }
+        }
+      } catch { /* arşiv okunamazsa görüntü eski davranışında kalır */ }
+      const resolvedCount = bulletin.matches
+        .filter((m) => (m.result && m.score) || m.viaNotary).length;
       payload = {
         ...bulletin, prize,
         source: 'Spor Toto',
@@ -547,7 +566,8 @@ app.get('/api/history/:roundId', async (req, res) => {
       for (const mm of payload.matches) {
         const pp = byNo.get(mm.no);
         const started = mm.date && new Date(mm.date).getTime() <= nowMs;
-        if (pp?.footyMatchId != null && started && !(mm.result && mm.score)) liveIds.push(pp.footyMatchId);
+        // Noter maçına canlı/geçici skor ARANMAZ: maç oynanmadı.
+        if (pp?.footyMatchId != null && started && !(mm.result && mm.score) && !mm.viaNotary) liveIds.push(pp.footyMatchId);
       }
       if (liveIds.length && nowMs - (liveFootyAt.get(roundId) || 0) > 60000) {
         liveFootyAt.set(roundId, nowMs); capMap(liveFootyAt);
@@ -556,7 +576,7 @@ app.get('/api/history/:roundId', async (req, res) => {
       // CANLI (birebir): API-Football gerçek-zamanlı skor + DAKİKA — tek çağrı tüm
       // canlı maçları verir (paylaşımlı cache, ekstra API yok). Başlamış-çözülmemiş
       // maç varsa çekilir; yoksa footyScores geçici skoruna düşülür.
-      const hasLiveWindow = payload.matches.some((mm) => { const t = mm.date ? new Date(mm.date).getTime() : 0; return t && t <= nowMs && nowMs - t <= 3.5 * 3600 * 1000 && !(mm.result && mm.score); });
+      const hasLiveWindow = payload.matches.some((mm) => { const t = mm.date ? new Date(mm.date).getTime() : 0; return t && t <= nowMs && nowMs - t <= 3.5 * 3600 * 1000 && !(mm.result && mm.score) && !mm.viaNotary; });
       let liveFx = [];
       if (hasLiveWindow) { try { liveFx = await getLiveFixtures(); } catch { liveFx = []; } }
       const footyScores = load('footyScores')?.data || {};
@@ -567,7 +587,8 @@ app.get('/api/history/:roundId', async (req, res) => {
         if (p.symbol) merged.prediction = { symbol: p.symbol, label: p.label };
         if (p.homeLogo || p.homeRec) merged.home = { ...m.home, logo: p.homeLogo || m.home.logo, record: p.homeRec || null };
         if (p.awayLogo || p.awayRec) merged.away = { ...m.away, logo: p.awayLogo || m.away.logo, record: p.awayRec || null };
-        const unresolved = !(m.result && m.score);
+        // Noter maçı ÇÖZÜLMÜŞ sayılır: canlı/geçici skor aranmaz (maç yok).
+        const unresolved = !(m.result && m.score) && !m.viaNotary;
         const started = m.date && new Date(m.date).getTime() <= nowMs;
         // 1) API-Football canlı (öncelik) — dakika dahil, gerçek-zamanlı.
         if (unresolved && started && liveFx.length) {

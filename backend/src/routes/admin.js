@@ -15,6 +15,9 @@
 // SINIR (bilerek dar tutuldu):
 //  • Bu uçlar KULLANICI SİLMEZ, askıya almaz, içerik düzenlemez.
 //  • Arşive, mühürlü analizlere ve resmî sonuçlara DOKUNMAZ (proje kuralı).
+//    TEK İSTİSNA (2026-08-10): ertelenen maçın NOTER KARARI girişi — yalnız
+//    sonucu OLMAYAN maça, ayrı kimlikle (notary_decision), audit'li yazar;
+//    var olan hiçbir sonucu değiştiremez (bkz. resultsService.recordNotaryResult).
 //  • Tek yazma işlemi bülteni yeniden çekmektir; o da mevcut, kilitli
 //    (aynı anda tek çalışan) akışı çağırır — yeni bir yol açmaz.
 //
@@ -41,6 +44,7 @@ import { muhurSinifla, muhurOzeti } from '../archive/muhurDurumu.js';
 import { adayOku } from '../archive/adayMuhur.js';
 import { freezeBulletinFromData, firstKickoffMs, computeFreezeAt } from '../archive/snapshotService.js';
 import { getArchiveStore } from '../archive/store.js';
+import { recordNotaryResult } from '../archive/resultsService.js';
 
 const router = Router();
 router.use(uyelikKapisi(supabaseEnabled));
@@ -250,6 +254,33 @@ router.post('/bulten-yenile', async (req, res) => {
     });
   } catch (e) {
     safeError(res, e, 'Bülten yenilenemedi.');
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/admin/bulten/:id/noter-sonucu — ertelenen maçın noter kararı
+// ---------------------------------------------------------------------------
+// Ertelenen maçın sonucu sağlayıcıdan asla gelmez ve hafta sonsuza dek
+// 'locked' kalır (53. Hafta 14. maç ile yaşandı). Bu uç Spor Toto'nun noter
+// kararını kaydeder: YALNIZ sonucu olmayan maça, ayrı kimlikle
+// (notary_decision), skorsuz ve audit'li — var olan sonuca dokunAMAZ
+// (kısıtlar resultsService.recordNotaryResult içinde zorlanır).
+// Gövde: { orderNo: 1-15, sonuc: '1'|'X'|'2' }
+router.post('/bulten/:id/noter-sonucu', async (req, res) => {
+  try {
+    const orderNo = Number(req.body?.orderNo);
+    const sonuc = String(req.body?.sonuc || '').trim().toUpperCase();
+    const durum = await recordNotaryResult(String(req.params.id), { orderNo, sonuc });
+    await kayit(req, 'noter-sonucu', req.params.id, `${orderNo}. sıra → ${sonuc}`);
+    res.json({
+      ok: true,
+      tamamlandi: durum?.completed === true,
+      not: durum?.completed === true
+        ? 'Hafta tamamlandı — değerlendirme yazıldı.'
+        : `Kayıt alındı; hafta henüz tamamlanmadı (${durum?.reason || 'diğer sonuçlar bekleniyor'}).`,
+    });
+  } catch (e) {
+    safeError(res, e, 'Noter kararı kaydedilemedi.');
   }
 });
 

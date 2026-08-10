@@ -271,10 +271,18 @@ async function attachOfficialResults(view, { store }) {
       matches: view.matches.map((m) => {
         const r = byId.get(String(m.matchId));
         if (!r) return m;
+        // NOTER KARARI (ertelenen maç): işaret kullanıcıya AÇIKÇA gösterilir
+        // ama motor isabeti HESAPLANMAZ — maç oynanmadı, "tahmin tuttu"
+        // rozeti yanlış ölçüm olurdu (2026-08-10).
+        const viaNotary = r.resultType === 'notary_decision';
         return {
           ...m,
-          official: { result: r.officialResult, score: r.fullTimeScore },
-          outcome: m.master?.mainPrediction ? {
+          official: {
+            result: r.officialResult,
+            score: r.fullTimeScore,
+            resultType: r.resultType ?? null,
+          },
+          outcome: (!viaNotary && m.master?.mainPrediction) ? {
             mainHit: m.master.mainPrediction === r.officialResult,
             favoriteFailed: m.master.favorite?.symbol ? m.master.favorite.symbol !== r.officialResult : null,
             exactDirectionHit: m.master.exactDirection ? m.master.exactDirection === r.officialResult : null,
