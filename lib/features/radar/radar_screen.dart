@@ -74,18 +74,38 @@ final _dailyOddsProvider = FutureProvider.autoDispose
 /// tarihsel kesimi ayrıdır (51. hafta 51 öncesini, 52. hafta 51 dâhil olanı
 /// görür), bu yüzden hafta değişince YENİDEN çekilir; tek seferlik değildir.
 /// Mühürlü haftada bu uç yalnız snapshot verisini döner; canlı hesap yapmaz.
+///
+/// Anahtar FİLTREYİ DE içerir (mod + tol): filtre değişince istek yeniden
+/// atılır — anahtarda olmasaydı eski filtrenin sonucu ekranda kalırdı
+/// (backend'in önbellek anahtarıyla aynı gerekçe).
 final _positionDnaProvider = FutureProvider.autoDispose
-    .family<Map<String, dynamic>, Object>(
-      (ref, rid) async =>
-          Map<String, dynamic>.from(await api.radarPositionDna(rid) as Map),
+    .family<Map<String, dynamic>, ({Object rid, String? mod, num? tol})>(
+      (ref, k) async => Map<String, dynamic>.from(
+        await api.radarPositionDna(
+              roundId: k.rid,
+              oynanmaTol: k.mod == 'oynanma' ? k.tol : null,
+              oranTol: k.mod == 'oran' ? k.tol : null,
+            )
+            as Map,
+      ),
     );
 
-/// Bir SIRANIN geçmiş maçları. Anahtar haftayı da içerir: başka haftaya
-/// geçilince liste yeniden çekilir.
+/// Bir SIRANIN geçmiş maçları. Anahtar haftayı ve FİLTREYİ içerir: liste ile
+/// üstteki dağılım aynı süzgeci kullanmalı — parametreler ayrışırsa kullanıcı
+/// ekrandaki sayıyı doğrulayamaz.
 final _siraMaclariProvider = FutureProvider.autoDispose
-    .family<Map<String, dynamic>, ({Object rid, Object no})>(
+    .family<
+      Map<String, dynamic>,
+      ({Object rid, Object no, String? mod, num? tol})
+    >(
       (ref, k) async => Map<String, dynamic>.from(
-        await api.radarPositionMatches(k.no, k.rid) as Map,
+        await api.radarPositionMatches(
+              k.no,
+              roundId: k.rid,
+              oynanmaTol: k.mod == 'oynanma' ? k.tol : null,
+              oranTol: k.mod == 'oran' ? k.tol : null,
+            )
+            as Map,
       ),
     );
 
@@ -114,6 +134,13 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
   // Radar 5: dönem filtresi (Tüm/5/10/15) ve açık satır (sıra no).
   String _dnaPeriod = 'allTime';
   Object? _acikSira;
+  // Radar 5 yakınlık filtresi (spec 2026-08-08): null = dönem modu.
+  // Mod seçilince süzgeç TEMİZ başlar: Birebir + Tümü (kullanıcı kararı,
+  // 2026-08-10) — onFiltreModSec her mod seçiminde bu değerlere döndürür.
+  String? _dnaFiltreMod;
+  num _dnaOynanmaTol = 0;
+  num _dnaOranTol = 0;
+  String _dnaMacPenceresi = 'allTime';
   // Legacy (Radar Merkezi öncesi) haftalar: eski 2 sekme + renk süzgeci.
   String _legacyView = 'r1';
   String? _legacyFilter;
@@ -338,18 +365,43 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
   Widget _bultenDnasi(List matches, Object? gosterilen, Map meta) {
     final muhurluHafta = meta['sealed'] == true;
 
+    // Yakınlık filtresi mühürlü haftada ETKİSİZDİR (backend de uygulamaz);
+    // seçim durur, hafta değişince yeniden devreye girer.
+    final filtreAktif = !muhurluHafta && _dnaFiltreMod != null;
+    final num? filtreTol = !filtreAktif
+        ? null
+        : (_dnaFiltreMod == 'oynanma' ? _dnaOynanmaTol : _dnaOranTol);
+    // Filtre modunda pencere anahtarı ALT KATMANDAN gelir ve birimi MAÇtır:
+    // windows dilimleri süzgeçten SONRA kesildiği için "last5" burada
+    // "süzgece uyan son 5 maç" demektir (backend sözleşmesi).
+    final etkinPencere = filtreAktif ? _dnaMacPenceresi : _dnaPeriod;
+
     // Mühürlü haftada uç yalnız snapshot verisini döner; istek yine de
     // yapılır çünkü "snapshot'ta Radar 5 var mı" bilgisi oradan gelir.
     final dnaAsync = gosterilen == null
         ? null
-        : ref.watch(_positionDnaProvider(gosterilen));
+        : ref.watch(
+            _positionDnaProvider((
+              rid: gosterilen,
+              mod: filtreAktif ? _dnaFiltreMod : null,
+              tol: filtreTol,
+            )),
+          );
     final positionDna = dnaAsync?.valueOrNull;
+    // Filtreli istek daha YANITLANMADAN "verisi yok" yazmak yanlış iddiadır
+    // (ilk yükleme birkaç saniye sürebiliyor; kullanıcı bunu gerçek sanıyordu).
+    // Yüklenirken satırlar ve panel "hesaplanıyor" der, iddia etmez. İstek
+    // BAŞARISIZ olduysa da veri yokluğu iddia edilmez — hata olduğu söylenir
+    // (yaşandı: eski backend 400 dönünce ekran "verisi yok" yazıyordu).
+    final filtreYukleniyor =
+        filtreAktif && dnaAsync != null && dnaAsync.isLoading;
+    final filtreHatasi = filtreAktif && dnaAsync != null && dnaAsync.hasError;
 
     final dna = dnaByPosition(
       muhurluHafta: muhurluHafta,
       masterMatches: matches,
       positionDna: positionDna,
-      dnaPeriod: _dnaPeriod,
+      dnaPeriod: etkinPencere,
     );
 
     // BUGÜNÜN OYNANMA YÜZDESİ RADAR 5'TE (kullanıcı isteği, 3 Ağustos 2026).
@@ -376,6 +428,28 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         (bugunGunu?['weekday'] as String?);
     final bugunler = bugunPctByNo(dailyPlayed, bugunTarih);
 
+    // ORAN MODUNDA GÜNÜN ORANI (kullanıcı isteği, 2026-08-10): maçın yanındaki
+    // şerit oynanma yüzdesi yerine o günün GERÇEK 1/X/2 oranını gösterir.
+    // Kaynak Radar 4'ün günlük verisidir — ayrı uç YOK, aynı istek. İki birim
+    // aynı anda basılmaz: oynanma yüzdesi oran DEĞİLDİR.
+    final oranModu = filtreAktif && _dnaFiltreMod == 'oran';
+    final oddsAsync = (!oranModu || gosterilen == null)
+        ? null
+        : ref.watch(_dailyOddsProvider(gosterilen));
+    final dailyOdds = oddsAsync?.valueOrNull;
+    final oranTarih = varsayilanGun(
+      dailyOdds?['days'] as List?,
+      dailyOdds?['matches'] as List?,
+    );
+    final oranGunu = ((dailyOdds?['days'] as List?) ?? const [])
+        .cast<Map>()
+        .where((g) => g['date'] == oranTarih)
+        .firstOrNull;
+    final oranGunKisa =
+        kKisaGun['${oranGunu?['weekday']}'] ??
+        (oranGunu?['weekday'] as String?);
+    final bugunOranlar = bugunOranByNo(dailyOdds, oranTarih);
+
     // FİLTRE ŞERİDİ YAPIŞIK — kaynakta `stickyHeaderIndices: [0]` yalnız bu
     // sekmeye verilir. Flutter karşılığı: şerit listenin DIŞINDA, üstte sabit;
     // maç satırları altında kayar. (Radar 4'ün uzun ⓘ paneli LİSTEYLE kayar —
@@ -396,6 +470,29 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
             muhurluHafta: muhurluHafta,
             muhurluRadar5Yok: dna.muhurluRadar5Yok,
             sealedAt: meta['sealedAt'],
+            filtreMod: filtreAktif ? _dnaFiltreMod : null,
+            onFiltreModSec: (mod) => setState(() {
+              _dnaFiltreMod = mod;
+              // Mod her seçildiğinde süzgeç Birebir + Tümü'ye döner —
+              // önceki oturumdan kalan dar/geniş seçim sessizce taşınmaz.
+              if (mod != null) {
+                _dnaOynanmaTol = 0;
+                _dnaOranTol = 0;
+                _dnaMacPenceresi = 'allTime';
+              }
+            }),
+            oynanmaTol: _dnaOynanmaTol,
+            oranTol: _dnaOranTol,
+            onTolSec: (t) => setState(() {
+              if (_dnaFiltreMod == 'oran') {
+                _dnaOranTol = t;
+              } else {
+                _dnaOynanmaTol = t;
+              }
+            }),
+            macPenceresi: _dnaMacPenceresi,
+            onMacPencereSec: (k) => setState(() => _dnaMacPenceresi = k),
+            filtreYukleniyor: filtreYukleniyor,
           ),
         ),
         Expanded(
@@ -405,6 +502,13 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
             dna,
             bugunler,
             bugunGunKisa,
+            filtreAktif: filtreAktif,
+            filtreTol: filtreTol,
+            filtreOzet: positionDna?['filtre'] as Map?,
+            filtreYukleniyor: filtreYukleniyor,
+            filtreHatasi: filtreHatasi,
+            bugunOranlar: oranModu ? bugunOranlar : null,
+            oranGunKisa: oranGunKisa,
           ),
         ),
       ],
@@ -416,8 +520,24 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
     Object? gosterilen,
     ({Map<Object, Map?> byPosition, bool muhurluRadar5Yok}) dna,
     Map<Object, List<({Object kaynak, Map pct})>> bugunler,
-    String? bugunGunKisa,
-  ) {
+    String? bugunGunKisa, {
+    bool filtreAktif = false,
+    num? filtreTol,
+    Map? filtreOzet,
+    bool filtreYukleniyor = false,
+    bool filtreHatasi = false,
+    Map<Object, Map>? bugunOranlar,
+    String? oranGunKisa,
+  }) {
+    // Filtre modunda etiket süzgeci de söyler: "Oynanma ±5 · Son 5 maç".
+    final donemEtiketi = filtreAktif
+        ? '${_dnaFiltreMod == 'oran' ? 'Oran' : 'Oynanma'} '
+              '${tolEtiketi(_dnaFiltreMod!, filtreTol ?? 0)} · '
+              '${kDnaMacPencereLabels[_dnaMacPenceresi]}'
+        : kDnaPeriodLabels[_dnaPeriod];
+    final limit = filtreAktif
+        ? kDonemMacSayisi[_dnaMacPenceresi]
+        : kDonemMacSayisi[_dnaPeriod];
     return ListView(
       padding: const EdgeInsets.all(Spacing.md),
       children: [
@@ -425,8 +545,11 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
           MemoryRow(
             item: m,
             pct: birOndalik(dna.byPosition[m['no']]),
-            bugunKaynaklar: bugunler[m['no']],
-            bugunGunKisa: bugunGunKisa,
+            // Oran modunda oynanma şeridi yerine günün oranı basılır — iki
+            // birim yan yana gösterilmez (Radar 3/4 ayrımı).
+            bugunKaynaklar: bugunOranlar != null ? null : bugunler[m['no']],
+            bugunGunKisa: bugunOranlar != null ? oranGunKisa : bugunGunKisa,
+            bugunOran: bugunOranlar?[m['no']],
             acik: _acikSira == m['no'],
             // SATIR AÇILIMI — dokununca bu SIRANIN geçmiş maçları listelenir.
             onToggle: () => setState(
@@ -434,22 +557,45 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
             ),
             muhurluRadar5Yok: dna.muhurluRadar5Yok,
             kayit: _acikSira == m['no']
-                ? _siraKaydi(gosterilen, m['no'] as Object)
+                ? _siraKaydi(
+                    gosterilen,
+                    m['no'] as Object,
+                    filtreAktif: filtreAktif,
+                    filtreTol: filtreTol,
+                  )
                 : null,
-            donemEtiketi: kDnaPeriodLabels[_dnaPeriod],
+            donemEtiketi: donemEtiketi,
             // Liste SEÇİLİ DÖNEMLE sınırlanır: "Son 5 Hafta" seçiliyken 51 maç
             // göstermek, üstteki yüzdeyle uyuşmayan bir liste olurdu.
-            limit: kDonemMacSayisi[_dnaPeriod],
+            limit: limit,
+            filtreMod: filtreAktif ? _dnaFiltreMod : null,
+            filtreSira: filtreAktif
+                ? ((filtreOzet?['positions'] as Map?)?['${m['no']}'] as Map?)
+                : null,
+            filtreYukleniyor: filtreYukleniyor,
+            filtreHatasi: filtreHatasi,
           ),
       ],
     );
   }
 
-  SiraKaydi _siraKaydi(Object? rid, Object no) {
+  SiraKaydi _siraKaydi(
+    Object? rid,
+    Object no, {
+    bool filtreAktif = false,
+    num? filtreTol,
+  }) {
     if (rid == null) {
       return (yukleniyor: false, hata: null, liste: const []);
     }
-    final a = ref.watch(_siraMaclariProvider((rid: rid, no: no)));
+    final a = ref.watch(
+      _siraMaclariProvider((
+        rid: rid,
+        no: no,
+        mod: filtreAktif ? _dnaFiltreMod : null,
+        tol: filtreAktif ? filtreTol : null,
+      )),
+    );
     return a.when(
       loading: () => (yukleniyor: true, hata: null, liste: null),
       error: (e, _) => (yukleniyor: false, hata: '$e', liste: null),
@@ -470,7 +616,11 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
       'medium' => sayac.medium,
       'surprise' => sayac.surprise,
       'insufficient' => sayac.insufficient,
-      _ => matches.length,
+      // Risk süzgeçleri (drawRisk/awaySurprise) GERÇEK eşleşme sayısını
+      // gösterir — eskiden bu dal matches.length'e düşüyordu ve "X Beraberlik
+      // Riski (15)" her maçı riskli gibi gösteriyordu (2026-08-10 bulgusu).
+      // Sayaç, çipin açtığı listeyle AYNI süzgeçten sayar; ayrışamazlar.
+      _ => filterMaster(matches, k).length,
     };
 
     return ListView(
@@ -544,6 +694,10 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
               onToggle: () => setState(
                 () => _expandedNo = _expandedNo == m['no'] ? null : m['no'],
               ),
+              // Mühürlü haftada sonucu hâlâ olmayan maç için kart "sonuç
+              // bekleniyor — ertelenmiş olabilir" der (2026-08-10, 53. Hafta
+              // 14. maç olayı: sessizlik kullanıcıya hata gibi görünüyordu).
+              muhurluHafta: meta['sealed'] == true,
             ),
       ],
     );
@@ -712,6 +866,9 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         selectedId: gosterilen,
         acik: _secAcik,
         onToggle: (k) => setState(() => _secAcik = _secAcik == k ? null : k),
+        // Açık liste, ekranın başka yerine dokununca kapanır (standart
+        // açılır liste davranışı — 2026-08-10 profesyonellik turu).
+        onDisariTiklandi: () => setState(() => _secAcik = null),
         navSezon: _navSezon,
         // Sezon seçilince hafta listesi açılır: resmî sitedeki akışla aynı,
         // sıradaki doğal adım hafta seçmektir.

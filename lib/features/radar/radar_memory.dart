@@ -51,6 +51,16 @@ class DnaDonemFiltresi extends StatelessWidget {
     required this.muhurluHafta,
     required this.muhurluRadar5Yok,
     this.sealedAt,
+    // Yakınlık filtresi (spec 2026-08-08; KAYNAKTA HENÜZ YOK — bkz.
+    // radar_screen_data.dart notu). filtreMod null = dönem modu.
+    this.filtreMod,
+    this.onFiltreModSec,
+    this.oynanmaTol = 0,
+    this.oranTol = 0,
+    this.onTolSec,
+    this.macPenceresi = 'allTime',
+    this.onMacPencereSec,
+    this.filtreYukleniyor = false,
   });
 
   final Map? positionDna;
@@ -59,6 +69,15 @@ class DnaDonemFiltresi extends StatelessWidget {
   final bool muhurluHafta;
   final bool muhurluRadar5Yok;
   final Object? sealedAt;
+
+  final String? filtreMod;
+  final ValueChanged<String?>? onFiltreModSec;
+  final num oynanmaTol;
+  final num oranTol;
+  final ValueChanged<num>? onTolSec;
+  final String macPenceresi;
+  final ValueChanged<String>? onMacPencereSec;
+  final bool filtreYukleniyor;
 
   @override
   Widget build(BuildContext context) {
@@ -90,38 +109,78 @@ class DnaDonemFiltresi extends StatelessWidget {
               for (final p in kDnaPeriods)
                 // ÇİP YALNIZ FİLTREDİR. Üzerinde "· %66.7" ve eğilim oku
                 // duruyordu; kullanıcı kararıyla kaldırıldı.
-                GestureDetector(
-                  onTap: () => onSelect(p.k),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: dnaPeriod == p.k
-                          ? AppColors.primary
-                          : AppColors.card,
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                      border: Border.all(
-                        color: dnaPeriod == p.k
-                            ? AppColors.primary
-                            : AppColors.border,
-                      ),
-                    ),
-                    child: Text(
-                      p.label,
-                      style: TextStyle(
-                        color: dnaPeriod == p.k
-                            ? AppColors.white
-                            : AppColors.textSoft,
-                        fontSize: 12,
-                        fontWeight: AppFont.heavy,
-                      ),
-                    ),
-                  ),
+                _cip(
+                  p.label,
+                  secili: filtreMod == null && dnaPeriod == p.k,
+                  onTap: () {
+                    onFiltreModSec?.call(null);
+                    onSelect(p.k);
+                  },
                 ),
+              // ÜST KATMAN MOD ÇİPLERİ (spec: dönemlerin YANINA eklenir).
+              // Mühürlü haftada GÖSTERİLMEZ: filtre canlı yeniden hesap
+              // demektir, mühürlü haftada backend de uygulamaz (kullanıcı
+              // kararı, 2026-08-10).
+              if (!muhurluHafta)
+                for (final p in kDnaFiltreModlari)
+                  _cip(
+                    p.label,
+                    secili: filtreMod == p.k,
+                    onTap: () => onFiltreModSec?.call(p.k),
+                  ),
             ],
           ),
+          if (filtreMod != null && !muhurluHafta) ...[
+            // ALT KATMAN 1 — yakınlık adımı. Kullanıcı seçer, otomatik
+            // genişleme yok (Radar 3 dili).
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  const Text(
+                    'Yakınlık:',
+                    style: TextStyle(
+                      color: AppColors.textSoft,
+                      fontSize: 11.5,
+                      fontWeight: AppFont.heavy,
+                    ),
+                  ),
+                  for (final t
+                      in filtreMod == 'oynanma'
+                          ? kOynanmaTolAdimlari
+                          : kOranTolAdimlari)
+                    _cip(
+                      tolEtiketi(filtreMod!, t),
+                      secili:
+                          t == (filtreMod == 'oynanma' ? oynanmaTol : oranTol),
+                      onTap: () => onTolSec?.call(t),
+                    ),
+                ],
+              ),
+            ),
+            // ALT KATMAN 2 — pencere. BİRİM MAÇTIR, HAFTA DEĞİL: "Son 5 maç"
+            // = süzgece uyan son 5 maç; 5 hafta değil (spec'in atlanmaması
+            // gereken noktası).
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final p in kDnaMacPencereleri)
+                    _cip(
+                      p.label,
+                      secili: macPenceresi == p.k,
+                      onTap: () => onMacPencereSec?.call(p.k),
+                    ),
+                ],
+              ),
+            ),
+            ..._filtreIpuclari(),
+          ],
           if (positionDna != null && positionDna!['hasData'] != true)
             _ipucu(
               '${positionDna!['note'] ?? 'Resmî geçmiş arşiv birikiyor — veri geldikçe sıra yüzdeleri görünür.'}',
@@ -135,6 +194,67 @@ class DnaDonemFiltresi extends StatelessWidget {
       ),
     );
   }
+
+  /// Filtre modunun dürüstlük satırları: kaç maçın verisi bilindiği AÇIKÇA
+  /// yazılır (eksik veri yüzdeye çevrilip gizlenmez — spec kararı 3).
+  List<Widget> _filtreIpuclari() {
+    final f = positionDna?['filtre'];
+    final pozisyonlar = f is Map ? f['positions'] : null;
+    if (pozisyonlar is! Map) {
+      return [
+        _ipucu(
+          filtreYukleniyor
+              ? 'Süzgeç hesaplanıyor…'
+              : 'Her sıra, güncel haftanın aynı sırasındaki maçın son kayıtlı '
+                    'değerine göre süzülür.',
+        ),
+      ];
+    }
+    num aday = 0;
+    num verili = 0;
+    num uyan = 0;
+    var guncelsiz = 0;
+    pozisyonlar.forEach((_, v) {
+      if (v is! Map) return;
+      aday += (v['aday'] as num?) ?? 0;
+      verili += (v['verili'] as num?) ?? 0;
+      uyan += (v['uyan'] as num?) ?? 0;
+      if (v['guncel'] == null) guncelsiz += 1;
+    });
+    return [
+      _ipucu(
+        'Her sıra, güncel haftanın aynı sırasındaki maçın son kayıtlı '
+        'değerine göre süzülür. '
+        '${filtreMod == 'oran' ? 'Oranı' : 'Oynanması'} bilinen geçmiş maç: '
+        '$verili/$aday · süzgeci geçen: $uyan.'
+        '${guncelsiz > 0 ? ' $guncelsiz sıranın güncel verisi yok — o sıralarda filtre uygulanamadı.' : ''}',
+      ),
+    ];
+  }
+
+  /// Dönem/mod/yakınlık çipi — hepsi aynı görsel dil.
+  Widget _cip(String etiket, {required bool secili, VoidCallback? onTap}) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: secili ? AppColors.primary : AppColors.card,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(
+              color: secili ? AppColors.primary : AppColors.border,
+            ),
+          ),
+          child: Text(
+            etiket,
+            style: TextStyle(
+              color: secili ? AppColors.white : AppColors.textSoft,
+              fontSize: 12,
+              fontWeight: AppFont.heavy,
+            ),
+          ),
+        ),
+      );
 
   static Widget _sarmal({required Widget child}) => Container(
     margin: const EdgeInsets.only(bottom: Spacing.sm),
@@ -171,6 +291,11 @@ class MemoryRow extends StatelessWidget {
     required this.kayit,
     required this.donemEtiketi,
     required this.limit,
+    this.filtreMod,
+    this.filtreSira,
+    this.filtreYukleniyor = false,
+    this.filtreHatasi = false,
+    this.bugunOran,
   });
 
   final Map item;
@@ -189,6 +314,28 @@ class MemoryRow extends StatelessWidget {
   final SiraKaydi? kayit;
   final String? donemEtiketi;
   final int? limit;
+
+  /// Yakınlık filtresi modu (null = dönem modu) ve bu SIRANIN filtre özeti
+  /// (backend `filtre.positions[no]`: guncel/aday/verili/uyan). Boş sonucun
+  /// SEBEBİNİ doğru yazmak için gerekir: "güncel veri yok" ile "yakın maç
+  /// yok" farklı şeylerdir; ikisini tek cümleye indirmek yanlış sebep yazar.
+  final String? filtreMod;
+  final Map? filtreSira;
+
+  /// Filtreli istek hâlâ uçuyorsa true — satır "verisi yok" İDDİA ETMEZ,
+  /// "hesaplanıyor" der (yanıt gelmeden yokluk iddiası yanlış bilgiydi).
+  final bool filtreYukleniyor;
+
+  /// Filtreli istek HATAYLA döndüyse true — "verisi yok" değil "sonuç
+  /// alınamadı" yazılır. Yaşandı: eski backend 400 dönünce ekran yokluk
+  /// iddia ediyordu; hata ile yokluk farklı şeylerdir.
+  final bool filtreHatasi;
+
+  /// Oran modunda maçın yanındaki şerit GÜNÜN GERÇEK 1/X/2 ORANIDIR
+  /// (kullanıcı isteği, 2026-08-10) — kaynak Radar 4'ün günlük verisi.
+  /// Doluysa oynanma şeridinin yerine geçer: iki birim yan yana basılmaz
+  /// (oynanma yüzdesi oran DEĞİLDİR — Radar 3/4 ayrımı burada da korunur).
+  final Map? bugunOran;
 
   @override
   Widget build(BuildContext context) {
@@ -242,11 +389,14 @@ class MemoryRow extends StatelessWidget {
                           ),
                         ),
                       ),
-                      // BUGÜNÜN oynanma yüzdesi — maçın YANINDA. Gün adı önde
-                      // durur, yoksa alttaki "Geçmiş N. sıra" satırıyla
-                      // karışır: biri BU MAÇA bu hafta ne oynandığını, öteki o
-                      // SIRADA geçmişte ne çıktığını söyler.
-                      if (bugunKaynaklar != null && !darEkran) ...[
+                      // BUGÜNÜN oynanma yüzdesi (ya da oran modunda GÜNÜN
+                      // ORANI) — maçın YANINDA. Gün adı önde durur, yoksa
+                      // alttaki "Geçmiş N. sıra" satırıyla karışır: biri BU
+                      // MAÇA bu haftayı, öteki o SIRADA geçmişi söyler.
+                      if (bugunOran != null && !darEkran) ...[
+                        const SizedBox(width: Spacing.md),
+                        _bugunOranSerit(),
+                      ] else if (bugunKaynaklar != null && !darEkran) ...[
                         const SizedBox(width: Spacing.md),
                         _bugunSerit(),
                       ],
@@ -261,7 +411,12 @@ class MemoryRow extends StatelessWidget {
                       ),
                     ],
                   ),
-                  if (bugunKaynaklar != null && darEkran)
+                  if (bugunOran != null && darEkran)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6, left: 34),
+                      child: _bugunOranSerit(sarmala: true),
+                    )
+                  else if (bugunKaynaklar != null && darEkran)
                     Padding(
                       padding: const EdgeInsets.only(top: 6, left: 34),
                       child: _bugunSerit(sarmala: true),
@@ -317,6 +472,15 @@ class MemoryRow extends StatelessWidget {
               child: Text(
                 muhurluRadar5Yok
                     ? 'Bu hafta için mühürlü Radar 5 kaydı yok.'
+                    : filtreMod != null
+                    ? (filtreYukleniyor
+                          ? 'Süzgeç hesaplanıyor…'
+                          : filtreHatasi
+                          ? 'Süzgeç sonucu alınamadı — tekrar deneyin.'
+                          : filtreSira?['guncel'] == null
+                          ? 'Bu maçın güncel ${filtreMod == 'oran' ? 'oran' : 'oynanma'} '
+                                'verisi yok — filtre uygulanamadı.'
+                          : 'Bu yakınlıkta geçmiş maç yok.')
                     : 'Bu dönemde geçmiş sonuç yok.',
                 style: const TextStyle(
                   color: AppColors.textMuted,
@@ -331,6 +495,7 @@ class MemoryRow extends StatelessWidget {
               kayit: kayit,
               donemEtiketi: donemEtiketi,
               limit: limit,
+              filtreli: filtreMod != null,
             ),
         ],
       ),
@@ -396,6 +561,80 @@ class MemoryRow extends StatelessWidget {
       ],
     ),
   );
+
+  /// Oran modunun şeridi: gün adı + günün gerçek 1/X/2 oranı. Oynanma
+  /// şeridiyle aynı görsel dil ama KAYNAK NOKTASI YOK — Radar 4 verisi tek
+  /// birincil kaynaktan gelir ve marka zaten hiçbir yerde adlandırılmaz.
+  /// Değeri olmayan seçenek tire alır; oran UYDURULMAZ.
+  Widget _bugunOranSerit({bool sarmala = false}) {
+    String bicim(Object? v) => v is num ? v.toStringAsFixed(2) : '–';
+    final degerler = <(String, Object?)>[
+      ('1', bugunOran?['home']),
+      ('X', bugunOran?['draw']),
+      ('2', bugunOran?['away']),
+    ];
+    final ogeler = <Widget>[
+      Text(
+        bugunGunKisa ?? 'Bugün',
+        style: const TextStyle(
+          color: AppColors.primary,
+          fontSize: 14,
+          fontWeight: AppFont.heavy,
+        ),
+      ),
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final (h, v) in degerler) ...[
+            if (h != '1') const SizedBox(width: 12),
+            Text(
+              h,
+              style: const TextStyle(
+                color: AppColors.textSoft,
+                fontSize: 14,
+                fontWeight: AppFont.heavy,
+              ),
+            ),
+            const SizedBox(width: 3),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceSoft,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Text(
+                bicim(v),
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 14,
+                  fontWeight: AppFont.heavy,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    ];
+
+    if (sarmala) {
+      return Wrap(
+        spacing: 6,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: ogeler,
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < ogeler.length; i++) ...[
+          if (i > 0) const SizedBox(width: 6),
+          ogeler[i],
+        ],
+      ],
+    );
+  }
 
   Widget _bugunSerit({bool sarmala = false}) {
     final ogeler = <Widget>[
@@ -496,11 +735,16 @@ class SiraGecmisListesi extends StatefulWidget {
     required this.kayit,
     this.donemEtiketi,
     this.limit,
+    this.filtreli = false,
   });
 
   final SiraKaydi? kayit;
   final String? donemEtiketi;
   final int? limit;
+
+  /// Yakınlık filtresi açıkken kapsam notunun kapanış cümlesi değişir:
+  /// "tüm haftalardan" demek filtreli ekranda YANLIŞ olurdu.
+  final bool filtreli;
 
   @override
   State<SiraGecmisListesi> createState() => _SiraGecmisListesiState();
@@ -613,7 +857,7 @@ class _SiraGecmisListesiState extends State<SiraGecmisListesi> {
               '${widget.donemEtiketi ?? 'Seçili dönem'} · ${liste.length} maç · '
               "liste ${enEski ?? 'kayıt başlangıcı'}'ndan başlar"
               '${kayitsiz > 0 ? ' · $kayitsiz maçta oynanma kaydı yok (–)' : ''}'
-              '\nÜstteki yüzde tüm haftalardan hesaplanır.',
+              '\n${widget.filtreli ? 'Üstteki yüzde yalnız süzgeci geçen maçlardan hesaplanır.' : 'Üstteki yüzde tüm haftalardan hesaplanır.'}',
             ),
         ],
       ),
@@ -829,6 +1073,22 @@ Map<Object, List<({Object kaynak, Map pct})>> bugunPctByNo(
       });
     }
     if (kaynaklar.isNotEmpty) out[m['no'] as Object] = kaynaklar;
+  }
+  return out;
+}
+
+/// Radar 5 satırı için "günün 1/X/2 oranı" haritası — Radar 4'ün günlük
+/// verisinden okunur, AYRI İSTEK YAPILMAZ (oynanmadaki bugunPctByNo ile aynı
+/// desen). Hücresi olmayan maç haritaya girmez; oran uydurulmaz.
+Map<Object, Map> bugunOranByNo(Map? dailyOdds, String? tarih) {
+  final out = <Object, Map>{};
+  for (final m in (dailyOdds?['matches'] as List?) ?? const []) {
+    final hucre = (m as Map)['cells'] is Map
+        ? (m['cells'] as Map)[tarih]
+        : null;
+    if (hucre is! Map) continue;
+    final oran = hucre['odds'];
+    if (oran is Map) out[m['no'] as Object] = oran;
   }
   return out;
 }

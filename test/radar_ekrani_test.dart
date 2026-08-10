@@ -769,6 +769,198 @@ void main() {
       expect(_tasiyici.sayi('/api/radar/daily-odds'), 1);
     });
 
+    // KARIŞIK SİNYALDE TEK İŞARET ÖNERİLMEZ (kullanıcı kararı, 2026-08-10):
+    // üç ihtimalli maçta "Ana: 1" basmak yanlış güven verir; motorun birleşik
+    // puanının en yüksek iki işareti ÇİFT olarak önerilir. Geri test
+    // (53. Hafta): tek işaret 4/12, çift ihtimal 9/12.
+    testWidgets('Karışık Sinyal maçında Ana yerine ÇİFT İHTİMAL önerilir', (
+      t,
+    ) async {
+      _mockUclar({
+        ...kVarsayilan(),
+        '/api/radar/current': {
+          ...kGuncel,
+          'matches': [
+            kMac(1, {
+              'master': {
+                'classification': 'medium_risk',
+                'classificationLabel': 'Karışık Sinyal',
+                'scores': {'home': 45, 'draw': 20, 'away': 35},
+              },
+            }),
+            kMac(2),
+          ],
+        },
+      });
+      await ekraniAc(t);
+      // En yüksek iki puan (ev 45 + dep 35) → kupon dilinde '1-2'.
+      expect(metin('Çift ihtimal: 1-2'), findsOneWidget);
+      // Güçlü adayda tek işaret DURUR; karışık sinyalin 'Ana' rozeti yok —
+      // ekranda tek 'Ana: 1' güçlü adayınki.
+      expect(metin('Ana: 1'), findsOneWidget);
+    });
+
+    // Skor verisi olmayan karışık sinyalde çift UYDURULMAZ — eski görünüm.
+    testWidgets('skorsuz Karışık Sinyalde çift uydurulmaz, Ana kalır', (
+      t,
+    ) async {
+      _mockUclar({
+        ...kVarsayilan(),
+        '/api/radar/current': {
+          ...kGuncel,
+          'matches': [
+            kMac(1, {
+              'master': {
+                'classification': 'medium_risk',
+                'classificationLabel': 'Karışık Sinyal',
+              },
+            }),
+          ],
+        },
+      });
+      await ekraniAc(t);
+      expect(metinIceren('Çift ihtimal'), findsNothing);
+      expect(metin('Ana: 1'), findsOneWidget);
+    });
+
+    // VERİ YOKKEN FAVORİ BASILMAZ (kullanıcı bildirimi, 2026-08-10: "ligler
+    // yeni başladı, neye göre favori?"): sezon başında tek puan kaynağı halkın
+    // oynanma yüzdesi olabiliyor; onu "Favori" diye sunmak yanıltıcıdır.
+    testWidgets('Analiz Hazır Değil (güncel) kartında tahmin ve favori '
+        'BASILMAZ', (t) async {
+      _mockUclar({
+        ...kVarsayilan(),
+        '/api/radar/current': {
+          ...kGuncel,
+          'matches': [
+            kMac(1, {
+              'master': {
+                'classification': 'insufficient_data',
+                'classificationLabel': 'Analiz Hazır Değil',
+              },
+            }),
+          ],
+        },
+      });
+      await ekraniAc(t);
+      expect(metinIceren('Tahmin üretilmedi: veri yetersiz'), findsOneWidget);
+      expect(metinIceren('Ana:'), findsNothing);
+      expect(metinIceren('Favori'), findsNothing);
+      // Olmayan tahminin GÜVENİ ve tek radarın UZLAŞMASI da basılmaz
+      // (2026-08-10 Master gözden geçirmesi) — kMac fikstürü confidence 72
+      // ve conflictScore 20 taşıdığı hâlde çipleri görünmemeli.
+      expect(metinIceren('Güven'), findsNothing);
+      expect(metinIceren('Uzlaşma'), findsNothing);
+    });
+
+    // SAYAÇ DÜRÜSTLÜĞÜ (2026-08-10 bulgusu): risk süzgeç çipleri eskiden
+    // körlemesine TOPLAM maç sayısını gösteriyordu ("X Beraberlik Riski (15)"
+    // — 15 maçın 15'i de riskli görünüyordu). Sayaç, çipin açtığı listeyle
+    // aynı süzgeçten saymalı.
+    testWidgets('risk süzgeç çipleri GERÇEK eşleşme sayısını gösterir', (
+      t,
+    ) async {
+      _mockUclar({
+        ...kVarsayilan(),
+        '/api/radar/current': {
+          ...kGuncel,
+          'matches': [
+            kMac(1, {
+              'master': {
+                'classification': 'medium_risk',
+                'classificationLabel': 'Karışık Sinyal',
+                'scores': {'home': 40, 'draw': 35, 'away': 25},
+              },
+            }),
+            kMac(2),
+          ],
+        },
+      });
+      await ekraniAc(t);
+      // 2 maçtan yalnız 1'i draw≥30 — çip (2) değil (1) yazmalı.
+      expect(metin('X Beraberlik Riski (1)'), findsOneWidget);
+      expect(metin('2 Dep. Sürprizi (0)'), findsOneWidget);
+    });
+
+    // Mühürlü/sonuçlu geçmişte tahmin GİZLENMEZ: o tahmin mühürlü kayıttır,
+    // sonradan saklamak geçmişi değiştirmek olur; karne de onu sayıyor.
+    testWidgets('sonuçlu geçmiş kartta Analiz Hazır Değil olsa da tahmin '
+        'görünür kalır', (t) async {
+      _mockUclar({
+        ...kVarsayilan(),
+        '/api/radar/current': {
+          ...kGuncel,
+          'matches': [
+            {
+              ...kMac(1, {
+                'master': {
+                  'classification': 'insufficient_data',
+                  'classificationLabel': 'Analiz Hazır Değil',
+                },
+              }),
+              'official': {
+                'result': '2',
+                'score': {'home': 0, 'away': 1},
+              },
+              'outcome': {'mainHit': false},
+            },
+          ],
+        },
+      });
+      await ekraniAc(t);
+      expect(metin('Ana: 1'), findsOneWidget);
+      expect(metinIceren('Ana tahmin tutmadı'), findsOneWidget);
+      expect(metinIceren('Tahmin üretilmedi'), findsNothing);
+    });
+
+    // ERTELENEN MAÇ GÖRÜNÜRLÜĞÜ (2026-08-10, 53. Hafta 14. maç olayı: Raków
+    // maçı ertelendi, sonuç kaynaktan hiç gelmeyecekti ve kart SESSİZDİ —
+    // kullanıcı "sonuçlar yansımamış" sandı).
+    testWidgets('mühürlü haftada sonuçsuz maç "sonuç bekleniyor" der', (
+      t,
+    ) async {
+      _mockUclar({
+        ...kVarsayilan(),
+        '/api/radar/current': {
+          ...kGuncel,
+          'sealed': true,
+          'matches': [kMac(1)],
+        },
+      });
+      await ekraniAc(t);
+      expect(metinIceren('Sonuç bekleniyor'), findsOneWidget);
+      expect(metinIceren('ertelenmiş olabilir'), findsOneWidget);
+    });
+
+    testWidgets('noter kararı skorsuz, atıflı ve tuttu-rozetisiz gösterilir', (
+      t,
+    ) async {
+      _mockUclar({
+        ...kVarsayilan(),
+        '/api/radar/current': {
+          ...kGuncel,
+          'sealed': true,
+          'matches': [
+            {
+              ...kMac(1),
+              'official': {
+                'result': '1',
+                'score': null,
+                'resultType': 'notary_decision',
+              },
+              'outcome': null,
+            },
+          ],
+        },
+      });
+      await ekraniAc(t);
+      expect(metinIceren('noter kararı: 1'), findsOneWidget);
+      expect(metinIceren('radar karnesine sayılmaz'), findsOneWidget);
+      // Maç oynanmadı: "tahmin tuttu/tutmadı" rozeti ve skorlu sonuç satırı yok.
+      expect(metinIceren('Ana tahmin'), findsNothing);
+      expect(metinIceren('Resmî sonuç'), findsNothing);
+    });
+
     // ALTIN KOPYA — refactor emniyet ağı. Ekrandaki TÜM metinler SIRASIYLA
     // kilitlenir; sessizce kaybolan bir rozet ya da yer değiştiren bir satır
     // da yakalanır. Kasıtlı değişiklikte liste güncellenir, nedeni commit
@@ -1493,6 +1685,39 @@ void main() {
       expect(okMetni(t, 'sezon-ok'), '▲');
     });
 
+    // LİSTE KENDİ DÜĞMESİNİN ALTINDA (kullanıcı bildirimi, 2026-08-10:
+    // "geçmiş haftalar solda çıkıyor" — sezon değiştirince açılan hafta
+    // listesi sol kenara, sezonun altına iniyordu).
+    testWidgets('hafta listesi KENDİ düğmesinin altında açılır, solda değil', (
+      t,
+    ) async {
+      await ekraniAc(t);
+      await t.tap(find.byKey(const Key('hafta-ok')), warnIfMissed: false);
+      await _tur(t);
+      final dugmeX = t.getTopLeft(metin('1. Hafta · Güncel').first).dx;
+      final ogeX = t.getTopLeft(metin('1. Hafta').first).dx;
+      expect(
+        (ogeX - dugmeX).abs(),
+        lessThan(40),
+        reason:
+            'liste ögesi hafta düğmesiyle aynı hizada olmalı — '
+            'sol kenara (sezonun altına) inmemeli',
+      );
+    });
+
+    // DIŞARI TIKLAYINCA KAPANIR (2026-08-10 profesyonellik turu): açılır
+    // liste yalnız düğmeyle değil, ekranın başka yerine dokununca da kapanır.
+    testWidgets('açık hafta listesi dışarı dokununca kapanır', (t) async {
+      await ekraniAc(t);
+      await t.tap(find.byKey(const Key('hafta-ok')), warnIfMissed: false);
+      await _tur(t);
+      expect(metin('1. Hafta'), findsOneWidget, reason: 'liste açık');
+      // Listenin DIŞINA (maç kartına) dokun.
+      await t.tap(metinIceren('Ev Takımı').first, warnIfMissed: false);
+      await _tur(t);
+      expect(metin('1. Hafta'), findsNothing, reason: 'liste kapandı');
+    });
+
     testWidgets('oklar CİHAZDA GÖRÜNEN karakterlerle çizilir (⌄/⌃ değil)', (
       t,
     ) async {
@@ -1853,6 +2078,325 @@ void main() {
       expect(ekranMetinleri(t).where(adlar.hasMatch), isEmpty);
     });
   });
+
+  // RADAR 5 YAKINLIK FİLTRESİ — spec: kaynak depo tasks/todo.md (2026-08-08).
+  // KAYNAKTA (RN) HENÜZ YOK: bu testler çeviri değil, spec'ten yazıldı.
+  // İki katman: üst = mod (Oynanma % / Oran), alt = yakınlık + MAÇ penceresi.
+  group('Radar 5 yakınlık filtresi (oynanma + oran)', () {
+    // Backend'in filtreli yanıt şekli (routes/radar.js filtre özeti):
+    // 1. sıra normal, 2. sıranın GÜNCEL verisi yok (filtre uygulanamaz),
+    // 3. sıra normal. Pencereler MAÇ birimindedir.
+    final dnaFiltreli = {
+      'hasData': true,
+      'filtre': {
+        'mod': 'oynanma',
+        'tol': 5,
+        'positions': {
+          '1': {
+            'guncel': {'1': 60, 'X': 25, '2': 15},
+            'aday': 6,
+            'verili': 5,
+            'uyan': 4,
+          },
+          '2': {'guncel': null, 'aday': 6, 'verili': 0, 'uyan': 0},
+          '3': {
+            'guncel': {'1': 50, 'X': 30, '2': 20},
+            'aday': 6,
+            'verili': 5,
+            'uyan': 3,
+          },
+        },
+      },
+      'dna': {
+        'positions': [
+          {
+            'position': 1,
+            'windows': {
+              'last5': {
+                'sample': 4,
+                'pct': {'1': 50, 'X': 50, '2': 0},
+              },
+              'last10': {
+                'sample': 4,
+                'pct': {'1': 75, 'X': 25, '2': 0},
+              },
+              'allTime': {
+                'sample': 6,
+                'pct': {'1': 40, 'X': 60, '2': 0},
+              },
+            },
+          },
+          {'position': 2, 'windows': <String, Object?>{}},
+          {
+            'position': 3,
+            'windows': {
+              'last5': {
+                'sample': 3,
+                'pct': {'1': 100, 'X': 0, '2': 0},
+              },
+            },
+          },
+        ],
+      },
+    };
+    final filtreliMaclar = {
+      'hasData': true,
+      'position': 1,
+      'count': 6,
+      'filtre': {'mod': 'oynanma', 'tol': 5, 'aday': 6, 'verili': 5, 'uyan': 4},
+      'matches': [
+        for (var i = 0; i < 6; i++)
+          {
+            'roundId': '${1526 - i}',
+            'week': '${52 - i}. Hafta',
+            'home': 'Ev$i',
+            'away': 'Dep$i',
+            'score': '1-0',
+            'result': '1',
+          },
+      ],
+    };
+
+    Future<void> filtreliRadar5(WidgetTester t) async {
+      _mockUclar({
+        ...kVarsayilan(),
+        '/api/radar/position-dna': dnaFiltreli,
+        '/api/radar/position-matches': filtreliMaclar,
+      });
+      await ekraniAc(t);
+      await sekme(t, 'Bülten DNA');
+    }
+
+    testWidgets('mod çipleri dönemlerin YANINDA; dokununca alt katman açılır '
+        've istek varsayılan toleransla gider', (t) async {
+      await filtreliRadar5(t);
+      expect(metin('Oynanma Yüzdesi'), findsOneWidget);
+      expect(metin('Oran'), findsOneWidget);
+      // Filtre kapalıyken alt katman yok, istek filtresiz.
+      expect(metin('Yakınlık:'), findsNothing);
+      expect(_tasiyici.sayi('oynanmaTol'), 0);
+
+      await t.tap(metin('Oynanma Yüzdesi'), warnIfMissed: false);
+      await _tur(t);
+      expect(metin('Yakınlık:'), findsOneWidget);
+      expect(metin('Birebir'), findsOneWidget);
+      for (final e in ['±3', '±5', '±10']) {
+        expect(metin(e), findsOneWidget);
+      }
+      // ALT KATMAN BİRİMİ MAÇTIR — etiketler "maç" der, "hafta" değil.
+      // 'Tümü' = süzgece uyan maçların tamamı (kullanıcı isteği, 2026-08-10).
+      for (final e in ['Son 5 maç', 'Son 10 maç', 'Son 15 maç', 'Tümü']) {
+        expect(metin(e), findsOneWidget);
+      }
+      // Mod seçilince süzgeç TEMİZ başlar: Birebir (tol=0) + Tümü.
+      expect(_tasiyici.sayi('oynanmaTol=0'), greaterThan(0));
+    });
+
+    testWidgets('tolerans değişince YENİ istek atılır (bayat sonuç kalmaz)', (
+      t,
+    ) async {
+      await filtreliRadar5(t);
+      await t.tap(metin('Oynanma Yüzdesi'), warnIfMissed: false);
+      await _tur(t);
+      expect(_tasiyici.sayi('oynanmaTol=10'), 0);
+      await t.tap(metin('±10'), warnIfMissed: false);
+      await _tur(t);
+      expect(_tasiyici.sayi('oynanmaTol=10'), greaterThan(0));
+
+      // MODA YENİDEN GİRİNCE Birebir + Tümü'ye döner — ±10 sessizce taşınmaz
+      // (kullanıcı kararı, 2026-08-10).
+      final onceki = _tasiyici.sayi('oynanmaTol=0');
+      await t.tap(metin('Oynanma Yüzdesi'), warnIfMissed: false);
+      await _tur(t);
+      expect(
+        _tasiyici.sayi('oynanmaTol=0'),
+        greaterThan(onceki),
+        reason: 'moda yeniden girişte Birebir istenmeli',
+      );
+    });
+
+    testWidgets(
+      'Oran modu kendi adımlarıyla gelir; oranTol parametresi gider',
+      (t) async {
+        await filtreliRadar5(t);
+        await t.tap(metin('Oran'), warnIfMissed: false);
+        await _tur(t);
+        // Oran adımları DAR ve birebir kabul eder (kullanıcı kararı
+        // 2026-08-10: birebir / ±0.02 / ±0.03).
+        for (final e in ['Birebir', '±0.02', '±0.03']) {
+          expect(metin(e), findsOneWidget);
+        }
+        // Varsayılan Birebir: istek oranTol=0 ile gider, ondalıklı adım
+        // istenmemiş olmalı ('oranTol=0.' hiçbir istekte geçmez).
+        expect(_tasiyici.sayi('oranTol=0'), greaterThan(0));
+        expect(_tasiyici.sayi('oranTol=0.'), 0);
+        await t.tap(metin('±0.03'), warnIfMissed: false);
+        await _tur(t);
+        expect(_tasiyici.sayi('oranTol=0.03'), greaterThan(0));
+      },
+    );
+
+    testWidgets('üstteki dağılım SEÇİLİ MAÇ PENCERESİNDEN okunur', (t) async {
+      await filtreliRadar5(t);
+      await t.tap(metin('Oynanma Yüzdesi'), warnIfMissed: false);
+      await _tur(t);
+      // Varsayılan pencere Tümü → allTime penceresi (%40).
+      expect(metinIceren('%40'), findsWidgets);
+      await t.tap(metin('Son 5 maç'), warnIfMissed: false);
+      await _tur(t);
+      // last5 penceresi (%50) — pencere değişimi dağılımı değiştirir.
+      expect(metinIceren('%50'), findsWidgets);
+      await t.tap(metin('Son 10 maç'), warnIfMissed: false);
+      await _tur(t);
+      // last10 penceresi (%75) — birim MAÇ: süzgece uyan son 10 maç.
+      expect(metinIceren('%75'), findsWidgets);
+    });
+
+    testWidgets('dürüstlük satırı: verisi bilinen maç sayısı ve güncel verisi '
+        'olmayan sıralar AÇIKÇA yazar', (t) async {
+      await filtreliRadar5(t);
+      await t.tap(metin('Oynanma Yüzdesi'), warnIfMissed: false);
+      await _tur(t);
+      expect(
+        metinIceren('Oynanması bilinen geçmiş maç: 10/18 · süzgeci geçen: 7.'),
+        findsOneWidget,
+      );
+      expect(metinIceren('1 sıranın güncel verisi yok'), findsOneWidget);
+      // Güncel verisi olmayan 2. sıranın satırında sebep DOĞRU yazar:
+      // "geçmiş sonuç yok" değil, "güncel veri yok".
+      expect(
+        metin('Bu maçın güncel oynanma verisi yok — filtre uygulanamadı.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('satır açılımının kapsam notu süzgeci ve filtreli kapanış '
+        'cümlesini söyler', (t) async {
+      await filtreliRadar5(t);
+      await t.tap(metin('Oynanma Yüzdesi'), warnIfMissed: false);
+      await _tur(t);
+      await t.tap(metinIceren('Ev Takımı').first, warnIfMissed: false);
+      await _tur(t);
+      await kapsamAc(t);
+      expect(metinIceren('Oynanma Birebir · Tümü'), findsWidgets);
+      expect(
+        metinIceren('yalnız süzgeci geçen maçlardan hesaplanır'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('dönem çipine dönünce filtre kapanır', (t) async {
+      await filtreliRadar5(t);
+      await t.tap(metin('Oynanma Yüzdesi'), warnIfMissed: false);
+      await _tur(t);
+      expect(metin('Yakınlık:'), findsOneWidget);
+      await t.tap(metin('Tüm Haftalar'), warnIfMissed: false);
+      await _tur(t);
+      expect(metin('Yakınlık:'), findsNothing);
+      expect(metin('Son 5 maç'), findsNothing);
+    });
+
+    // HATA ile YOKLUK farklı şeylerdir. Yaşandı (2026-08-10): eski backend
+    // yeni tolerans adımına 400 dönünce ekran "güncel verisi yok" İDDİA
+    // ediyordu — oysa veri vardı, istek başarısızdı.
+    testWidgets('süzgeç isteği başarısız olursa yokluk İDDİA EDİLMEZ', (
+      t,
+    ) async {
+      _mockUclar({
+        ...kVarsayilan(),
+        // position-dna BİLEREK tanımsız → 404 → sağlayıcı hata durumuna düşer.
+        '/api/radar/position-matches': filtreliMaclar,
+      });
+      await ekraniAc(t);
+      await sekme(t, 'Bülten DNA');
+      await t.tap(metin('Oynanma Yüzdesi'), warnIfMissed: false);
+      await _tur(t);
+      expect(metin('Süzgeç sonucu alınamadı — tekrar deneyin.'), findsWidgets);
+      expect(metinIceren('verisi yok'), findsNothing);
+    });
+
+    // ORAN MODUNDA GÜNÜN ORANI (kullanıcı isteği, 2026-08-10): maçın yanındaki
+    // şerit oynanma yüzdesi yerine Radar 4'ün günlük oranını gösterir.
+    testWidgets('Oran modunda maçın yanında GÜNÜN ORANI görünür; oynanma '
+        'şeridi basılmaz', (t) async {
+      _mockUclar({
+        ...kVarsayilan(),
+        '/api/radar/position-dna': dnaFiltreli,
+        '/api/radar/position-matches': filtreliMaclar,
+        '/api/radar/daily-played': {
+          'roundId': 1600,
+          'sources': ['k1'],
+          'days': [
+            {'date': '2026-08-03', 'weekday': 'Pazartesi', 'future': false},
+          ],
+          'matches': [
+            {
+              'no': 1,
+              'cells': {
+                '2026-08-03': {
+                  'bySource': {
+                    'k1': {
+                      'percentages': {'1': 72, 'X': 16, '2': 12},
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+        '/api/radar/daily-odds': {
+          'roundId': 1600,
+          'days': [
+            {'date': '2026-08-03', 'weekday': 'Pazartesi', 'future': false},
+          ],
+          'matches': [
+            {
+              'no': 1,
+              'cells': {
+                '2026-08-03': {
+                  'odds': {'home': 1.85, 'draw': 3.4, 'away': 4.2},
+                },
+              },
+            },
+          ],
+        },
+      });
+      await ekraniAc(t);
+      await sekme(t, 'Bülten DNA');
+      // Filtre kapalıyken oynanma şeridi var; oran isteği hiç atılmadı.
+      expect(metin('%72'), findsWidgets);
+      expect(_tasiyici.sayi('daily-odds'), 0);
+
+      await t.tap(metin('Oran'), warnIfMissed: false);
+      await _tur(t);
+      // Günün gerçek 1/X/2 oranı iki ondalıkla basılır…
+      expect(metin('1.85'), findsWidgets);
+      expect(metin('3.40'), findsWidgets);
+      expect(metin('4.20'), findsWidgets);
+      // …oynanma yüzdesi şeridi ise basılmaz: iki birim yan yana gösterilmez.
+      expect(metin('%72'), findsNothing);
+    });
+
+    testWidgets('MÜHÜRLÜ haftada mod çipleri GÖSTERİLMEZ (filtre canlı hesap '
+        'demektir)', (t) async {
+      _mockUclar({
+        ...kVarsayilan(),
+        '/api/radar/current': {...kGuncel, 'sealed': true},
+        '/api/radar/position-dna': {
+          'hasData': true,
+          'sealed': true,
+          'dna': {'positions': <Object?>[]},
+        },
+      });
+      await ekraniAc(t);
+      await sekme(t, 'Bülten DNA');
+      // Dönem çipleri (snapshot'lu mühürlü hafta) durur…
+      expect(metin('Tüm Haftalar'), findsOneWidget);
+      // …ama filtre modları YOK: mühürlü değer yeniden hesaplanmaz.
+      expect(metin('Oynanma Yüzdesi'), findsNothing);
+      expect(metin('Oran'), findsNothing);
+    });
+  });
 }
 
 // ─────────────────────────────── Altın kopya ───────────────────────────────
@@ -1881,8 +2425,11 @@ const List<String> kAltinKopya = <String>[
   '🟡 Karışık Sinyal (0)',
   '🔴 Sürpriz Sinyali (0)',
   '⚪ Analiz Hazır Değil (0)',
-  'X Beraberlik Riski (3)',
-  '2 Dep. Sürprizi (3)',
+  // (0)'lar GERÇEK sayıdır: altın fikstürde draw≥30 ya da dep-sürprizi koşulu
+  // sağlayan maç yok. Eski sayaç bu çiplere körlemesine toplam maç sayısını
+  // (3) yazıyordu — 2026-08-10 Master gözden geçirmesinde düzeltildi.
+  'X Beraberlik Riski (0)',
+  '2 Dep. Sürprizi (0)',
   'Sıralama',
   'Bülten sırası',
   'Riske göre',

@@ -37,6 +37,7 @@ class HaftaSecici extends StatelessWidget {
     this.navSezon,
     required this.onSelectSezon,
     required this.onSelectWeek,
+    this.onDisariTiklandi,
   });
 
   final List? weeks;
@@ -48,6 +49,11 @@ class HaftaSecici extends StatelessWidget {
   final ValueChanged<String> onSelectSezon;
   final ValueChanged<int> onSelectWeek;
 
+  /// Açık listeye DIŞARI tıklanınca kapanma (2026-08-10, "profesyonel
+  /// uygulama" turu): açılır liste yalnız düğmeyle değil, ekranın başka
+  /// yerine dokununca da kapanmalı — standart açılır liste davranışı.
+  final VoidCallback? onDisariTiklandi;
+
   @override
   Widget build(BuildContext context) {
     final v = haftaSeciciVerisi(
@@ -58,13 +64,27 @@ class HaftaSecici extends StatelessWidget {
     );
     if (v.liste.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    // LİSTE KENDİ DÜĞMESİNİN ALTINDA AÇILIR (kullanıcı bildirimi, 2026-08-10:
+    // "geçmiş haftalar solda çıkıyor, güncel haftanın altında çıkmalı").
+    // Eskiden iki liste de satırın SOL kenarına iniyordu; sezon değiştirince
+    // açılan HAFTA listesi sezonun listesi gibi görünüyordu. Her düğme kendi
+    // sütununda: listesi tam altına iner, dar ekranda Wrap alt satıra taşır.
+    return TapRegion(
+      onTapOutside: (_) {
+        if (acik != null) onDisariTiklandi?.call();
+      },
+      child: _govde(v),
+    );
+  }
+
+  Widget _govde(HaftaSeciciVerisi v) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // SEZON — tek sezon olsa bile AÇILIR kalır (üstteki not).
             Semantics(
@@ -77,6 +97,25 @@ class HaftaSecici extends StatelessWidget {
                 onTap: () => onToggle('sezon'),
               ),
             ),
+            if (acik == 'sezon')
+              _liste(
+                kaydirmali: false,
+                children: [
+                  for (final s in v.sezonlar)
+                    _oge(
+                      metin: s.ad,
+                      meta: '',
+                      secili: s.y == v.seciliSezon,
+                      onTap: () => onSelectSezon(s.y),
+                    ),
+                ],
+              ),
+          ],
+        ),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Semantics(
               button: true,
               label: 'Hafta seç, şu an ${v.haftaAdi ?? 'seçili değil'}',
@@ -88,38 +127,25 @@ class HaftaSecici extends StatelessWidget {
                 onTap: () => onToggle('hafta'),
               ),
             ),
+            if (acik == 'hafta')
+              _liste(
+                kaydirmali: true,
+                children: [
+                  for (final w in v.liste)
+                    _oge(
+                      metin: w.ad,
+                      // Sağdaki işaret: güncel mi, mühürlü mü. Mühür "sonradan
+                      // değişmez" güvencesidir, gizlenmez.
+                      meta: w.guncel ? 'Güncel' : (w.kilitli ? '🔏' : ''),
+                      secili:
+                          selectedId != null &&
+                          w.roundId == num.tryParse('$selectedId'),
+                      onTap: () => onSelectWeek(w.roundId),
+                    ),
+                ],
+              ),
           ],
         ),
-        if (acik == 'sezon')
-          _liste(
-            kaydirmali: false,
-            children: [
-              for (final s in v.sezonlar)
-                _oge(
-                  metin: s.ad,
-                  meta: '',
-                  secili: s.y == v.seciliSezon,
-                  onTap: () => onSelectSezon(s.y),
-                ),
-            ],
-          ),
-        if (acik == 'hafta')
-          _liste(
-            kaydirmali: true,
-            children: [
-              for (final w in v.liste)
-                _oge(
-                  metin: w.ad,
-                  // Sağdaki işaret: güncel mi, mühürlü mü. Mühür "sonradan
-                  // değişmez" güvencesidir, gizlenmez.
-                  meta: w.guncel ? 'Güncel' : (w.kilitli ? '🔏' : ''),
-                  secili:
-                      selectedId != null &&
-                      w.roundId == num.tryParse('$selectedId'),
-                  onTap: () => onSelectWeek(w.roundId),
-                ),
-            ],
-          ),
       ],
     );
   }

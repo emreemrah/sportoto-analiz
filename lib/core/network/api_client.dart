@@ -256,18 +256,41 @@ class ApiClient {
 
   /// roundId = GÖRÜNTÜLENEN hafta. Her hafta yalnız kendisinden önce bilinen
   /// resmî sonuçları görür; verilmezse güncel hafta varsayılır.
-  Future<dynamic> radarPositionDna([Object? roundId]) => req(
-    '/api/radar/position-dna${roundId != null ? '?roundId=${_enc(roundId)}' : ''}',
-  );
+  ///
+  /// oynanmaTol / oranTol: Radar 5 yakınlık filtresi (backend spec 2026-08-08).
+  /// İkisi birden verilmez — backend 400 döner; üst katman tek modludur.
+  Future<dynamic> radarPositionDna({
+    Object? roundId,
+    Object? oynanmaTol,
+    Object? oranTol,
+  }) {
+    final q = [
+      if (roundId != null) 'roundId=${_enc(roundId)}',
+      if (oynanmaTol != null) 'oynanmaTol=${_enc(oynanmaTol)}',
+      if (oranTol != null) 'oranTol=${_enc(oranTol)}',
+    ].join('&');
+    return req('/api/radar/position-dna${q.isEmpty ? '' : '?$q'}');
+  }
 
   /// Bir SIRANIN geçmiş maçları (Radar 5 satır açılımı) — "%54.5 hangi
   /// maçlardan geliyor?". Ayrı uç: 15 sıranın listesini birden taşımak DNA
   /// yanıtını 12 KB'dan 92 KB'a çıkarıyordu, oysa tek seferde tek sıra açılır.
-  Future<dynamic> radarPositionMatches(Object position, [Object? roundId]) =>
-      req(
-        '/api/radar/position-matches?position=${_enc(position)}'
-        '${roundId != null ? '&roundId=${_enc(roundId)}' : ''}',
-      );
+  /// Filtre parametreleri /position-dna İLE AYNI verilmeli — liste ile
+  /// dağılım aynı süzgeci kullanmazsa ekrandaki sayı doğrulanamaz.
+  Future<dynamic> radarPositionMatches(
+    Object position, {
+    Object? roundId,
+    Object? oynanmaTol,
+    Object? oranTol,
+  }) {
+    final q = [
+      'position=${_enc(position)}',
+      if (roundId != null) 'roundId=${_enc(roundId)}',
+      if (oynanmaTol != null) 'oynanmaTol=${_enc(oynanmaTol)}',
+      if (oranTol != null) 'oranTol=${_enc(oranTol)}',
+    ].join('&');
+    return req('/api/radar/position-matches?$q');
+  }
 
   Future<dynamic> radarHistoryArchive() => req('/api/radar/history-archive');
 

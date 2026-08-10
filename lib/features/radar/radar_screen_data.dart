@@ -33,6 +33,50 @@ final Map<String, String> kDnaPeriodLabels = {
   for (final p in kDnaPeriods) p.k: p.label,
 };
 
+// ── RADAR 5 YAKINLIK FİLTRESİ (backend spec, 2026-08-08) ────────────────────
+// KAYNAKTA (RN) HENÜZ YOK: bu filtre kaynak deponun tasks/todo.md spec'inden
+// uygulanır; RN ekranı henüz uygulamadı. Spec'in İKİ KATMANI:
+//   üst katman = mod (dönem çiplerinin yanına Oynanma % · Oran eklenir),
+//   alt katman = MAÇ penceresi (Son 5/10/15 maç — birim HAFTA DEĞİL, maçtır).
+// Ek olarak yakınlık adımı kullanıcı seçimidir (Radar 3 dili, otomatik
+// genişleme yok): oynanma birebir/±3/±5/±10, oran ±0.10/±0.25/±0.50.
+
+const List<DnaPeriod> kDnaFiltreModlari = [
+  // Etiket "Oynanma Yüzdesi" (kullanıcı kararı, 2026-08-10) — "%" kısaltması
+  // yeterince açık bulunmadı; "Oran" olduğu gibi kaldı.
+  DnaPeriod('oynanma', 'Oynanma Yüzdesi'),
+  DnaPeriod('oran', 'Oran'),
+];
+
+/// Alt katman pencereleri — anahtarlar backend `windows` alanıyla aynı;
+/// etiketler MAÇ der, hafta değil (spec'in "BİRİM FARKI" uyarısı).
+/// SIRA dönem çipleriyle aynı dildedir: önce Tümü, sonra Son 5/10/15
+/// (kullanıcı kararı, 2026-08-10 — "Tümü, Son 5, Son 10 gibi sırası olsun").
+/// 'Tümü' kDonemMacSayisi'nde anahtarsız → satır açılımında liste kesilmez.
+const List<DnaPeriod> kDnaMacPencereleri = [
+  DnaPeriod('allTime', 'Tümü'),
+  DnaPeriod('last5', 'Son 5 maç'),
+  DnaPeriod('last10', 'Son 10 maç'),
+  DnaPeriod('last15', 'Son 15 maç'),
+];
+
+final Map<String, String> kDnaMacPencereLabels = {
+  for (final p in kDnaMacPencereleri) p.k: p.label,
+};
+
+const List<num> kOynanmaTolAdimlari = [0, 3, 5, 10];
+// Oran adımları DAR: birebir / ±0.02 / ±0.03 (kullanıcı kararı, 2026-08-10 —
+// önceki ±0.10/±0.25/±0.50 "aynı maçı" aramak için fazla genişti).
+const List<num> kOranTolAdimlari = [0, 0.02, 0.03];
+
+/// Tolerans çip etiketi: 0 her iki modda da "Birebir"dir; oran adımları iki
+/// ondalıkla, oynanma adımları tam sayıyla yazılır.
+String tolEtiketi(String mod, num tol) {
+  if (tol == 0) return 'Birebir';
+  if (mod == 'oynanma') return '±${tol.toInt()}';
+  return '±${tol.toStringAsFixed(2)}';
+}
+
 /// 2026 → "2025/2026 Sezonu"; "2025/2026" → "2025/2026 Sezonu"; boşsa ''.
 String sezonAdiUzun(Object? y) {
   final s = '${y ?? ''}'.trim();
@@ -181,6 +225,31 @@ const List<MasterFilter> kMasterFilters = [
   MasterFilter('drawRisk', 'X Beraberlik Riski'),
   MasterFilter('awaySurprise', '2 Dep. Sürprizi'),
 ];
+
+/// KARIŞIK SİNYAL maçında önerilen ÇİFT ihtimal (kullanıcı kararı,
+/// 2026-08-10): üç ihtimalli maçta tek işaret basmak yanlış güven verir;
+/// motorun birleşik puanının (master.scores) en yüksek İKİ işareti kupon
+/// dilindeki 1-X-2 sırasıyla önerilir ('1-X', '1-2', 'X-2').
+/// Skorlar eksikse null — çift UYDURULMAZ, kart eski görünümünde kalır.
+/// Geri test (53. Hafta, mühürlü kayıtlar): tek işaret 4/12 tutmuştu,
+/// çift ihtimal 9/12 tutardı.
+String? ciftIhtimal(Map? master) {
+  final s = master?['scores'];
+  if (s is! Map) return null;
+  num? d(Object? v) => v is num ? v : num.tryParse('$v');
+  final puan = {'1': d(s['home']), 'X': d(s['draw']), '2': d(s['away'])};
+  if (puan.values.any((v) => v == null)) return null;
+  const sira = ['1', 'X', '2'];
+  // Eşitlikte işaret sırası kazanır — seçim deterministik kalmalı.
+  final secim = [...sira]
+    ..sort((a, b) {
+      final f = puan[b]!.compareTo(puan[a]!);
+      return f != 0 ? f : sira.indexOf(a).compareTo(sira.indexOf(b));
+    });
+  final cift = secim.take(2).toList()
+    ..sort((a, b) => sira.indexOf(a).compareTo(sira.indexOf(b)));
+  return cift.join('-');
+}
 
 /// Yüzdeleri sade TAM SAYIya yuvarla ve toplamı 100'e sabitle (en büyük kalan
 /// yöntemi) — "1 %44 · X %37 · 2 %19" gibi temiz görünüm. Toplamı 100 tutmak

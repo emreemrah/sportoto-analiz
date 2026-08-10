@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/tokens.dart';
+import 'radar_screen_data.dart';
 
 typedef ClassMeta = ({String label, Color color, Color soft, String icon});
 
@@ -162,11 +163,16 @@ class MasterMatchCard extends StatelessWidget {
     required this.item,
     this.expanded = false,
     this.onToggle,
+    this.muhurluHafta = false,
   });
 
   final Map item;
   final bool expanded;
   final VoidCallback? onToggle;
+
+  /// Mühürlü haftada sonucu olmayan maç SESSİZ bırakılmaz: "sonuç bekleniyor —
+  /// ertelenmiş olabilir" yazılır (2026-08-10, 53. Hafta 14. maç olayı).
+  final bool muhurluHafta;
 
   @override
   Widget build(BuildContext context) {
@@ -177,6 +183,11 @@ class MasterMatchCard extends StatelessWidget {
     final riskReasons = (m['riskReasons'] as List?) ?? const [];
     final topReasons = (m['topReasons'] as List?) ?? const [];
     final surpriz = m['classification'] == 'surprise_candidate';
+    // KARIŞIK SİNYALDE TEK İŞARET ÖNERİLMEZ (kullanıcı kararı, 2026-08-10):
+    // sinyal karışıksa "Ana: 1" basmak yanlış güven verir. Motorun birleşik
+    // puanının en yüksek iki işareti ÇİFT olarak önerilir; skor yoksa çift
+    // uydurulmaz, tek işaret görünümü kalır.
+    final cift = m['classification'] == 'medium_risk' ? ciftIhtimal(m) : null;
     final reasons = [
       if (surpriz) ...riskReasons,
       ...topReasons,
@@ -191,6 +202,16 @@ class MasterMatchCard extends StatelessWidget {
     final official = item['official'] as Map?;
     final outcome = item['outcome'] as Map?;
     final missing = (m['missingData'] as List?) ?? const [];
+
+    // VERİ YOKKEN FAVORİ BASILMAZ (kullanıcı bildirimi, 2026-08-10: "ligler
+    // yeni başladı, neye göre favori?"). Sezon başında çoğu maçın tek puan
+    // kaynağı halkın oynanma yüzdesidir; onu "Favori %88" diye sunmak halk
+    // parasını analiz gibi gösterir (oynanma yüzdesi oran DEĞİLDİR). Halk
+    // yüklenmesi alttaki Radar 3 maddesinde kendi atfıyla zaten yazar.
+    // MÜHÜRLÜ/SONUÇLU geçmiş kartlara DOKUNULMAZ: oradaki tahmin mühürlü
+    // kayıttır; sonradan gizlemek geçmişi değiştirmek olur.
+    final veriYetersiz =
+        m['classification'] == 'insufficient_data' && official == null;
 
     return GestureDetector(
       onTap: onToggle,
@@ -289,7 +310,19 @@ class MasterMatchCard extends StatelessWidget {
             ),
 
             // ── Tahmin satırı ──
-            if (m['mainPrediction'] != null ||
+            if (veriYetersiz)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  '— Tahmin üretilmedi: veri yetersiz.',
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 11.5,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              )
+            else if (m['mainPrediction'] != null ||
                 m['alternativePrediction'] != null ||
                 m['favorite'] != null)
               Padding(
@@ -299,10 +332,16 @@ class MasterMatchCard extends StatelessWidget {
                   runSpacing: 6,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    if (m['mainPrediction'] != null)
-                      _pill('Ana: ${m['mainPrediction']}', dolu: true),
-                    if (m['alternativePrediction'] != null)
-                      _pill('Alternatif: ${m['alternativePrediction']}'),
+                    if (cift != null)
+                      // Alternatif rozeti de basılmaz: çift zaten ikinci
+                      // işareti kapsıyor, ikisi birden gürültü olurdu.
+                      _pill('Çift ihtimal: $cift', dolu: true)
+                    else ...[
+                      if (m['mainPrediction'] != null)
+                        _pill('Ana: ${m['mainPrediction']}', dolu: true),
+                      if (m['alternativePrediction'] != null)
+                        _pill('Alternatif: ${m['alternativePrediction']}'),
+                    ],
                     if (m['favorite'] is Map)
                       Text(
                         'Favori ${(m['favorite'] as Map)['symbol']} · '
@@ -340,13 +379,17 @@ class MasterMatchCard extends StatelessWidget {
                         ? AppColors.warning
                         : AppColors.success,
                   ),
-                  if (m['confidence'] != null)
+                  // TAHMİN ÜRETİLMEYEN kartta "Güven %95" ve "Uzlaşma %100"
+                  // basılmaz (2026-08-10 bulgusu): güven, olmayan tahminin
+                  // güveni olamaz; tek radar kendi kendisiyle "uzlaşamaz"
+                  // (çatışma puanı en az iki yön veren radar ister).
+                  if (m['confidence'] != null && !veriYetersiz)
                     _MetaChip(label: 'Güven', value: '%${m['confidence']}'),
                   _MetaChip(
                     label: 'Radar',
                     value: '${m['activeRadarCount'] ?? 0}/5',
                   ),
-                  if (consensus != null)
+                  if (consensus != null && !veriYetersiz)
                     _MetaChip(
                       label: 'Uzlaşma',
                       value: '%$consensus',
@@ -359,7 +402,40 @@ class MasterMatchCard extends StatelessWidget {
             ),
 
             // ── Resmî sonuç (geçmiş hafta) ──
-            if (official != null)
+            // NOTER KARARI (ertelenen maç): işaret açıkça yazılır ama skor ve
+            // "tahmin tuttu" rozeti YOKTUR — maç oynanmadı; kupon kuralı
+            // gereği işaret geçerli, radar karnesine sayılmaz (2026-08-10).
+            if (official != null && official['resultType'] == 'notary_decision')
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  '🏛 Ertelendi — noter kararı: ${official['result']} · '
+                  'radar karnesine sayılmaz.',
+                  style: const TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 11.5,
+                    fontWeight: AppFont.heavy,
+                  ),
+                ),
+              )
+            else if (official == null && muhurluHafta)
+              // Mühürlü hafta bitti ama sonuç hâlâ yok: sessizlik hata gibi
+              // görünür. Dürüst durum: kaynakta sonuç yok — büyük ihtimalle
+              // ertelendi; noter kararı girilince burada görünecek.
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  '— Sonuç bekleniyor: kaynakta resmî sonuç yok — maç '
+                  'ertelenmiş olabilir. Noter kararı açıklanınca burada '
+                  'görünecek.',
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 11.5,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              )
+            else if (official != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Wrap(
