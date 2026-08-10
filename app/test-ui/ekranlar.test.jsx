@@ -196,8 +196,8 @@ describe('Geçmiş hafta — resmî yazım ve sezon seçimi', () => {
     // hemen basılırsa navRounds boş olur ve dokunuş hiçbir şey yapmaz.
     await screen.findByText(/Sezonu/);
     fireEvent.press(screen.getByText('‹'));
-    // İkramiye bölümü gelince LİSTE görünümüne geç (varsayılan Tablo).
-    fireEvent.press(await screen.findByText('Liste'));
+    // İkramiye bölümü artık TEK görünüm (resmî Liste yazımı) ve listenin
+    // BAŞINDA — görünüm değiştirme adımı kalktı (2026-08-10).
   };
 
   test('sezon açılır seçimi var ve resmî yazımda', async () => {

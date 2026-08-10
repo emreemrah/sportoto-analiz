@@ -4,7 +4,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { api } from '../api';
 import { colors, spacing, radius, shadow } from '../theme';
 import { matchDate } from '../utils';
-import { getPref, setPref } from '../prefs';
+import { getPref } from '../prefs';
 import { pickHits } from '../liveLogic';
 import { getRankedCoupon, finalVersion } from '../coupon/store';
 import { toOfficial } from '../couponConfig';
@@ -53,11 +53,6 @@ const isStarted = (m) => m.status === 'finished' || (m.date ? new Date(m.date).g
 
 // Türkçe biçim (Intl'siz): 30578.23 -> ₺30.578,23 · 412124 -> 412.124
 const group = (s) => String(s).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-const fmtTL = (n) => {
-  if (n == null) return '–';
-  const [int, dec] = Number(n).toFixed(2).split('.');
-  return `₺${group(int)},${dec}`;
-};
 const fmtCount = (n) => (n == null ? '–' : group(n));
 // "2026" → "2025/2026 Sezonu" (resmî listedeki yazım).
 const sezonAdi = (y) => (Number.isFinite(Number(y)) ? `${Number(y) - 1}/${Number(y)} Sezonu` : String(y || ''));
@@ -94,7 +89,6 @@ export default function BulletinScreen({ navigation }) {
   const [histChecking, setHistChecking] = useState(false);      // "Resmi sonuçlar kontrol ediliyor"
   const [histUpdateMsg, setHistUpdateMsg] = useState(null);      // null | 'updated' | 'noNew'
   const [corrections, setCorrections] = useState([]);           // oturum-içi resmi sonuç DÜZELTMELERİ
-  const [prizeView, setPrizeView] = useState(getPref('prizeView'));       // list|table|card
   // Geçmiş hafta üst sayaç kutuları + filtre çipleri KALDIRILDI (kullanıcı isteği);
   // liste bülten sırasında (veya kayıtlı sıralama tercihinde) akar.
   const [histSort, setHistSort] = useState(getPref('histSort'));          // bulletin|resolvedTop|waitingBottom
@@ -539,7 +533,11 @@ export default function BulletinScreen({ navigation }) {
     );
   };
 
-  // İkramiye & bilen kişi — YALNIZ en altta. 15/15 gelmeden gösterilmez.
+  // İkramiye & bilen kişi — 15/15 gelmeden İÇERİK gösterilmez.
+  // DEĞİŞİKLİK (2026-08-10, kullanıcı isteği; Flutter ile eş düzen): bölüm
+  // geçmiş listenin EN ÜSTÜNDE ve TEK görünüm — resmî Liste yazımı
+  // ("9 ADET 4.035.942,42 ₺"). Tablo/Kart görünümleri ve prizeView tercihi
+  // kaldırıldı: bölüm üstteyken kart ızgarası maç listesini aşağı itiyordu.
   const PrizeSection = (
     <View style={styles.prizeBox}>
       <Text style={styles.prizeTitle}>İkramiye & Bilen Kişiler</Text>
@@ -553,50 +551,14 @@ export default function BulletinScreen({ navigation }) {
         <Text style={styles.prizeEmpty}>15/15 resmi sonuç geldi.{'\n'}12/13/14/15 bilen kişi ve ikramiye bilgileri bekleniyor.</Text>
       ) : (
         <>
-          <View style={styles.prizeViewRow}>
-            {[{ k: 'list', l: 'Liste' }, { k: 'table', l: 'Tablo' }, { k: 'card', l: 'Kart' }].map((v) => (
-              <TouchableOpacity key={v.k} onPress={() => { setPrizeView(v.k); setPref('prizeView', v.k); }} style={[styles.pvChip, prizeView === v.k && styles.pvChipOn]}>
-                <Text style={[styles.pvTxt, prizeView === v.k && styles.pvTxtOn]}>{v.l}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          {prizeView === 'table' ? (
-            <>
-              <View style={[styles.prizeRow, styles.prizeHead]}>
-                <Text style={[styles.prizeHit, styles.prizeHeadTxt]}>Derece</Text>
-                <Text style={[styles.prizeCount, styles.prizeHeadTxt]}>Kişi</Text>
-                <Text style={[styles.prizeAmt, styles.prizeHeadTxt]}>İkramiye</Text>
-              </View>
-              {hist.prize.tiers.map((t) => (
-                <View key={t.hit} style={styles.prizeRow}>
-                  <Text style={styles.prizeHit}>{t.hit}</Text>
-                  <Text style={styles.prizeCount}>{fmtCount(t.count)}</Text>
-                  <Text style={[styles.prizeAmt, t.count === 0 && styles.prizeRoll]}>{t.count === 0 ? 'Devretti' : fmtTL(t.prize)}</Text>
-                </View>
-              ))}
-            </>
-          ) : prizeView === 'card' ? (
-            <View style={styles.prizeCards}>
-              {hist.prize.tiers.map((t) => (
-                <View key={t.hit} style={styles.prizeCard}>
-                  <Text style={styles.pcHit}>{t.hit} Bilen</Text>
-                  <Text style={styles.pcCount}>{fmtCount(t.count)} kişi</Text>
-                  <Text style={[styles.pcAmt, t.count === 0 && styles.prizeRoll]}>{t.count === 0 ? 'Devretti' : fmtTL(t.prize)}</Text>
-                </View>
-              ))}
+          {/* LİSTE — RESMÎ yazımda: "9 ADET 4.035.942,42 ₺". */}
+          {hist.prize.tiers.map((t) => (
+            <View key={t.hit} style={styles.prizeRow}>
+              <Text style={styles.prizeHit}>{t.hit} Bilen</Text>
+              <Text style={styles.prizeCount}>{fmtCount(t.count)} ADET</Text>
+              <Text style={[styles.prizeAmt, t.count === 0 && styles.prizeRoll]}>{t.count === 0 ? 'Devretti' : fmtTLResmi(t.prize)}</Text>
             </View>
-          ) : (
-            // LİSTE görünümü RESMÎ yazımda: "9 ADET 4.035.942,42 ₺".
-            // (Tablo ve Kart görünümleri kendi düzenlerinde bırakıldı —
-            //  değiştirilen yalnız paylaşılan görüntüdeki yer.)
-            hist.prize.tiers.map((t) => (
-              <View key={t.hit} style={styles.prizeRow}>
-                <Text style={styles.prizeHit}>{t.hit} Bilen</Text>
-                <Text style={styles.prizeCount}>{fmtCount(t.count)} ADET</Text>
-                <Text style={[styles.prizeAmt, t.count === 0 && styles.prizeRoll]}>{t.count === 0 ? 'Devretti' : fmtTLResmi(t.prize)}</Text>
-              </View>
-            ))
-          )}
+          ))}
           {/* KAPANIŞ ve AÇIKLAMALAR — resmî listede etiketli satır olarak
               duruyor, bizde eksikti. Veri yoksa satır ÇİZİLMEZ (uydurulmaz). */}
           {kapanisResmi(hist.prize.closeDate || selMeta?.closeDate) ? (
@@ -676,6 +638,8 @@ export default function BulletinScreen({ navigation }) {
     // Güncel bültenle BİREBİR AYNI sade başlık: yalnız skor renk açıklaması.
     const HistHeader = (
       <View>
+        {/* İkramiye & bilen kişi EN ÜSTTE (2026-08-10; Flutter ile eş düzen). */}
+        {PrizeSection}
         <ScoreLegend />
 
         {histChecking && (
@@ -696,7 +660,6 @@ export default function BulletinScreen({ navigation }) {
         renderItem={renderHistoryItem}
         contentContainerStyle={styles.listPad}
         ListHeaderComponent={HistHeader}
-        ListFooterComponent={PrizeSection}
         ListEmptyComponent={<Text style={styles.hEmpty}>Bu haftanın maç listesi bulunamadı.</Text>}
         refreshControl={<RefreshControl refreshing={histChecking} onRefresh={() => checkOfficial(effectiveId)} tintColor={colors.primary} />}
       />
@@ -909,7 +872,6 @@ const styles = StyleSheet.create({
   hPickSym: { color: colors.text, fontWeight: '900' },
   hSep: { color: colors.border, fontSize: 12 },
 
-  // İkramiye görünüm seçici + tablo/kart
   // SEZON FİLTRESİ — bir kontrol gibi görünmeli: çerçeve, zemin, ok.
   sezonChip: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
@@ -930,18 +892,6 @@ const styles = StyleSheet.create({
   sezonOgeTxt: { color: colors.textSoft, fontSize: 13, fontWeight: '700' },
   sezonOgeTxtSecili: { color: colors.primary, fontWeight: '900' },
   prizeMeta: { flex: 1, textAlign: 'right', color: colors.textSoft, fontSize: 12, fontWeight: '700' },
-  prizeViewRow: { flexDirection: 'row', gap: 6, marginBottom: 10 },
-  pvChip: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: radius.sm, backgroundColor: colors.cardAlt },
-  pvChipOn: { backgroundColor: colors.primary },
-  pvTxt: { color: colors.textSoft, fontSize: 11.5, fontWeight: '800' },
-  pvTxtOn: { color: colors.white },
-  prizeHead: { borderTopWidth: 0 },
-  prizeHeadTxt: { color: colors.textMuted, fontWeight: '900', fontSize: 11 },
-  prizeCards: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  prizeCard: { width: '48%', backgroundColor: colors.surfaceSoft, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: 10 },
-  pcHit: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  pcCount: { color: colors.textMuted, fontSize: 11.5, fontWeight: '700', marginTop: 2 },
-  pcAmt: { color: colors.green, fontSize: 13, fontWeight: '800', marginTop: 2 },
 
   // Yenile/düzeltme kutusu (bottom sheet) + toast
   sheetWrap: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end' },
@@ -986,7 +936,8 @@ const styles = StyleSheet.create({
   resEmptyTxt: { color: colors.textMuted, fontSize: 13, fontWeight: '800' },
 
   // İkramiye / Açıklanan Sonuçlar
-  prizeBox: { backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.sm },
+  // Kutu artık liste BAŞINDA — boşluk alta (2026-08-10).
+  prizeBox: { backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm },
   prizeTitle: { color: colors.text, fontSize: 15, fontWeight: '800', marginBottom: 10 },
   prizeRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, borderTopWidth: 1, borderTopColor: colors.border },
   prizeHit: { width: 78, color: colors.text, fontSize: 13, fontWeight: '800' },

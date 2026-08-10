@@ -19,7 +19,8 @@ const defaults = {
   rememberFilter: true,    // filtre seçimini hatırla
   liveLastFilter: 'all',   // 'all' | 'live' | 'risk' | 'coupon' | 'done'
   liveAnim: 'important',   // 'on' | 'off' | 'important'
-  prizeView: 'table',      // ikramiye görünümü: 'list' | 'table' | 'card'
+  // prizeView KALDIRILDI (2026-08-10): ikramiye bölümü tek görünüm (resmî
+  // Liste yazımı, BulletinScreen). Diskte kalmış eski değer okunmaz, zararsız.
   histResultMode: 'simple',// geçmiş sonuç görünümü: 'simple' | 'detailed' | 'technical'
   histSort: 'bulletin',    // geçmiş sıralama: 'bulletin' | 'resolvedTop' | 'waitingBottom'
   sysDashView: 'simple',   // sistem karnesi görünümü: 'simple' | 'detailed' | 'technical'
