@@ -68,6 +68,13 @@ class CouponEditorScreen extends ConsumerStatefulWidget {
 
 class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
   final Map<String, List<String>> _picks = {};
+
+  /// AKTARIM DAMGALARI (2026-08-11): maç no → {secim, zaman, kaynak, …}.
+  /// Sistem/radar önerisi kupona aktarıldığında yazılır; elle yapılan seçim
+  /// damga BIRAKMAZ. Kupon kaydedilirken sürüme geçer ve bir daha değişmez.
+  /// Neden: sistem önerisi kilide dek değişebiliyor, kullanıcının hangi
+  /// değeri ne zaman aldığı sonradan kanıtlanamıyordu.
+  final Map<String, Map<String, dynamic>> _aktarimlar = {};
   final _nameCtl = TextEditingController();
   bool _saving = false;
   bool _baslatildi = false;
@@ -496,6 +503,27 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
 
   /// AKTARIM: önce fark, sonra kullanıcı kararı. Mevcut seçim ASLA sessizce
   /// ezilmez.
+  /// Aktarımın KAYNAK ANALİZ KİMLİĞİ — sunucunun o anki bülten kaydı.
+  ///
+  /// `updatedAt` analizin üretildiği an, `verification.signature` resmî
+  /// bültenin karması, `bulletinId` arşiv kimliğidir. Üçü birlikte, aktarılan
+  /// değerin HANGİ hesaba ait olduğunu sonradan kanıtlar; sunucudaki gözlem
+  /// serisiyle (observations) eşleştirilebilir. Bülten okunamazsa alan
+  /// yazılmaz — uydurma kimlik üretilmez.
+  Map<String, dynamic> _kaynakAnalizKimligi() {
+    final b = ref.read(_editorBulletinProvider).valueOrNull;
+    if (b == null) return const {};
+    final v = b['verification'];
+    final a = b['archive'];
+    return {
+      if (b['updatedAt'] != null) 'analizZamani': '${b['updatedAt']}',
+      if (v is Map && v['signature'] != null)
+        'bultenImzasi': '${v['signature']}',
+      if (a is Map && a['bulletinId'] != null)
+        'bulletinId': '${a['bulletinId']}',
+    };
+  }
+
   Future<void> _aktarimBaslat(
     List matches,
     Set lockedNos,
@@ -608,9 +636,17 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
       ),
     );
     if (onay != true || !mounted) return;
+    final simdi = DateTime.now().toIso8601String();
+    final kaynakAnaliz = _kaynakAnalizKimligi();
     setState(() {
       for (final e in proposed.entries) {
         _picks['${e.key}'] = e.value;
+        _aktarimlar['${e.key}'] = {
+          'secim': e.value.join(),
+          'zaman': simdi,
+          'kaynak': source, // 'sistem' | 'radar'
+          ...kaynakAnaliz,
+        };
       }
     });
   }
@@ -624,7 +660,7 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
       await _uyari(
         'Zaten boş',
         'Seçimler boş — maç satırlarından 1/X/2 işaretleyerek kendi kuponunu '
-        'kur.',
+            'kur.',
       );
       return;
     }
@@ -701,6 +737,9 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
 
   void _degistir(Object no, String o) {
     setState(() {
+      // ELLE DEĞİŞTİRİLEN MAÇ AKTARIM DAMGASINI KAYBEDER: damga "bu değer
+      // sistemden geldi" demektir; kullanıcı dokunduysa artık doğru değildir.
+      _aktarimlar.remove('$no');
       final cur = (_picks['$no'] ?? const <String>[]).toSet();
       if (!cur.add(o)) cur.remove(o);
       final arr = kOutcomes.where(cur.contains).toList();
@@ -766,7 +805,12 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
 
     CouponResult res;
     if (widget.couponId != null) {
-      res = await addVersion(widget.couponId!, selections, lockMap: lockMap);
+      res = await addVersion(
+        widget.couponId!,
+        selections,
+        lockMap: lockMap,
+        aktarimlar: _aktarimlar.isEmpty ? null : Map.of(_aktarimlar),
+      );
       if (res.ok && _nameCtl.text.trim().isNotEmpty) {
         await renameCoupon(widget.couponId!, _nameCtl.text);
       }
@@ -779,6 +823,7 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
         lockMap: lockMap,
         selections: selections,
         name: _nameCtl.text,
+        aktarimlar: _aktarimlar.isEmpty ? null : Map.of(_aktarimlar),
       );
     }
 

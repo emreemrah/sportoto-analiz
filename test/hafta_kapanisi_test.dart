@@ -125,17 +125,21 @@ final Map<String, Object?> kUclar = {
     'immutable': true,
     'verificationHash': '92ce471a288cdca177122865707f4386',
     'payload': {
+      'engine': {'version': 'master-analysis-1.0.0'},
       'matches': [
         {
           'no': 1,
+          'matchId': 'mac-1',
           'systemPrediction': {'symbol': '1', 'display': '1'},
         },
         {
           'no': 2,
+          'matchId': 'mac-2',
           'systemPrediction': {'symbol': '1', 'display': '1'},
         },
         {
           'no': 3,
+          'matchId': 'mac-3',
           'systemPrediction': {'symbol': '-', 'display': '-'},
         },
       ],
@@ -143,6 +147,32 @@ final Map<String, Object?> kUclar = {
   },
   // Karne: SİSTEM sütununun TEK kaynağı. Satırlardaki 2/2 kupon isabetiyle
   // BİLEREK farklı sayı verir — ekran hangisini bastığı görünsün diye.
+  // GÖZLEM SERİSİ — sunucunun zaman damgalı kaydı. 2. maçta sistem tahmini
+  // ÖNCE '2' iken SONRA '1' olmuş; kullanıcı '2'yi kuponuna almış.
+  '/api/bulletins/1600/observations': {
+    'bulletinId': '1600',
+    'count': 3,
+    'observations': [
+      {
+        'observedAt': '2026-08-05T16:19:22.774+00:00',
+        'odds': {'home': 2.33, 'draw': 3.15, 'away': 3.06},
+        'statsSummary': {
+          'prediction': '2',
+          'probabilities': {'1': 30, 'X': 30, '2': 40},
+        },
+      },
+      // Tahminsiz gözlem (veri gelmemiş an) DEĞİŞİKLİK SAYILMAMALI.
+      {'observedAt': '2026-08-06T10:00:00.000+00:00', 'statsSummary': {}},
+      {
+        'observedAt': '2026-08-07T05:21:20.482+00:00',
+        'odds': {'home': 2.12, 'draw': 3.08, 'away': 2.62},
+        'statsSummary': {
+          'prediction': '1',
+          'probabilities': {'1': 45, 'X': 28, '2': 27},
+        },
+      },
+    ],
+  },
   '/api/system-scorecard': {
     'hasData': true,
     'weeks': [
@@ -174,8 +204,14 @@ Map<String, Object?> _kuponKaydi() => {
       'id': 'v1',
       'versionNo': 1,
       'selections': [
-        {'no': 1, 'selectedOutcomes': ['1']}, // doğru
-        {'no': 2, 'selectedOutcomes': ['2']}, // doğru (sistem ıskaladı)
+        {
+          'no': 1,
+          'selectedOutcomes': ['1'],
+        }, // doğru
+        {
+          'no': 2,
+          'selectedOutcomes': ['2'],
+        }, // doğru (sistem ıskaladı)
       ],
     },
   ],
@@ -328,6 +364,70 @@ void main() {
       // Sistem kazanmış gösterilmez.
       expect(_metin('Sistem kuponu bildi, sen bilemedin'), findsNothing);
       expect(_metinIceren('Sistem kuponu '), findsNothing);
+    });
+
+    testWidgets('kupon mühürden farklıysa KARAR İZİ alanı açılır', (t) async {
+      await _ekraniAc(t, roundId: '1600');
+
+      // 2. maç: kuponda '2', mühürde '1' → aday.
+      expect(_metin('Sistem Tahmini Değişmiş Olabilir'), findsOneWidget);
+      expect(_metin('#2 · Sistem tahmini neden değişti?'), findsOneWidget);
+
+      await t.tap(_metin('#2 · Sistem tahmini neden değişti?'));
+      await _tur(t, 40);
+
+      // Gözlem serisinden OKUNAN gerçek değişim.
+      expect(_metinIceren('2 → 1'), findsOneWidget);
+      expect(
+        _metinIceren('olasılık 1/X/2: %30/%30/%40 → %45/%28/%27'),
+        findsOneWidget,
+      );
+      expect(
+        _metinIceren('oran ev/ber/dep: 2.33/3.15/3.06 → 2.12/3.08/2.62'),
+        findsOneWidget,
+      );
+      // Tutulmayan veri açıkça söylenir.
+      expect(
+        _metinIceren('Kriter bazlı öncesi/sonrası kayıtta tutulmuyor'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('gözlem kaydı YOKSA sebep UYDURULMAZ', (t) async {
+      final kayitsiz = Map<String, Object?>.from(kUclar)
+        ..remove('/api/bulletins/1600/observations');
+      await _ekraniAc(t, roundId: '1600', uclar: kayitsiz);
+
+      await t.tap(_metin('#2 · Sistem tahmini neden değişti?'));
+      await _tur(t, 40);
+
+      expect(
+        _metin('Değişiklik nedeni geçmiş kayıtlardan doğrulanamadı.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('kayıt VAR ama değişim yoksa "değişmemiş" der', (t) async {
+      final sabit = Map<String, Object?>.from(kUclar);
+      sabit['/api/bulletins/1600/observations'] = {
+        'observations': [
+          {
+            'observedAt': '2026-08-05T16:19:22.774+00:00',
+            'statsSummary': {'prediction': '1'},
+          },
+          {
+            'observedAt': '2026-08-07T05:21:20.482+00:00',
+            'statsSummary': {'prediction': '1'},
+          },
+        ],
+      };
+      await _ekraniAc(t, roundId: '1600', uclar: sabit);
+
+      await t.tap(_metin('#2 · Sistem tahmini neden değişti?'));
+      await _tur(t, 40);
+
+      expect(_metinIceren('sistem tahmini DEĞİŞMEMİŞ'), findsOneWidget);
+      expect(_metinIceren('Fark senin seçiminden geliyor'), findsOneWidget);
     });
 
     testWidgets('GEÇ alınmış mühür kanıt sayılmaz', (t) async {

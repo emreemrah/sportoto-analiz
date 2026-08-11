@@ -67,6 +67,9 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
   /// Haftanın DEĞİŞTİRİLEMEZ sistem mührü — satırlardaki sistem seçiminin tek
   /// kaynağı (bkz. muhurlu_sistem.dart).
   MuhurluSistem _muhur = MuhurluSistem.yok;
+
+  /// Açılmış karar izleri (maç no → iz). Değer null = yükleniyor.
+  final Map<int, KararIzi?> _izler = {};
   String? _error;
   bool _loading = true;
 
@@ -168,15 +171,66 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
       // olmayan maçta canlı tahmin sızar), sonra varsa mühür yazılır.
       Map<String, dynamic>.from(m)
         ..remove('prediction')
-        ..addAll(
-          switch (_muhur.secim(m['no'])) {
-            final String s => {
-              'prediction': {'symbol': s},
-            },
-            _ => const <String, dynamic>{},
+        ..addAll(switch (_muhur.secim(m['no'])) {
+          final String s => {
+            'prediction': {'symbol': s},
           },
-        ),
+          _ => const <String, dynamic>{},
+        }),
   ];
+
+  /// SİSTEM TAHMİNİ DEĞİŞMİŞ OLABİLECEK MAÇLAR (2026-08-11 kullanıcı isteği).
+  ///
+  /// Aday ölçütü — ikisi de KAYITTAN gelir, tahmin yok:
+  ///  1. Kupona AKTARIM DAMGASI var ve aktarılan değer mühürden farklı
+  ///     (yeni kuponlar; damga aktarım anını ve kaynağı taşır), ya da
+  ///  2. Kullanıcının seçimi mühürlü sistem seçiminden farklı (eski kuponlar
+  ///     — damga yoktu; 53. Hafta 15. maç böyle yakalanır).
+  ///
+  /// Aday olması "değişti" demek DEĞİLDİR; yalnız sorgulamaya değer demektir.
+  /// Kesin cevap, açılınca sunucudaki gözlem serisinden okunur.
+  List<({int no, String? kupon, String? muhur, Map<String, dynamic>? damga})>
+  _kararIziAdaylari(Map? finalSurum) {
+    final damgalar = aktarimDamgalari(finalSurum);
+    final secimler = <int, String>{};
+    for (final s in ((finalSurum?['selections'] as List?) ?? const [])) {
+      if (s is! Map) continue;
+      final no = int.tryParse('${s['no']}');
+      final o = (s['selectedOutcomes'] as List?)?.cast<String>();
+      if (no != null && o != null && o.isNotEmpty) {
+        secimler[no] = normalTahmin(o.join()) ?? '';
+      }
+    }
+    final out =
+        <
+          ({int no, String? kupon, String? muhur, Map<String, dynamic>? damga})
+        >[];
+    for (final m in ((_hist?['matches'] as List?) ?? const []).cast<Map>()) {
+      final no = int.tryParse('${m['no']}');
+      if (no == null) continue;
+      final muhur = normalTahmin(_muhur.secim(no));
+      final damga = damgalar['$no'];
+      final aktarilan = normalTahmin(damga?['secim']);
+      final kupon = secimler[no];
+      final farkVar =
+          (aktarilan != null && aktarilan != muhur) ||
+          (aktarilan == null &&
+              kupon != null &&
+              kupon.isNotEmpty &&
+              muhur != null &&
+              kupon != muhur);
+      if (farkVar) {
+        out.add((no: no, kupon: kupon, muhur: muhur, damga: damga));
+      }
+    }
+    return out;
+  }
+
+  Future<void> _iziAc(int no) async {
+    setState(() => _izler[no] = null); // yükleniyor
+    final iz = await sistemKararIzi(_roundId, _muhur.macKimlikleri[no]);
+    if (mounted) setState(() => _izler[no] = iz);
+  }
 
   /// Resmî sonucu gelmiş ama MÜHÜRLÜ sistem seçimi olmayan maçlar.
   /// Bunlar sistem başarısına girmez; ekranda açıkça yazılır.
@@ -221,6 +275,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
       selections: (v?['selections'] as List?) ?? const [],
     );
     final muhursuz = _muhursuzCozulmusMaclar();
+    final adaylar = _kararIziAdaylari(v);
 
     return _kabuk(
       ListView(
@@ -257,6 +312,10 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
           else ...[
             _senVsSistem(recap),
             if (muhursuz.isNotEmpty) _muhurUyarisi(muhursuz),
+            if (adaylar.isNotEmpty) ...[
+              const _BolumBasligi('Sistem Tahmini Değişmiş Olabilir'),
+              for (final a in adaylar) _kararIziKarti(a),
+            ],
             if (recap.head2head case final h?) _h2hKart(h),
             if (recap.highlights.isNotEmpty) ...[
               const _BolumBasligi('Haftanın Anları'),
@@ -473,6 +532,263 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
         ],
       ),
     );
+  }
+
+  /// "SİSTEM TAHMİNİ NEDEN DEĞİŞTİ?" — açılabilir kanıt alanı.
+  ///
+  /// UYDURMA YASAK: burada yalnız sunucunun gözlem serisindeki kayıtlar
+  /// gösterilir (tahmin, 1/X/2 olasılıkları, oranlar, zaman). Kayıt yoksa
+  /// "Değişiklik nedeni geçmiş kayıtlardan doğrulanamadı" yazar; sebep
+  /// TAHMİN EDİLMEZ. Kriter bazlı öncesi/sonrası seride tutulmuyor, o yüzden
+  /// gösterilmiyor — bunu da açıkça söyler.
+  Widget _kararIziKarti(
+    ({int no, String? kupon, String? muhur, Map<String, dynamic>? damga}) a,
+  ) {
+    final acik = _izler.containsKey(a.no);
+    final iz = _izler[a.no];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Spacing.sm),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: AppRadius.mdR,
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Semantics(
+              button: true,
+              label: '${a.no}. maç sistem tahmini değişikliği',
+              child: GestureDetector(
+                onTap: () =>
+                    acik ? setState(() => _izler.remove(a.no)) : _iziAc(a.no),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.all(Spacing.md),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '#${a.no} · Sistem tahmini neden değişti?',
+                          style: const TextStyle(
+                            color: AppColors.text,
+                            fontSize: 12.5,
+                            fontWeight: AppFont.black,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        acik ? '▲' : '▼',
+                        style: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (acik)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  Spacing.md,
+                  0,
+                  Spacing.md,
+                  Spacing.md,
+                ),
+                child: iz == null
+                    ? const Text(
+                        'Kayıt okunuyor…',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11.5,
+                        ),
+                      )
+                    : _kararIziIcerik(a, iz),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _kararIziIcerik(
+    ({int no, String? kupon, String? muhur, Map<String, dynamic>? damga}) a,
+    KararIzi iz,
+  ) {
+    final satirlar = <Widget>[];
+
+    // 1) Kullanıcının elindeki kayıt (varsa damga, yoksa kupon seçimi).
+    if (a.damga case final d?) {
+      satirlar.add(
+        _izSatiri(
+          'Kupona aktarılan',
+          '${tahminYazisi(normalTahmin(d['secim']))} · ${_kisaZaman(d['zaman'])}'
+              '${d['kaynak'] == 'radar' ? ' (radar)' : ' (sistem)'}',
+        ),
+      );
+      if (d['analizZamani'] != null) {
+        satirlar.add(_izSatiri('Kaynak analiz', _kisaZaman(d['analizZamani'])));
+      }
+    } else if (a.kupon != null && a.kupon!.isNotEmpty) {
+      satirlar.add(
+        _izSatiri(
+          'Kupondaki seçimin',
+          '${tahminYazisi(a.kupon)} — aktarım damgası yok (eski kupon)',
+        ),
+      );
+    }
+    satirlar.add(
+      _izSatiri(
+        'Mühürlenen (kilit)',
+        '${tahminYazisi(a.muhur)} · ${_kisaZaman(_muhur.kilitZamani)}',
+      ),
+    );
+
+    // 2) Sunucudaki gözlem serisi.
+    if (!iz.kayitVar) {
+      satirlar.add(const SizedBox(height: 6));
+      satirlar.add(
+        const Text(
+          'Değişiklik nedeni geçmiş kayıtlardan doğrulanamadı.',
+          style: TextStyle(
+            color: AppColors.warning,
+            fontSize: 11.5,
+            fontWeight: AppFont.bold,
+          ),
+        ),
+      );
+    } else if (iz.degisimler.isEmpty) {
+      satirlar.add(const SizedBox(height: 6));
+      satirlar.add(
+        Text(
+          'Kayıtlarda bu maçta sistem tahmini DEĞİŞMEMİŞ '
+          '(${iz.gozlemSayisi} gözlem). Fark senin seçiminden geliyor.',
+          style: const TextStyle(
+            color: AppColors.textSoft,
+            fontSize: 11.5,
+            height: 1.35,
+          ),
+        ),
+      );
+    } else {
+      satirlar.add(const SizedBox(height: 8));
+      satirlar.add(
+        Text(
+          'Kayıtlı değişiklikler (${iz.gozlemSayisi} gözlem):',
+          style: const TextStyle(
+            color: AppColors.text,
+            fontSize: 11.5,
+            fontWeight: AppFont.black,
+          ),
+        ),
+      );
+      for (final d in iz.degisimler) {
+        satirlar.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${tahminYazisi(d.eski)} → ${tahminYazisi(d.yeni)}'
+                  ' · ${_kisaZaman(d.zaman)}',
+                  style: const TextStyle(
+                    color: AppColors.text,
+                    fontSize: 12,
+                    fontWeight: AppFont.heavy,
+                  ),
+                ),
+                if (d.eskiOlasilik != null && d.yeniOlasilik != null)
+                  Text(
+                    'olasılık 1/X/2: ${_uclu(d.eskiOlasilik!)}'
+                    ' → ${_uclu(d.yeniOlasilik!)}',
+                    style: const TextStyle(
+                      color: AppColors.textSoft,
+                      fontSize: 11,
+                    ),
+                  ),
+                if (d.eskiOran != null && d.yeniOran != null)
+                  Text(
+                    'oran ev/ber/dep: ${_ucluOran(d.eskiOran!)}'
+                    ' → ${_ucluOran(d.yeniOran!)}',
+                    style: const TextStyle(
+                      color: AppColors.textSoft,
+                      fontSize: 11,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      }
+      satirlar.add(const SizedBox(height: 8));
+      satirlar.add(
+        const Text(
+          'Kriter bazlı öncesi/sonrası kayıtta tutulmuyor; bu yüzden '
+          'gösterilmiyor. Yukarıdakiler sunucunun zaman damgalı gözlem '
+          'kaydından okundu.',
+          style: TextStyle(
+            color: AppColors.textMuted,
+            fontSize: 10.5,
+            fontStyle: FontStyle.italic,
+            height: 1.35,
+          ),
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: satirlar,
+    );
+  }
+
+  Widget _izSatiri(String baslik, String deger) => Padding(
+    padding: const EdgeInsets.only(top: 3),
+    child: RichText(
+      text: TextSpan(
+        style: const TextStyle(color: AppColors.textMuted, fontSize: 11.5),
+        children: [
+          TextSpan(text: '$baslik: '),
+          TextSpan(
+            text: deger,
+            style: const TextStyle(
+              color: AppColors.text,
+              fontWeight: AppFont.bold,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  String _uclu(Map<String, num> m) => '%${m['1']}/%${m['X']}/%${m['2']}';
+  String _ucluOran(Map<String, num> m) =>
+      '${m['home']}/${m['draw']}/${m['away']}';
+
+  /// '2026-08-07T05:21:20.482+00:00' → '7 Ağu 05:21'. Ayrıştırılamazsa ham
+  /// değer bozulmadan gösterilir (uydurma tarih yazılmaz).
+  String _kisaZaman(Object? iso) {
+    final d = DateTime.tryParse('${iso ?? ''}')?.toLocal();
+    if (d == null) return '${iso ?? '—'}';
+    const aylar = [
+      'Oca',
+      'Şub',
+      'Mar',
+      'Nis',
+      'May',
+      'Haz',
+      'Tem',
+      'Ağu',
+      'Eyl',
+      'Eki',
+      'Kas',
+      'Ara',
+    ];
+    String p(int n) => n.toString().padLeft(2, '0');
+    return '${d.day} ${aylar[d.month - 1]} ${p(d.hour)}:${p(d.minute)}';
   }
 
   /// MÜHÜR YOKSA DÜRÜST UYARI (2026-08-11).

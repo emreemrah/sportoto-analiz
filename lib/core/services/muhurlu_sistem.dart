@@ -28,10 +28,13 @@ import 'archive_client.dart';
 class MuhurluSistem {
   const MuhurluSistem({
     this.secimler = const {},
+    this.macKimlikleri = const {},
     this.muhurVar = false,
     this.kilitZamani,
     this.dogrulamaKodu,
     this.gecKilit = false,
+    this.snapshotId,
+    this.yontemSurumu,
   });
 
   /// Mühür hiç okunamadı (aktif hafta, eski sunucu, ağ hatası).
@@ -40,6 +43,13 @@ class MuhurluSistem {
   /// maç no → mühürlü sistem seçimi ('1' | 'X' | '2' | '10' | '12' | '02' …).
   /// Mühürde tahmin taşımayan maç bu haritada HİÇ bulunmaz.
   final Map<int, String> secimler;
+
+  /// maç no → arşiv maç kimliği (karar izi sorgusu bunu ister).
+  final Map<int, String> macKimlikleri;
+
+  /// Mühür kimliği ve analiz sürümü — karar izinde kaynak gösterilir.
+  final String? snapshotId;
+  final String? yontemSurumu;
 
   /// Arşivde kilitli snapshot bulundu mu? false ise hiçbir maç için sistem
   /// seçimi İDDİA EDİLMEZ.
@@ -62,6 +72,165 @@ class MuhurluSistem {
     final n = int.tryParse('$no');
     return n == null ? null : secimler[n];
   }
+}
+
+/// SİSTEM KARAR İZİ — bir maçta sistem tahmininin DEĞİŞTİĞİ anlar.
+///
+/// Kaynak: `/api/bulletins/:id/observations?matchId=…`. Sunucu her yenilemede
+/// o maç için tahmini, 1/X/2 olasılıklarını ve oranları zaman damgasıyla
+/// yazar (53. Hafta 15. maçta 293 gözlem). Bu kayıt geçmişe dönük
+/// değiştirilmez, dolayısıyla "sistem ne zaman ne dedi" KANITLANABİLİR.
+///
+/// UYDURMA YOK: kriter bazlı öncesi/sonrası bu seride TUTULMUYOR — yalnız
+/// tahmin, olasılık, oran ve xG özeti var. Ekran da yalnız bunları gösterir.
+class KararDegisimi {
+  const KararDegisimi({
+    required this.zaman,
+    required this.eski,
+    required this.yeni,
+    this.eskiOlasilik,
+    this.yeniOlasilik,
+    this.eskiOran,
+    this.yeniOran,
+  });
+
+  final String zaman;
+  final String eski;
+  final String yeni;
+
+  /// {'1': 40, 'X': 30, '2': 30} — kayıtta yoksa null.
+  final Map<String, num>? eskiOlasilik;
+  final Map<String, num>? yeniOlasilik;
+
+  /// {'home': 2.33, 'draw': 3.15, 'away': 3.06}
+  final Map<String, num>? eskiOran;
+  final Map<String, num>? yeniOran;
+}
+
+/// Bir maçın karar izi.
+class KararIzi {
+  const KararIzi({
+    this.degisimler = const [],
+    this.gozlemSayisi = 0,
+    this.ilkKayit,
+    this.sonKayit,
+    this.kayitVar = false,
+  });
+
+  static const yok = KararIzi();
+
+  final List<KararDegisimi> degisimler;
+  final int gozlemSayisi;
+  final String? ilkKayit;
+  final String? sonKayit;
+
+  /// Sunucuda gözlem serisi bulundu mu? false ise "kayıt yok" denir,
+  /// değişiklik olmadığı İDDİA EDİLMEZ.
+  final bool kayitVar;
+
+  bool get degismis => degisimler.isNotEmpty;
+}
+
+/// Tahmin dizgesini karşılaştırılabilir hâle getirir: '10' ile '01' aynıdır,
+/// '0' beraberlik demektir → 'X'.
+String? normalTahmin(Object? v) {
+  final s = '${v ?? ''}'.toUpperCase().trim();
+  if (s.isEmpty || s == '-' || s == '—') return null;
+  final harfler = s
+      .split('')
+      .map((c) => c == '0' ? 'X' : c)
+      .where('1X2'.contains)
+      .toSet();
+  if (harfler.isEmpty) return null;
+  // Sabit sıra: 1 → X → 2 (ekranda da bu sırayla okunur).
+  return ['1', 'X', '2'].where(harfler.contains).join();
+}
+
+/// Ekranda okunan biçim: '1X' → '1-X'.
+String tahminYazisi(String? t) => t == null ? '—' : t.split('').join('-');
+
+Map<String, num>? _olasilik(Object? v) {
+  if (v is! Map) return null;
+  final out = <String, num>{};
+  for (final k in const ['1', 'X', '2']) {
+    final ham = v[k] ?? (k == 'X' ? v['0'] : null);
+    if (ham is num) out[k] = ham;
+  }
+  return out.length == 3 ? out : null;
+}
+
+Map<String, num>? _oran(Object? v) {
+  if (v is! Map) return null;
+  final out = <String, num>{};
+  for (final k in const ['home', 'draw', 'away']) {
+    if (v[k] is num) out[k] = v[k] as num;
+  }
+  return out.length == 3 ? out : null;
+}
+
+/// Maçın karar izini çıkarır. Gözlem serisi yoksa `KararIzi.yok` döner.
+Future<KararIzi> sistemKararIzi(Object? roundId, Object? matchId) async {
+  if (roundId == null || matchId == null) return KararIzi.yok;
+  Map? yanit;
+  try {
+    yanit =
+        await archiveGet(
+              '/api/bulletins/$roundId/observations?matchId=$matchId',
+            )
+            as Map?;
+  } catch (_) {
+    return KararIzi.yok;
+  }
+  final ham = yanit?['observations'];
+  if (ham is! List || ham.isEmpty) return KararIzi.yok;
+
+  // Zaman sırası garanti değil — kendimiz sıralarız.
+  final kayitlar = ham.whereType<Map>().toList()
+    ..sort((a, b) => '${a['observedAt']}'.compareTo('${b['observedAt']}'));
+
+  final degisimler = <KararDegisimi>[];
+  String? oncekiTahmin;
+  Map<String, num>? oncekiOlasilik;
+  Map<String, num>? oncekiOran;
+  String? ilk;
+  String? son;
+
+  for (final k in kayitlar) {
+    final ozet = k['statsSummary'];
+    final tahmin = normalTahmin(ozet is Map ? ozet['prediction'] : null);
+    // Tahminsiz gözlem (veri gelmemiş an) DEĞİŞİKLİK SAYILMAZ — yoksa her
+    // yenileme arası "değişti" gibi görünür.
+    if (tahmin == null) continue;
+    final zaman = '${k['observedAt']}';
+    ilk ??= zaman;
+    son = zaman;
+    final olasilik = _olasilik(ozet is Map ? ozet['probabilities'] : null);
+    final oran = _oran(k['odds']);
+    if (oncekiTahmin != null && tahmin != oncekiTahmin) {
+      degisimler.add(
+        KararDegisimi(
+          zaman: zaman,
+          eski: oncekiTahmin,
+          yeni: tahmin,
+          eskiOlasilik: oncekiOlasilik,
+          yeniOlasilik: olasilik,
+          eskiOran: oncekiOran,
+          yeniOran: oran,
+        ),
+      );
+    }
+    oncekiTahmin = tahmin;
+    oncekiOlasilik = olasilik;
+    oncekiOran = oran;
+  }
+
+  return KararIzi(
+    degisimler: degisimler,
+    gozlemSayisi: kayitlar.length,
+    ilkKayit: ilk,
+    sonKayit: son,
+    kayitVar: true,
+  );
 }
 
 /// Geçersiz/boş tahmin işaretleri — mühürde "veri yok" böyle görünür.
@@ -90,10 +259,13 @@ Future<MuhurluSistem> muhurluSistemSecimleri(Object? roundId) async {
   if (maclar is! List) return MuhurluSistem.yok;
 
   final secimler = <int, String>{};
+  final kimlikler = <int, String>{};
   for (final m in maclar) {
     if (m is! Map) continue;
     final no = int.tryParse('${m['no']}');
     if (no == null) continue;
+    final mid = m['matchId'];
+    if (mid != null && '$mid'.isNotEmpty) kimlikler[no] = '$mid';
     final sp = m['systemPrediction'];
     if (sp is! Map) continue;
     // mapSnapshot ile aynı öncelik: display → symbol.
@@ -104,11 +276,15 @@ Future<MuhurluSistem> muhurluSistemSecimleri(Object? roundId) async {
     secimler[no] = '$ham';
   }
 
+  final engine = payload is Map ? payload['engine'] : null;
   return MuhurluSistem(
     secimler: secimler,
+    macKimlikleri: kimlikler,
     muhurVar: true,
     kilitZamani: snap['lockedAt'] as String?,
     dogrulamaKodu: snap['verificationHash'] as String?,
     gecKilit: snap['late'] == true,
+    snapshotId: snap['id'] as String?,
+    yontemSurumu: engine is Map ? '${engine['version'] ?? ''}' : null,
   );
 }

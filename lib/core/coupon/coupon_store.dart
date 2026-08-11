@@ -323,6 +323,7 @@ Map? finalVersion(Map? coupon) {
 Map<String, dynamic> buildVersion(
   List<CouponSelection> selections, {
   int versionNo = 1,
+  Map<String, Map<String, dynamic>>? aktarimlar,
 }) => {
   'id': _uid(),
   'versionNo': versionNo,
@@ -334,7 +335,27 @@ Map<String, dynamic> buildVersion(
   'columnCount': columnCount(selections),
   // Maliyet SAKLANMAZ — gösterim anında GERÇEK fiyat verisiyle hesaplanır
   // (coupon_config.costOf). "Fiyat uydurulamaz" kuralının depoya yansıması.
+  //
+  // AKTARIM DAMGASI (2026-08-11 kullanıcı isteği): sistem/radar önerisi
+  // kupona aktarıldığında MAÇ BAZINDA aktarılan seçim, aktarım zamanı ve
+  // kaynak analizin kimliği yazılır. Sebep: sistem önerisi kilit anına dek
+  // değişebiliyor; kullanıcının hangi değeri ne zaman aldığı sonradan
+  // kanıtlanamıyordu (53. Hafta 15. maç tartışması). Elle yapılan seçimlerde
+  // bu alan HİÇ yazılmaz — yani damga varsa gerçekten aktarım olmuştur.
+  if (aktarimlar != null && aktarimlar.isNotEmpty) 'aktarimlar': aktarimlar,
 };
+
+/// Kupon sürümündeki aktarım damgaları — {maç no: {secim, zaman, kaynak, …}}.
+/// Damga yoksa boş döner; "aktarılmadı" demek uydurma DEĞİLDİR, kayıt yokluğu
+/// açıkça yokluk olarak sunulur.
+Map<String, Map<String, dynamic>> aktarimDamgalari(Map? version) {
+  final ham = version?['aktarimlar'];
+  if (ham is! Map) return const {};
+  return {
+    for (final e in ham.entries)
+      if (e.value is Map) '${e.key}': Map<String, dynamic>.from(e.value as Map),
+  };
+}
 
 /// Kupon yazma işlemlerinin sonucu.
 class CouponResult {
@@ -364,6 +385,7 @@ Future<CouponResult> createCoupon({
   Map<Object, DateTime>? lockMap,
   required List<CouponSelection> selections,
   String? name,
+  Map<String, Map<String, dynamic>>? aktarimlar,
 }) async {
   if (lockMap != null) {
     final bad = lockViolations(selections: selections, lockMap: lockMap);
@@ -387,7 +409,7 @@ Future<CouponResult> createCoupon({
   }
   final couponNo = enBuyuk + 1;
 
-  final version = buildVersion(selections);
+  final version = buildVersion(selections, aktarimlar: aktarimlar);
   final now = DateTime.now().toIso8601String();
   final coupon = <String, dynamic>{
     'schema': _schema,
@@ -419,6 +441,7 @@ Future<CouponResult> addVersion(
   Object couponId,
   List<CouponSelection> selections, {
   Map<Object, DateTime>? lockMap,
+  Map<String, Map<String, dynamic>>? aktarimlar,
 }) async {
   final list = List<Map<String, dynamic>>.from(_cache);
   final c = list.where((x) => x['id'] == couponId).firstOrNull;
@@ -451,6 +474,7 @@ Future<CouponResult> addVersion(
   final version = buildVersion(
     selections,
     versionNo: ((c['versions'] as List).length) + 1,
+    aktarimlar: aktarimlar,
   );
   (c['versions'] as List).add(version);
   c['finalVersionId'] = version['id'];
