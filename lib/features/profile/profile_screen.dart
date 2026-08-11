@@ -354,7 +354,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _avatarKaldir,
                       tur: _DugmeTuru.hayalet,
                     ),
-                  _dugme('📊  Başarı Panelim', () => _git('basari-panelim')),
+                  _dugme('📊  Haftalık Başarı', () => _git('basari-panelim')),
                   // PREMIUM KODU — hak SUNUCUDA yazılır; uygulama kendi başına
                   // premium ilan edemez.
                   _dugme('⭐  Premium Kodu', () => _git('premium-kod')),

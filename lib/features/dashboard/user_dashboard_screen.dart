@@ -1,9 +1,19 @@
-// KAYNAK: app/src/screens/UserDashboardScreen.js — BİREBİR çeviri.
+// KAYNAK: app/src/screens/UserDashboardScreen.js — çeviri + YENİDEN DÜZEN.
 //
-// KULLANICI BAŞARI PANELİ — Spor Toto bülteniyle EŞ ZAMANLI: üstte ← hafta →
-// gezme. Her hafta o haftanın resmi sonuç durumu + SİSTEMİN o haftaki GERÇEK
-// başarısı + kullanıcının kupon durumu (gerçek kupon yoksa "kupon yok").
-// Başarı YALNIZ resmi Spor Toto sonucuyla kesinleşir — canlı/geçici yazılmaz.
+// KAYNAKTAN BİLİNÇLİ SAPMA (2026-08-10, kullanıcı isteği) — "HAFTALIK BAŞARI":
+// RN'deki "Başarı Paneli" (Sade/Detaylı/Teknik görünümleri) bu ekranda yeni
+// düzene taşındı; RN tarafı henüz eski düzende. VERİ VE HESAP AYNI KALDI:
+// api.rounds + api.history + api.systemScorecard + yerel kupon deposu;
+// başarı YALNIZ resmi Spor Toto sonucuyla kesinleşir, canlı/geçici yazılmaz.
+// Değişen yalnız sunum:
+//  * Üstte hafta/sezon gezme + tamamlanma durumu + KUPON SEÇİMİ.
+//  * "Sen" ve "Sistem" yan yana: doğru · toplam(resmî) · başarı yüzdesi.
+//  * Sekmeler: Özet / Maçlar / Geçmiş (eski Sade/Detaylı/Teknik yerine;
+//    diskte kalmış eski tercih değeri okunurken Özet'e düşer).
+//  * Maçlar: Tümü/Doğru/Yanlış/Bekleyen filtreleri; kartta takım adları TAM
+//    (kesme yok), tarih·saat, resmî skor, sonuç, Sen ve Sistem tahmini ayrı
+//    satırlarda; ✅ doğru · ❌ yanlış · ⏳ bekliyor.
+//  * Teknik bilgiler EN ALTTA, açılıp kapanan bölümde (varsayılan kapalı).
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -14,7 +24,6 @@ import '../../core/network/api_client.dart';
 import '../../core/prefs.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils.dart';
-import '../../widgets/dashboard_ui.dart';
 import '../../widgets/score_legend.dart';
 import '../../widgets/states.dart';
 
@@ -92,7 +101,21 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
   Map<String, dynamic>? _hist;
   bool _histLoading = false;
   Map<String, dynamic>? _scorecard;
-  late String _view = '${getPref('userDashView') ?? 'detailed'}';
+
+  /// Sekme: 'ozet' | 'maclar'. Diskte kalmış eski değerler (Sade/Detaylı/
+  /// Teknik dönemi ve kaldırılan 'gecmis') Özet'e düşer.
+  late String _view = getPref('userDashView') == 'maclar' ? 'maclar' : 'ozet';
+
+  /// Maçlar sekmesi filtresi — oturumluk durum, tercihe yazılmaz.
+  String _macFiltre = 'all';
+
+  /// "Sen" hesabının kaynağı olan kupon. null = varsayılan (dereceli kupon,
+  /// o yoksa haftanın ilk kuponu). Hafta değişince sıfırlanır.
+  Object? _seciliKuponId;
+
+  /// Teknik bilgiler bölümü — varsayılan KAPALI (ana ekranı kalabalıklaştırmaz).
+  bool _teknikAcik = false;
+
   String? _error;
   bool _loading = true;
 
@@ -158,11 +181,21 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     }
   }
 
+  void _haftaSec(Object? id) {
+    if (id == null || id == _selectedId) return;
+    setState(() {
+      _selectedId = id;
+      _seciliKuponId = null; // yeni haftanın kuponları farklı
+      _hist = null;
+    });
+    _haftaYukle();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading && _rounds == null) {
       return _kabuk(
-        const LoadingState(message: 'Başarı panelin hazırlanıyor…'),
+        const LoadingState(message: 'Haftalık başarın hazırlanıyor…'),
       );
     }
     if (_error != null) {
@@ -185,19 +218,6 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     final canNext = selIdx >= 0 && selIdx < navRounds.length - 1;
 
     final week = _haftaHesap();
-    final detailed = _view != 'simple';
-    final technical = _view == 'technical';
-    final overall = _scorecard?['hasData'] == true ? _scorecard : null;
-
-    final weeks = (overall?['weeks'] as List?) ?? const [];
-    Map? bestWeek;
-    Map? worstWeek;
-    if (weeks.isNotEmpty) {
-      final s = weeks.cast<Map>().toList()
-        ..sort((a, b) => _num(b['accuracy']).compareTo(_num(a['accuracy'])));
-      bestWeek = s.first;
-      worstWeek = s.last;
-    }
 
     return _kabuk(
       ListView(
@@ -209,7 +229,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
         ),
         children: [
           const Text(
-            'Başarı Panelim',
+            'Haftalık Başarı',
             style: TextStyle(
               color: AppColors.text,
               fontSize: 22,
@@ -218,19 +238,6 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           ),
           const SizedBox(height: Spacing.md),
           _haftaGezme(navRounds, selIdx, selMeta, canPrev, canNext),
-          Padding(
-            padding: const EdgeInsets.only(top: Spacing.md, bottom: Spacing.sm),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: ViewModeToggle(
-                value: _view,
-                onChange: (v) {
-                  setState(() => _view = v);
-                  setPref('userDashView', v);
-                },
-              ),
-            ),
-          ),
 
           if (_histLoading && _hist == null)
             const Padding(
@@ -251,43 +258,18 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               ),
             )
           else ...[
-            _kuponDurumu(week),
-            _kapanisBaglantisi(),
-            _haftaKarti(week),
-            if (detailed) ...[
-              DashboardSection(
-                title: 'Maç Bazlı',
-                sub: week.hasRanked
-                    ? 'Sistem tahmini · resmi sonuç · dereceli kuponun (Kupon ${week.rankedNo}).'
-                    : 'Sistemin tahmini ile resmi sonuç. (Dereceli kuponun yok.)',
-              ),
-              const ScoreLegend(),
-              for (final m in ((_hist?['matches'] as List?) ?? const []))
-                _macSatiri(m as Map, week),
-            ],
-            if (technical) ...[
-              const DashboardSection(title: 'Teknik'),
-              _teknikKart(selMeta, week),
-            ],
+            _durumSatiri(week),
+            if (week.kuponlar.length > 1) _kuponSecici(week),
+            _senKarti(week),
+            _sistemSatiri(),
+            _sekmeler(),
+            if (_view == 'ozet') ...[
+              _kuponDurumu(week),
+              _kapanisBaglantisi(),
+            ] else
+              ..._maclarSekmesi(week),
+            _teknikBolum(selMeta, week),
           ],
-
-          const DashboardSection(
-            title: 'Genel Özet',
-            sub: 'Tüm haftalar — resmi sonuçlara göre',
-          ),
-          if (overall != null)
-            _genelOzet(overall, bestWeek, worstWeek)
-          else
-            _kart(const [
-              Text(
-                'Henüz resmi sonuçlanan maç yok — genel özet, resmi sonuçlar geldikçe oluşacak.',
-                style: TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 12.5,
-                  fontWeight: AppFont.semibold,
-                ),
-              ),
-            ]),
         ],
       ),
     );
@@ -295,21 +277,15 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
 
   Widget _kabuk(Widget govde) => Scaffold(
     backgroundColor: AppColors.bg,
-    appBar: AppBar(title: const Text('Başarı Panelim')),
+    appBar: AppBar(title: const Text('Haftalık Başarı')),
     body: govde,
   );
 
-  static num _num(Object? v) => v is num ? v : 0;
-
-  /// Seçili hafta hesabı (resmi sonuç + sistem + KULLANICI dereceli kupon).
+  /// Seçili hafta hesabı (resmi sonuç + sistem + KULLANICI kuponu).
   _Hafta _haftaHesap() {
     final wm = (_hist?['matches'] as List?) ?? const [];
     final total = wm.length;
     final resolved = wm.where((m) => _officialResolved(m as Map)).toList();
-    final sysR = resolved.where((m) => _sysSymOf(m as Map) != null).toList();
-    final sysCorrect = sysR
-        .where((m) => pickHits(_sysSymOf(m as Map), '${m['result']}') == true)
-        .length;
     final hasPrize = _hist?['prize'] != null;
     final fullyResolved = total > 0 && resolved.length == total;
     final resultMap = <Object, String>{
@@ -350,15 +326,30 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
         if (c['isRankedCoupon'] != true) ?couponResult(c),
     ];
 
-    // Dereceli kupondaki maç bazlı seçim (no → seçilen sonuçlar).
-    final rankedPicks = <Object, List>{};
-    if (ranked != null) {
-      final rv = finalVersion(ranked);
-      if (rv != null) {
+    // "SEN" HESABININ KAYNAĞI — kullanıcının SEÇTİĞİ kupon; seçim yoksa
+    // dereceli kupon, o da yoksa haftanın ilk kuponu. Seçim listedeki bir
+    // kuponu göstermiyorsa (hafta değişti) varsayılana düşülür.
+    Map<String, dynamic>? secili;
+    if (_seciliKuponId != null) {
+      for (final c in coupons) {
+        if (c['id'] == _seciliKuponId) {
+          secili = c;
+          break;
+        }
+      }
+    }
+    secili ??= ranked ?? (coupons.isNotEmpty ? coupons.first : null);
+    final seciliRes = secili != null ? couponResult(secili) : null;
+
+    // Seçili kupondaki maç bazlı seçim (no → seçilen sonuçlar).
+    final seciliPicks = <Object, List>{};
+    if (secili != null) {
+      final sv = finalVersion(secili);
+      if (sv != null) {
         for (final sc
-            in ((rv['selections'] as List?) ?? const []).cast<Map>()) {
+            in ((sv['selections'] as List?) ?? const []).cast<Map>()) {
           final sec = (sc['selectedOutcomes'] as List?) ?? const [];
-          if (sec.isNotEmpty) rankedPicks[sc['no'] as Object] = sec;
+          if (sec.isNotEmpty) seciliPicks[sc['no'] as Object] = sec;
         }
       }
     }
@@ -379,13 +370,13 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
       resolvedCount: resolved.length,
       fullyResolved: fullyResolved,
       hasPrize: hasPrize,
-      sysTotal: sysR.length,
-      sysCorrect: sysCorrect,
       status: status,
       hasCoupon: coupons.isNotEmpty,
       rankedRes: rankedRes,
       others: others,
-      rankedPicks: rankedPicks,
+      seciliRes: seciliRes,
+      seciliPicks: seciliPicks,
+      kuponlar: [?rankedRes, ...others],
       hasRanked: ranked != null,
       rankedNo: ranked?['couponNo'],
     );
@@ -407,8 +398,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     child: Row(
       children: [
         _ok('‹', canPrev, 'Önceki hafta', () {
-          setState(() => _selectedId = (all[selIdx - 1] as Map)['id']);
-          _haftaYukle();
+          _haftaSec((all[selIdx - 1] as Map)['id']);
         }),
         Expanded(
           child: Column(
@@ -436,8 +426,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           ),
         ),
         _ok('›', canNext, 'Sonraki hafta', () {
-          setState(() => _selectedId = (all[selIdx + 1] as Map)['id']);
-          _haftaYukle();
+          _haftaSec((all[selIdx + 1] as Map)['id']);
         }),
       ],
     ),
@@ -472,6 +461,297 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           ),
         ),
       );
+
+  /// Tamamlanma durumu — hafta gezmenin hemen altında tek satır.
+  Widget _durumSatiri(_Hafta week) => Container(
+    margin: const EdgeInsets.only(top: Spacing.sm),
+    padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: 8),
+    decoration: BoxDecoration(
+      color: (week.fullyResolved && week.hasPrize)
+          ? AppColors.successSoft
+          : AppColors.card,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      border: Border.all(
+        color: (week.fullyResolved && week.hasPrize)
+            ? AppColors.success
+            : AppColors.border,
+      ),
+    ),
+    child: Text(
+      week.status,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: (week.fullyResolved && week.hasPrize)
+            ? AppColors.success
+            : AppColors.text,
+        fontSize: 12.5,
+        fontWeight: AppFont.heavy,
+      ),
+    ),
+  );
+
+  /// KUPON SEÇİMİ — "Sen" hesabının hangi kupondan okunduğunu kullanıcı
+  /// seçer. Tek kupon varken seçici çizilmez (seçilecek şey yok).
+  Widget _kuponSecici(_Hafta week) => Padding(
+    padding: const EdgeInsets.only(top: Spacing.sm),
+    child: Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final k in week.kuponlar)
+          _cip(
+            '${k.ranked ? '⭐ ' : ''}Kupon ${k.couponNo}',
+            secili: k.id == week.seciliRes?.id,
+            onTap: () => setState(() => _seciliKuponId = k.id),
+          ),
+      ],
+    ),
+  );
+
+  Widget _cip(String etiket, {required bool secili, VoidCallback? onTap}) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: secili ? AppColors.primary : AppColors.card,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(
+              color: secili ? AppColors.primary : AppColors.border,
+            ),
+          ),
+          child: Text(
+            etiket,
+            style: TextStyle(
+              color: secili ? AppColors.white : AppColors.textSoft,
+              fontSize: 12,
+              fontWeight: AppFont.heavy,
+            ),
+          ),
+        ),
+      );
+
+  /// Seçili haftanın SİSTEM karne kaydı — Genel Özet ve Hafta Hafta ile AYNI
+  /// MERKEZÎ hesap (backend: mühürlü TEKLİ ana tahmin × resmî 1/X/2; ikisi de
+  /// olmayan maç sayılmaz). Üst kart ayrı bir yerel hesap YAPMAZ.
+  ///
+  /// DÜZELTME (2026-08-10, kullanıcı bulgusu): eski kart, bültendeki ÇOKLU
+  /// ihtimalli sistem önerisini pickHits ile sayıyordu (53. Hafta 13/14 %93);
+  /// Geçmiş bölümü ise karnenin tekli hesabını gösteriyordu (5/14 %36). İki
+  /// bölüm aynı haftaya farklı sayı basamaz — tek kaynak karnedir.
+  Map? _karneHaftasi() {
+    final weeks = (_scorecard?['weeks'] as List?) ?? const [];
+    for (final w in weeks.cast<Map>()) {
+      if ('${w['roundId']}' == '$_selectedId') return w;
+    }
+    return null;
+  }
+
+  /// SEN kartı — kullanıcının seçili kupon başarısı, tam genişlik.
+  ///
+  /// ROL AYRIMI (2026-08-10, kullanıcı kararı): bu ekran KULLANICIYI anlatır.
+  /// Önceki çift ölçülü SİSTEM kartı ("Kupon başarısı" + "Ana tahmin") ve
+  /// Geçmiş sekmesindeki karne özeti, Sistem Karnesi ekranıyla üst üste
+  /// binip kafa karıştırıyordu — kaldırıldı. Sistem başarısının tek adresi
+  /// Sistem Karnesi'dir; burada yalnız tek satırlık özet + bağlantı durur
+  /// (_sistemSatiri).
+  Widget _senKarti(_Hafta week) {
+    final sen = week.seciliRes;
+    return Padding(
+      padding: const EdgeInsets.only(top: Spacing.sm),
+      child: _skorKarti(
+        baslik: week.seciliRes?.ranked == true
+            ? 'SEN · Kupon ${sen?.couponNo} (dereceli)'
+            : sen != null
+            ? 'SEN · Kupon ${sen.couponNo}'
+            : 'SEN',
+        dogru: sen?.hit,
+        toplam: sen?.resolved,
+        bosNot: week.hasCoupon ? 'sonuç bekleniyor' : 'Bu hafta kupon yok',
+      ),
+    );
+  }
+
+  /// Sistemin TEK SATIRLIK özeti: karnenin ana tahmin kaydı + karneye
+  /// bağlantı. Sayı karneden AYNEN okunur; karnede kayıt yoksa uydurulmaz.
+  Widget _sistemSatiri() {
+    final karne = _karneHaftasi();
+    final degerlendirilen = ((karne?['evaluated'] as num?) ?? 0).toInt();
+    final ozet = karne == null
+        ? 'resmî karne kaydı yok'
+        : degerlendirilen == 0
+        ? 'sonuç bekleniyor'
+        : '${karne['correct']}/$degerlendirilen · %${karne['accuracy']}';
+    return Semantics(
+      button: true,
+      label: 'Sistem Karnesi ekranını aç',
+      child: GestureDetector(
+        onTap: () => context.go('/profil/sistem-karnesi'),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          margin: const EdgeInsets.only(top: Spacing.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Spacing.md,
+            vertical: 10,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: RichText(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  text: TextSpan(
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12,
+                      fontWeight: AppFont.bold,
+                    ),
+                    children: [
+                      const TextSpan(text: 'Sistem ana tahmin: '),
+                      TextSpan(
+                        text: ozet,
+                        style: const TextStyle(
+                          color: AppColors.text,
+                          fontWeight: AppFont.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Sistem Karnesi ›',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 12,
+                  fontWeight: AppFont.heavy,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Tek karşılaştırma kartı. Yüzde YALNIZ değerlendirilen maçlardan; hiç
+  /// sonuç yoksa sayı UYDURULMAZ, not yazılır.
+  Widget _skorKarti({
+    required String baslik,
+    required int? dogru,
+    required int? toplam,
+    required String bosNot,
+  }) {
+    final yuzde = (dogru != null && toplam != null && toplam > 0)
+        ? (dogru / toplam * 100).round()
+        : null;
+    return Container(
+      padding: const EdgeInsets.all(Spacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppShadow.soft,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            baslik,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 10.5,
+              fontWeight: AppFont.black,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 6),
+          if (dogru == null || toplam == null || toplam == 0)
+            Text(
+              bosNot,
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 12.5,
+                fontWeight: AppFont.semibold,
+              ),
+            )
+          else ...[
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 24,
+                  fontWeight: AppFont.black,
+                ),
+                children: [
+                  TextSpan(
+                    text: '$dogru',
+                    style: const TextStyle(color: AppColors.success),
+                  ),
+                  TextSpan(
+                    text: '/$toplam',
+                    style: const TextStyle(
+                      color: AppColors.textSoft,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'doğru · %$yuzde başarı',
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 11.5,
+                fontWeight: AppFont.bold,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ——— Sekmeler ———
+
+  // 'Geçmiş' sekmesi KALDIRILDI (2026-08-10, rol ayrımı): içeriği Sistem
+  // Karnesi'nin özetiydi; karne özeti artık yalnız karnede.
+  static const List<({String k, String l})> _sekmeListesi = [
+    (k: 'ozet', l: 'Özet'),
+    (k: 'maclar', l: 'Maçlar'),
+  ];
+
+  Widget _sekmeler() => Padding(
+    padding: const EdgeInsets.only(top: Spacing.md, bottom: Spacing.xs),
+    child: Row(
+      children: [
+        for (final s in _sekmeListesi) ...[
+          Expanded(
+            child: _cip(
+              s.l,
+              secili: _view == s.k,
+              onTap: () {
+                setState(() => _view = s.k);
+                setPref('userDashView', s.k);
+              },
+            ),
+          ),
+          if (s.k != 'maclar') const SizedBox(width: 6),
+        ],
+      ],
+    ),
+  );
+
+  // ——— Özet sekmesi ———
 
   Widget _kart(List<Widget> children) => Container(
     margin: const EdgeInsets.only(top: Spacing.sm),
@@ -720,113 +1000,95 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     ),
   );
 
-  Widget _haftaKarti(_Hafta week) => _kart([
-    _satir(
-      'Resmi sonuç durumu',
-      Text(
-        week.status,
-        textAlign: TextAlign.right,
-        style: TextStyle(
-          color: (week.fullyResolved && week.hasPrize)
-              ? AppColors.success
-              : AppColors.text,
-          fontSize: 12.5,
-          fontWeight: AppFont.bold,
+  // ——— Maçlar sekmesi ———
+
+  static const List<({String k, String l})> _filtreler = [
+    (k: 'all', l: 'Tümü'),
+    (k: 'dogru', l: 'Doğru'),
+    (k: 'yanlis', l: 'Yanlış'),
+    (k: 'bekleyen', l: 'Bekleyen'),
+  ];
+
+  /// Filtrenin baktığı tahmin: kupon varsa SENİN tahminin, yoksa SİSTEMİN.
+  /// (İkisini karıştırmak "doğru" sayısını belirsizleştirirdi; hangisine
+  /// bakıldığı ekranda da yazar.)
+  bool? _filtreHit(Map m, _Hafta week) {
+    if (!_officialResolved(m)) return null;
+    if (week.hasCoupon) {
+      final pick = week.seciliPicks[m['no']];
+      if (pick == null) return null;
+      return pick.contains('${m['result']}');
+    }
+    final sym = _sysSymOf(m);
+    if (sym == null) return null;
+    return pickHits(sym, '${m['result']}') == true;
+  }
+
+  bool _filtreyeUyar(Map m, _Hafta week) => switch (_macFiltre) {
+    'dogru' => _filtreHit(m, week) == true,
+    'yanlis' => _filtreHit(m, week) == false,
+    'bekleyen' => !_officialResolved(m),
+    _ => true,
+  };
+
+  List<Widget> _maclarSekmesi(_Hafta week) {
+    final maclar = ((_hist?['matches'] as List?) ?? const []).cast<Map>();
+    final filtreli = maclar.where((m) => _filtreyeUyar(m, week)).toList();
+    int say(String f) => switch (f) {
+      'dogru' => maclar.where((m) => _filtreHit(m, week) == true).length,
+      'yanlis' => maclar.where((m) => _filtreHit(m, week) == false).length,
+      'bekleyen' => maclar.where((m) => !_officialResolved(m)).length,
+      _ => maclar.length,
+    };
+
+    return [
+      Padding(
+        padding: const EdgeInsets.only(top: Spacing.sm),
+        child: Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final f in _filtreler)
+              _cip(
+                '${f.l} (${say(f.k)})',
+                secili: _macFiltre == f.k,
+                onTap: () => setState(() => _macFiltre = f.k),
+              ),
+          ],
         ),
       ),
-    ),
-    _satir(
-      'Sistem bu hafta',
-      week.sysTotal > 0
-          ? RichText(
-              text: TextSpan(
-                style: const TextStyle(
-                  color: AppColors.text,
-                  fontSize: 12.5,
-                  fontWeight: AppFont.bold,
-                ),
-                children: [
-                  TextSpan(
-                    text: '${week.sysCorrect}',
-                    style: const TextStyle(
-                      color: AppColors.success,
-                      fontWeight: AppFont.black,
-                    ),
-                  ),
-                  TextSpan(text: '/${week.sysTotal} doğru'),
-                ],
-              ),
-            )
-          : Text(
-              week.resolvedCount == 0 ? 'sonuç bekleniyor' : '—',
-              style: const TextStyle(
-                color: AppColors.text,
-                fontSize: 12.5,
-                fontWeight: AppFont.bold,
-              ),
-            ),
-    ),
-    _satir(
-      'Senin doğru sayın (dereceli)',
-      (week.hasCoupon && week.rankedRes != null && week.rankedRes!.resolved > 0)
-          ? RichText(
-              text: TextSpan(
-                style: const TextStyle(
-                  color: AppColors.text,
-                  fontSize: 12.5,
-                  fontWeight: AppFont.bold,
-                ),
-                children: [
-                  TextSpan(
-                    text: '${week.rankedRes!.hit}',
-                    style: const TextStyle(
-                      color: AppColors.success,
-                      fontWeight: AppFont.black,
-                    ),
-                  ),
-                  TextSpan(text: '/${week.rankedRes!.resolved}'),
-                ],
-              ),
-            )
-          : Text(
-              week.hasCoupon ? 'sonuç bekleniyor' : 'kupon yok',
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 12.5,
-                fontWeight: AppFont.semibold,
-              ),
-            ),
-      son: true,
-    ),
-  ]);
-
-  Widget _satir(String k, Widget v, {bool son = false}) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 9),
-    decoration: son
-        ? null
-        : const BoxDecoration(
-            border: Border(bottom: BorderSide(color: AppColors.border)),
-          ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Text(
-            k,
-            style: const TextStyle(
-              color: AppColors.textSoft,
-              fontSize: 12.5,
-              fontWeight: AppFont.semibold,
-            ),
+      Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Text(
+          week.hasCoupon
+              ? 'Doğru/Yanlış filtresi senin tahminine göredir.'
+              : 'Kupon yok — Doğru/Yanlış filtresi sistem tahminine göredir.',
+          style: const TextStyle(
+            color: AppColors.textMuted,
+            fontSize: 11,
+            fontStyle: FontStyle.italic,
           ),
         ),
-        const SizedBox(width: 10),
-        Flexible(child: v),
-      ],
-    ),
-  );
+      ),
+      const Padding(
+        padding: EdgeInsets.only(top: Spacing.sm),
+        child: ScoreLegend(),
+      ),
+      if (filtreli.isEmpty)
+        const Padding(
+          padding: EdgeInsets.only(top: 16),
+          child: Text(
+            'Bu filtreye uyan maç yok.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textMuted, fontSize: 12.5),
+          ),
+        )
+      else
+        for (final m in filtreli) _macKarti(m, week),
+    ];
+  }
 
-  Widget _macSatiri(Map m, _Hafta week) {
+  Widget _macKarti(Map m, _Hafta week) {
     // ✅/❌ YALNIZ resmi sonuçtan.
     final res = _officialResolved(m);
     final sv = _scoreView(m);
@@ -834,16 +1096,21 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     final sysHit = (res && sym != null)
         ? pickHits(sym, '${m['result']}')
         : null;
-    final myPick = week.rankedPicks[m['no']];
+    final myPick = week.seciliPicks[m['no']];
     final myHit = (res && myPick != null)
         ? myPick.contains('${m['result']}')
         : null;
     final d = matchDate(m['date'] as String?);
 
+    String isaret(bool? hit) => hit == null ? '⏳' : (hit ? '✅' : '❌');
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 9),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+      margin: const EdgeInsets.only(top: Spacing.sm),
+      padding: const EdgeInsets.all(Spacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -863,22 +1130,25 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // TAKIM ADLARI TAM — kesme/üç nokta yok; uzun ad sarar.
                 Text(
                   '${(m['home'] as Map?)?['name']} - ${(m['away'] as Map?)?['name']}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppColors.text,
-                    fontSize: 13,
-                    fontWeight: AppFont.bold,
+                    fontSize: 13.5,
+                    fontWeight: AppFont.heavy,
+                    height: 18 / 13.5,
                   ),
                 ),
                 if (d.day.isNotEmpty || d.time.isNotEmpty)
-                  Text(
-                    '${d.day}${d.day.isNotEmpty && d.time.isNotEmpty ? ' · ' : ''}${d.time}',
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 11,
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      '${d.day}${d.day.isNotEmpty && d.time.isNotEmpty ? ' · ' : ''}${d.time}',
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
               ],
@@ -891,7 +1161,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               if (sv != null)
                 RichText(
                   text: TextSpan(
-                    style: const TextStyle(fontSize: 12.5),
+                    style: const TextStyle(fontSize: 13),
                     children: [
                       TextSpan(
                         text: sv.score,
@@ -916,19 +1186,54 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                     ],
                   ),
                 )
+              else if (res && m['viaNotary'] == true)
+                // NOTER KARARI (ertelenen maç): resmî sonuç VAR, skor YOK —
+                // "bekliyor" yazmak ✅/❌ işaretleriyle çelişirdi (2026-08-10
+                // canlı doğrulamada görüldü: 53. Hafta 14. maç).
+                Text(
+                  'NOTER · ${m['result']}',
+                  style: const TextStyle(
+                    color: AppColors.success,
+                    fontSize: 12,
+                    fontWeight: AppFont.black,
+                  ),
+                )
               else
                 const Text(
                   'bekliyor',
                   style: TextStyle(color: AppColors.textMuted, fontSize: 11.5),
                 ),
+              // SEN ve SİSTEM AYRI SATIRLARDA — açıkça ayrılır.
+              if (myPick != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 11.5,
+                      ),
+                      children: [
+                        const TextSpan(text: 'Sen: '),
+                        TextSpan(
+                          text: myPick.join('/'),
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: AppFont.black,
+                          ),
+                        ),
+                        TextSpan(text: ' ${isaret(myHit)}'),
+                      ],
+                    ),
+                  ),
+                ),
               Padding(
                 padding: const EdgeInsets.only(top: 3),
                 child: RichText(
-                  textAlign: TextAlign.right,
                   text: TextSpan(
                     style: const TextStyle(
                       color: AppColors.textMuted,
-                      fontSize: 11,
+                      fontSize: 11.5,
                     ),
                     children: [
                       const TextSpan(text: 'Sistem: '),
@@ -939,24 +1244,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                           fontWeight: AppFont.black,
                         ),
                       ),
-                      TextSpan(
-                        text: ' ${sysHit == null ? '⏳' : (sysHit ? '✅' : '❌')}',
-                      ),
-                      const TextSpan(text: '  ·  Sen: '),
-                      TextSpan(
-                        text: myPick != null ? myPick.join('/') : '—',
-                        style: TextStyle(
-                          color: myPick != null
-                              ? AppColors.primary
-                              : AppColors.textMuted,
-                          fontWeight: AppFont.black,
-                        ),
-                      ),
-                      TextSpan(
-                        text: myPick == null
-                            ? ''
-                            : ' ${myHit == null ? '⏳' : (myHit ? '✅' : '❌')}',
-                      ),
+                      if (sym != null) TextSpan(text: ' ${isaret(sysHit)}'),
                     ],
                   ),
                 ),
@@ -967,6 +1255,61 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
       ),
     );
   }
+
+  // ——— Teknik bilgiler (en altta, açılır/kapanır) ———
+
+  Widget _teknikBolum(Map? selMeta, _Hafta week) => Padding(
+    padding: const EdgeInsets.only(top: Spacing.lg),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(
+          button: true,
+          label: _teknikAcik
+              ? 'Teknik bilgileri gizle'
+              : 'Teknik bilgileri göster',
+          child: GestureDetector(
+            onTap: () => setState(() => _teknikAcik = !_teknikAcik),
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: Spacing.md,
+                vertical: 10,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      '⚙ Teknik bilgiler',
+                      style: TextStyle(
+                        color: AppColors.textSoft,
+                        fontSize: 12.5,
+                        fontWeight: AppFont.heavy,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    _teknikAcik ? '▲' : '▼',
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 10,
+                      fontWeight: AppFont.black,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (_teknikAcik) _teknikKart(selMeta, week),
+      ],
+    ),
+  );
 
   Widget _teknikKart(Map? selMeta, _Hafta week) => _kart([
     _teknikSatir('Sezon', '${selMeta?['year'] ?? '—'}'),
@@ -1018,67 +1361,6 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
       ],
     ),
   );
-
-  Widget _genelOzet(Map overall, Map? bestWeek, Map? worstWeek) => _kart([
-    MetricBar(label: 'Sistem genel isabeti', value: _num(overall['accuracy'])),
-    Row(
-      children: [
-        _ozetHucre('Toplam maç', '${overall['total']}'),
-        _ozetHucre('Doğru', '${overall['correct']}', AppColors.success),
-        _ozetHucre('Yanlış', '${overall['wrong']}', AppColors.danger),
-      ],
-    ),
-    if (bestWeek != null && worstWeek != null)
-      Padding(
-        padding: const EdgeInsets.only(top: Spacing.sm),
-        child: Row(
-          children: [
-            _ozetHucre(
-              'En başarılı hafta',
-              '${bestWeek['round']} · %${bestWeek['accuracy']}',
-              null,
-              true,
-            ),
-            _ozetHucre(
-              'En zayıf hafta',
-              '${worstWeek['round']} · %${worstWeek['accuracy']}',
-              null,
-              true,
-            ),
-          ],
-        ),
-      ),
-  ]);
-
-  Widget _ozetHucre(String label, String v, [Color? c, bool kucuk = false]) {
-    return _ozetHucreIc(label, v, c, kucuk);
-  }
-
-  Widget _ozetHucreIc(String label, String v, Color? c, bool kucuk) => Expanded(
-    child: Column(
-      children: [
-        Text(
-          v,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: c ?? AppColors.text,
-            fontSize: kucuk ? 12.5 : 18,
-            fontWeight: AppFont.black,
-          ),
-        ),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppColors.textMuted,
-            fontSize: 10.5,
-            fontWeight: AppFont.bold,
-          ),
-        ),
-      ],
-    ),
-  );
 }
 
 class _Hafta {
@@ -1087,13 +1369,13 @@ class _Hafta {
     required this.resolvedCount,
     required this.fullyResolved,
     required this.hasPrize,
-    required this.sysTotal,
-    required this.sysCorrect,
     required this.status,
     required this.hasCoupon,
     required this.rankedRes,
     required this.others,
-    required this.rankedPicks,
+    required this.seciliRes,
+    required this.seciliPicks,
+    required this.kuponlar,
     required this.hasRanked,
     required this.rankedNo,
   });
@@ -1102,13 +1384,17 @@ class _Hafta {
   final int resolvedCount;
   final bool fullyResolved;
   final bool hasPrize;
-  final int sysTotal;
-  final int sysCorrect;
   final String status;
   final bool hasCoupon;
   final KuponSonuc? rankedRes;
   final List<KuponSonuc> others;
-  final Map<Object, List> rankedPicks;
+
+  /// "Sen" hesabının kaynağı: kullanıcının seçtiği (varsayılan dereceli) kupon.
+  final KuponSonuc? seciliRes;
+  final Map<Object, List> seciliPicks;
+
+  /// Kupon seçici listesi (dereceli önde).
+  final List<KuponSonuc> kuponlar;
   final bool hasRanked;
   final Object? rankedNo;
 }

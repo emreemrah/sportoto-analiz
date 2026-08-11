@@ -33,7 +33,10 @@ const Map<String, Object?> kPrefDefaults = {
   'histSort': 'bulletin', // 'bulletin' | 'resolvedTop' | 'waitingBottom'
   'sysDashView': 'simple', // 'simple' | 'detailed' | 'technical'
   'sysDashRange': 'all', // 'all' | 'last5' | 'last10'
-  'userDashView': 'simple', // 'simple' | 'detailed' | 'technical'
+  // SAPMA (2026-08-10): kullanıcı paneli "Haftalık Başarı" düzenine geçti —
+  // değerler 'ozet' | 'maclar' (rol ayrımıyla 'gecmis' kaldırıldı); diskte
+  // kalmış eski değerler okunurken Özet'e düşer.
+  'userDashView': 'ozet',
   'couponPlace': 'both', // kolon/tutar yeri: 'top' | 'bottom' | 'both'
   'couponPreview': true, // kayıt öncesi önizleme
   'couponSysMode': 'single', // 'single' (tekli) | 'wide' (geniş)
