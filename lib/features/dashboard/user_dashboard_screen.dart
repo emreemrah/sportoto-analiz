@@ -22,6 +22,7 @@ import '../../core/coupon/coupon_store.dart';
 import '../../core/live_logic.dart';
 import '../../core/network/api_client.dart';
 import '../../core/prefs.dart';
+import '../../core/services/muhurlu_sistem.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils.dart';
 import '../../widgets/score_legend.dart';
@@ -36,12 +37,13 @@ bool _officialResolved(Map? m) {
   return r != null && '$r'.isNotEmpty && (s != null || m?['viaNotary'] == true);
 }
 
-String? _sysSymOf(Map m) {
-  final p = m['prediction'];
-  final sym = p is Map ? p['symbol'] : null;
-  if (sym == null || '$sym'.isEmpty || sym == '-') return null;
-  return '$sym';
-}
+/// Maçın sistem seçimi — YALNIZ haftanın değiştirilemez mührümden.
+///
+/// 2026-08-11'e kadar burada `m['prediction']` okunuyordu; o alan sunucunun
+/// cache'inden gelir ve cache yoksa GÜNCEL analiz sızar. Geçmiş ekranın
+/// sistemi sonradan kazanmış göstermesi bu yüzdendi (bkz. muhurlu_sistem.dart).
+/// Mühürde kayıt yoksa null döner: maç ne doğru ne yanlış sayılır.
+String? _sysSymOf(Map m, MuhurluSistem muhur) => muhur.secim(m['no']);
 
 typedef SkorGorunum = ({
   Color color,
@@ -101,6 +103,10 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
   Map<String, dynamic>? _hist;
   bool _histLoading = false;
   Map<String, dynamic>? _scorecard;
+
+  /// Haftanın DEĞİŞTİRİLEMEZ sistem mührü — maç kartlarındaki sistem
+  /// seçiminin TEK kaynağı (bkz. muhurlu_sistem.dart).
+  MuhurluSistem _muhur = MuhurluSistem.yok;
 
   /// Sekme: 'ozet' | 'maclar'. Diskte kalmış eski değerler (Sade/Detaylı/
   /// Teknik dönemi ve kaldırılan 'gecmis') Özet'e düşer.
@@ -166,13 +172,26 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
   Future<void> _haftaYukle() async {
     final rid = _selectedId;
     if (rid == null) return;
-    setState(() => _histLoading = true);
+    setState(() {
+      _histLoading = true;
+      _muhur = MuhurluSistem.yok;
+    });
     try {
-      final h = (await api.history(rid) as Map).cast<String, dynamic>();
+      // SİSTEM SEÇİMİ MÜHÜRDEN (2026-08-11): /api/history'nin `prediction`
+      // alanı sunucu cache'inden gelir ve canlı analize düşebilir; geçmiş
+      // ekran onu okumaz (bkz. muhurlu_sistem.dart).
+      final sonuclar = await Future.wait([
+        api.history(rid),
+        muhurluSistemSecimleri(rid),
+      ]);
+      final h = (sonuclar[0] as Map).cast<String, dynamic>();
       // BAYAT YANIT KORUMASI: kullanıcı hafta değiştirdiyse geç gelen yanıt
       // yeni haftanın verisini EZMEZ.
       if (mounted && _selectedId == rid) {
-        setState(() => _hist = {...h, 'roundId': rid});
+        setState(() {
+          _hist = {...h, 'roundId': rid};
+          _muhur = sonuclar[1] as MuhurluSistem;
+        });
       }
     } catch (_) {
       if (mounted && _selectedId == rid) setState(() => _hist = null);
@@ -1019,7 +1038,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
       if (pick == null) return null;
       return pick.contains('${m['result']}');
     }
-    final sym = _sysSymOf(m);
+    final sym = _sysSymOf(m, _muhur);
     if (sym == null) return null;
     return pickHits(sym, '${m['result']}') == true;
   }
@@ -1092,7 +1111,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     // ✅/❌ YALNIZ resmi sonuçtan.
     final res = _officialResolved(m);
     final sv = _scoreView(m);
-    final sym = _sysSymOf(m);
+    final sym = _sysSymOf(m, _muhur);
     final sysHit = (res && sym != null)
         ? pickHits(sym, '${m['result']}')
         : null;
@@ -1227,28 +1246,44 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                     ),
                   ),
                 ),
-              Padding(
-                padding: const EdgeInsets.only(top: 3),
-                child: RichText(
-                  text: TextSpan(
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
+              // SİSTEM SATIRI — mühürlü kayıt yoksa sonuç DEĞERLENDİRİLMEZ.
+              // Sonucu gelmiş bir maçta mühür yoksa bu açıkça yazılır: sessiz
+              // bir "—", sistemin o maçta kaydı olduğu izlenimi verirdi.
+              if (sym == null && res)
+                const Padding(
+                  padding: EdgeInsets.only(top: 3),
+                  child: Text(
+                    'Sistem tahmin kaydı doğrulanamadı',
+                    style: TextStyle(
+                      color: AppColors.warning,
                       fontSize: 11.5,
+                      fontWeight: AppFont.bold,
                     ),
-                    children: [
-                      const TextSpan(text: 'Sistem: '),
-                      TextSpan(
-                        text: sym ?? '—',
-                        style: const TextStyle(
-                          color: AppColors.text,
-                          fontWeight: AppFont.black,
-                        ),
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 11.5,
                       ),
-                      if (sym != null) TextSpan(text: ' ${isaret(sysHit)}'),
-                    ],
+                      children: [
+                        const TextSpan(text: 'Sistem: '),
+                        TextSpan(
+                          text: sym ?? '—',
+                          style: const TextStyle(
+                            color: AppColors.text,
+                            fontWeight: AppFont.black,
+                          ),
+                        ),
+                        if (sym != null) TextSpan(text: ' ${isaret(sysHit)}'),
+                      ],
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ],

@@ -118,6 +118,36 @@ final Map<String, Object?> kUclar = {
       _mac(4, 'Rakow', 'Zaglebie', result: 'X', sys: 'X', viaNotary: true),
     ],
   },
+  // MÜHÜR — maç kartlarındaki sistem seçiminin TEK kaynağı (2026-08-11).
+  // history'deki `prediction` alanı artık okunmuyor; buradaki değerler onunla
+  // AYNI tutuldu ki bu testin ölçtüğü davranış (filtre/işaret) değişmesin.
+  '/api/bulletins/1600/snapshot': {
+    'id': 'snap-1600',
+    'lockedAt': '2026-08-08T13:55:05.857Z',
+    'late': false,
+    'immutable': true,
+    'verificationHash': 'test-hash',
+    'payload': {
+      'matches': [
+        {
+          'no': 1,
+          'systemPrediction': {'symbol': '10', 'display': '10'},
+        },
+        {
+          'no': 2,
+          'systemPrediction': {'symbol': '2', 'display': '2'},
+        },
+        {
+          'no': 3,
+          'systemPrediction': {'symbol': '1', 'display': '1'},
+        },
+        {
+          'no': 4,
+          'systemPrediction': {'symbol': 'X', 'display': 'X'},
+        },
+      ],
+    },
+  },
   '/api/system-scorecard': {
     'hasData': true,
     'accuracy': 55,
@@ -155,9 +185,9 @@ Future<void> _tur(WidgetTester t, [int n = 25]) async {
   }
 }
 
-Future<void> _ekraniAc(WidgetTester t) async {
+Future<void> _ekraniAc(WidgetTester t, {Map<String, Object?>? uclar}) async {
   _tasiyici.istekler.clear();
-  _tasiyici.uclar = kUclar;
+  _tasiyici.uclar = uclar ?? kUclar;
   api.tasiyici = _tasiyici;
   await t.pumpWidget(const MaterialApp(home: UserDashboardScreen()));
   await _tur(t);
@@ -287,6 +317,25 @@ void main() {
       findsOneWidget,
     );
     expect(_metin('Sistem Karnesi ›'), findsOneWidget);
+  });
+
+  testWidgets('MÜHÜR YOKSA maç kartı "Sistem tahmin kaydı doğrulanamadı" der', (
+    t,
+  ) async {
+    // 2026-08-11 kullanıcı bulgusu: geçmiş ekran, mühür yerine güncel analizi
+    // okuyunca sistem sonradan kazanmış görünüyordu. Mühür yoksa sistem
+    // seçimi İDDİA EDİLMEZ ve maç ✅/❌ almaz.
+    final muhursuz = Map<String, Object?>.from(kUclar)
+      ..remove('/api/bulletins/1600/snapshot');
+    await _ekraniAc(t, uclar: muhursuz);
+    await t.tap(_metin('Maçlar'), warnIfMissed: false);
+    await _tur(t);
+
+    expect(_metin('Sistem tahmin kaydı doğrulanamadı'), findsWidgets);
+    // Sistem hiçbir maçta doğru/yanlış işareti almaz.
+    expect(_metinIceren('Sistem: '), findsNothing);
+    expect(_metinIceren('✅'), findsNothing);
+    expect(_metinIceren('❌'), findsNothing);
   });
 
   testWidgets('Teknik bilgiler KAPALI başlar; dokununca açılır ve gerçek '

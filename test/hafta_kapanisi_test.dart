@@ -85,29 +85,61 @@ final Map<String, Object?> kUclar = {
       {'id': 1601, 'name': '1. Hafta', 'year': 2027},
     ],
   },
+  // DİKKAT: buradaki `sys` değerleri BİLEREK YANLIŞ/GÜNCEL analizdir.
+  // /api/history'nin `prediction` alanı sunucu cache'inden gelir ve canlı
+  // analize düşebilir; ekran onu OKUMAMALI. Doğrusu mühürdedir (aşağıda).
   '/api/history/1600': {
     'matches': [
-      // Sistem kupon önerisi TUTTU.
       _mac(
         1,
         'Randers',
         'Lyngby',
         result: '1',
         score: {'home': 2, 'away': 0},
-        sys: '1',
+        sys: '2', // güncel analiz: YANLIŞ — mühür '1' diyor
       ),
-      // Sistem kupon önerisi ISKALADI → "Haftanın Anları"na düşer.
       _mac(
         2,
         'Oulu',
         'Helsinki',
         result: '2',
         score: {'home': 0, 'away': 1},
-        sys: '1',
+        sys: '2', // güncel analiz: sistem KAZANMIŞ gibi — mühür '1' diyor
       ),
-      // Resmî sonuç VAR ama sistemin tahmini YOK → satır nötr kalır.
-      _mac(3, 'Arsenal', 'Dortmund', result: '2', score: {'home': 2, 'away': 3}),
+      // Resmî sonuç VAR; mühürde de tahmin YOK → satır nötr kalır.
+      _mac(
+        3,
+        'Arsenal',
+        'Dortmund',
+        result: '2',
+        score: {'home': 2, 'away': 3},
+        sys: '2',
+      ),
     ],
+  },
+  // MÜHÜR — sistem seçiminin TEK kaynağı. 1 ve 2 için kayıt var, 3 için YOK.
+  '/api/bulletins/1600/snapshot': {
+    'id': 'snap-1600',
+    'lockedAt': '2026-08-08T13:55:05.857Z',
+    'late': false,
+    'immutable': true,
+    'verificationHash': '92ce471a288cdca177122865707f4386',
+    'payload': {
+      'matches': [
+        {
+          'no': 1,
+          'systemPrediction': {'symbol': '1', 'display': '1'},
+        },
+        {
+          'no': 2,
+          'systemPrediction': {'symbol': '1', 'display': '1'},
+        },
+        {
+          'no': 3,
+          'systemPrediction': {'symbol': '-', 'display': '-'},
+        },
+      ],
+    },
   },
   // Karne: SİSTEM sütununun TEK kaynağı. Satırlardaki 2/2 kupon isabetiyle
   // BİLEREK farklı sayı verir — ekran hangisini bastığı görünsün diye.
@@ -251,5 +283,64 @@ void main() {
     expect(_metin('kupon yok'), findsOneWidget);
     expect(_metin('Haftanın Anları'), findsOneWidget);
     expect(_metin('Sistem kuponu ıskaladı'), findsOneWidget);
+  });
+
+  // ————————————————————————————————————————————————————————————————
+  // MÜHÜRLÜ SİSTEM — geçmişin sonradan değişmemesi (2026-08-11 kullanıcı
+  // bulgusu: kupona alınan sistem seçimi 1-X'ti, ekranda 1-2 görünüyordu).
+  // ————————————————————————————————————————————————————————————————
+  group('Sistem seçimi', () {
+    testWidgets('MÜHÜRDEN okunur; history\'deki güncel tahmin YOK SAYILIR', (
+      t,
+    ) async {
+      await _ekraniAc(t, roundId: '1600', kuponVar: false);
+
+      // Mühür 1. maç için '1' diyor, history '2'. Ekranda mühür kazanır.
+      expect(_metinIceren('Sistem kuponu 1'), findsWidgets);
+      // Güncel analizin '2'si hiçbir satırda sistem seçimi olarak çıkmaz:
+      // 2. maçta history '2' (doğru) derken mühür '1' (yanlış) diyor →
+      // sistem ISKALADI görünmeli, "bildi" değil.
+      expect(_metin('Sistem kuponu bildi, sen bilemedin'), findsNothing);
+      expect(_metin('Sistem kuponu ıskaladı'), findsOneWidget);
+    });
+
+    testWidgets('mühürde tahmin YOKSA maç sistem başarısına KATILMAZ', (
+      t,
+    ) async {
+      await _ekraniAc(t, roundId: '1600', kuponVar: false);
+
+      // 3. maçın mührü '-' → değerlendirilmez, uyarı görünür.
+      expect(_metin('Sistem tahmin kaydı doğrulanamadı'), findsOneWidget);
+      expect(_metinIceren('sistem başarısına KATILMADI'), findsOneWidget);
+      expect(_metinIceren('No 3'), findsOneWidget);
+    });
+
+    testWidgets('MÜHÜR HİÇ YOKSA sistem hiçbir maçta iddia edilmez', (t) async {
+      final uclarsiz = Map<String, Object?>.from(kUclar)
+        ..remove('/api/bulletins/1600/snapshot');
+      await _ekraniAc(t, roundId: '1600', kuponVar: false, uclar: uclarsiz);
+
+      expect(_metin('Sistem tahmin kaydı doğrulanamadı'), findsOneWidget);
+      expect(
+        _metinIceren('arşivde kilitli sistem kaydı bulunamadı'),
+        findsOneWidget,
+      );
+      // Sistem kazanmış gösterilmez.
+      expect(_metin('Sistem kuponu bildi, sen bilemedin'), findsNothing);
+      expect(_metinIceren('Sistem kuponu '), findsNothing);
+    });
+
+    testWidgets('GEÇ alınmış mühür kanıt sayılmaz', (t) async {
+      final gec = Map<String, Object?>.from(kUclar);
+      gec['/api/bulletins/1600/snapshot'] = {
+        ...(kUclar['/api/bulletins/1600/snapshot']! as Map),
+        'late': true, // ilk maç başladıktan SONRA mühürlenmiş
+      };
+      await _ekraniAc(t, roundId: '1600', kuponVar: false, uclar: gec);
+
+      expect(_metin('Sistem tahmin kaydı doğrulanamadı'), findsOneWidget);
+      expect(_metinIceren('ilk maç başladıktan SONRA'), findsOneWidget);
+      expect(_metin('Sistem kuponu bildi, sen bilemedin'), findsNothing);
+    });
   });
 }

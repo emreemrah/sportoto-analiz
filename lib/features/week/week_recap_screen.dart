@@ -15,6 +15,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/coupon/coupon_store.dart';
 import '../../core/network/api_client.dart';
+import '../../core/services/muhurlu_sistem.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/week_recap.dart';
 import '../../widgets/states.dart';
@@ -62,6 +63,10 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
   /// 2026-08-11): tekli mühürlü ana tahmin × resmî sonuç. Kupon düellosu
   /// (satırlardaki pick/tik) ayrı ve 'kupon' etiketiyle durur.
   Map<String, dynamic>? _karne;
+
+  /// Haftanın DEĞİŞTİRİLEMEZ sistem mührü — satırlardaki sistem seçiminin tek
+  /// kaynağı (bkz. muhurlu_sistem.dart).
+  MuhurluSistem _muhur = MuhurluSistem.yok;
   String? _error;
   bool _loading = true;
 
@@ -124,16 +129,61 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
   Future<void> _haftaYukle() async {
     final rid = _roundId;
     if (rid == null) return;
-    setState(() => _hist = null);
+    setState(() {
+      _hist = null;
+      _muhur = MuhurluSistem.yok;
+    });
     try {
-      final h = (await api.history(rid) as Map).cast<String, dynamic>();
+      // Maç listesi /api/history'den, SİSTEM SEÇİMİ arşiv mühründen gelir —
+      // ikisi paralel çekilir. Mühür alınamazsa sistem sütunu boş kalır,
+      // history'nin canlı analize düşebilen `prediction` alanına GÜVENİLMEZ.
+      final sonuclar = await Future.wait([
+        api.history(rid),
+        muhurluSistemSecimleri(rid),
+      ]);
+      final h = (sonuclar[0] as Map).cast<String, dynamic>();
       // BAYAT YANIT KORUMASI: istek uçarken kullanıcı başka haftaya geçmiş
       // olabilir; geç gelen yanıt yeni haftanın verisini EZMEZ.
-      if (mounted && _roundId == rid) setState(() => _hist = h);
+      if (mounted && _roundId == rid) {
+        setState(() {
+          _hist = h;
+          _muhur = sonuclar[1] as MuhurluSistem;
+        });
+      }
     } catch (_) {
       if (mounted && _roundId == rid) setState(() => _hist = null);
     }
   }
+
+  /// Maç listesini MÜHÜRLÜ sistem seçimiyle yeniden yazar.
+  ///
+  /// `/api/history` yanıtındaki `prediction` alanı sunucu cache'inden gelir ve
+  /// o cache yoksa CANLI analizi taşır (bkz. muhurlu_sistem.dart başlığı).
+  /// Bu yüzden alan burada TAMAMEN atılır ve yerine yalnız arşiv mührü konur;
+  /// mühürde tahmin yoksa maç sistemsiz kalır — saf `buildWeekRecap` onu
+  /// karşılaştırmaya, başarıya ve "haftanın anları"na SOKMAZ.
+  List<Map> _muhurluMaclar() => [
+    for (final m in ((_hist?['matches'] as List?) ?? const []).cast<Map>())
+      // Önce sunucudan gelen alan SİLİNİR (yayılımla korunursa mühür
+      // olmayan maçta canlı tahmin sızar), sonra varsa mühür yazılır.
+      Map<String, dynamic>.from(m)
+        ..remove('prediction')
+        ..addAll(
+          switch (_muhur.secim(m['no'])) {
+            final String s => {
+              'prediction': {'symbol': s},
+            },
+            _ => const <String, dynamic>{},
+          },
+        ),
+  ];
+
+  /// Resmî sonucu gelmiş ama MÜHÜRLÜ sistem seçimi olmayan maçlar.
+  /// Bunlar sistem başarısına girmez; ekranda açıkça yazılır.
+  List<Map> _muhursuzCozulmusMaclar() => [
+    for (final m in ((_hist?['matches'] as List?) ?? const []).cast<Map>())
+      if (isOfficiallyResolved(m) && _muhur.secim(m['no']) == null) m,
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -164,10 +214,13 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
 
     final ranked = _roundId != null ? getRankedCoupon(_roundId) : null;
     final v = ranked != null ? finalVersion(ranked) : null;
+    // SİSTEM SEÇİMİ YALNIZ MÜHÜRDEN (2026-08-11): canlı analiz geçmişe
+    // karışmaz; mührü olmayan maç sistem tarafında hiç yer almaz.
     final recap = buildWeekRecap(
-      matches: (_hist?['matches'] as List?) ?? const [],
+      matches: _muhurluMaclar(),
       selections: (v?['selections'] as List?) ?? const [],
     );
+    final muhursuz = _muhursuzCozulmusMaclar();
 
     return _kabuk(
       ListView(
@@ -203,6 +256,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
             )
           else ...[
             _senVsSistem(recap),
+            if (muhursuz.isNotEmpty) _muhurUyarisi(muhursuz),
             if (recap.head2head case final h?) _h2hKart(h),
             if (recap.highlights.isNotEmpty) ...[
               const _BolumBasligi('Haftanın Anları'),
@@ -417,6 +471,58 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// MÜHÜR YOKSA DÜRÜST UYARI (2026-08-11).
+  ///
+  /// Sistem, kilit öncesi mühürlenmemiş bir maçta "bildim" diyemez. Bu kart
+  /// hangi maçların sistem başarısı dışında kaldığını AÇIKÇA söyler; sayıyı
+  /// gizlemek, sistemi olduğundan başarılı göstermek olurdu.
+  Widget _muhurUyarisi(List<Map> muhursuz) {
+    final noSuz = muhursuz.map((m) => '${m['no']}').join(', ');
+    final neden = _muhur.muhurVar
+        ? (_muhur.gecKilit
+              ? 'Bu haftanın mührü ilk maç başladıktan SONRA alınmış; '
+                    'kilit öncesi kayıt sayılmaz.'
+              : 'Mühürde bu maçlar için sistem seçimi yok.')
+        : 'Bu hafta için arşivde kilitli sistem kaydı bulunamadı.';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Spacing.md),
+      child: Container(
+        padding: const EdgeInsets.all(Spacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.warningSoft,
+          borderRadius: AppRadius.mdR,
+          border: Border.all(color: AppColors.warning),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Sistem tahmin kaydı doğrulanamadı',
+              style: TextStyle(
+                color: AppColors.text,
+                fontSize: 13,
+                fontWeight: AppFont.black,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '$neden ${muhursuz.length} maç (No $noSuz) sistem '
+                'başarısına KATILMADI; bu maçlarda sistem kazanmış '
+                'gösterilmez.',
+                style: const TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 11.5,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
