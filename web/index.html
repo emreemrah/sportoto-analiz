@@ -34,12 +34,12 @@
 </head>
 <body>
   <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
+    NOT (2026-08-11): canvaskit'in Google CDN'i yerine KENDİ sunucumuzdan
+    okunması, derleme sonrası `flutter_bootstrap.js` içindeki yapılandırmaya
+    `useLocalCanvasKit` eklenerek sağlanır — bkz. kök dizindeki
+    `flutter-web-yayinla.bat`. Buraya elle yapılandırma yazılmaz: bootstrap
+    kendi kendine yüklendiği için buradaki ikinci bir `load()` çağrısı geç
+    kalır ve uygulamayı iki kez başlatır (yerelde denendi, çalışmadı).
   -->
   <script src="flutter_bootstrap.js" async></script>
 </body>
