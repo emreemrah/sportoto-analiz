@@ -775,23 +775,13 @@ class _AnalysisCard extends StatelessWidget {
                         analysis?['estimated'] == true,
                       ),
                     ),
-                    if (s.k != '2') const SizedBox(width: 4),
+                    if (s.k != '2') SizedBox(width: dar ? 4 : 5),
                   ],
                 ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                dar
-                    ? '▲ en yüksek · seçim değil'
-                    : '▲ en yüksek ihtimal — seçim değil',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: dar ? 8.5 : 9.5,
-                  fontWeight: AppFont.semibold,
-                ),
-              ),
+              // Açıklama satırının yeri: kartı ferahlatmak için küçük bir
+              // nefes payı bırakıldı (2026-08-11).
+              SizedBox(height: dar ? 2 : 4),
             ],
 
             const SizedBox(height: 8),
@@ -850,37 +840,45 @@ class _AnalysisCard extends StatelessWidget {
     ],
   );
 
-  /// VURGU DİLİ: favori kutusu DOLGULU DEĞİL. Kullanıcı bildirimi (2026-08-06):
-  /// "MS1 %40 seçilmiş gibi duruyor" — mobil arayüzde dolu kutu "seçildi"
-  /// demektir, oysa burada seçim yok, yalnız en yüksek ihtimal işaretleniyor.
+  /// VURGU DİLİ: favori kutusu SEÇİLMİŞ GİBİ DURMAZ.
+  ///
+  /// Kullanıcı bildirimi (2026-08-06): "MS1 %40 seçilmiş gibi duruyor" — dolu
+  /// kutu mobilde "seçildi" demektir. İkinci tur (2026-08-11): ok işareti,
+  /// MAVİ ÇERÇEVE ve altındaki "▲ en yüksek ihtimal — seçim değil" açıklaması
+  /// da kaldırıldı; üçü birlikte hâlâ seçim izlenimi veriyordu ve açıklama
+  /// satırı kartı sıkıştırıyordu. En yüksek ihtimal artık YALNIZ biraz daha
+  /// koyu NÖTR arka plan (bgAlt → border tonu, mavi değil) ve kalın yazıyla
+  /// ayrılır. Ölçüler aynı istekte ~%15 küçültüldü (yazı 10.5→9 / 12.5→10.5,
+  /// iç boşluk 6→5; dar sürüm 9.5→8 / 11→9.5, 4→3.5).
+  ///
+  /// Üç kutu `Expanded` ile EŞİT genişliktedir; çerçeve kalktığı için favori
+  /// kutusunun içi de artık diğerleriyle birebir aynı ölçüde.
   Widget _ihtimalKutusu(String k, num v, bool favMi, bool estimated) =>
       Semantics(
+        // Ok işareti ekrandan kalktı, anlam ERİŞİLEBİLİRLİKTE duruyor.
         label: favMi ? '$k: yüzde $v — en yüksek ihtimal' : '$k: yüzde $v',
         child: Container(
-          padding: EdgeInsets.symmetric(vertical: dar ? 4 : 6),
+          padding: EdgeInsets.symmetric(vertical: dar ? 3.5 : 5),
           decoration: BoxDecoration(
-            color: favMi ? AppColors.primarySoft : AppColors.bgAlt,
+            color: favMi ? AppColors.border : AppColors.bgAlt,
             borderRadius: AppRadius.smR,
-            border: Border.all(
-              color: favMi ? AppColors.primary : Colors.transparent,
-            ),
           ),
           child: Column(
             children: [
               Text(
-                '$k${favMi ? ' ▲' : ''}',
+                k,
                 style: TextStyle(
                   color: AppColors.textSoft,
-                  fontSize: dar ? 9.5 : 10.5,
-                  fontWeight: AppFont.black,
+                  fontSize: dar ? 8 : 9,
+                  fontWeight: favMi ? AppFont.black : AppFont.bold,
                 ),
               ),
               Text(
                 '%$v${estimated ? '≈' : ''}',
                 style: TextStyle(
                   color: AppColors.text,
-                  fontSize: dar ? 11 : 12.5,
-                  fontWeight: AppFont.black,
+                  fontSize: dar ? 9.5 : 10.5,
+                  fontWeight: favMi ? AppFont.black : AppFont.bold,
                 ),
               ),
             ],
