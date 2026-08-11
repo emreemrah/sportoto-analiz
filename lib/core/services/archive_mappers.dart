@@ -182,9 +182,27 @@ Map<String, dynamic>? mapSnapshot(
     final actual = res is Map ? res['officialResult'] : null;
     // Değerlendirme uçtan geldiyse SUNUCUNUN kararı esastır; yoksa yerel
     // karşılaştırma yapılır. İkisi de yoksa null (— "yanlış" DEMEZ).
+    // NOT: bu KUPON KAPSAMASI ölçüsüdür (çoklu display); kullanıcıya
+    // gösterilen başarı yüzdesi bundan üretilmez (tek ölçü kuralı, aşağıda).
     final systemCorrect = ev is Map
         ? ev['correct']
         : displayPickHits(display, actual);
+
+    // TEK ÖLÇÜ (2026-08-11, kullanıcı kararı): ekranlardaki sistem başarısı
+    // TEKLİ mühürlü ana tahmindir — backend karnesiyle (scorecardService)
+    // AYNI kural: yalnız 1/X/2 ana tahmin × resmî sonuç. Ana tahmin mühürde
+    // yoksa maç değerlendirmeye girmez (null — "yanlış" DEMEZ).
+    final ac = m['analysisCenter'];
+    final oma = ac is Map ? ac['officialMasterAnalysis'] : null;
+    final mainRaw = (oma is Map && oma['ok'] != false)
+        ? oma['mainPrediction']
+        : null;
+    final anaTahmin = (mainRaw == '1' || mainRaw == 'X' || mainRaw == '2')
+        ? '$mainRaw'
+        : null;
+    final anaTahminCorrect = (anaTahmin != null && actual != null)
+        ? anaTahmin == '$actual'
+        : null;
 
     final confidence = m['confidence'];
     final radar = m['radar'];
@@ -192,8 +210,10 @@ Map<String, dynamic>? mapSnapshot(
     matchesAnalysis.add({
       'matchId': key,
       'orderNo': m['no'],
-      // '1' | 'X' | '2' | '1X' | 'X2' | '12' | '1X2' | null
+      // '1' | 'X' | '2' | '1X' | 'X2' | '12' | '1X2' | null (KUPON önerisi)
       'prediction': display,
+      // TEKLİ mühürlü ana tahmin — görünen başarı yüzdesinin tek kaynağı.
+      'anaTahmin': anaTahmin,
       'predictionLabel': sp is Map ? sp['label'] : null,
       'predictionReason': sp is Map ? sp['reason'] : null,
       // gerçek veriden (favori ihtimali); yoksa null
@@ -226,6 +246,7 @@ Map<String, dynamic>? mapSnapshot(
               'fullTimeScore': res['fullTimeScore'],
               'actualResult': actual,
               'systemCorrect': systemCorrect,
+              'anaTahminCorrect': anaTahminCorrect,
               'userCorrect': null,
               // hata etiketi verisi yok — uydurulmaz
               'errorTag': null,

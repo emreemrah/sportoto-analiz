@@ -100,7 +100,6 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
     final snap = _snapshot;
     final sealed = snap != null && snap['isLocked'] == true;
     final shortHash = snap?['shortHash'];
-    final rs = b['resultSummary'];
     final lockedAt = b['lockedAt'];
     final freezeAt = b['freezeAt'];
     final durum = '${b['status']}';
@@ -110,9 +109,9 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
       final d = matchDate('$lockedAt');
       altSatir.write(' · Kilit: ${d.day} ${d.time}');
     }
-    if (durum == 'completed' && rs is Map) {
-      altSatir.write(' · Sistem: ${rs['systemCorrect']}/${rs['totalCount']}');
-    }
+    // TEK ÖLÇÜ (2026-08-11): başlıktaki 'Sistem: X/Y' kupon kapsaması
+    // sayısıydı — karneyle çelişen yüzdelerin kaynaklarından biri. Kaldırıldı;
+    // sistem başarısı yalnız 'Sistem Karnesi' sekmesinde (tekli) yazar.
 
     return _kabuk(
       Column(
@@ -364,14 +363,18 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
           }
         }
         final ri = item['resultInfo'] as Map;
+        // TEK ÖLÇÜ (2026-08-11): tik TEKLİ ana tahmine göredir (karneyle
+        // aynı kural). Ana tahmin mühürde yoksa kupon önerisi tiksiz görünür
+        // — "yanlış" denmez, değerlendirmeye girmez.
         return ResultComparisonCard(
           orderNo: match?['orderNo'] ?? item['orderNo'],
           homeTeam: (match?['homeTeam'] as Map?)?['name'] as String?,
           awayTeam: (match?['awayTeam'] as Map?)?['name'] as String?,
           userPick: null,
-          systemPick: item['prediction'] as String?,
+          systemPick:
+              (item['anaTahmin'] ?? item['prediction']) as String?,
           actualResult: ri['actualResult'] as String?,
-          isCorrect: ri['systemCorrect'] as bool?,
+          isCorrect: ri['anaTahminCorrect'] as bool?,
         );
       },
     );
@@ -389,12 +392,15 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
       );
     }
 
-    // systemCorrect null ise maç HENÜZ DEĞERLENDİRİLMEMİŞTİR; paydaya
-    // katılmaz. Katsaydı başarı oranı yapay olarak DÜŞERDİ.
+    // TEK ÖLÇÜ (2026-08-11): bu sekme TEKLİ mühürlü ana tahmini sayar —
+    // Sistem Karnesi ekranıyla AYNI kural, aynı sayı. (Önceden çoklu kupon
+    // kapsamasını sayıyordu; karneyle çelişen %93/%36 karmaşasının
+    // kaynağıydı.) anaTahminCorrect null ise maç değerlendirilmemiştir;
+    // paydaya katılmaz — katsaydı oran yapay düşerdi.
     final resolved = [
       for (final m in (snap['matchesAnalysis'] as List?) ?? const [])
         if ((m as Map)['resultInfo'] is Map &&
-            (m['resultInfo'] as Map)['systemCorrect'] != null)
+            (m['resultInfo'] as Map)['anaTahminCorrect'] != null)
           m,
     ];
 
@@ -410,7 +416,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
     }
 
     final correct = resolved
-        .where((m) => (m['resultInfo'] as Map)['systemCorrect'] == true)
+        .where((m) => (m['resultInfo'] as Map)['anaTahminCorrect'] == true)
         .length;
     final rate = (correct / resolved.length * 100).round();
     final wrong = resolved.length - correct;
@@ -419,7 +425,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
     for (final m in resolved) {
       final ri = m['resultInfo'] as Map;
       final tag = ri['errorTag'];
-      if (ri['systemCorrect'] != true && tag != null) {
+      if (ri['anaTahminCorrect'] != true && tag != null) {
         errorCounts['$tag'] = (errorCounts['$tag'] ?? 0) + 1;
       }
     }
@@ -428,7 +434,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
       padding: _listPad,
       children: [
         DashboardChartCard(
-          title: 'Sistem başarısı: $correct/${resolved.length} (%$rate)',
+          title: 'Ana tahmin başarısı: $correct/${resolved.length} (%$rate)',
           rows: [(label: 'Doğru oran', value: rate, color: AppColors.green)],
         ),
         if (errorCounts.isNotEmpty)

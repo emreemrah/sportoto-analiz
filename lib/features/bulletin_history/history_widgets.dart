@@ -384,6 +384,11 @@ class _Olcut extends StatelessWidget {
 ///
 /// Kullanıcı seçimi vs sistem önerisi vs gerçek sonuç, doğru/yanlış rengiyle.
 /// Sonuç GELMEDİYSE satır nötr kalır (⏳) — erken "yanlış" damgası vurulmaz.
+///
+/// ÜÇÜNCÜ DURUM (2026-08-11, emülatörde yakalandı): sonuç GELDİ ama maç
+/// DEĞERLENDİRİLEMEDİ (isCorrect == null; ör. mühürde tekli ana tahmin yok).
+/// Eski hâl bunu ✗/kırmızı basıyordu — "tahmin yok" ile "yanlış"ı aynı
+/// gösteriyordu. Artık nötr tire (–) çizilir; başarı paydasına da girmez.
 class ResultComparisonCard extends StatelessWidget {
   const ResultComparisonCard({
     super.key,
@@ -407,7 +412,9 @@ class ResultComparisonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pending = actualResult == null;
-    final kenar = pending
+    // Değerlendirilmemiş: sonuç var ama karar yok → nötr (yanlış DEĞİL).
+    final degerlendirilmedi = !pending && isCorrect == null;
+    final kenar = (pending || degerlendirilmedi)
         ? AppColors.border
         : (isCorrect == true ? AppColors.green : AppColors.red);
 
@@ -460,7 +467,11 @@ class ResultComparisonCard extends StatelessWidget {
           SizedBox(
             width: 20,
             child: Text(
-              pending ? '⏳' : (isCorrect == true ? '✓' : '✗'),
+              pending
+                  ? '⏳'
+                  : degerlendirilmedi
+                  ? '–'
+                  : (isCorrect == true ? '✓' : '✗'),
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 15),
             ),

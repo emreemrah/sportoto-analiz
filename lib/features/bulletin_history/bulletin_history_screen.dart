@@ -3,7 +3,11 @@
 //         app/src/hooks/useBulletinHistory.js  — BİREBİR çeviri.
 //
 // A) Geçmiş Bültenler Ekranı — bülten listesi, durum, kilitlenme zamanı,
-// kaç maç oynandı/sonuçlandı, sistem başarı oranı.
+// kaç maç oynandı/sonuçlandı, sistem ANA TAHMİN isabeti.
+//
+// KAYNAKTAN BİLİNÇLİ SAPMA (2026-08-11, tek ölçü kararı): karttaki sistem
+// yüzdesi arşivin kupon-kapsaması özeti yerine backend KARNESİNDEN (tekli
+// mühürlü ana tahmin) okunur — Sistem Karnesi ekranıyla aynı sayı.
 //
 // DEMO BANDI: kaynakta liste tümüyle örnek veriden geldiğinde görünüyordu.
 // Bu çeviride demo kapısı DAİMA KAPALI (bkz. bulletin_history_service.dart),
@@ -13,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/network/api_client.dart';
 import '../../core/services/archive_client.dart';
 import '../../core/services/bulletin_history_service.dart';
 import '../../core/theme/tokens.dart';
@@ -46,10 +51,33 @@ class _BulletinHistoryScreenState extends State<BulletinHistoryScreen> {
     });
     try {
       final list = await listBulletins();
+      // TEK ÖLÇÜ (2026-08-11, kullanıcı kararı): karttaki sistem yüzdesi
+      // backend KARNESİNDEN okunur (tekli ana tahmin) — arşivin kupon
+      // kapsaması sayısı (resultSummary) kullanıcıya gösterilmez. Karne
+      // alınamazsa satır çizilmez; kupon sayısına DÜŞÜLMEZ (iki ölçü
+      // karışmasın diye bilinçli).
+      Map? karne;
+      try {
+        karne = await api.systemScorecard() as Map?;
+      } catch (_) {
+        karne = null;
+      }
+      final karneHaftalari = <String, Map>{
+        for (final w in ((karne?['weeks'] as List?) ?? const []).cast<Map>())
+          '${w['roundId']}': w,
+      };
       // Eski kupon servisi kaldırıldı — kuponlar artık Kupon Merkezi'nde.
       if (mounted) {
-        setState(() =>
-            _bulletins = [for (final b in list) {...b, 'myCoupon': null}]);
+        setState(
+          () => _bulletins = [
+            for (final b in list)
+              {
+                ...b,
+                'myCoupon': null,
+                '_karneHaftasi': karneHaftalari['${b['roundId']}'],
+              },
+          ],
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -174,7 +202,9 @@ class BulletinCard extends StatelessWidget {
     final d = matchDate(bulletin['date'] as String?);
     final total = (bulletin['matches'] as List?)?.length ?? 0;
     final finished = bulletin['_finishedCount'] ?? 0;
-    final rs = bulletin['resultSummary'];
+    // Karne haftası — listeyi yükleyen ekran ekler (_reload'daki tek ölçü
+    // notu); resultSummary (kupon kapsaması) kartta KULLANILMAZ.
+    final kw = bulletin['_karneHaftasi'];
     final myCoupon = bulletin['myCoupon'];
     final lockedAt = bulletin['lockedAt'];
     final durum = '${bulletin['status']}';
@@ -234,13 +264,13 @@ class BulletinCard extends StatelessWidget {
                 fontWeight: AppFont.semibold,
               ),
             ),
-            if (rs is Map) ...[
+            if (kw is Map && (kw['evaluated'] as num? ?? 0) > 0) ...[
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'Sistem başarısı',
+                    'Sistem ana tahmini',
                     style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 11.5,
@@ -248,7 +278,7 @@ class BulletinCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '%${rs['systemAccuracy']} (${rs['systemCorrect']}/${rs['resolvedCount']})',
+                    '%${kw['accuracy']} (${kw['correct']}/${kw['evaluated']})',
                     style: const TextStyle(
                       color: AppColors.text,
                       fontSize: 11.5,
@@ -259,8 +289,8 @@ class BulletinCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               ProgressBar(
-                value: (rs['systemAccuracy'] as num?) ?? 0,
-                tone: _ton((rs['systemAccuracy'] as num?) ?? 0),
+                value: (kw['accuracy'] as num?) ?? 0,
+                tone: _ton((kw['accuracy'] as num?) ?? 0),
               ),
             ] else
               const Padding(
