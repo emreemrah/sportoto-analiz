@@ -1,4 +1,4 @@
-# Render Blueprint — Spor Toto Analiz (tek servis: backend + web bir arada)
+# Render Blueprint — Spor Toto Analiz (tek servis: API + yönetim paneli)
 # Render panelinde "New > Blueprint" ile bu dosya otomatik okunur.
 services:
   - type: web
@@ -6,12 +6,13 @@ services:
     runtime: node
     plan: free
     region: frankfurt
-    # 1) backend bağımlılıkları  2) app bağımlılıkları  3) web'i derleyip backend/public'e koy
-    #    EXPO_PUBLIC_API_BASE boş => web, API'yi aynı adresten (göreli) çağırır.
+    # YALNIZ BACKEND (2026-08-11, kullanıcı kararı): eski Expo/RN web
+    # derlemesi artık üretilmiyor ve sunulmuyor — ürün Flutter uygulamasıdır.
+    # Önceden burada `app` bağımlılıkları kurulup `npx expo export` ile
+    # backend/public üretiliyordu (19 MB); server.js'teki servis bloğu da
+    # kaldırıldı. Dağıtım bu sayede hem daha hızlı hem daha küçük.
     buildCommand: |
       cd backend && npm install
-      cd ../app && npm install
-      EXPO_PUBLIC_API_BASE= npx expo export --platform web --output-dir ../backend/public
     startCommand: cd backend && npm start
     envVars:
       # Gerçek FootyStats anahtarı panelden girilir (git'e gitmez).

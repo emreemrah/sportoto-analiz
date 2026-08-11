@@ -800,16 +800,17 @@ app.get(['/yonetim', '/yonetim/', '/admin'], (req, res) => {
   }
 });
 
-// Üretim (Render): derlenmiş web uygulaması varsa onu da aynı sunucudan servis et.
-// Geliştirmede public/ olmadığı için bu blok atlanır, normal akış bozulmaz.
-const webDir = path.join(__dirname, '..', 'public');
-if (fs.existsSync(path.join(webDir, 'index.html'))) {
-  app.use(express.static(webDir));
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) return next();
-    res.sendFile(path.join(webDir, 'index.html'));
-  });
-}
+// ESKİ WEB ARAYÜZÜ KALDIRILDI (2026-08-11, kullanıcı kararı).
+//
+// Burada `backend/public/` altındaki Expo (react-native-web) derlemesi
+// servis ediliyordu: kök ve /api dışındaki her yol o eski uygulamayı
+// açıyordu. Ürün artık Flutter uygulamasıdır; RN sürümü ne referans ne de
+// bakım hedefi. Derleme adımı render.yaml'dan da çıkarıldı, yani public/
+// artık hiç üretilmiyor.
+//
+// Bu sunucu bundan sonra YALNIZ API + /yonetim panelidir. İleride Flutter
+// web derlemesi aynı sunucudan yayınlanmak istenirse burası yeniden
+// açılır — çıktı dizini o zaman Flutter'ın `build/web` klasörü olur.
 
 // ——— ASENKRON HATA KORUMASI ———
 // TÜM rotalar tanımlandıktan SONRA çalışmalı: sarmala() var olan katmanları
