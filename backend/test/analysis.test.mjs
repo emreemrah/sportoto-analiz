@@ -13,8 +13,54 @@ import { ImmutableError } from '../src/archive/errors.js';
 import { freezeBulletinFromData } from '../src/archive/snapshotService.js';
 import { ingestOfficialResults } from '../src/archive/resultsService.js';
 import { tmpStore, makeBulletinData, makeOfficialMatches, FREEZE_AT_UTC, deep } from './helpers/fixtures.mjs';
-// PARİTE: frontend kataloğu (tek mantığın iki kopyası birebir aynı mı?)
-import { CRITERIA as APP_CRITERIA } from '../../app/src/analysis/criteria.js';
+// KATALOG ALTIN KOPYASI (2026-08-11): eskiden bu liste RN arayüzünden
+// (`app/src/analysis/criteria.js`) içe aktarılır ve iki kopyanın paritesi
+// ölçülürdü. RN uygulaması emekliye ayrıldı (ürün Flutter'a taşındı), o dosya
+// depodan kaldırıldı. Katalog koruması KAYBOLMASIN diye anahtar/etiket listesi
+// silinmeden ÖNCEKİ hâliyle buraya donduruldu. Katalog bilinçli değişirse bu
+// liste güncellenir ve nedeni commit mesajına yazılır.
+const KATALOG_ALTIN = [
+  { key: 'position', label: 'Lig Sırası' },
+  { key: 'formGeneral', label: 'Son Maç Formu' },
+  { key: 'powerCompare', label: 'Takım Güç Kıyaslaması' },
+  { key: 'points', label: 'Puan / Puan Farkı' },
+  { key: 'ppg', label: 'PPG (Maç Başı Puan)' },
+  { key: 'wins', label: 'Galibiyet Sayısı' },
+  { key: 'losses', label: 'Mağlubiyet Sayısı' },
+  { key: 'draws', label: 'Beraberlik Eğilimi' },
+  { key: 'goalsFor', label: 'Attığı Gol (Toplam)' },
+  { key: 'goalsAgainst', label: 'Yediği Gol (Toplam)' },
+  { key: 'goalDiff', label: 'Averaj' },
+  { key: 'goalsPerGame', label: 'Gol / Maç' },
+  { key: 'concededPerGame', label: 'Yediği Gol / Maç' },
+  { key: 'xgFor', label: 'xG (Hücum Beklentisi)' },
+  { key: 'xgAgainst', label: 'xG Karşı (Savunma Beklentisi)' },
+  { key: 'over25', label: '2.5 Üst Yüzdesi' },
+  { key: 'btts', label: 'KG Var Yüzdesi' },
+  { key: 'cleanSheet', label: 'Temiz Kale Yüzdesi' },
+  { key: 'failedToScore', label: 'Gol Atamadı Yüzdesi' },
+  { key: 'possession', label: 'Topla Oynama' },
+  { key: 'shots', label: 'Şut' },
+  { key: 'shotsOnTarget', label: 'İsabetli Şut' },
+  { key: 'corners', label: 'Korner' },
+  { key: 'fouls', label: 'Faul' },
+  { key: 'cards', label: 'Kart' },
+  { key: 'venuePerformance', label: 'İç Saha / Deplasman Performansı' },
+  { key: 'venuePpg', label: 'İç / Dış Puan Ortalaması' },
+  { key: 'venueGoalsFor', label: 'İç / Dış Gol Ortalaması' },
+  { key: 'venueGoalsAgainst', label: 'İç / Dış Yediği Gol Ortalaması' },
+  { key: 'xgForVenue', label: 'İç / Dış xG (Hücum)' },
+  { key: 'xgAgainstVenue', label: 'İç / Dış xGA (Savunma)' },
+  { key: 'homeAdvantage', label: 'Ev Sahibi Avantajı' },
+  { key: 'awayResilience', label: 'Deplasmanda Direnç' },
+  { key: 'commonOpponents', label: 'Ortak Rakip Kıyaslaması' },
+  { key: 'missingPlayers', label: 'Eksik Oyuncu' },
+  { key: 'topScorerMissing', label: 'Golcü Oyuncu Eksikliği' },
+  { key: 'assistMissing', label: 'Asist Yapan Oyuncu Eksikliği' },
+  { key: 'coachChange', label: 'Teknik Direktör Değişimi' },
+  { key: 'newCoachEffect', label: 'Yeni Hoca Etkisi' },
+  { key: 'formDrop', label: 'Form Düşüşü' },
+];
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -27,32 +73,18 @@ const profOf = (keys, impact = 'mid', mode = 'manual') => ({
   criteria: Object.fromEntries(CATALOG_KEYS.map((k) => [k, { on: keys.includes(k), impact }])),
 });
 
-test('KATALOG KORUMASI: mevcut 40 kriter anahtarı birebir korunuyor (frontend ile aynı küme)', () => {
-  const appKeys = APP_CRITERIA.map((c) => c.key);
-  assert.equal(appKeys.length, 40, 'repodaki gerçek katalog 40 kriterdir (prompttaki "41." ayrı bir kriter repoda yok)');
-  assert.deepEqual(CATALOG_KEYS, appKeys, 'backend kataloğu frontend key sırası/kümesiyle birebir aynı olmalı');
-  // Etiketler de korunur:
-  for (const c of APP_CRITERIA) assert.equal(CATALOG_MAP[c.key].label, c.label, `${c.key} etiketi değişmemeli`);
+test('KATALOG KORUMASI: 40 kriter anahtarı ve etiketi birebir korunuyor (altın kopya)', () => {
+  const altinKeys = KATALOG_ALTIN.map((c) => c.key);
+  assert.equal(altinKeys.length, 40, 'katalog 40 kriterdir');
+  assert.deepEqual(CATALOG_KEYS, altinKeys, 'backend kataloğu anahtar sırası/kümesi değişmemeli');
+  for (const c of KATALOG_ALTIN) assert.equal(CATALOG_MAP[c.key].label, c.label, `${c.key} etiketi değişmemeli`);
 });
 
-test('PARİTE: aynı maçta backend ve frontend kriter mantığı birebir aynı sinyali üretiyor (tek motor)', () => {
-  const data = makeBulletinData({ roundId: 11000 });
-  for (const m of [data.matches[0], data.matches[6], data.matches[10]]) {   // veri dolu + veri yok + normal
-    const names = { home: m.home.mediumName, away: m.away.mediumName };
-    const backend = evaluateFullCatalog(m);
-    for (const appC of APP_CRITERIA) {
-      const b = backend.find((x) => x.key === appC.key);
-      let f;
-      try { f = appC.evaluate(m.stats?.home || null, m.stats?.away || null, m, names); } catch { f = { available: false }; }
-      assert.equal(b.available, !!f.available, `${appC.key}: available eşit olmalı (maç ${m.no})`);
-      if (f.available) {
-        assert.equal(b.side ?? null, f.side ?? null, `${appC.key}: side eşit olmalı (maç ${m.no})`);
-        assert.ok(Math.abs((b.normalizedStrength ?? 0) - (f.strength ?? 0)) < 1e-9, `${appC.key}: strength eşit olmalı`);
-      }
-    }
-  }
-});
-
+// PARİTE TESTİ KALDIRILDI (2026-08-11): backend ile RN arayüzünün kriter
+// mantığını karşılaştırıyordu. RN uygulaması emekliye ayrıldığı için
+// karşılaştırılacak ikinci kopya kalmadı; testi "hep geçer" hâle getirmek
+// yerine kaldırmak dürüst olanı. Kriter mantığının kendi doğruluğu aşağıdaki
+// STANDART SÖZLEŞME / ETKİ SEVİYELERİ / AİLE TAVANI testlerinde ölçülüyor.
 test('STANDART SÖZLEŞME: her kriter değerlendirmesi zorunlu alanları taşıyor; veri yoksa analiz dışı', () => {
   const data = makeBulletinData({ roundId: 11001 });
   const evals = evaluateFullCatalog(data.matches[0], { observedAt: '2026-07-25T10:00:00Z' });
