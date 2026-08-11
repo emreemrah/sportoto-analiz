@@ -344,11 +344,24 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
     // kupon yoksa harita boştur ve kart "Kupon yok" yazar (uydurma seçim yok).
     final userPicks = picksMapOf(getRankedCoupon(data['roundId']));
 
+    // AKTARIM DAMGALARI (2026-08-11): kullanıcı sistem önerisini kuponuna
+    // aldıysa maç bazında {secim, zaman, kaynak, …} kayıtlıdır. Kart, sistem
+    // o günden beri tahminini değiştirdiyse "eski → yeni" yazar. Damga yoksa
+    // değişim İDDİA EDİLMEZ — elle seçimde damga zaten yazılmaz.
+    final aktarimlar = <Object, Map<String, dynamic>>{
+      for (final e in aktarimDamgalari(
+        finalVersion(getRankedCoupon(data['roundId'])),
+      ).entries)
+        ?int.tryParse(e.key): e.value,
+    };
+
     return LiveBulletinView(
       header: header,
       matches: currentMatches,
       subtitle: subtitle,
       userPicks: userPicks,
+      aktarimlar: aktarimlar,
+      roundId: data['roundId'],
       onRefresh: () async {
         ref.invalidate(bulletinProvider);
         ref.invalidate(roundsProvider);

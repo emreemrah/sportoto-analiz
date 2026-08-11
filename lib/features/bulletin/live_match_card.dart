@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/favorite_team.dart';
 import '../../core/live_logic.dart';
+import '../../core/services/muhurlu_sistem.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils.dart';
 import '../../widgets/app_ui.dart';
@@ -75,10 +76,20 @@ class LiveMatchCard extends StatefulWidget {
     this.anim = 'important',
     this.userPick,
     this.favoriteTeam,
+    this.aktarim,
+    this.roundId,
   });
 
   final Map<String, dynamic> match;
   final VoidCallback? onPress;
+
+  /// Bu maç için KUPONA AKTARIM DAMGASI ({secim, zaman, kaynak, …}) — varsa
+  /// kullanıcı sistem önerisini kuponuna almış demektir. Sistem o günden beri
+  /// tahminini değiştirdiyse alt satırda "eski → yeni" gösterilir.
+  final Map<String, dynamic>? aktarim;
+
+  /// Karar izi sorgusu için hafta kimliği (gözlem serisi hafta bazlı).
+  final Object? roundId;
 
   /// 'on' | 'off' | 'important'
   final String anim;
@@ -478,39 +489,58 @@ class _LiveMatchCardState extends State<LiveMatchCard>
     );
   }
 
+  /// KART ALT SATIRI — "Sen 1-X            Sistem 1-X → 1-2"
+  ///
+  /// DEĞİŞİM GÖSTERİMİ (2026-08-11 kullanıcı isteği): kullanıcı sistem
+  /// seçimini kuponuna ALDIYSA (aktarım damgası) ve sistem o günden beri
+  /// tahminini değiştirdiyse, eski seçim SOLUK, ok TURUNCU, yeni seçim KOYU
+  /// yazılır. Ayrı "Değişti" etiketi ve kart içinde uzun açıklama YOK —
+  /// ayrıntı satıra dokununca alttan açılan pencerede.
+  ///
+  /// Eski değer damgadan, yeni değer bültenin güncel tahmininden gelir;
+  /// hiçbiri sabit yazılmaz. Damga yoksa ya da değer aynıysa tek değer çizilir.
+  ///
+  /// KUM SAATİ YOK: bekleyen maç işareti (⏳) kaldırıldı — kilit bilgisi
+  /// ekranın üstünde zaten duruyor. ✅/❌ yalnız sonuç geldiğinde çizilir.
   Widget _tahminSatiri(MatchPicks p, Isaret uMark, Isaret sMark, MacDurum st) {
     // Sistem sembolü "10" → "1-X" biçiminde yazılır (kaynakta 0 → X).
-    final sysSym = p.system.sym == null
+    String yaz(String? sym) => sym == null
         ? '—'
-        : p.system.sym!.split('').map((c) => c == '0' ? 'X' : c).join('-');
+        : sym.split('').map((c) => c == '0' ? 'X' : c).join('-');
+
+    final sysSym = yaz(p.system.sym);
+    final eski = _eskiSistemSecimi(p.system.sym);
 
     const label = TextStyle(
       color: AppColors.muted,
       fontSize: 11,
       fontWeight: AppFont.heavy,
     );
+    const isaretli = TextStyle(fontSize: 12, color: AppColors.text);
 
-    return RichText(
+    final sistemBolumu = RichText(
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       text: TextSpan(
-        style: const TextStyle(fontSize: 12, color: AppColors.text),
+        style: isaretli,
         children: [
-          const TextSpan(text: 'Sen ', style: label),
-          TextSpan(
-            text: p.user.sym ?? 'Kupon yok',
-            style: const TextStyle(
-              color: AppColors.textSoft,
-              fontWeight: AppFont.bold,
-            ),
-          ),
-          if (kIsaretMetni[uMark]!.isNotEmpty)
-            TextSpan(text: ' ${kIsaretMetni[uMark]}'),
-          const TextSpan(
-            text: '    ·    ',
-            style: TextStyle(color: AppColors.border),
-          ),
           const TextSpan(text: 'Sistem ', style: label),
+          if (eski != null) ...[
+            TextSpan(
+              text: yaz(eski),
+              style: const TextStyle(
+                color: AppColors.muted,
+                fontWeight: AppFont.bold,
+              ),
+            ),
+            const TextSpan(
+              text: ' → ',
+              style: TextStyle(
+                color: AppColors.warning,
+                fontWeight: AppFont.black,
+              ),
+            ),
+          ],
           TextSpan(
             text: sysSym,
             style: const TextStyle(
@@ -518,21 +548,291 @@ class _LiveMatchCardState extends State<LiveMatchCard>
               fontWeight: AppFont.black,
             ),
           ),
-          if (kIsaretMetni[sMark]!.isNotEmpty)
+          if (sMark != Isaret.pending && kIsaretMetni[sMark]!.isNotEmpty)
             TextSpan(text: ' ${kIsaretMetni[sMark]}'),
-          if (st == MacDurum.postponed)
-            const TextSpan(
-              text: '   · Ertelendi',
-              style: TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 11,
-                fontWeight: AppFont.bold,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
         ],
       ),
     );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Flexible(
+          child: RichText(
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            text: TextSpan(
+              style: isaretli,
+              children: [
+                const TextSpan(text: 'Sen ', style: label),
+                TextSpan(
+                  text: p.user.sym == null ? 'Kupon yok' : yaz(p.user.sym),
+                  style: const TextStyle(
+                    color: AppColors.textSoft,
+                    fontWeight: AppFont.bold,
+                  ),
+                ),
+                if (uMark != Isaret.pending && kIsaretMetni[uMark]!.isNotEmpty)
+                  TextSpan(text: ' ${kIsaretMetni[uMark]}'),
+                if (st == MacDurum.postponed)
+                  const TextSpan(
+                    text: '  · Ertelendi',
+                    style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 11,
+                      fontWeight: AppFont.bold,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: Spacing.md),
+        // Değişim varsa satır DOKUNULABİLİR: ayrıntı alttan açılır.
+        if (eski != null)
+          Semantics(
+            button: true,
+            label:
+                'Sistem tahmini ${yaz(eski)} iken $sysSym oldu — '
+                'ayrıntı için dokun',
+            child: GestureDetector(
+              onTap: () => _degisimPenceresi(eski, p.system.sym),
+              behavior: HitTestBehavior.opaque,
+              child: sistemBolumu,
+            ),
+          )
+        else
+          sistemBolumu,
+      ],
+    );
+  }
+
+  /// ALTTAN AÇILAN PENCERE — değişimin KAYITLI ayrıntısı.
+  ///
+  /// İçerik yalnız gerçek kayıtlardan gelir: aktarım damgası (ne zaman, hangi
+  /// değer, hangi analizden) + sunucunun zaman damgalı gözlem serisinden
+  /// okunan değişim anları (olasılık ve oran öncesi/sonrası) + bültenin
+  /// güncel gerekçe metni. Kayıt yoksa sebep UYDURULMAZ.
+  Future<void> _degisimPenceresi(String eski, String? guncel) async {
+    final no = int.tryParse('${widget.match['no']}');
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      isScrollControlled: true,
+      builder: (_) => FutureBuilder<KararIzi>(
+        future: _iziGetir(no),
+        builder: (ctx, snap) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(Spacing.lg),
+            child: SingleChildScrollView(
+              child: _degisimIcerik(eski, guncel, snap.data, snap.hasData),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<KararIzi> _iziGetir(int? no) async {
+    if (no == null) return KararIzi.yok;
+    // Aktif haftada mühür yoktur; arşiv maç kimliği ayrı uçtan okunur.
+    final kimlikler = await arsivMacKimlikleri(widget.roundId);
+    return sistemKararIzi(widget.roundId, kimlikler[no]);
+  }
+
+  Widget _degisimIcerik(String eski, String? guncel, KararIzi? iz, bool geldi) {
+    String yaz(String? s) =>
+        s == null ? '—' : s.split('').map((c) => c == '0' ? 'X' : c).join('-');
+    final damga = widget.aktarim;
+    final gerekce = (widget.match['prediction'] as Map?)?['reason'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Sistem tahmini ${yaz(eski)} → ${yaz(guncel)}',
+          style: const TextStyle(
+            color: AppColors.text,
+            fontSize: 16,
+            fontWeight: AppFont.black,
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (damga != null)
+          _satir(
+            'Kupona aldığın',
+            '${yaz(normalTahmin(damga['secim']))} · '
+                '${_kisaZaman(damga['zaman'])}',
+          ),
+        if (!geldi)
+          const Padding(
+            padding: EdgeInsets.only(top: 10),
+            child: Text(
+              'Kayıt okunuyor…',
+              style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+            ),
+          )
+        else if (iz == null || !iz.kayitVar)
+          const Padding(
+            padding: EdgeInsets.only(top: 10),
+            child: Text(
+              'Değişiklik nedeni geçmiş kayıtlardan doğrulanamadı.',
+              style: TextStyle(
+                color: AppColors.warning,
+                fontSize: 12.5,
+                fontWeight: AppFont.bold,
+              ),
+            ),
+          )
+        else ...[
+          const SizedBox(height: 8),
+          Text(
+            'Kayıtlı değişiklikler (${iz.gozlemSayisi} gözlem)',
+            style: const TextStyle(
+              color: AppColors.text,
+              fontSize: 12.5,
+              fontWeight: AppFont.black,
+            ),
+          ),
+          if (iz.degisimler.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text(
+                'Kayıtlarda bu maçta sistem tahmini değişmemiş.',
+                style: TextStyle(color: AppColors.textSoft, fontSize: 12),
+              ),
+            ),
+          for (final d in iz.degisimler)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${yaz(d.eski)} → ${yaz(d.yeni)} · ${_kisaZaman(d.zaman)}',
+                    style: const TextStyle(
+                      color: AppColors.text,
+                      fontSize: 12.5,
+                      fontWeight: AppFont.heavy,
+                    ),
+                  ),
+                  if (d.eskiOlasilik case final e?)
+                    if (d.yeniOlasilik case final y?)
+                      Text(
+                        'olasılık 1/X/2: %${e['1']}/%${e['X']}/%${e['2']}'
+                        ' → %${y['1']}/%${y['X']}/%${y['2']}',
+                        style: const TextStyle(
+                          color: AppColors.textSoft,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                  if (d.eskiOran case final e?)
+                    if (d.yeniOran case final y?)
+                      Text(
+                        'oran ev/ber/dep: '
+                        '${e['home']}/${e['draw']}/${e['away']}'
+                        ' → ${y['home']}/${y['draw']}/${y['away']}',
+                        style: const TextStyle(
+                          color: AppColors.textSoft,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                ],
+              ),
+            ),
+        ],
+        if (gerekce != null) ...[
+          const SizedBox(height: 12),
+          const Text(
+            'Sistemin şu anki gerekçesi',
+            style: TextStyle(
+              color: AppColors.text,
+              fontSize: 12.5,
+              fontWeight: AppFont.black,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              '$gerekce',
+              style: const TextStyle(
+                color: AppColors.textSoft,
+                fontSize: 11.5,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+        const Text(
+          'Kriter bazlı öncesi/sonrası kayıtta tutulmuyor; bu yüzden '
+          'gösterilmiyor.',
+          style: TextStyle(
+            color: AppColors.textMuted,
+            fontSize: 10.5,
+            fontStyle: FontStyle.italic,
+            height: 1.35,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _satir(String baslik, String deger) => Padding(
+    padding: const EdgeInsets.only(top: 3),
+    child: RichText(
+      text: TextSpan(
+        style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+        children: [
+          TextSpan(text: '$baslik: '),
+          TextSpan(
+            text: deger,
+            style: const TextStyle(
+              color: AppColors.text,
+              fontWeight: AppFont.bold,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  /// '2026-08-05T20:53:23.620Z' → '5 Ağu 20:53'. Ayrıştırılamazsa ham değer.
+  String _kisaZaman(Object? iso) {
+    final d = DateTime.tryParse('${iso ?? ''}')?.toLocal();
+    if (d == null) return '${iso ?? '—'}';
+    const aylar = [
+      'Oca',
+      'Şub',
+      'Mar',
+      'Nis',
+      'May',
+      'Haz',
+      'Tem',
+      'Ağu',
+      'Eyl',
+      'Eki',
+      'Kas',
+      'Ara',
+    ];
+    String p(int n) => n.toString().padLeft(2, '0');
+    return '${d.day} ${aylar[d.month - 1]} ${p(d.hour)}:${p(d.minute)}';
+  }
+
+  /// Kupona AKTARILAN sistem seçimi, güncel seçimden farklıysa onu döndürür.
+  /// Damga yoksa (elle seçim ya da eski kupon) null — "değişti" İDDİA EDİLMEZ.
+  String? _eskiSistemSecimi(String? guncel) {
+    final damga = widget.aktarim;
+    if (damga == null || guncel == null) return null;
+    final eski = normalTahmin(damga['secim']);
+    final yeni = normalTahmin(guncel);
+    if (eski == null || yeni == null || eski == yeni) return null;
+    return eski;
   }
 
   bool _formVar(Map? stats) {

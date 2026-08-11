@@ -63,6 +63,8 @@ class LiveBulletinView extends StatelessWidget {
     this.onRefresh,
     this.subtitle,
     this.userPicks = const {},
+    this.aktarimlar = const {},
+    this.roundId,
     this.favoriteTeam,
     this.header,
   });
@@ -72,6 +74,13 @@ class LiveBulletinView extends StatelessWidget {
   final Future<void> Function()? onRefresh;
   final String? subtitle;
   final Map<Object, String> userPicks;
+
+  /// Maç no → kupona aktarım damgası. Kart, sistem tahmini damgadan beri
+  /// değiştiyse "eski → yeni" gösterir (bkz. live_match_card).
+  final Map<Object, Map<String, dynamic>> aktarimlar;
+
+  /// Karar izi sorgusu için hafta kimliği.
+  final Object? roundId;
   final String? favoriteTeam;
 
   /// Kaynakta bülten başlığı ekranın kendisindeydi ve liste ayrı bir
@@ -142,6 +151,8 @@ class LiveBulletinView extends StatelessWidget {
                   match: m,
                   anim: anim,
                   userPick: userPicks[m['no']],
+                  aktarim: aktarimlar[m['no']],
+                  roundId: roundId,
                   favoriteTeam: favoriteTeam,
                   onPress: onCardPress == null
                       ? null

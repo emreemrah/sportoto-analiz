@@ -166,6 +166,28 @@ Map<String, num>? _oran(Object? v) {
   return out.length == 3 ? out : null;
 }
 
+/// AKTİF (kilitlenmemiş) hafta için maç no → arşiv maç kimliği.
+///
+/// Mühür yalnız kilitten sonra oluşur; kilit öncesi karar izini sorgulamak
+/// için kimlik `/api/bulletins/:id` kaydından okunur (orderNo + matchId).
+/// Canlı bülten yanıtı bu kimliği TAŞIMAZ — bu yüzden ayrı çağrı gerekir.
+Future<Map<int, String>> arsivMacKimlikleri(Object? roundId) async {
+  if (roundId == null) return const {};
+  Map? d;
+  try {
+    d = await archiveGet('/api/bulletins/$roundId') as Map?;
+  } catch (_) {
+    return const {};
+  }
+  final maclar = d?['matches'];
+  if (maclar is! List) return const {};
+  return {
+    for (final m in maclar.whereType<Map>())
+      if (int.tryParse('${m['orderNo']}') case final no?)
+        if (m['matchId'] != null) no: '${m['matchId']}',
+  };
+}
+
 /// Maçın karar izini çıkarır. Gözlem serisi yoksa `KararIzi.yok` döner.
 Future<KararIzi> sistemKararIzi(Object? roundId, Object? matchId) async {
   if (roundId == null || matchId == null) return KararIzi.yok;
