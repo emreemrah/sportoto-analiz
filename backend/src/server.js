@@ -800,17 +800,31 @@ app.get(['/yonetim', '/yonetim/', '/admin'], (req, res) => {
   }
 });
 
-// ESKİ WEB ARAYÜZÜ KALDIRILDI (2026-08-11, kullanıcı kararı).
+// WEB ARAYÜZÜ: FLUTTER WEB DERLEMESİ (2026-08-11).
 //
-// Burada `backend/public/` altındaki Expo (react-native-web) derlemesi
-// servis ediliyordu: kök ve /api dışındaki her yol o eski uygulamayı
-// açıyordu. Ürün artık Flutter uygulamasıdır; RN sürümü ne referans ne de
-// bakım hedefi. Derleme adımı render.yaml'dan da çıkarıldı, yani public/
-// artık hiç üretilmiyor.
+// TARİHÇE: burada eskiden Expo (react-native-web) derlemesi sunuluyordu; RN
+// uygulaması emekliye ayrılınca blok kaldırıldı ve kök adres 404 vermeye
+// başladı. Kullanıcı kök adresin ÇALIŞMASINI istedi → aynı yer artık GÜNCEL
+// ürünü, yani Flutter'ın web derlemesini sunuyor.
 //
-// Bu sunucu bundan sonra YALNIZ API + /yonetim panelidir. İleride Flutter
-// web derlemesi aynı sunucudan yayınlanmak istenirse burası yeniden
-// açılır — çıktı dizini o zaman Flutter'ın `build/web` klasörü olur.
+// DERLEME NEREDE YAPILIR: Render'ın node ortamında Flutter SDK yok, bu yüzden
+// çıktı depoya İŞLENİR (`backend/public/`, `flutter build web --release`).
+// Yenileme: kök dizindeki `flutter-web-yayinla.bat`.
+//
+// API ADRESİ: Flutter web yayın derlemesi API_BASE verilmediğinde AYNI ORIGIN
+// kullanır (resolveApiBase → ''), yani bu sunucunun kendi adresi. Ek ayar
+// gerekmez, CORS sorunu çıkmaz.
+const webDir = path.join(__dirname, '..', 'public');
+if (fs.existsSync(path.join(webDir, 'index.html'))) {
+  app.use(express.static(webDir));
+  // SPA geri dönüşü: /api ve /yonetim HARİÇ her yol uygulamayı açar.
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/yonetim')) {
+      return next();
+    }
+    res.sendFile(path.join(webDir, 'index.html'));
+  });
+}
 
 // ——— ASENKRON HATA KORUMASI ———
 // TÜM rotalar tanımlandıktan SONRA çalışmalı: sarmala() var olan katmanları

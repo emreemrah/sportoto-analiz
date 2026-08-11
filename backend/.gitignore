@@ -2,7 +2,7 @@
 node_modules/
 cache/
 data/
-public/
+# public/ artık depoda: Flutter web derlemesi (bkz. kök .gitignore notu).
 .env
 
 # LEGACY TEKNİK YEDEK — eski radar/snapshot kayıtları (npm run archive:legacy).

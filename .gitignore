@@ -14,7 +14,10 @@ backend/cache/
 backend/data/
 
 # Derleme çıktıları
-backend/public/
+# backend/public/ ARTIK DEPOYA GİRER (2026-08-11): Flutter web derlemesi
+# burada durur ve kök adresi (onrender) o sunar. Render'ın node ortamında
+# Flutter SDK olmadığı için çıktı dağıtım anında üretilemez; yerelde
+# `flutter-web-yayinla.ps1` ile derlenip işlenir.
 app/dist/
 app/.expo/
 dist/

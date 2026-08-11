@@ -1,0 +1,36 @@
+{
+    "name": "Sportoto Master Analiz",
+    "short_name": "Master Analiz",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#0B1B3A",
+    "theme_color": "#0B1B3A",
+    "description": "15 maçlık haftalık bültenler için bağımsız analiz ve tahmin destek uygulaması.",
+    "lang": "tr",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
