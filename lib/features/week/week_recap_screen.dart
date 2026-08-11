@@ -45,6 +45,14 @@ const Map<String, ({String icon, String title, Color color})> _hl = {
   ),
 };
 
+/// Karar izi adayı — hangi maçta kullanıcının kaydı mühürden farklı.
+typedef _Aday = ({
+  int no,
+  String? kupon,
+  String? muhur,
+  Map<String, dynamic>? damga,
+});
+
 class WeekRecapScreen extends StatefulWidget {
   const WeekRecapScreen({super.key, this.roundId});
 
@@ -68,8 +76,13 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
   /// kaynağı (bkz. muhurlu_sistem.dart).
   MuhurluSistem _muhur = MuhurluSistem.yok;
 
-  /// Açılmış karar izleri (maç no → iz). Değer null = yükleniyor.
-  final Map<int, KararIzi?> _izler = {};
+  /// Karar izi ÖNBELLEĞİ (maç no → iz). Aday maçlar için ekran açılırken
+  /// önden çekilir: başlığın "değişmiş olabilir" mi yoksa "değişiklikleri" mi
+  /// diyeceği ve 15. maç tipi anların doğru anlatılması buna bağlı.
+  final Map<int, KararIzi> _izler = {};
+
+  /// Kullanıcının AÇTIĞI karar izi kartları (görünüm durumu).
+  final Set<int> _acikIzler = {};
   String? _error;
   bool _loading = true;
 
@@ -152,11 +165,30 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
           _hist = h;
           _muhur = sonuclar[1] as MuhurluSistem;
         });
+        await _izleriOnYukle(rid);
       }
     } catch (_) {
       if (mounted && _roundId == rid) setState(() => _hist = null);
     }
   }
+
+  /// Aday maçların karar izini ÖNDEN çeker (genelde 1-3 maç). Kanıt eldeyken
+  /// başlık kesin konuşabilir ve "kupona aldığında sistem ne diyordu" sorusu
+  /// tahminle değil kayıtla yanıtlanır.
+  Future<void> _izleriOnYukle(Object rid) async {
+    final adaylar = _kararIziAdaylari(finalVersion(getRankedCoupon(rid)));
+    for (final a in adaylar) {
+      final kimlik = _muhur.macKimlikleri[a.no];
+      if (kimlik == null) continue;
+      final iz = await sistemKararIzi(rid, kimlik);
+      if (!mounted || _roundId != rid) return;
+      setState(() => _izler[a.no] = iz);
+    }
+  }
+
+  /// Aday maçlardan EN AZ BİRİNDE kayıtlı değişim var mı?
+  bool _degisimKanitli(List<_Aday> adaylar) =>
+      adaylar.any((a) => _izler[a.no]?.degisimler.isNotEmpty ?? false);
 
   /// Maç listesini MÜHÜRLÜ sistem seçimiyle yeniden yazar.
   ///
@@ -189,8 +221,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
   ///
   /// Aday olması "değişti" demek DEĞİLDİR; yalnız sorgulamaya değer demektir.
   /// Kesin cevap, açılınca sunucudaki gözlem serisinden okunur.
-  List<({int no, String? kupon, String? muhur, Map<String, dynamic>? damga})>
-  _kararIziAdaylari(Map? finalSurum) {
+  List<_Aday> _kararIziAdaylari(Map? finalSurum) {
     final damgalar = aktarimDamgalari(finalSurum);
     final secimler = <int, String>{};
     for (final s in ((finalSurum?['selections'] as List?) ?? const [])) {
@@ -227,7 +258,8 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
   }
 
   Future<void> _iziAc(int no) async {
-    setState(() => _izler[no] = null); // yükleniyor
+    setState(() => _acikIzler.add(no));
+    if (_izler.containsKey(no)) return; // önden çekilmişti
     final iz = await sistemKararIzi(_roundId, _muhur.macKimlikleri[no]);
     if (mounted) setState(() => _izler[no] = iz);
   }
@@ -311,12 +343,19 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
             )
           else ...[
             _senVsSistem(recap),
+            if (recap.head2head case final h?) _kiyasTemeli(h),
+            _anaTahminSatiri(),
             if (muhursuz.isNotEmpty) _muhurUyarisi(muhursuz),
             if (adaylar.isNotEmpty) ...[
-              const _BolumBasligi('Sistem Tahmini Değişmiş Olabilir'),
+              // BAŞLIK KANITA GÖRE (2026-08-11): karar izi değişimi
+              // DOĞRULUYORSA kesin konuşulur; kanıt yoksa "olabilir" kalır.
+              _BolumBasligi(
+                _degisimKanitli(adaylar)
+                    ? 'Sistem Tahmini Değişiklikleri'
+                    : 'Sistem Tahmini Değişmiş Olabilir',
+              ),
               for (final a in adaylar) _kararIziKarti(a),
             ],
-            if (recap.head2head case final h?) _h2hKart(h),
             if (recap.highlights.isNotEmpty) ...[
               const _BolumBasligi('Haftanın Anları'),
               for (final h in recap.highlights) _anKarti(h),
@@ -456,16 +495,19 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
     final scope = o.complete
         ? 'Hafta kapandı'
         : '${o.resolved}/${o.total} resmî sonuç geldi';
-    final u = recap.user;
-    final kw = _karneHaftasi();
-    final deg = ((kw?['evaluated'] as num?) ?? 0).toInt();
-    final sys = deg > 0 ? 'sistem ana tahmini ${kw!['correct']}/$deg' : null;
-    if (u != null && sys != null) {
-      return '$scope — sen ${u.correct}/${u.made} · $sys.';
+    // AYNI ÖLÇÜ (2026-08-11): başlık cümlesi de VS alanıyla aynı temelden
+    // konuşur — ortak maçlar, kupon-kupona. Eski hâl kullanıcının kuponunu
+    // (12/14) sistemin TEKLİ ana tahminiyle (5/14) yan yana koyuyordu; bu,
+    // ekranın az aşağısındaki adil karşılaştırmayla çelişen bir kıyastı.
+    // Tekli ana tahmin artık kendi satırında duruyor.
+    final h = recap.head2head;
+    if (h != null) {
+      return '$scope — ortak ${h.matches} maçta sen ${h.user}, '
+          'sistemin mühürlü kuponu ${h.system} isabet.';
     }
+    final u = recap.user;
     if (u != null) return '$scope — kuponunda ${u.correct}/${u.made} isabet.';
-    if (sys != null) return '$scope — $sys; bu hafta kayıtlı kuponun yok.';
-    return '$scope — değerlendirilecek tahmin yok.';
+    return '$scope — karşılaştırılacak ortak maç yok.';
   }
 
   Widget _studyoKarti(WeekRecap recap) {
@@ -541,10 +583,8 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
   /// "Değişiklik nedeni geçmiş kayıtlardan doğrulanamadı" yazar; sebep
   /// TAHMİN EDİLMEZ. Kriter bazlı öncesi/sonrası seride tutulmuyor, o yüzden
   /// gösterilmiyor — bunu da açıkça söyler.
-  Widget _kararIziKarti(
-    ({int no, String? kupon, String? muhur, Map<String, dynamic>? damga}) a,
-  ) {
-    final acik = _izler.containsKey(a.no);
+  Widget _kararIziKarti(_Aday a) {
+    final acik = _acikIzler.contains(a.no);
     final iz = _izler[a.no];
     return Padding(
       padding: const EdgeInsets.only(bottom: Spacing.sm),
@@ -614,10 +654,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
     );
   }
 
-  Widget _kararIziIcerik(
-    ({int no, String? kupon, String? muhur, Map<String, dynamic>? damga}) a,
-    KararIzi iz,
-  ) {
+  Widget _kararIziIcerik(_Aday a, KararIzi iz) {
     final satirlar = <Widget>[];
 
     // 1) Kullanıcının elindeki kayıt (varsa damga, yoksa kupon seçimi).
@@ -871,24 +908,26 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
     return null;
   }
 
+  /// VS ALANI — YALNIZ AYNI ÖLÇÜ (2026-08-11 kullanıcı isteği).
+  ///
+  /// Bu alanın tarihçesi bir dizi düzeltmedir: önce sistem tarafında kupon
+  /// kapsaması (%93) vardı, sonra tekli ana tahmin (%36) kondu. İkisi de
+  /// kullanıcının ÇOKLU kuponuyla kıyaslanamazdı — farklı şeyleri ölçüyorlar.
+  ///
+  /// Artık iki sütun da AYNI temelden okunur: `recap.head2head`, yani
+  /// İKİSİNİN DE doğrulanmış tahmini bulunan ORTAK maçlar. Solda kullanıcının
+  /// kuponu, sağda sistemin MÜHÜRLÜ çoklu kuponu. Mühürsüz maç zaten sistem
+  /// tarafında tahmin taşımaz, dolayısıyla ortak kümeye ve başarıya girmez.
+  ///
+  /// Tekli ana tahmin başarısı (5/14 gibi) buradan ÇIKARILDI; ayrı bir satırda
+  /// kendi adıyla durur.
   Widget _senVsSistem(WeekRecap recap) {
-    final u = recap.user;
-    // TEK ÖLÇÜ (2026-08-11): SİSTEM sütunu karneden okunur (tekli ana
-    // tahmin) — kupon kapsaması yüzdesi (%93 tarzı) burada GÖSTERİLMEZ.
-    //
-    // 'ÖNDE' ROZETİ KALDIRILDI (2026-08-11, emülatörde yakalandı): iki sütun
-    // artık AYNI ŞEYİ ölçmüyor — solda kullanıcının çoklu seçimli KUPONU,
-    // sağda sistemin TEKLİ ana tahmini. Yüzdeleri kıyaslamak kullanıcıyı
-    // "%86 ile öndesin" diye ödüllendirirken hemen altındaki adil
-    // karşılaştırma "13 maçta sen 11, sistem 12" diyordu — ekranın kendi
-    // dürüstlük kuralına aykırı (dosya başlığı: karşılaştırma yalnız
-    // ikisinin de tahmin yaptığı maçlarda yapılır). Kıyas artık YALNIZ
-    // h2h kartında, kupon-kupona yapılır.
-    final kw = _karneHaftasi();
-    final deg = ((kw?['evaluated'] as num?) ?? 0).toInt();
-    final sysAcc = deg > 0 ? (kw?['accuracy'] as num?) : null;
+    final h = recap.head2head;
+    final n = h?.matches ?? 0;
+    String yuzde(int dogru) =>
+        n > 0 ? '%${(dogru * 100 / n).round()} isabet' : '—';
     return Padding(
-      padding: const EdgeInsets.only(bottom: Spacing.md),
+      padding: const EdgeInsets.only(bottom: Spacing.sm),
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -896,8 +935,8 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
             Expanded(
               child: _skorSutunu(
                 baslik: 'SEN · Kupon',
-                deger: u != null ? '${u.correct}/${u.made}' : '—',
-                alt: u != null ? '%${u.accuracy} isabet' : 'kupon yok',
+                deger: h != null ? '${h.user}/$n' : '—',
+                alt: h != null ? yuzde(h.user) : 'ortak maç yok',
                 onde: false,
                 ton: AppColors.success,
               ),
@@ -917,13 +956,71 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
             ),
             Expanded(
               child: _skorSutunu(
-                baslik: 'SİSTEM · Ana tahmin',
-                deger: deg > 0 ? '${kw!['correct']}/$deg' : '—',
-                alt: deg > 0
-                    ? '%$sysAcc isabet'
-                    : (kw == null ? 'karne kaydı yok' : 'sonuç bekleniyor'),
+                baslik: 'SİSTEM · Mühürlü kupon',
+                deger: h != null ? '${h.system}/$n' : '—',
+                alt: h != null ? yuzde(h.system) : 'ortak maç yok',
                 onde: false,
                 ton: AppColors.info,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Karşılaştırmanın temeli — kaç ortak maç üzerinden konuşuluyor.
+  Widget _kiyasTemeli(Head2Head h) => Padding(
+    padding: const EdgeInsets.only(bottom: Spacing.md),
+    child: Text(
+      'İkinizin de doğrulanmış tahmini bulunan ${h.matches} ortak maç '
+      'üzerinden — sistem tarafı haftanın MÜHÜRLÜ çoklu kuponudur.',
+      style: const TextStyle(
+        color: AppColors.textMuted,
+        fontSize: 11,
+        height: 1.35,
+      ),
+    ),
+  );
+
+  /// TEKLİ ANA TAHMİN — VS alanının DIŞINDA, kendi adıyla.
+  /// Kaynak backend karnesidir; karne kaydı yoksa sayı UYDURULMAZ.
+  Widget _anaTahminSatiri() {
+    final kw = _karneHaftasi();
+    final deg = ((kw?['evaluated'] as num?) ?? 0).toInt();
+    final acc = kw?['accuracy'];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Spacing.md),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: Spacing.md,
+          vertical: 10,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.bgAlt,
+          borderRadius: AppRadius.mdR,
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Sistem ana tahmin isabeti',
+                style: TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 12,
+                  fontWeight: AppFont.bold,
+                ),
+              ),
+            ),
+            Text(
+              deg > 0
+                  ? '${kw!['correct']}/$deg · %$acc'
+                  : (kw == null ? 'karne kaydı yok' : 'sonuç bekleniyor'),
+              style: const TextStyle(
+                color: AppColors.text,
+                fontSize: 12.5,
+                fontWeight: AppFont.black,
               ),
             ),
           ],
@@ -999,55 +1096,120 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
     ),
   );
 
-  Widget _h2hKart(Head2Head h) => Container(
-    margin: const EdgeInsets.only(bottom: Spacing.md),
-    padding: const EdgeInsets.all(Spacing.md),
-    decoration: BoxDecoration(
-      color: AppColors.surfaceSoft,
-      borderRadius: AppRadius.mdR,
-    ),
-    child: RichText(
-      text: TextSpan(
-        style: const TextStyle(
-          color: AppColors.textSoft,
-          fontSize: 12.5,
-          fontWeight: AppFont.bold,
-          height: 19 / 12.5,
+  /// KULLANICI KUPONU AÇARKEN sistem ne diyordu? Önce kupona AKTARIM DAMGASI
+  /// (varsa kesin kayıt), yoksa gözlem serisinden O ANDAKİ değer okunur.
+  /// İkisi de yoksa null — tahmin yürütülmez.
+  String? _kupondaSistem(int no) {
+    final surum = finalVersion(getRankedCoupon(_roundId));
+    final damga = aktarimDamgalari(surum)['$no'];
+    if (damga != null) {
+      final v = normalTahmin(damga['secim']);
+      if (v != null) return v;
+    }
+    final zaman = DateTime.tryParse(
+      '${surum?['createdAt'] ?? getRankedCoupon(_roundId)?['createdAt'] ?? ''}',
+    );
+    return _izler[no]?.zamandakiTahmin(zaman);
+  }
+
+  /// "Sistem kuponu bildi, sen bilemedin" YANILTICIYSA doğrusunu yazar.
+  ///
+  /// 2026-08-11 kullanıcı bulgusu (53. Hafta 15. maç): kullanıcı kuponunu
+  /// açtığında sistem de 1-X diyordu; sistem kilide kadar 1-2'ye döndü ve
+  /// sonuç 2 geldi. Bu durumda "sistem bildi, sen bilemedin" demek, aynı
+  /// tahmini paylaştıkları anı gizleyip kullanıcıyı haksız yere kaybeden
+  /// gösterir. Kanıt (damga/gözlem) bunu doğruluyorsa kart, üç değeri
+  /// yan yana koyan nötr bir anlatıma döner. Kanıt yoksa dokunulmaz.
+  Widget? _kilitTahminiKarti(RecapHighlight h) {
+    if (h.kind != 'system-win') return null;
+    final no = int.tryParse('${h.row.no}');
+    if (no == null) return null;
+    final senin = normalTahmin(h.row.user?.pick.replaceAll('-', ''));
+    final kupondaki = _kupondaSistem(no);
+    if (senin == null || kupondaki == null || senin != kupondaki) return null;
+    final kilitte = normalTahmin(_muhur.secim(no));
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Spacing.sm),
+      child: ClipRRect(
+        borderRadius: AppRadius.mdR,
+        child: Container(
+          padding: const EdgeInsets.all(Spacing.md),
+          decoration: const BoxDecoration(
+            color: AppColors.card,
+            border: Border(
+              top: BorderSide(color: AppColors.border),
+              right: BorderSide(color: AppColors.border),
+              bottom: BorderSide(color: AppColors.border),
+              left: BorderSide(color: AppColors.info, width: 4),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Text('🔒', style: TextStyle(fontSize: 14)),
+                  const SizedBox(width: 7),
+                  const Expanded(
+                    child: Text(
+                      'Sistem kilit tahmini tuttu',
+                      style: TextStyle(
+                        color: AppColors.info,
+                        fontSize: 12.5,
+                        fontWeight: AppFont.black,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '#${h.row.no}',
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 11,
+                      fontWeight: AppFont.black,
+                    ),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: Text(
+                  '${h.row.home} — ${h.row.away}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.text,
+                    fontSize: 14,
+                    fontWeight: AppFont.heavy,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Wrap(
+                  spacing: 10,
+                  runSpacing: 4,
+                  children: [
+                    _cip('Sen ', tahminYazisi(senin), ''),
+                    _cip(
+                      'Kupona aldığında sistem ',
+                      tahminYazisi(kupondaki),
+                      '',
+                    ),
+                    _cip('Kilitte ', tahminYazisi(kilitte), ''),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        children: [
-          const TextSpan(
-            text: 'Adil karşılaştırma: ikinizin de tahmin yaptığı ',
-          ),
-          TextSpan(
-            text: '${h.matches}',
-            style: const TextStyle(
-              color: AppColors.text,
-              fontWeight: AppFont.black,
-            ),
-          ),
-          const TextSpan(text: ' maçta sen '),
-          TextSpan(
-            text: '${h.user}',
-            style: const TextStyle(
-              color: AppColors.success,
-              fontWeight: AppFont.black,
-            ),
-          ),
-          const TextSpan(text: ', sistem '),
-          TextSpan(
-            text: '${h.system}',
-            style: const TextStyle(
-              color: AppColors.info,
-              fontWeight: AppFont.black,
-            ),
-          ),
-          const TextSpan(text: ' isabet.'),
-        ],
       ),
-    ),
-  );
+    );
+  }
 
   Widget _anKarti(RecapHighlight h) {
+    // Kanıt varsa yanıltıcı düello başlığı yerine nötr anlatım.
+    if (_kilitTahminiKarti(h) case final k?) return k;
     final meta = _hl[h.kind]!;
     final r = h.row;
     // KÖŞE + RENKLİ SOL ŞERİT: Flutter'da `borderRadius` YALNIZ tek renkli

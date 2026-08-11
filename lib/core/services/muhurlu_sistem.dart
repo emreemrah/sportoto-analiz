@@ -114,6 +114,7 @@ class KararIzi {
     this.gozlemSayisi = 0,
     this.ilkKayit,
     this.sonKayit,
+    this.ilkTahmin,
     this.kayitVar = false,
   });
 
@@ -124,9 +125,29 @@ class KararIzi {
   final String? ilkKayit;
   final String? sonKayit;
 
+  /// Seride görülen İLK tahmin — zaman sorgusunun başlangıç değeri.
+  final String? ilkTahmin;
+
   /// Sunucuda gözlem serisi bulundu mu? false ise "kayıt yok" denir,
   /// değişiklik olmadığı İDDİA EDİLMEZ.
   final bool kayitVar;
+
+  /// VERİLEN ANDA sistem ne diyordu? Kullanıcının kuponu açtığı saatte
+  /// sistemin ne önerdiğini KANITLA söylemek için (2026-08-11 kullanıcı
+  /// isteği). Kayıt yoksa ya da o an serinin başlangıcından önceyse null —
+  /// tahmin yürütülmez.
+  String? zamandakiTahmin(DateTime? an) {
+    if (!kayitVar || an == null) return null;
+    final ilk = DateTime.tryParse(ilkKayit ?? '');
+    if (ilk == null || an.isBefore(ilk)) return null;
+    var gecerli = ilkTahmin;
+    for (final d in degisimler) {
+      final t = DateTime.tryParse(d.zaman);
+      if (t == null || t.isAfter(an)) break;
+      gecerli = d.yeni;
+    }
+    return gecerli;
+  }
 }
 
 /// Tahmin dizgesini karşılaştırılabilir hâle getirir: '10' ile '01' aynıdır,
@@ -209,6 +230,7 @@ Future<KararIzi> sistemKararIzi(Object? roundId, Object? matchId) async {
     ..sort((a, b) => '${a['observedAt']}'.compareTo('${b['observedAt']}'));
 
   final degisimler = <KararDegisimi>[];
+  String? ilkTahmin;
   String? oncekiTahmin;
   Map<String, num>? oncekiOlasilik;
   Map<String, num>? oncekiOran;
@@ -223,6 +245,7 @@ Future<KararIzi> sistemKararIzi(Object? roundId, Object? matchId) async {
     if (tahmin == null) continue;
     final zaman = '${k['observedAt']}';
     ilk ??= zaman;
+    ilkTahmin ??= tahmin;
     son = zaman;
     final olasilik = _olasilik(ozet is Map ? ozet['probabilities'] : null);
     final oran = _oran(k['odds']);
@@ -249,6 +272,7 @@ Future<KararIzi> sistemKararIzi(Object? roundId, Object? matchId) async {
     gozlemSayisi: kayitlar.length,
     ilkKayit: ilk,
     sonKayit: son,
+    ilkTahmin: ilkTahmin,
     kayitVar: true,
   );
 }
