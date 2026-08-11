@@ -56,25 +56,11 @@ android/key.properties
 # yedekte tutun. Ayrıntı: yayin-sembolleri/BENIOKU.md
 yayin-sembolleri/**/*.symbols
 
-# KULLANILMAYAN GÖRSELLER — DİSKTE DURUR, DEPOYA GİRMEZ.
-#
-# Bu dosyalar kaynak Expo uygulamasından kopyalandı ama ne burada ne KAYNAKTA
-# kullanılıyor (hero-*: hiç import edilmiyor · ic-*/icons/: birbirinin kopyası
-# ve ölü · tab-stadium/tab-analysis: kaynakta TAB_ICONS'ta tanımlı ama hiç
-# çizilmiyor, o iki sekme SVG/CustomPainter ikon kullanır). Toplam ~12 MB ve
-# uygulama paketine de girmiyorlar (pubspec'te listeli değiller).
-#
-# Gerekirse kaynak depodan (app/assets) yeniden alınabilir. Launcher/açılış
-# ikonlarını ÜRETEN dosyalar assets/brand/ altındadır ve depoda DURUR.
-assets/hero-*.png
-assets/ic-*.png
-assets/icons/
-assets/tab-stadium.png
-assets/tab-analysis.png
-assets/icon.png
-assets/splash-icon.png
-assets/favicon.png
-assets/android-icon-*.png
+# NOT (2026-08-11): kaynak Expo uygulamasından kopyalanmış ölü görseller
+# (hero-*, ic-*, icons/, tab-stadium, tab-analysis ve assets/brand/ kök
+# kopyaları) DİSKTEN SİLİNDİ — 10,4 MB. Hiçbiri koddan okunmuyordu ve
+# pubspec'te listeli değildi. Launcher/açılış ikonlarını ÜRETEN dosyalar
+# assets/brand/ altındadır, depoda DURUR ve pubspec onları oradan okur.
 
 # SPOR VERİSİ SKILL'LERİ (machina-sports/sports-skills) — DEPOYA GİRMEZ.
 #

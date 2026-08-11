@@ -71,22 +71,14 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # Görsel varlıklar — kaynak Expo uygulamasından kopyalandı (app/assets →
-  # assets). Dosya adları değiştirilmedi.
+  # Görsel varlıklar — KLASÖR DEĞİL DOSYA LİSTESİ: yalnız gerçekten çizilen
+  # dosyalar pakete girer (klasör gömmek pakete 15 MB ekliyordu).
   #
-  # KLASÖR DEĞİL DOSYA LİSTESİ (2026-08-09). Önce `assets/`, `assets/icons/`,
-  # `assets/venue/` klasörleri toptan gömülüyordu ve pakete 15 MB giriyordu.
-  # Oysa bu görsellerin ÇOĞU ne burada ne KAYNAKTA kullanılıyor:
-  #   • hero-banner / hero-card / hero-illustration → kaynakta da ölü
-  #   • ic-*.png ve icons/*.png → kaynakta da ölü (ic-* dosyaları icons/
-  #     altındakilerin birebir kopyası)
-  #   • tab-analysis / tab-stadium → kaynakta `TAB_ICONS` sözlüğünde tanımlı
-  #     ama HİÇ çizilmiyor; Radar ve Kuponlarım sekmeleri SVG ikon kullanır
-  #     (burada CustomPainter: RadarIcon / TicketIcon).
-  # Dosyalar diskte DURUYOR — silinmedi, yalnız pakete girmiyor. Biri gerçekten
-  # kullanılmaya başlanırsa buraya eklenir.
+  # TEMİZLİK (2026-08-11): kullanılmayan görseller diskten SİLİNDİ — hero-*,
+  # ic-*, icons/, tab-stadium, tab-analysis ve assets/brand/ kök kopyaları
+  # (10,4 MB). Hiçbiri koddan okunmuyordu.
   #
-  # `assets/brand/` de listede YOK: oradaki görseller yalnız launcher/açılış
+  # `assets/brand/` listede YOK: oradaki görseller yalnız launcher/açılış
   # ikonlarını ÜRETMEK için var (flutter_launcher_icons + splash), üretilen
   # çıktı zaten android/ios klasörlerinde. Uygulamanın içinden okunmuyorlar.
   assets:
