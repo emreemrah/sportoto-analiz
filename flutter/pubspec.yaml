@@ -1,0 +1,168 @@
+name: masteranaliz
+description: "Sportoto Master Analiz"
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+# The following defines the version and build number for your application.
+# A version number is three numbers separated by dots, like 1.2.43
+# followed by an optional build number separated by a +.
+# Both the version and the builder number may be overridden in flutter
+# build by specifying --build-name and --build-number, respectively.
+# In Android, build-name is used as versionName while build-number used as versionCode.
+# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
+# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
+# Read more about iOS versioning at
+# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
+# In Windows, build-name is used as the major, minor, and patch parts
+# of the product and file versions while build-number is used as the build suffix.
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+# Dependencies specify other packages that your package needs in order to work.
+# To automatically upgrade your package dependencies to the latest versions
+# consider running `flutter pub upgrade --major-versions`. Alternatively,
+# dependencies can be manually updated by changing the version numbers below to
+# the latest version available on pub.dev. To see which dependencies have newer
+# versions available, run `flutter pub outdated`.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
+  cupertino_icons: ^1.0.8
+  flutter_riverpod: ^2.6.1
+  go_router: ^17.4.0
+  dio: ^5.11.0
+  shared_preferences: ^2.5.5
+  flutter_secure_storage: ^11.0.0
+  cached_network_image: ^3.4.1
+  intl: ^0.20.3
+  url_launcher: ^6.3.2
+  local_auth: ^3.0.2
+  flutter_local_notifications: ^22.3.0
+  timezone: ^0.11.1
+  share_plus: ^13.3.0
+  path_provider: ^2.1.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # The "flutter_lints" package below contains a set of recommended lints to
+  # encourage good coding practices. The lint set provided by the package is
+  # activated in the `analysis_options.yaml` file located at the root of your
+  # package. See that file for information about deactivating specific lint
+  # rules and activating additional ones.
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+
+  # The following line ensures that the Material Icons font is
+  # included with your application, so that you can use the icons in
+  # the material Icons class.
+  uses-material-design: true
+
+  # Görsel varlıklar — KLASÖR DEĞİL DOSYA LİSTESİ: yalnız gerçekten çizilen
+  # dosyalar pakete girer (klasör gömmek pakete 15 MB ekliyordu).
+  #
+  # TEMİZLİK (2026-08-11): kullanılmayan görseller diskten SİLİNDİ — hero-*,
+  # ic-*, icons/, tab-stadium, tab-analysis ve assets/brand/ kök kopyaları
+  # (10,4 MB). Hiçbiri koddan okunmuyordu.
+  #
+  # `assets/brand/` listede YOK: oradaki görseller yalnız launcher/açılış
+  # ikonlarını ÜRETMEK için var (flutter_launcher_icons + splash), üretilen
+  # çıktı zaten android/ios klasörlerinde. Uygulamanın içinden okunmuyorlar.
+  assets:
+    # Alt sekme ikonları — 28 dp çizilir (bkz. app.dart `_pngIkon`).
+    - assets/tab-home.png
+    - assets/tab-bulletin.png
+    - assets/tab-profile.png
+    # Saha/sonuç ikonları — en büyük kullanım 22 dp (form_strip.dart).
+    - assets/venue/home-win.png
+    - assets/venue/home-draw.png
+    - assets/venue/home-loss.png
+    - assets/venue/away-win.png
+    - assets/venue/away-draw.png
+    - assets/venue/away-loss.png
+
+  # YAYIN STÜDYOSU YAZI TİPİ — Barlow Semi Condensed, uygulamaya GÖMÜLÜ.
+  #
+  # NEDEN AYRI BİR AİLE: Stüdyo, resmî bülten tablosu gibi SIKIŞIK okunmalı —
+  # tek ekranda 15 satır. Sistem fontları geniş yazar; aynı satıra takım adı +
+  # skor + sonuç sığmaz. Barlow Semi Condensed dar yazar, rakamları eşit
+  # genişliktedir (tablo sütunları kaymaz) ve Türkçe harflerin tamamını
+  # (ğ ş ı İ ç ö ü) içerir.
+  #
+  # NEDEN GÖMÜLÜ: internet olmadan da açılır, yayın sırasında font indirmeyi
+  # beklemez.
+  #
+  # YALNIZ 4 KESİM: kaynakta ailenin 18 kesiminin tamamını gömmek ~1,8 MB
+  # ekliyordu; kullanılan dördü ~400 KB. Aynı sınır burada da korunuyor.
+  fonts:
+    - family: BarlowSemiCondensed
+      fonts:
+        - asset: assets/fonts/BarlowSemiCondensed_400Regular.ttf
+          weight: 400
+        - asset: assets/fonts/BarlowSemiCondensed_500Medium.ttf
+          weight: 500
+        - asset: assets/fonts/BarlowSemiCondensed_600SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/BarlowSemiCondensed_700Bold.ttf
+          weight: 700
+
+  # An image asset can refer to one or more resolution-specific "variants", see
+  # https://flutter.dev/to/resolution-aware-images
+
+  # For details regarding adding assets from package dependencies, see
+  # https://flutter.dev/to/asset-from-package
+
+  # To add custom fonts to your application, add a fonts section here,
+  # in this "flutter" section. Each entry in this list should have a
+  # "family" key with the font family name, and a "fonts" key with a
+  # list giving the asset and other descriptors for the font. For
+  # example:
+  # fonts:
+  #   - family: Schyler
+  #     fonts:
+  #       - asset: fonts/Schyler-Regular.ttf
+  #       - asset: fonts/Schyler-Italic.ttf
+  #         style: italic
+  #   - family: Trajan Pro
+  #     fonts:
+  #       - asset: fonts/TrajanPro.ttf
+  #       - asset: fonts/TrajanPro_Bold.ttf
+  #         weight: 700
+  #
+  # For details regarding fonts from package dependencies,
+  # see https://flutter.dev/to/font-from-package
+
+# ───────────────────────────────────────────────────────────────────────────
+# UYGULAMA İKONU — kaynak app.json'daki `icon` + `adaptiveIcon` karşılığı.
+# Görseller kaynak depodan AYNEN alındı (app/assets/), yeniden çizilmedi.
+#   • image_path        → assets/brand/icon.png (1024×1024)
+#   • adaptive_icon_*   → foreground/background/monochrome (Android 8+/13+)
+#   • background rengi  → #0B1B3A (app.json `adaptiveIcon.backgroundColor`)
+# Not: kaynakta ayrı bir arka plan GÖRSELİ de var; Flutter aracı tek bir
+# arka plan kabul ettiği için görsel kullanıldı — renk zaten görselin içinde.
+flutter_launcher_icons:
+  image_path: "assets/brand/icon.png"
+  android: "ic_launcher"
+  adaptive_icon_background: "assets/brand/android-icon-background.png"
+  adaptive_icon_foreground: "assets/brand/android-icon-foreground.png"
+  adaptive_icon_monochrome: "assets/brand/android-icon-monochrome.png"
+  ios: true
+  remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: "assets/brand/icon.png"
+    background_color: "#0B1B3A"
+    theme_color: "#0B1B3A"

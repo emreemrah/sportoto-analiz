@@ -1,0 +1,90 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# YAYIN İMZASI — parola ve anahtar deposu ASLA depoya girmez.
+android/key.properties
+*.jks
+*.keystore
+
+# YAYIN SEMBOLLERİ — .symbols dosyaları depoda DURMAZ (her biri ~3 MB ve
+# derleme çıktısıdır), ama SAKLANMALARI ZORUNLUDUR: karartılmış bir sürümün
+# çökme raporu ancak kendi sembol dosyasıyla okunabilir ve geriye dönük
+# üretilemez. Yayınlanan her sürümün sembollerini derleme sisteminde /
+# yedekte tutun. Ayrıntı: yayin-sembolleri/BENIOKU.md
+yayin-sembolleri/**/*.symbols
+
+# NOT (2026-08-11): kaynak Expo uygulamasından kopyalanmış ölü görseller
+# (hero-*, ic-*, icons/, tab-stadium, tab-analysis ve assets/brand/ kök
+# kopyaları) DİSKTEN SİLİNDİ — 10,4 MB. Hiçbiri koddan okunmuyordu ve
+# pubspec'te listeli değildi. Launcher/açılış ikonlarını ÜRETEN dosyalar
+# assets/brand/ altındadır, depoda DURUR ve pubspec onları oradan okur.
+
+# SPOR VERİSİ SKILL'LERİ (machina-sports/sports-skills) — DEPOYA GİRMEZ.
+#
+# `.agents/skills/` upstream'den `npx skills add` ile kurulan skill
+# dosyalarıdır (football-data · betting · sports-reporter · sports-news);
+# `.claude/skills/` altındaki aynı adlı girdiler oraya symlink'tir.
+# `skills-lock.json` bu kurulumun kayıt dosyasıdır.
+#
+# Bunlar proje kaynak kodu değil, dışarıdan çekilen bağımlılıktır.
+#
+# Spor skill'lerini yeniden kurma talimatı: .claude/skills/spor-toto-data-research/references/calisma-zamani.md
+.agents/
+skills-lock.json
+
+# Yukarıdaki upstream skill'lerin `.claude/skills/` altındaki SYMLINK'leri de
+# depoya girmez: hedefleri `.agents/` altında ve o klasör izlenmiyor — link
+# depoda kalsaydı klonlayan kişide KIRIK olurdu. Kurulum komutu bu linkleri
+# yeniden oluşturur. (Bizim yazdığımız `spor-toto-*` wrapper'ları GERÇEK
+# klasördür ve depoda DURUR.)
+.claude/skills/football-data
+.claude/skills/betting
+.claude/skills/sports-reporter
+.claude/skills/sports-news
+
+# Spor skill'lerinin Python çalışma zamanı (proje-yerel izole venv).
+# Kurulumu: calisma-zamani.md — sabitli commit arşivinden pip ile.
+.venv-sports/

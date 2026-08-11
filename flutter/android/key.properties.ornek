@@ -1,0 +1,12 @@
+# YAYIN ANAHTARI ŞABLONU — bu dosyayı `key.properties` adıyla kopyalayıp
+# doldurun. `key.properties` .gitignore'dadır, depoya girmez.
+#
+# Anahtar deposu oluşturmak için:
+#   keytool -genkey -v -keystore masteranaliz.jks -keyalg RSA -keysize 2048 \
+#           -validity 10000 -alias masteranaliz
+#
+# storeFile yolu `android/` klasörüne GÖRELİDİR.
+storePassword=
+keyPassword=
+keyAlias=masteranaliz
+storeFile=masteranaliz.jks
