@@ -1132,7 +1132,7 @@ void main() {
       await radar5(t, {'/api/radar/daily-played': gunlukOynanma});
       // Gün adı KISALTILIR: satırda dar alan var. Pazartesi → "Pzt".
       expect(metin('Pzt'), findsWidgets);
-      // Yüzdeler ayrı kutularda; harf (1/X/2) kutunun dışında.
+      // Yüzdeler kompakt şeritte; harf (1/X/2) değerin önünde renksiz.
       expect(metin('%72'), findsWidgets);
       expect(metin('%16'), findsWidgets);
       expect(metin('%12'), findsWidgets);
@@ -1209,7 +1209,7 @@ void main() {
     testWidgets('karşılaşmaya dokununca o sıranın maçları yeniden eskiye '
         'listelenir', (t) async {
       await radar5(t);
-      await t.tap(metin('Ev Takımı – Dep Takımı').first, warnIfMissed: false);
+      await t.tap(find.byKey(const Key('radar5-satir-1')), warnIfMissed: false);
       await _tur(t);
       // DÜZEN: hafta maçın BAŞINDA, skor iki takımın ORTASINDA — karşılaşma
       // hücresi TEK zengin metindir; hafta o metnin İÇİNDE aranır.
@@ -1228,7 +1228,7 @@ void main() {
       // Çip artık YALNIZ dönem adıdır.
       await t.tap(metin('Son 5 Hafta'), warnIfMissed: false);
       await _tur(t);
-      await t.tap(metin('Ev Takımı – Dep Takımı').first, warnIfMissed: false);
+      await t.tap(find.byKey(const Key('radar5-satir-1')), warnIfMissed: false);
       await _tur(t);
       // İlk 5 maç görünür…
       expect(metinIceren('48. Hafta'), findsOneWidget);
@@ -1242,10 +1242,10 @@ void main() {
 
     testWidgets('tekrar dokununca kapanır', (t) async {
       await radar5(t);
-      await t.tap(metin('Ev Takımı – Dep Takımı').first, warnIfMissed: false);
+      await t.tap(find.byKey(const Key('radar5-satir-1')), warnIfMissed: false);
       await _tur(t);
       expect(metinIceren('52. Hafta'), findsOneWidget);
-      await t.tap(metin('Ev Takımı – Dep Takımı').first, warnIfMissed: false);
+      await t.tap(find.byKey(const Key('radar5-satir-1')), warnIfMissed: false);
       await _tur(t);
       expect(metinIceren('52. Hafta'), findsNothing);
     });
@@ -1261,7 +1261,7 @@ void main() {
           'matches': [],
         },
       });
-      await t.tap(metin('Ev Takımı – Dep Takımı').first, warnIfMissed: false);
+      await t.tap(find.byKey(const Key('radar5-satir-1')), warnIfMissed: false);
       await _tur(t);
       expect(metinIceren('doğrulanmış geçmiş sonuç yok'), findsOneWidget);
     });
@@ -1297,7 +1297,7 @@ void main() {
     // TABLO DÜZENİ — KARŞILAŞMA | 1 · X · 2 (oynanma) | SONUÇ. Başlık BİR KEZ.
     testWidgets('oynanma yüzdeleri sütunlarda, sağında sonuç', (t) async {
       await radar5(t, {'/api/radar/position-matches': oynanmali()});
-      await t.tap(metin('Ev Takımı – Dep Takımı').first, warnIfMissed: false);
+      await t.tap(find.byKey(const Key('radar5-satir-1')), warnIfMissed: false);
       await _tur(t);
       expect(metinIceren('Club Brugge 1-1 Union SG'), findsOneWidget);
       // Başlık satırı bir kez — her maçta tekrarlanmıyor.
@@ -1316,7 +1316,7 @@ void main() {
       t,
     ) async {
       await radar5(t, {'/api/radar/position-matches': oynanmali()});
-      await t.tap(metin('Ev Takımı – Dep Takımı').first, warnIfMissed: false);
+      await t.tap(find.byKey(const Key('radar5-satir-1')), warnIfMissed: false);
       await _tur(t);
       expect(metinIceren('50. Hafta'), findsOneWidget);
       // 7 maçın 5'i kayıtsız → 5×3 = 15 tire. Sıfır UYDURULMADI.
@@ -1336,7 +1336,7 @@ void main() {
       await radar5(t, {
         '/api/radar/position-matches': {...maclarFikstur, 'playedCount': 0},
       });
-      await t.tap(metin('Ev Takımı – Dep Takımı').first, warnIfMissed: false);
+      await t.tap(find.byKey(const Key('radar5-satir-1')), warnIfMissed: false);
       await _tur(t);
       expect(metinIceren('Club Brugge 1-1 Union SG'), findsOneWidget);
       expect(metin('–').evaluate().length, 21); // 7 maç × 3 sütun
@@ -1382,7 +1382,7 @@ void main() {
           ],
         },
       });
-      await t.tap(metin('Ev Takımı – Dep Takımı').first, warnIfMissed: false);
+      await t.tap(find.byKey(const Key('radar5-satir-1')), warnIfMissed: false);
       await _tur(t);
       expect(metinIceren('Club Brugge 1-1 Union SG'), findsOneWidget);
       // Kapsam notu ⓘ arkasında durur — açılır ve okunur.
@@ -1393,6 +1393,54 @@ void main() {
       // Kesilen haftalar gerçekten yok.
       expect(metinIceren('50. Hafta'), findsNothing);
       expect(metinIceren('49. Hafta'), findsNothing);
+    });
+
+    // 320px MOBİL (kart düzeni, 2026-08-10): uzun takım adları İKİ SATIRDA
+    // TAM görünür — kesme/üç nokta yok. Taşma olsaydı test çerçevesi
+    // RenderFlex overflow hatasıyla düşerdi; yeşil koşu taşmazlığın kanıtıdır.
+    testWidgets('320px: uzun takım adları TAM görünür, kart ve tablo taşmaz', (
+      t,
+    ) async {
+      _mockUclar({
+        ...kVarsayilan(),
+        '/api/radar/current': {
+          ...kGuncel,
+          'matches': [
+            {
+              ...kMac(1),
+              'home': 'Çok Uzun Ev Sahibi Takım Adı SK',
+              'away': 'Daha da Uzun Deplasman Takımı FK',
+            },
+          ],
+        },
+        '/api/radar/position-dna': dnaFikstur,
+        '/api/radar/position-matches': maclarFikstur,
+        '/api/radar/daily-played': gunlukOynanma,
+      });
+      await ekraniAc(t);
+      await sekme(t, 'Bülten DNA');
+      // Daraltma SEKMEDEN SONRA: Master sekmesinin 'Sıralama' satırı 320px'te
+      // kendi başına taşıyor (önceden var olan, Radar 5 dışı sorun) — bu test
+      // yalnız Radar 5 kartını ölçer.
+      t.view.physicalSize = const Size(320, 800);
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.reset);
+      await _tur(t);
+      // İki ad da TAM ve kesilmemiş — Text'te maxLines/ellipsis yok.
+      // (metin() RichText döndürür; Text özellikleri için düz find.text.)
+      final ev = t.widget<Text>(find.text('Çok Uzun Ev Sahibi Takım Adı SK'));
+      final dep = t.widget<Text>(find.text('Daha da Uzun Deplasman Takımı FK'));
+      expect(ev.overflow, isNot(TextOverflow.ellipsis));
+      expect(ev.maxLines, isNull);
+      expect(dep.maxLines, isNull);
+      // Gün adı ve günün değerleri sağ kümede durur.
+      expect(metin('Pzt'), findsWidgets);
+      expect(metin('%72'), findsWidgets);
+      // Kart açılır; KARŞILAŞMA tablosu 320px'te de çizilir.
+      await t.tap(find.byKey(const Key('radar5-satir-1')), warnIfMissed: false);
+      await _tur(t);
+      expect(metin('KARŞILAŞMA'), findsOneWidget);
+      expect(metinIceren('Club Brugge 1-1 Union SG'), findsOneWidget);
     });
   });
 
@@ -2275,7 +2323,7 @@ void main() {
       await filtreliRadar5(t);
       await t.tap(metin('Oynanma Yüzdesi'), warnIfMissed: false);
       await _tur(t);
-      await t.tap(metinIceren('Ev Takımı').first, warnIfMissed: false);
+      await t.tap(find.byKey(const Key('radar5-satir-1')), warnIfMissed: false);
       await _tur(t);
       await kapsamAc(t);
       expect(metinIceren('Oynanma Birebir · Tümü'), findsWidgets);

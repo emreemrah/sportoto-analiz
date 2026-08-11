@@ -14,6 +14,14 @@
 //  * BUGÜNÜN oynanma yüzdesi maçın YANINDA durur ve kaynaklar ORTALANMAZ —
 //    iki kaynak farklı yüzde veriyorsa bu bir bilgidir.
 //  * Mühürlü haftada dönem filtresi GÖSTERİLMEZ; tek doğru kaynak snapshot'tur.
+//
+// KAYNAKTAN BİLİNÇLİ SAPMA (2026-08-10, kullanıcı isteği) — kart düzeni:
+//  * Takım adları İKİ AYRI SATIRDA ve TAM (kesme/üç nokta yok; uzun ad alt
+//    satıra sarar — 320px'te bile taşmaz).
+//  * Gün adı + kaynak noktası + açma oku SAĞ ÜSTTE kompakt kümede.
+//  * Günün değerleri (oynanma %'si ya da oran modunda günün oranı) takım
+//    adlarının SAĞINDA, kutusuz kompakt şerit: "1 %72 · X %16 · 2 %12".
+//    Yüzde işareti PROJE DİLİNDE önde kalır (alt rozetler ve tablo da %N).
 
 import 'package:flutter/material.dart';
 
@@ -339,8 +347,16 @@ class MemoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // DAR EKRAN: aynı bilgi alt satırda — takım adı ezilmesin.
+    // DAR EKRAN: "Geçmiş N. sıra" rozetleri alt düzene geçer (mevcut kural).
     final darEkran = MediaQuery.of(context).size.width < 360;
+
+    // Günün değeri var mı? (oynanma ya da oran modu). Gün adı yalnız değerle
+    // birlikte anlamlıdır; değer yoksa sağ üstte yalnız ok durur.
+    final gunlukVar = bugunOran != null || bugunKaynaklar != null;
+    // Nokta o değerlerin KAYNAĞINI söyler. Tek kaynakta sağ üst kümeye
+    // alınır; çok kaynakta her değer satırının önünde durur — kaynaklar tek
+    // noktaya indirgenmez (dosya başındaki bütünlük kuralı).
+    final tekKaynak = bugunOran == null && (bugunKaynaklar?.length ?? 0) == 1;
 
     return Container(
       margin: const EdgeInsets.only(bottom: Spacing.sm),
@@ -357,70 +373,86 @@ class MemoryRow extends StatelessWidget {
             label:
                 '${item['no']}. sıranın geçmiş maçları${acik ? ' — kapat' : ''}',
             child: GestureDetector(
+              key: Key('radar5-satir-${item['no']}'),
               behavior: HitTestBehavior.opaque,
               onTap: onToggle,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 22,
-                        child: Text(
-                          '${item['no']}',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 15,
-                            fontWeight: AppFont.heavy,
-                          ),
-                        ),
+                  SizedBox(
+                    width: 22,
+                    child: Text(
+                      '${item['no']}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 15,
+                        fontWeight: AppFont.heavy,
                       ),
-                      const SizedBox(width: Spacing.md),
-                      Expanded(
-                        child: Text(
-                          '${item['home']} – ${item['away']}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.text,
-                            fontSize: 14,
-                            fontWeight: AppFont.heavy,
-                          ),
-                        ),
-                      ),
-                      // BUGÜNÜN oynanma yüzdesi (ya da oran modunda GÜNÜN
-                      // ORANI) — maçın YANINDA. Gün adı önde durur, yoksa
-                      // alttaki "Geçmiş N. sıra" satırıyla karışır: biri BU
-                      // MAÇA bu haftayı, öteki o SIRADA geçmişi söyler.
-                      if (bugunOran != null && !darEkran) ...[
-                        const SizedBox(width: Spacing.md),
-                        _bugunOranSerit(),
-                      ] else if (bugunKaynaklar != null && !darEkran) ...[
-                        const SizedBox(width: Spacing.md),
-                        _bugunSerit(),
+                    ),
+                  ),
+                  const SizedBox(width: Spacing.md),
+                  // TAKIM ADLARI İKİ AYRI SATIRDA VE TAM — kesme/üç nokta
+                  // YOK; uzun ad alt satıra sarar (kullanıcı isteği,
+                  // 2026-08-10).
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _takimAdi('${item['home']}'),
+                        const SizedBox(height: 2),
+                        _takimAdi('${item['away']}'),
                       ],
-                      const SizedBox(width: 6),
-                      Text(
-                        acik ? '▲' : '▼',
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 11,
-                          fontWeight: AppFont.black,
-                        ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // SAĞ SÜTUN — üstte kompakt küme (gün + tek kaynaksa nokta
+                  // + ok), altında günün değerleri. Gün adı önde durur, yoksa
+                  // alttaki "Geçmiş N. sıra" satırıyla karışır: biri BU MAÇA
+                  // bu haftayı, öteki o SIRADA geçmişi söyler.
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (gunlukVar) ...[
+                            Text(
+                              bugunGunKisa ?? 'Bugün',
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 12.5,
+                                fontWeight: AppFont.heavy,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          if (tekKaynak) ...[
+                            _kaynakNokta(bugunKaynaklar!.first.kaynak),
+                            const SizedBox(width: 6),
+                          ],
+                          Text(
+                            acik ? '▲' : '▼',
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 11,
+                              fontWeight: AppFont.black,
+                            ),
+                          ),
+                        ],
                       ),
+                      if (bugunOran != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: _oranDegerleri(),
+                        )
+                      else if (bugunKaynaklar != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: _oynanmaDegerleri(noktali: !tekKaynak),
+                        ),
                     ],
                   ),
-                  if (bugunOran != null && darEkran)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6, left: 34),
-                      child: _bugunOranSerit(sarmala: true),
-                    )
-                  else if (bugunKaynaklar != null && darEkran)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6, left: 34),
-                      child: _bugunSerit(sarmala: true),
-                    ),
                 ],
               ),
             ),
@@ -431,7 +463,10 @@ class MemoryRow extends StatelessWidget {
               padding: EdgeInsets.only(top: 6, left: darEkran ? 0 : 34),
               // DAR EKRAN TAŞMASI: etiket + üç rozet 360px'e sığmıyordu.
               // Çözüm: dar ekranda etiket kendi satırında, üç rozet ALTTA eşit
-              // genişlikte — basamak sayısı ne olursa olsun sığar.
+              // genişlikte; FittedBox rozeti pay dar gelirse ORANLI küçültür —
+              // basamak sayısı ne olursa olsun taşmaz (320px kanıtı testte).
+              // Geniş dalda rozetler Wrap'ın AYRI öğeleridir: tek kırılamaz
+              // Row olsalardı uç değerlerde ('%100.0'×3) 360-390px taşardı.
               child: darEkran
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -441,7 +476,12 @@ class MemoryRow extends StatelessWidget {
                         Row(
                           children: [
                             for (final k in const ['1', 'X', '2']) ...[
-                              Expanded(child: _rozet(k, darEkran: true)),
+                              Expanded(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: _rozet(k),
+                                ),
+                              ),
                               if (k != '2') const SizedBox(width: 6),
                             ],
                           ],
@@ -454,15 +494,7 @@ class MemoryRow extends StatelessWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         _pctEtiketi(),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            for (final k in const ['1', 'X', '2']) ...[
-                              _rozet(k),
-                              if (k != '2') const SizedBox(width: 6),
-                            ],
-                          ],
-                        ),
+                        for (final k in const ['1', 'X', '2']) _rozet(k),
                       ],
                     ),
             )
@@ -518,7 +550,7 @@ class MemoryRow extends StatelessWidget {
     '2': AppColors.accent,
   };
 
-  Widget _rozet(String k, {bool darEkran = false}) => Container(
+  Widget _rozet(String k) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
     decoration: BoxDecoration(
       color: AppColors.surfaceSoft,
@@ -526,10 +558,7 @@ class MemoryRow extends StatelessWidget {
       border: Border.all(color: AppColors.border),
     ),
     child: Row(
-      mainAxisSize: darEkran ? MainAxisSize.max : MainAxisSize.min,
-      mainAxisAlignment: darEkran
-          ? MainAxisAlignment.center
-          : MainAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           constraints: const BoxConstraints(minWidth: 20),
@@ -562,162 +591,127 @@ class MemoryRow extends StatelessWidget {
     ),
   );
 
-  /// Oran modunun şeridi: gün adı + günün gerçek 1/X/2 oranı. Oynanma
-  /// şeridiyle aynı görsel dil ama KAYNAK NOKTASI YOK — Radar 4 verisi tek
-  /// birincil kaynaktan gelir ve marka zaten hiçbir yerde adlandırılmaz.
-  /// Değeri olmayan seçenek tire alır; oran UYDURULMAZ.
-  Widget _bugunOranSerit({bool sarmala = false}) {
-    String bicim(Object? v) => v is num ? v.toStringAsFixed(2) : '–';
-    final degerler = <(String, Object?)>[
-      ('1', bugunOran?['home']),
-      ('X', bugunOran?['draw']),
-      ('2', bugunOran?['away']),
-    ];
-    final ogeler = <Widget>[
+  /// Takım adı TAM yazılır: maxLines/ellipsis YOK — uzun ad alt satıra
+  /// sarar. TAM ad ekranda olduğu için ayrı bir erişilebilirlik kopyası
+  /// gerekmez.
+  Widget _takimAdi(String ad) => Text(
+    ad,
+    style: const TextStyle(
+      color: AppColors.text,
+      fontSize: 14,
+      fontWeight: AppFont.heavy,
+      height: 19 / 14,
+    ),
+  );
+
+  /// Kaynak RENKLİ NOKTAYLA gösterilir; adı hiçbir yerde geçmez
+  /// (yasal/mağaza kısıtı). Etiket renk adını söyler.
+  Widget _kaynakNokta(Object kaynak) => Semantics(
+    key: Key('radar5-bugun-nokta-${kaynakKodu(kaynak)}'),
+    label: providerLabel(kaynak),
+    child: Container(
+      width: 9,
+      height: 9,
+      decoration: BoxDecoration(
+        color: providerColor(kaynak),
+        shape: BoxShape.circle,
+      ),
+    ),
+  );
+
+  /// Değer bloğunun sabit tavanı: Wrap ancak SINIRLI genişlikte sarar (Row
+  /// içindeki Wrap hiç sarmaz — bilinen Flutter tuzağı). 170px, en geniş
+  /// gerçek içerikte ("1 %100 · X %100 · 2 %100") tek satıra yeter; taşarsa
+  /// alt satıra kırılır, ekran taşmaz.
+  static const double _kDegerTavani = 170;
+
+  /// "h değer" çifti: harf renksiz ve küçük, değer belirgin. Alt satırdaki
+  /// rozetler renkli; burada renk kullanılsaydı iki satır aynı şeymiş gibi
+  /// görünürdü — oysa biri bu haftanın değeri, öteki geçmişin sonucu.
+  Widget _cift(String h, String deger) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
       Text(
-        bugunGunKisa ?? 'Bugün',
+        h,
         style: const TextStyle(
-          color: AppColors.primary,
-          fontSize: 14,
+          color: AppColors.textSoft,
+          fontSize: 11.5,
           fontWeight: AppFont.heavy,
         ),
       ),
-      Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final (h, v) in degerler) ...[
-            if (h != '1') const SizedBox(width: 12),
-            Text(
-              h,
-              style: const TextStyle(
-                color: AppColors.textSoft,
-                fontSize: 14,
-                fontWeight: AppFont.heavy,
-              ),
-            ),
-            const SizedBox(width: 3),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSoft,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Text(
-                bicim(v),
-                style: const TextStyle(
-                  color: AppColors.text,
-                  fontSize: 14,
-                  fontWeight: AppFont.heavy,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    ];
-
-    if (sarmala) {
-      return Wrap(
-        spacing: 6,
-        runSpacing: 4,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: ogeler,
-      );
-    }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < ogeler.length; i++) ...[
-          if (i > 0) const SizedBox(width: 6),
-          ogeler[i],
-        ],
-      ],
-    );
-  }
-
-  Widget _bugunSerit({bool sarmala = false}) {
-    final ogeler = <Widget>[
+      const SizedBox(width: 3),
       Text(
-        bugunGunKisa ?? 'Bugün',
+        deger,
         style: const TextStyle(
-          color: AppColors.primary,
-          fontSize: 14,
+          color: AppColors.text,
+          fontSize: 12.5,
           fontWeight: AppFont.heavy,
         ),
       ),
-      for (final k in bugunKaynaklar!)
-        Row(
-          mainAxisSize: MainAxisSize.min,
+    ],
+  );
+
+  static const Widget _ayrac = Padding(
+    padding: EdgeInsets.symmetric(horizontal: 4),
+    child: Text(
+      '·',
+      style: TextStyle(
+        color: AppColors.textMuted,
+        fontSize: 11.5,
+        fontWeight: AppFont.heavy,
+      ),
+    ),
+  );
+
+  /// Üçlü kompakt şerit: "1 %72 · X %16 · 2 %12" (kutusuz — kullanıcı
+  /// isteği, 2026-08-10). Nokta verilirse şeridin başında durur ve o
+  /// satırın kaynağını söyler.
+  Widget _ucluSerit(List<(String, String)> ciftler, {Object? kaynak}) =>
+      ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: _kDegerTavani),
+        child: Wrap(
+          alignment: WrapAlignment.end,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          runSpacing: 2,
           children: [
-            // Kaynak RENKLİ NOKTAYLA gösterilir; adı hiçbir yerde geçmez
-            // (yasal/mağaza kısıtı). Etiket renk adını söyler.
-            Semantics(
-              key: Key('radar5-bugun-nokta-${kaynakKodu(k.kaynak)}'),
-              label: providerLabel(k.kaynak),
-              child: Container(
-                width: 9,
-                height: 9,
-                decoration: BoxDecoration(
-                  color: providerColor(k.kaynak),
-                  shape: BoxShape.circle,
-                ),
+            if (kaynak != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 5),
+                child: _kaynakNokta(kaynak),
               ),
-            ),
-            for (final h in const ['1', 'X', '2']) ...[
-              const SizedBox(width: 12),
-              // KUTU DÜZENİ: yüzde yuvarlak kenarlı kutunun İÇİNDE; 1/X/2
-              // harfi kutunun DIŞINDA ve RENKSİZ. Alt satırdaki rozetler
-              // renkli; burada renk kullanılsaydı iki satır aynı şeymiş gibi
-              // görünürdü — oysa biri bu haftanın oynanması, öteki geçmişin
-              // sonucu.
-              Text(
-                h,
-                style: const TextStyle(
-                  color: AppColors.textSoft,
-                  fontSize: 14,
-                  fontWeight: AppFont.heavy,
-                ),
-              ),
-              const SizedBox(width: 3),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceSoft,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Text(
-                  '%${k.pct[h]}',
-                  style: const TextStyle(
-                    color: AppColors.text,
-                    fontSize: 14,
-                    fontWeight: AppFont.heavy,
-                  ),
-                ),
-              ),
+            for (final (i, c) in ciftler.indexed) ...[
+              if (i > 0) _ayrac,
+              _cift(c.$1, c.$2),
             ],
           ],
         ),
-    ];
-
-    if (sarmala) {
-      return Wrap(
-        spacing: 6,
-        runSpacing: 4,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: ogeler,
       );
-    }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < ogeler.length; i++) ...[
-          if (i > 0) const SizedBox(width: 6),
-          ogeler[i],
-        ],
+
+  /// Günün oynanma yüzdeleri — takım adlarının sağında. Çok kaynakta her
+  /// satır kendi noktasıyla başlar; kaynaklar ortalanmaz.
+  Widget _oynanmaDegerleri({required bool noktali}) => Column(
+    crossAxisAlignment: CrossAxisAlignment.end,
+    children: [
+      for (final (i, k) in bugunKaynaklar!.indexed) ...[
+        if (i > 0) const SizedBox(height: 4),
+        _ucluSerit(
+          [for (final h in _kSecenekler) (h, '%${k.pct[h]}')],
+          kaynak: noktali ? k.kaynak : null,
+        ),
       ],
-    );
+    ],
+  );
+
+  /// Oran modunun değerleri: günün gerçek 1/X/2 oranı, iki ondalıkla.
+  /// KAYNAK NOKTASI YOK — Radar 4 verisi tek birincil kaynaktan gelir.
+  /// Değeri olmayan seçenek tire alır; oran UYDURULMAZ.
+  Widget _oranDegerleri() {
+    String bicim(Object? v) => v is num ? v.toStringAsFixed(2) : '–';
+    return _ucluSerit([
+      ('1', bicim(bugunOran?['home'])),
+      ('X', bicim(bugunOran?['draw'])),
+      ('2', bicim(bugunOran?['away'])),
+    ]);
   }
 }
 
