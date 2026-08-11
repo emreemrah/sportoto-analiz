@@ -1,5 +1,15 @@
 # Spor Toto Analiz — Proje Rehberi
 
+
+> ## ⚠ 2026-08-11 — ÜRÜN ARTIK FLUTTER
+> RN/Expo uygulaması (`app/`) emekliye ayrıldı ve depodan KALDIRILDI (geçmişte
+> durur). Kullanıcıya giden ürün artık **`flutter/`** klasöründeki Flutter
+> uygulamasıdır. Bu dosyadaki "Frontend (app/src)" bölümü ve RN ekran adları
+> TARİHÇEDİR — yeni iş için `flutter/lib` altına bakın. `backend/` ve
+> `render.yaml` aynen geçerlidir: canlı API oradan dağıtılır ve Flutter
+> uygulaması ona bağlıdır. Kökteki `:4000` adresi artık web arayüzü SUNMAZ,
+> yalnız API + /yonetim panelidir.
+
 > **Derin bağlam / devir için `HANDOFF.md`'yi oku** (mimari, veri akışı, analiz
 > motoru mantığı, deploy, mevcut durum). Bu dosya kısa; HANDOFF ayrıntılı.
 
