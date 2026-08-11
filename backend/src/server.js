@@ -817,11 +817,19 @@ app.get(['/yonetim', '/yonetim/', '/admin'], (req, res) => {
 const webDir = path.join(__dirname, '..', 'public');
 if (fs.existsSync(path.join(webDir, 'index.html'))) {
   app.use(express.static(webDir));
-  // SPA geri dönüşü: /api ve /yonetim HARİÇ her yol uygulamayı açar.
+  // SPA geri dönüşü: /api ve /yonetim HARİÇ, UZANTISIZ yollar uygulamayı açar.
+  //
+  // UZANTI KONTROLÜ ŞART (2026-08-11): eskiden her yol index.html dönüyordu.
+  // Sonuç: eski RN sürümünün tarayıcıda kayıtlı service worker'ı kendini
+  // güncellemek için /sw.js isteyince HTML alıyor, güncelleme başarısız oluyor
+  // ve ESKİ uygulama önbellekten sunulmaya devam ediyordu — kullanıcı yeni
+  // sürümü hiç göremiyordu. Dosya gibi görünen yol (nokta içeren) artık 404
+  // döner; tarayıcı da 404 alan service worker kaydını KENDİLİĞİNDEN siler.
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/yonetim')) {
       return next();
     }
+    if (path.extname(req.path)) return next(); // .js/.png/.json → 404
     res.sendFile(path.join(webDir, 'index.html'));
   });
 }

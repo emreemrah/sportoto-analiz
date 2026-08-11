@@ -24,17 +24,22 @@
 # uygulama çizilir ama YAZILAR görünmez — bu durum yerelde ölçüldü.
 # =============================================================================
 
-$ErrorActionPreference = 'Stop'
+# DİKKAT: $ErrorActionPreference='Stop' BURADA KULLANILMAZ. PowerShell 5.1'de
+# yerel bir programın stderr'e yazdığı BİLGİ satırı da NativeCommandError'a
+# dönüşür; `flutter build web` "Wasm dry run succeeded..." diye bilgi yazdığı
+# için betik başarılı derlemede bile duruyordu. Başarı ölçütü $LASTEXITCODE.
+$ErrorActionPreference = 'Continue'
 $flutterDir = 'E:\flt\kodu cevir'
 $hedef = Join-Path $PSScriptRoot 'backend\public'
 
 Write-Host '[1/3] Flutter web derleniyor...' -ForegroundColor Cyan
 Push-Location $flutterDir
-try {
-  & flutter build web --release
-  if ($LASTEXITCODE -ne 0) { throw 'flutter build web başarısız' }
-} finally {
-  Pop-Location
+& flutter build web --release
+$derlemeKodu = $LASTEXITCODE
+Pop-Location
+if ($derlemeKodu -ne 0) {
+  Write-Host "HATA: flutter build web başarısız (çıkış kodu $derlemeKodu)" -ForegroundColor Red
+  exit 1
 }
 
 Write-Host '[2/3] canvaskit yerel kaynağa bağlanıyor (bootstrap yaması)...' -ForegroundColor Cyan

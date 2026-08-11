@@ -41,6 +41,37 @@
     kendi kendine yüklendiği için buradaki ikinci bir `load()` çağrısı geç
     kalır ve uygulamayı iki kez başlatır (yerelde denendi, çalışmadı).
   -->
+  <!--
+    ESKİ SERVICE WORKER TEMİZLİĞİ (2026-08-11).
+
+    Bu adres daha önce RN/Expo sürümünü yayınlıyordu ve o sürüm tarayıcıya bir
+    service worker kaydetmişti. Kayıt, uygulama değişse bile ESKİ dosyaları
+    önbellekten sunmaya devam ediyor; kullanıcı yeni sürümü hiç göremiyor
+    ("çalışmıyor" şikâyeti buradan geldi). Burada BİZE AİT OLMAYAN her kayıt
+    silinir, önbellekler boşaltılır ve sayfa BİR KEZ yenilenir.
+
+    Sonsuz döngü koruması: yenileme yalnız gerçekten silinen kayıt varsa
+    yapılır; temizlikten sonra kayıt kalmadığı için ikinci turda çalışmaz.
+  -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (kayitlar) {
+        var yabanci = kayitlar.filter(function (k) {
+          var betik = (k.active && k.active.scriptURL) || k.scope || '';
+          return betik.indexOf('flutter_service_worker.js') === -1;
+        });
+        if (!yabanci.length) return;
+        Promise.all(yabanci.map(function (k) { return k.unregister(); }))
+          .then(function () {
+            if (!window.caches) return null;
+            return caches.keys().then(function (adlar) {
+              return Promise.all(adlar.map(function (a) { return caches.delete(a); }));
+            });
+          })
+          .then(function () { location.reload(); });
+      }).catch(function () { /* eski tarayıcı: sessizce geç */ });
+    }
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
