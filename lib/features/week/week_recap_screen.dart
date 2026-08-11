@@ -725,6 +725,26 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
         );
       }
       satirlar.add(const SizedBox(height: 8));
+      // KAYNAK KİMLİĞİ (kullanıcı isteği 2026-08-11): hangi mühür, hangi
+      // analiz sürümü, hangi gözlem penceresi. Kayıt sonradan denetlenebilsin.
+      satirlar.add(
+        _izSatiri(
+          'Kaynak',
+          [
+            ?_muhur.snapshotId,
+            if (_muhur.yontemSurumu case final v? when v.isNotEmpty) v,
+            if (_muhur.dogrulamaKodu case final h? when h.length >= 10)
+              '#${h.substring(0, 10)}',
+          ].join(' · '),
+        ),
+      );
+      satirlar.add(
+        _izSatiri(
+          'Gözlem penceresi',
+          '${_kisaZaman(iz.ilkKayit)} → ${_kisaZaman(iz.sonKayit)}',
+        ),
+      );
+      satirlar.add(const SizedBox(height: 6));
       satirlar.add(
         const Text(
           'Kriter bazlı öncesi/sonrası kayıtta tutulmuyor; bu yüzden '

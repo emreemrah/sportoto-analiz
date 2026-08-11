@@ -127,8 +127,6 @@ class KararIzi {
   /// Sunucuda gözlem serisi bulundu mu? false ise "kayıt yok" denir,
   /// değişiklik olmadığı İDDİA EDİLMEZ.
   final bool kayitVar;
-
-  bool get degismis => degisimler.isNotEmpty;
 }
 
 /// Tahmin dizgesini karşılaştırılabilir hâle getirir: '10' ile '01' aynıdır,

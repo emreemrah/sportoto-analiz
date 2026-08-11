@@ -386,6 +386,12 @@ void main() {
         _metinIceren('oran ev/ber/dep: 2.33/3.15/3.06 → 2.12/3.08/2.62'),
         findsOneWidget,
       );
+      // Kaynak kimliği: hangi mühür, hangi analiz sürümü + gözlem penceresi.
+      expect(
+        _metinIceren('snap-1600 · master-analysis-1.0.0 · #92ce471a28'),
+        findsOneWidget,
+      );
+      expect(_metinIceren('Gözlem penceresi'), findsOneWidget);
       // Tutulmayan veri açıkça söylenir.
       expect(
         _metinIceren('Kriter bazlı öncesi/sonrası kayıtta tutulmuyor'),
