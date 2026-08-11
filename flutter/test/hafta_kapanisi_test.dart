@@ -279,7 +279,7 @@ void main() {
     testWidgets('kupon BULUNUR — "kupon yok" yazmaz', (t) async {
       await _ekraniAc(t, roundId: '1600');
 
-      expect(_metin('SEN · Kupon'), findsOneWidget);
+      expect(_metin('KUPON 1'), findsOneWidget); // "Sen" değil, kuponun ADI
       expect(_metin('2/2'), findsOneWidget); // iki seçim de tuttu
       expect(_metin('kupon yok'), findsNothing);
     });
@@ -297,12 +297,12 @@ void main() {
       await _ekraniAc(t, roundId: '1600');
 
       // VS alanı AYNI ÖLÇÜ: iki taraf da ORTAK maçlar üzerinden (2026-08-11).
-      expect(_metin('SEN · Kupon'), findsOneWidget);
-      expect(_metin('SİSTEM · Mühürlü kupon'), findsOneWidget);
+      expect(_metin('KUPON 1'), findsOneWidget);
+      expect(_metin('SİSTEM · MÜHÜRLÜ SEÇİM'), findsOneWidget);
       expect(_metin('2/2'), findsOneWidget); // sen: 2 ortak maçta 2 isabet
       expect(_metin('1/2'), findsOneWidget); // sistem mühürlü kupon: 1
       // Tekli ana tahmin VS'ten ÇIKTI, kendi satırında duruyor.
-      expect(_metin('Sistem ana tahmin isabeti'), findsOneWidget);
+      expect(_metin('Sistem ana tahmini · eşleşen maç'), findsOneWidget);
       expect(_metin('5/14 · %36'), findsOneWidget);
       expect(_metinIceren('ortak maç'), findsWidgets);
     });
@@ -337,8 +337,21 @@ void main() {
 
     // Kupon yoksa ortak maç da yoktur; VS alanı bunu açıkça yazar.
     expect(_metin('ortak maç yok'), findsWidgets);
-    expect(_metin('Haftanın Anları'), findsOneWidget);
-    expect(_metin('Sistem kuponu ıskaladı'), findsOneWidget);
+    expect(_metin('Öne Çıkan Sonuçlar'), findsOneWidget);
+    expect(_metin('Sistem seçimi resmî sonuçla eşleşmedi'), findsOneWidget);
+    // SUÇLAYICI DİL YOK (2026-08-11 dil standardı).
+    for (final yasak in [
+      'bilemedin',
+      'bildin',
+      'İkiniz',
+      'ıskaladı',
+      'yaktın',
+      '💥',
+      '🔥',
+      '🤖',
+    ]) {
+      expect(_metinIceren(yasak), findsNothing, reason: yasak);
+    }
   });
 
   // ————————————————————————————————————————————————————————————————
@@ -352,12 +365,12 @@ void main() {
       await _ekraniAc(t, roundId: '1600', kuponVar: false);
 
       // Mühür 1. maç için '1' diyor, history '2'. Ekranda mühür kazanır.
-      expect(_metinIceren('Sistem kuponu 1'), findsWidgets);
+      expect(_metinIceren('Sistem seçimi: 1'), findsWidgets);
       // Güncel analizin '2'si hiçbir satırda sistem seçimi olarak çıkmaz:
       // 2. maçta history '2' (doğru) derken mühür '1' (yanlış) diyor →
       // sistem ISKALADI görünmeli, "bildi" değil.
-      expect(_metin('Sistem kuponu bildi, sen bilemedin'), findsNothing);
-      expect(_metin('Sistem kuponu ıskaladı'), findsOneWidget);
+      expect(_metinIceren('bilemedin'), findsNothing);
+      expect(_metin('Sistem seçimi resmî sonuçla eşleşmedi'), findsOneWidget);
     });
 
     testWidgets('mühürde tahmin YOKSA maç sistem başarısına KATILMAZ', (
@@ -367,7 +380,7 @@ void main() {
 
       // 3. maçın mührü '-' → değerlendirilmez, uyarı görünür.
       expect(_metin('Sistem tahmin kaydı doğrulanamadı'), findsOneWidget);
-      expect(_metinIceren('sistem başarısına KATILMADI'), findsOneWidget);
+      expect(_metinIceren('karşılaştırmaya katılmadı'), findsOneWidget);
       expect(_metinIceren('No 3'), findsOneWidget);
     });
 
@@ -382,8 +395,8 @@ void main() {
         findsOneWidget,
       );
       // Sistem kazanmış gösterilmez.
-      expect(_metin('Sistem kuponu bildi, sen bilemedin'), findsNothing);
-      expect(_metinIceren('Sistem kuponu '), findsNothing);
+      expect(_metinIceren('bilemedin'), findsNothing);
+      expect(_metinIceren('Sistem seçimi'), findsNothing);
     });
 
     testWidgets('kupon mühürden farklıysa KARAR İZİ alanı açılır', (t) async {
@@ -456,16 +469,16 @@ void main() {
       await t.tap(_metin('#2 · Sistem tahmini neden değişti?'));
       await _tur(t, 40);
 
-      expect(_metinIceren('sistem tahmini DEĞİŞMEMİŞ'), findsOneWidget);
-      expect(_metinIceren('Fark senin seçiminden geliyor'), findsOneWidget);
+      expect(_metinIceren('sistem tahmini değişmemiş'), findsOneWidget);
+      expect(_metinIceren('fark kupon seçiminden geliyor'), findsOneWidget);
     });
 
     // 53. HAFTA 15. MAÇ SENARYOSU (gerçek olayın birebir kurgusu):
     // kullanıcı kuponunu açtığında sistem de 1-X diyordu; sistem kilide dek
     // 1-2'ye döndü, sonuç 2 geldi. "Sistem kuponu bildi, sen bilemedin"
     // demek bu durumda yanıltıcıdır.
-    testWidgets('kupon anında AYNI tahmin varsa düello başlığı yerine '
-        '"Sistem kilit tahmini tuttu" yazar', (t) async {
+    testWidgets('kupondan SONRA değişen sistem tahmini "Öne Çıkan Sonuçlar" '
+        'bölümünde sistem başarısı olarak GÖSTERİLMEZ', (t) async {
       final uclar = <String, Object?>{
         ...kUclar,
         '/api/history/1600': {
@@ -536,12 +549,156 @@ void main() {
 
       await _ekraniAc(t, roundId: '1600', uclar: sirali, kupon: kupon);
 
-      expect(_metin('Sistem kilit tahmini tuttu'), findsOneWidget);
-      expect(_metin('Sistem kuponu bildi, sen bilemedin'), findsNothing);
-      // Üç değer de KAYITTAN: kupon seçimi · kupon anındaki sistem · mühür.
-      expect(_metinIceren('Sen 1-X'), findsOneWidget);
-      expect(_metinIceren('Kupona aldığında sistem 1-X'), findsOneWidget);
-      expect(_metinIceren('Kilitte 1-2'), findsOneWidget);
+      // Kupon 5 Ağu'da açıldığında sistem de 1-X diyordu; mühür 1-2.
+      // Bu maç ÖNE ÇIKAN SONUÇLAR'da hiç görünmez (yanıltıcı kıyas olurdu).
+      expect(_metin('Öne Çıkan Sonuçlar'), findsNothing);
+      expect(_metinIceren('eşleşmedi'), findsNothing);
+      expect(_metinIceren('bilemedin'), findsNothing);
+      // Yalnız değişiklik bölümünde, tarafsız biçimde yer alır.
+      expect(_metin('Sistem Tahmini Değişiklikleri'), findsOneWidget);
+      expect(_metin('#4 · Sistem tahmini neden değişti?'), findsOneWidget);
+    });
+
+    testWidgets('sonuç hiçbir seçimde yoksa kart bunu DOĞRUDAN söyler', (
+      t,
+    ) async {
+      // Korona–Legia örneği: resmî sonuç X, kupon 1-2, sistem 1-2.
+      final uclar = <String, Object?>{
+        ...kUclar,
+        '/api/history/1600': {
+          'matches': [
+            _mac(
+              7,
+              'Korona',
+              'Legia',
+              result: 'X',
+              score: {'home': 1, 'away': 1},
+              sys: '1',
+            ),
+          ],
+        },
+        '/api/bulletins/1600/snapshot': {
+          'id': 'snap-1600',
+          'lockedAt': '2026-08-08T13:55:05.857Z',
+          'late': false,
+          'payload': {
+            'matches': [
+              {
+                'no': 7,
+                'matchId': 'mac-7',
+                'systemPrediction': {'symbol': '12', 'display': '12'},
+              },
+            ],
+          },
+        },
+      };
+      final kupon = <String, Object?>{
+        ..._kuponKaydi(),
+        'versions': [
+          {
+            'id': 'v1',
+            'versionNo': 1,
+            'createdAt': '2026-08-05T20:53:23.620Z',
+            'selections': [
+              {
+                'no': 7,
+                'selectedOutcomes': ['1', '2'],
+              },
+            ],
+          },
+        ],
+      };
+
+      await _ekraniAc(t, roundId: '1600', uclar: uclar, kupon: kupon);
+
+      expect(_metin('Kuponlarda X seçeneği bulunmuyordu'), findsOneWidget);
+      expect(_metinIceren('Resmî sonuç: X'), findsOneWidget);
+      expect(_metinIceren('Kupon seçimi: 1-2'), findsOneWidget);
+      expect(_metinIceren('Sistem seçimi: 1-2'), findsOneWidget);
+      // Suçlayıcı dil ve emoji YOK.
+      for (final yasak in ['bilemedin', 'İkiniz', '💥', '🔥', '🤖']) {
+        expect(_metinIceren(yasak), findsNothing, reason: yasak);
+      }
+    });
+
+    testWidgets('seçim sistemden AKTARILDIYSA başlık bunu söyler; damga '
+        'yoksa varsayılmaz', (t) async {
+      final uclar = <String, Object?>{
+        ...kUclar,
+        '/api/history/1600': {
+          'matches': [
+            _mac(
+              8,
+              'Ham Kam',
+              'Aalesunds',
+              result: '2',
+              score: {'home': 0, 'away': 1},
+              sys: '1',
+            ),
+          ],
+        },
+        '/api/bulletins/1600/snapshot': {
+          'id': 'snap-1600',
+          'lockedAt': '2026-08-08T13:55:05.857Z',
+          'late': false,
+          'payload': {
+            'matches': [
+              {
+                'no': 8,
+                'matchId': 'mac-8',
+                'systemPrediction': {'symbol': '1', 'display': '1'},
+              },
+            ],
+          },
+        },
+      };
+      Map<String, Object?> kuponYap({required bool damga}) => {
+        ..._kuponKaydi(),
+        'versions': [
+          {
+            'id': 'v1',
+            'versionNo': 1,
+            'createdAt': '2026-08-05T20:53:23.620Z',
+            'selections': [
+              {
+                'no': 8,
+                'selectedOutcomes': ['1'],
+              },
+            ],
+            if (damga)
+              'aktarimlar': {
+                '8': {
+                  'secim': '1',
+                  'zaman': '2026-08-05T20:53:23.620Z',
+                  'kaynak': 'system',
+                },
+              },
+          },
+        ],
+      };
+
+      await _ekraniAc(
+        t,
+        roundId: '1600',
+        uclar: uclar,
+        kupon: kuponYap(damga: true),
+      );
+      expect(
+        _metin('Sistemden aktarılan seçim resmî sonuçla eşleşmedi'),
+        findsOneWidget,
+      );
+
+      // Damga YOKSA aktarım VARSAYILMAZ.
+      await _ekraniAc(
+        t,
+        roundId: '1600',
+        uclar: uclar,
+        kupon: kuponYap(damga: false),
+      );
+      // Damga yoksa: sonuç hiçbir seçimde olmadığı için o olgu yazılır;
+      // "sistemden aktarıldı" bilgisi UYDURULMAZ.
+      expect(_metin('Kuponlarda 2 seçeneği bulunmuyordu'), findsOneWidget);
+      expect(_metinIceren('Sistemden aktarılan'), findsNothing);
     });
 
     testWidgets('GEÇ alınmış mühür kanıt sayılmaz', (t) async {
@@ -554,7 +711,7 @@ void main() {
 
       expect(_metin('Sistem tahmin kaydı doğrulanamadı'), findsOneWidget);
       expect(_metinIceren('ilk maç başladıktan SONRA'), findsOneWidget);
-      expect(_metin('Sistem kuponu bildi, sen bilemedin'), findsNothing);
+      expect(_metinIceren('bilemedin'), findsNothing);
     });
   });
 }
