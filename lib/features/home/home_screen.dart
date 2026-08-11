@@ -644,8 +644,9 @@ class _AnalysisCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final analysis = match['analysis'] as Map?;
     final probs = analysis?['probabilities'] as Map?;
-    final favRaw = (analysis?['favorite'] as Map?)?['symbol'];
-    final fav = favRaw != null ? '$favRaw'.replaceAll('0', 'X') : null;
+    // NOT: `analysis['favorite']` BİLEREK okunmuyor — 1/X/2 kutuları tek tip
+    // (2026-08-11 kullanıcı kararı, bkz. _ihtimalKutusu). Favoriyi ayırt eden
+    // hiçbir görsel işaret yok, dolayısıyla değerine de ihtiyaç yok.
 
     // Etiket GERÇEK sürpriz puanından — karta göre sabit etiket uydurulmaz.
     final sc = (analysis?['surpriseScore'] as num?)?.toDouble() ?? 0;
@@ -771,7 +772,6 @@ class _AnalysisCard extends StatelessWidget {
                       child: _ihtimalKutusu(
                         s.k,
                         s.v,
-                        s.k == fav,
                         analysis?['estimated'] == true,
                       ),
                     ),
@@ -840,51 +840,56 @@ class _AnalysisCard extends StatelessWidget {
     ],
   );
 
-  /// VURGU DİLİ: favori kutusu SEÇİLMİŞ GİBİ DURMAZ.
+  /// 1/X/2 KUTULARI TEK TİPTİR — hiçbir seçenek öne çıkarılmaz.
   ///
-  /// Kullanıcı bildirimi (2026-08-06): "MS1 %40 seçilmiş gibi duruyor" — dolu
-  /// kutu mobilde "seçildi" demektir. İkinci tur (2026-08-11): ok işareti,
-  /// MAVİ ÇERÇEVE ve altındaki "▲ en yüksek ihtimal — seçim değil" açıklaması
-  /// da kaldırıldı; üçü birlikte hâlâ seçim izlenimi veriyordu ve açıklama
-  /// satırı kartı sıkıştırıyordu. En yüksek ihtimal artık YALNIZ biraz daha
-  /// koyu NÖTR arka plan (bgAlt → border tonu, mavi değil) ve kalın yazıyla
-  /// ayrılır. Ölçüler aynı istekte ~%15 küçültüldü (yazı 10.5→9 / 12.5→10.5,
-  /// iç boşluk 6→5; dar sürüm 9.5→8 / 11→9.5, 4→3.5).
+  /// Üç turluk bir geri bildirim zincirinin sonucu:
+  ///   • 2026-08-06 — "MS1 %40 seçilmiş gibi duruyor": dolgulu kutu kaldırıldı.
+  ///   • 2026-08-11 (1) — ok işareti (▲), mavi çerçeve ve "en yüksek ihtimal —
+  ///     seçim değil" açıklaması kaldırıldı; vurgu koyu zemin + kalın yazıya
+  ///     indirildi.
+  ///   • 2026-08-11 (2) — KALAN VURGU DA KALDIRILDI: koyu zemin ve kalın yazı
+  ///     dahil hiçbir ayrım yok. Kullanıcı gerekçesi: hangi ihtimalin yüksek
+  ///     olduğunu vurgulamak SEÇİM YÖNLENDİRMESİdir. Ekran sayıyı söyler,
+  ///     yorumu kullanıcı yapar.
   ///
-  /// Üç kutu `Expanded` ile EŞİT genişliktedir; çerçeve kalktığı için favori
-  /// kutusunun içi de artık diğerleriyle birebir aynı ölçüde.
-  Widget _ihtimalKutusu(String k, num v, bool favMi, bool estimated) =>
-      Semantics(
-        // Ok işareti ekrandan kalktı, anlam ERİŞİLEBİLİRLİKTE duruyor.
-        label: favMi ? '$k: yüzde $v — en yüksek ihtimal' : '$k: yüzde $v',
-        child: Container(
-          padding: EdgeInsets.symmetric(vertical: dar ? 3.5 : 5),
-          decoration: BoxDecoration(
-            color: favMi ? AppColors.border : AppColors.bgAlt,
-            borderRadius: AppRadius.smR,
+  /// Bu yüzden fonksiyon favoriyi BİLMEZ: ayırt edici bir parametre yok, yani
+  /// vurgu yanlışlıkla geri gelemez. `analysis['favorite']` de okunmuyor.
+  /// Erişilebilirlik etiketi de nötr ("1: yüzde 38") — ekran okuyucu kullanan
+  /// biri de yönlendirilmez, yüzdeleri kendisi karşılaştırır.
+  ///
+  /// ÖLÇÜLER (2026-08-11 ikinci tur): yüzde 10.5→8.5 (~%20 küçük), sembol
+  /// 9→8, dikey iç boşluk 5→4; dar sürüm sırasıyla 9.5→7.5, 8→7, 3.5→3.
+  /// Üç kutu `Expanded` ile eşit genişlikte; ikisi arasında tek fark DEĞERDİR.
+  Widget _ihtimalKutusu(String k, num v, bool estimated) => Semantics(
+    label: '$k: yüzde $v',
+    child: Container(
+      padding: EdgeInsets.symmetric(vertical: dar ? 3 : 4),
+      decoration: BoxDecoration(
+        color: AppColors.bgAlt,
+        borderRadius: AppRadius.smR,
+      ),
+      child: Column(
+        children: [
+          Text(
+            k,
+            style: TextStyle(
+              color: AppColors.textSoft,
+              fontSize: dar ? 7 : 8,
+              fontWeight: AppFont.bold,
+            ),
           ),
-          child: Column(
-            children: [
-              Text(
-                k,
-                style: TextStyle(
-                  color: AppColors.textSoft,
-                  fontSize: dar ? 8 : 9,
-                  fontWeight: favMi ? AppFont.black : AppFont.bold,
-                ),
-              ),
-              Text(
-                '%$v${estimated ? '≈' : ''}',
-                style: TextStyle(
-                  color: AppColors.text,
-                  fontSize: dar ? 9.5 : 10.5,
-                  fontWeight: favMi ? AppFont.black : AppFont.bold,
-                ),
-              ),
-            ],
+          Text(
+            '%$v${estimated ? '≈' : ''}',
+            style: TextStyle(
+              color: AppColors.text,
+              fontSize: dar ? 7.5 : 8.5,
+              fontWeight: AppFont.bold,
+            ),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }
 
 class _SurpriseCard extends StatelessWidget {
