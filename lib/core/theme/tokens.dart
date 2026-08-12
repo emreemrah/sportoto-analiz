@@ -67,17 +67,27 @@ abstract final class AppColors {
   /// bunu AA eşiğini geçene kadar iterek hesaplar.
   static Color onPrimarySoft = Color(0xFFB7C4DA);
 
+  // ANLAMSAL RENKLER `const` KALIR — anlamları takımdan bağımsızdır.
   static const success = Color(0xFF16A34A);
-  static const successSoft = Color(0xFFE8F7EE);
-
   static const warning = Color(0xFFF59E0B);
-  static const warningSoft = Color(0xFFFFF4DD);
-
   static const danger = Color(0xFFDC2626);
-  static const dangerSoft = Color(0xFFFEE2E2);
-
   static const info = Color(0xFF2563EB);
-  static const infoSoft = Color(0xFFEAF1FF);
+
+  // ANLAMSAL YUMUŞAK YÜZEYLER `const` DEĞİL (kullanıcı isteği, 2026-08-12).
+  //
+  // Bu dördü rozet ve uyarı KARTLARININ ZEMİNİDİR. Sabit krem/pembe/açık
+  // yeşil değerlerde bırakılınca takım temasında ekranın ortasında tema
+  // dışı krem bir kart kalıyordu — kullanıcının açıkça yasakladığı şey
+  // ("beyaz veya nötr kartlar takımın ikinci rengine dönüşsün", "krem,
+  // pembe ... tonlara dönme").
+  //
+  // Takım temasında HUE anlamsal renkten, PARLAKLIK karttan gelir: yüzey
+  // "uyarı sarısı ailesinden" kalır ama temanın içine oturur. Açık/koyu
+  // görünümlerde markanın bugünkü değerleri birebir geri yazılır.
+  static Color successSoft = Color(0xFFE8F7EE);
+  static Color warningSoft = Color(0xFFFFF4DD);
+  static Color dangerSoft = Color(0xFFFEE2E2);
+  static Color infoSoft = Color(0xFFEAF1FF);
 
   // CANLI — ANLAMSAL, takım temasından BAĞIMSIZ (kullanıcı isteği 2026-08-12:
   // "başarı, hata, uyarı ve canlı durum gibi anlamsal renkler tema renginden

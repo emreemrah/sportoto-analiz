@@ -25,6 +25,7 @@ import '../../core/bulten_gunleri.dart';
 import '../../core/coupon/coupon_eval.dart';
 import '../../core/coupon/coupon_store.dart';
 import '../../core/prefs.dart';
+import '../../core/theme/takim_paleti.dart' show okunurMetin;
 import '../../core/theme/tokens.dart';
 import '../../core/utils.dart';
 import '../../widgets/app_ui.dart';
@@ -580,10 +581,10 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Resmi sonuç düzeltmesi var',
                           style: TextStyle(
-                            color: Color(0xFF7A4A00),
+                            color: okunurMetin(AppColors.warningSoft),
                             fontSize: 13,
                             fontWeight: AppFont.black,
                           ),
@@ -591,8 +592,8 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                         Text(
                           '${hist.corrections.length} maçta resmi sonuç '
                           'güncellendi.',
-                          style: const TextStyle(
-                            color: Color(0xFF7A4A00),
+                          style: TextStyle(
+                            color: okunurMetin(AppColors.warningSoft),
                             fontSize: 12,
                             fontWeight: AppFont.bold,
                           ),

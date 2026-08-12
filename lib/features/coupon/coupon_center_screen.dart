@@ -199,7 +199,8 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
                         Text(
                           'Kupon Merkezi',
                           style: TextStyle(
-                            color: AppColors.text,
+                            color:
+                                AppColors.onBackground, // sayfa zemini üstünde
                             fontSize: 17,
                             fontWeight: AppFont.black,
                           ),
@@ -208,7 +209,8 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
                           '${selMeta?['name'] ?? '—'}'
                           '${selMeta?['year'] != null ? ' · ${selMeta!['year']}' : ''}',
                           style: TextStyle(
-                            color: AppColors.textMuted,
+                            color: AppColors
+                                .onBackgroundMuted, // sayfa zemini üstünde
                             fontSize: 12,
                             fontWeight: AppFont.bold,
                           ),
