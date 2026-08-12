@@ -23,7 +23,11 @@
 // takımda uyarı sarısı kaybolamaz. O renkler `AppColors` içinde sabit kalır.
 
 import 'dart:math' as math;
-import 'dart:ui';
+
+// HSLColor için — ton (hue/doygunluk) koruyan parlaklık ayarı oradan gelir.
+// `painting` seçildi, `material` değil: materyalin tamamı widget getirir, bu
+// dosya ise widget bilmez (başlıktaki "saf modül" kuralı).
+import 'package:flutter/painting.dart';
 
 /// WCAG 2.x göreceli parlaklık (0 = siyah, 1 = beyaz).
 double gorecelParlaklik(Color c) {
@@ -79,6 +83,58 @@ Color karart(Color c, double oran) => Color.fromARGB(
 int _karistir(int a, int b, double oran) {
   final o = oran < 0 ? 0.0 : (oran > 1 ? 1.0 : oran);
   return (a + (b - a) * o).round().clamp(0, 255);
+}
+
+// ═══════════ KİMLİK KORUYAN TON — HSL ═══════════════════════════════════════
+//
+// NEDEN `acikla`/`karart` YETMİYOR (kullanıcı isteği, 2026-08-12 iki renkli
+// tema): ikisi de RGB'de beyaza/siyaha karıştırır ve TONU KAYDIRIR —
+//   acikla(sarı)  → krem      acikla(kırmızı) → pembe
+//   karart(sarı)  → kahverengi
+// Kullanıcı bu üçünü de açıkça yasakladı ("rastgele gri, krem, pembe,
+// kahverengi ... tonlara dönme"). HSL'de yalnız PARLAKLIK oynatıldığında
+// hue ve doygunluk sabit kalır: sarı daha koyu sarı, kırmızı daha açık
+// kırmızı olur — kulüp kimliği korunur.
+
+/// Rengin HSL parlaklığını [l] yapar; hue ve doygunluk KORUNUR.
+Color tonla(Color c, double l) =>
+    HSLColor.fromColor(c).withLightness(l.clamp(0.0, 1.0)).toColor();
+
+/// [renk]i, [zemin] üstünde [esik] kontrastına ulaşana dek TONLAYARAK iter.
+///
+/// Hue ve doygunluk sabit kalır — dönen renk hâlâ "o kulübün rengi"dir,
+/// yalnız daha açık ya da daha koyu tonu. İki yön de denenir ve eşiği
+/// sağlayanlardan ÖZGÜN PARLAKLIĞA EN YAKIN olan seçilir: gereğinden fazla
+/// açmak/karartmak kimliği boşuna uzaklaştırır.
+///
+/// Hiçbir ton eşiği tutmuyorsa (çok nadir; zemin orta parlaklıktaysa olur)
+/// son çare [yedek] döner — çağıran taraf oraya beyaz/siyah verir.
+/// Kullanıcının kuralı: "Beyaz yalnız erişilebilirlik için zorunlu olduğunda
+/// destek rengi olarak kullanılsın."
+Color kimlikTonu(
+  Color renk,
+  Color zemin, {
+  double esik = kAaEsigi,
+  Color? yedek,
+}) {
+  final h = HSLColor.fromColor(renk);
+  if (kontrastOrani(renk, zemin) >= esik) return renk;
+
+  Color? enIyi;
+  var enIyiUzaklik = 2.0;
+  // 1/100 adımlarla tüm parlaklık ekseni taranır — döngü sayısı sabit, bu
+  // yüzden "adım küçülünce yuvarlanıp ilerlemiyor" tuzağı yok.
+  for (var i = 0; i <= 100; i++) {
+    final l = i / 100;
+    final aday = h.withLightness(l).toColor();
+    if (kontrastOrani(aday, zemin) < esik) continue;
+    final uzaklik = (l - h.lightness).abs();
+    if (uzaklik < enIyiUzaklik) {
+      enIyiUzaklik = uzaklik;
+      enIyi = aday;
+    }
+  }
+  return enIyi ?? yedek ?? okunurMetin(zemin);
 }
 
 /// Bir takımın tema paleti — kullanıcının saydığı dokuz alan.
