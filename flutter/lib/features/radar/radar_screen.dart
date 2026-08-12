@@ -829,10 +829,14 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
   /// yeşil saha paneli ve alt başlık kaldırılmıştı. MÜHÜR ROZETİ KALIYOR:
   /// teknik gösterge değil, GEÇMİŞ bir haftaya bakan kullanıcıya verilen
   /// sözdür ("sonuçlar gelse de değişmez").
+  // ZEMİN YOK: başlık kendi `UstPanel` kartının içinde; zemini, kenarlığı ve
+  // yuvarlaklığı panel veriyor. Burada ikinci bir dolgu çizmek kenarlığı
+  // KAVİSTE örtüyordu — köşe "çapraz kesilmiş" görünüyordu (8× büyütmeyle
+  // doğrulandı).
   Widget _ekranBasligi(Map meta) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.sm, Spacing.md, 0),
-    color: AppColors.surface,
+    // İÇ BOŞLUK: üstte `md` — `sm` iken başlık panelin kenarına yapışıyordu.
+    padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, 0),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -944,7 +948,11 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
     // kareye dönerdi.
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+      // Dikeyde de iç boşluk: sekmeler kartın üst/alt kenarına yapışmasın.
+      padding: const EdgeInsets.symmetric(
+        horizontal: Spacing.md,
+        vertical: Spacing.xs,
+      ),
       child: Row(
         children: [
           for (final t in kRadarTabDefs)

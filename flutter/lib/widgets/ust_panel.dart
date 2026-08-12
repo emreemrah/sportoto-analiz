@@ -30,6 +30,17 @@
 // biçimli kenarlık kabul eder; "yalnız alt kenar" veren `Border(bottom: …)`
 // ile birlikte assert atar. Panellerin eski alt çizgisi bu yüzden kenarlığa
 // dönüştü.
+//
+// ═══════════ KENARLIK `foregroundDecoration`DA — SEBEBİ ÖLÇÜLDÜ ═══════════
+// `Container` sırayla şunu yapar: önce `decoration`ı (dolgu + kenarlık) çizer,
+// SONRA çocuğu yuvarlak dikdörtgene kırpıp üstüne çizer. Çocuk kendi zeminini
+// tam alana boyadığında kenarlığın iç yarısını ÖRTER; düz kenarda fark
+// edilmez ama KAVİSTE kenarlık tamamen kaybolur ve köşe "çapraz kesilmiş"
+// gibi görünür — kullanıcının tarifi buydu, ekran görüntüsü 8× büyütülerek
+// doğrulandı (düz kenarda çizgi var, yayda yok).
+//
+// `foregroundDecoration` çocuktan SONRA çizilir; kenarlık artık kavsi kesintisiz
+// takip eder.
 
 import 'package:flutter/material.dart';
 
@@ -61,8 +72,12 @@ class UstPanel extends StatelessWidget {
     decoration: BoxDecoration(
       color: (renk ?? AppColors.surface).withValues(alpha: 0.86),
       borderRadius: AppRadius.lgR,
-      border: Border.all(color: AppColors.border),
       boxShadow: AppShadow.soft,
+    ),
+    // ÇOCUKTAN SONRA çizilir → kenarlık kavsi kesintisiz takip eder.
+    foregroundDecoration: BoxDecoration(
+      borderRadius: AppRadius.lgR,
+      border: Border.all(color: AppColors.border),
     ),
     child: child,
   );
