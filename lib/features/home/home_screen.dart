@@ -144,7 +144,8 @@ class HomeScreen extends ConsumerWidget {
         SafeArea(
           bottom: false,
           child: RefreshIndicator(
-            color: AppColors.accent,
+            // Gösterge SAYFA ZEMİNİNİN üstünde çiziliyor.
+            color: AppColors.onBackgroundAccent,
             onRefresh: () async {
               ref.invalidate(bulletinProvider);
               ref.invalidate(_oncekiHaftaProvider);
@@ -308,7 +309,10 @@ class _Header extends StatelessWidget {
                 TextSpan(text: '$kBrandLine1 '),
                 TextSpan(
                   text: kBrandLine2,
-                  style: TextStyle(color: AppColors.accent),
+                  // ZEMİN üstünde duruyor: `accent` KART için türetildiğinden
+                  // burada zeminle çakışıp marka satırının ikinci yarısı
+                  // kayboluyordu (BB Erzurumspor teması, mavi üstüne mavi).
+                  style: TextStyle(color: AppColors.onBackgroundAccent),
                 ),
               ],
             ),
