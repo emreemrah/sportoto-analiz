@@ -21,11 +21,16 @@
 //
 // O GEREKÇE ARTIK GEÇERSİZ: katalog `takimArmasiBul` içinde uygulama ömrü
 // boyunca TEK KEZ çekiliyor (`takim_logo_zemin.dart` → `_katalogSoz`) ve
-// panelin kendi filigranı zaten o isteği tetikliyor. Arma göstermenin ek bir
-// ağ maliyeti yok.
+// uygulamanın diğer ekranları zaten o isteği tetikliyor. Arma göstermenin ek
+// bir ağ maliyeti yok.
 //
 // BAŞKA KULÜBÜN ARMASI ASLA KONMAZ: ad katalogda eşleşmezse arma çizilmez,
 // "benzeri" bir görsel seçilmez.
+//
+// FİLİGRAN BU PANELDE YOK (kullanıcı isteği, 2026-08-12 gece): büyük arma
+// menü satırlarının ARKASINDAN geçip yazıyı bozuyordu. Panel dar ve baştan
+// sona liste — filigranın sığabileceği boş alan yok. Takım kimliği profil
+// kartındaki armayla zaten taşınıyor.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -42,29 +47,43 @@ import '../../widgets/takim_logo_zemin.dart';
 /// (profile_screen.dart'taki kuralın aynısı).
 const bool _kIsDevBuild = !bool.fromEnvironment('dart.vm.product');
 
-// Koyu panel paleti — projenin kendi koyu renklerinden türetildi, yeni renk
-// uydurulmadı.
-//
 // GETTER, `final` DEĞİL: modül düzeyi `final` Dart'ta BİR KEZ hesaplanır. Takım
 // teması `AppColors`ı çalışma zamanında değiştirdiği için `final` yazılsaydı bu
-// üç renk ilk okundukları andaki tonda DONAR ve panel takım değişince eski
-// renkte açılırdı. `_ayrac` gerçekten sabit (yarı saydam beyaz), o `const`.
-// DÜZELTME (2026-08-12, emülatörde görüldü): panel zemini `primaryDark`
-// okuyordu. `primaryDark = karart(secili, 0.2)` ve KOYU temalı bir takımda
-// `secili` zaten AÇIK bir renktir (Beşiktaş #D1D1D1, BB Erzurumspor açık
-// mavi) — onu %20 karartmak koyu panel değil GRİ panel verir. Ekranda
-// ölçüldü: BB Erzurumspor temasında panel gri açılıyordu.
+// renkler ilk okundukları andaki tonda DONAR ve panel takım değişince eski
+// renkte açılırdı.
 //
-// Doğru kaynak `darkCard`: koyu panel için üretilen, her temada zeminden
-// ayrışan ve `onDark` / `onDarkSoft` ile AA sağlayan token.
-Color get _zemin => AppColors.darkCard;
-Color get _satir => AppColors.darkCardSoft;
-Color get _ayrac => AppColors.onDark.withValues(alpha: 0.12);
+// ═══════════ PANEL DE UYGULAMANIN İKİ RENKLİ DÜZENİNİ İZLER ════════════════
+// (kullanıcı isteği, 2026-08-12 gece — ikinci tur)
+//
+// "Ana yan menü zemini: takımın birinci rengi. Profil kartı ve menü satırları:
+//  takımın ikinci rengi veya erişilebilir beyaz yüzey. Beyaz yüzey üzerindeki
+//  metin, ikon ve yön oku: takımın birinci rengi."
+//
+// Bu, uygulamanın geri kalanının ZATEN kullandığı düzendir; panel artık kendi
+// özel renklerini türetmiyor, aynı tokenları okuyor:
+//   zemin  = background   (birinci renk)
+//   satır  = surface      (ikinci renk / erişilebilir yüzey)
+//   yazı   = text         (satırın üstünde → birinci rengin tonu)
+//
+// PANELE ÖZEL `darkCard` AİLESİ BIRAKILDI: o tokenlar hâlâ Haftalık Özet,
+// bildirimler ve gösterge kartları gibi KOYU PANELLİ ekranlarda kullanılıyor;
+// buradan çıkmak onları etkilemez.
+//
+// AA GÜVENCESİ TÜRETMEDEN GELİR: `surface` ve `text` `kimlikTonu` ile AA'yı
+// tutacak şekilde üretiliyor (bkz. paletUret). "İki renk doğrudan yeterince
+// okunaklı değilse takım kimliğini koruyan erişilebilir bir yüzey tonu
+// kullanılsın" kuralı orada karşılanıyor.
+Color get _zemin => AppColors.background;
+Color get _satir => AppColors.surface;
 
-// `muted` AÇIK yüzeylere (kart, zemin, ara şerit) göre hesaplanır; koyu
-// panelin üstünde okunacağının garantisi yok. Koyu panelin kendi soluk
-// metni kullanılır.
-Color get _ikincilYazi => AppColors.onDarkSoft;
+/// Satırın üstündeki birincil metin, ikon ve yön oku.
+Color get _anaYazi => AppColors.text;
+
+/// Satır içindeki ikincil metin ve yön okları.
+Color get _ikincilYazi => AppColors.textSoft;
+
+/// Ayırıcı — satırlar arası ince çizgi.
+Color get _ayrac => AppColors.border;
 
 /// ANLAMSAL RENK, OKUNUR TONDA.
 ///
@@ -184,12 +203,15 @@ class _KullaniciPaneliState extends State<KullaniciPaneli> {
       backgroundColor: _zemin,
       width: genislik,
       shape: const RoundedRectangleBorder(),
-      // FİLİGRAN: panel KENDİ koyu zeminini çizdiği için "koyu zemin" açıkça
-      // bildirilir — temanın zeminine bakmak, açık temada panelin opaklığını
-      // yanlış seçmek olurdu.
+      // FİLİGRAN PANELDE YOK (kullanıcı isteği, 2026-08-12 gece).
+      //
+      // Arma menü SATIRLARININ ARKASINDAN geçiyordu ve yazıyı bozuyordu —
+      // emülatörde ölçüldü: AFC Ajax temasında "Premium Kodu" ile "Hakkında
+      // ve Gizlilik" arasındaki altı satır armanın üstüne düşüyordu. Panel
+      // dar ve baştan sona liste; filigranın sığabileceği "boş alt alan"
+      // yok. Takım kimliği panelde profil kartındaki ARMA ile zaten var.
       child: Stack(
         children: [
-          TakimLogoZemin(koyuZemin: true),
           ValueListenableBuilder<auth.AuthState>(
             valueListenable: auth.authState,
             builder: (context, s, _) {
@@ -310,7 +332,7 @@ class _KullaniciPaneliState extends State<KullaniciPaneli> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: AppColors.onDark,
+                          color: _anaYazi,
                           fontSize: 15,
                           fontWeight: AppFont.heavy,
                         ),
@@ -349,14 +371,7 @@ class _KullaniciPaneliState extends State<KullaniciPaneli> {
                     ],
                   ),
                 ),
-                Text(
-                  '›',
-                  style: TextStyle(
-                    color: _ikincilYazi,
-                    fontSize: 20,
-                    fontWeight: AppFont.black,
-                  ),
-                ),
+                Icon(Icons.chevron_right, size: 20, color: _ikincilYazi),
               ],
             ),
           ),
@@ -396,7 +411,7 @@ class _KullaniciPaneliState extends State<KullaniciPaneli> {
                     size: 17,
                     color: tehlike
                         ? _anlamsalOkunur(AppColors.danger, _satir)
-                        : AppColors.onDark,
+                        : _anaYazi,
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -408,13 +423,15 @@ class _KullaniciPaneliState extends State<KullaniciPaneli> {
                     style: TextStyle(
                       color: tehlike
                           ? _anlamsalOkunur(AppColors.danger, _satir)
-                          : AppColors.onDark,
+                          : _anaYazi,
                       fontSize: 13.5,
                       fontWeight: AppFont.semibold,
                     ),
                   ),
                 ),
-                Text('›', style: TextStyle(color: _ikincilYazi, fontSize: 16)),
+                // YÖN OKU nötr: takım renginde bir ok, menüyü
+                // "renklendirilmiş" gösteriyordu.
+                Icon(Icons.chevron_right, size: 18, color: _ikincilYazi),
               ],
             ),
           ),
