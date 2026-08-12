@@ -15,11 +15,17 @@
 // — elle kurulmuş bir kapatma mantığı YOKTUR (kurulsaydı geri tuşuyla
 // uyumsuzlaşırdı).
 //
-// FAVORİ TAKIM ARMASI BURADA ÇEKİLMEZ: arma, ad → katalog eşlemesiyle bulunur
-// (`api.favoriteTeams()`, profil ekranında yapılıyor) ve o katalog bütün
-// liglerin takımlarını taşır. Paneli her açılışta o isteği atmak, hızlı
-// açılması gereken bir yüzey için pahalıdır. Panelde takımın ADI yazar; arma
-// tam Profil sayfasında görünür. BAŞKA kulübün arması ASLA konmaz.
+// FAVORİ TAKIM ARMASI PANELDE GÖRÜNÜR (kullanıcı isteği, 2026-08-12: "takım
+// logoları görünsün"). Önceden yalnız takımın ADI yazıyordu; gerekçe, paneli
+// her açılışta `api.favoriteTeams()` isteğine sokmamaktı.
+//
+// O GEREKÇE ARTIK GEÇERSİZ: katalog `takimArmasiBul` içinde uygulama ömrü
+// boyunca TEK KEZ çekiliyor (`takim_logo_zemin.dart` → `_katalogSoz`) ve
+// panelin kendi filigranı zaten o isteği tetikliyor. Arma göstermenin ek bir
+// ağ maliyeti yok.
+//
+// BAŞKA KULÜBÜN ARMASI ASLA KONMAZ: ad katalogda eşleşmezse arma çizilmez,
+// "benzeri" bir görsel seçilmez.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -27,6 +33,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth.dart' as auth;
 import '../../core/network/api_client.dart';
 import '../../core/theme/tokens.dart';
+import '../../widgets/app_ui.dart';
 import '../../widgets/avatar.dart';
 import '../../widgets/takim_logo_zemin.dart';
 
@@ -110,6 +117,16 @@ class _KullaniciPaneliState extends State<KullaniciPaneli> {
   bool _operator = false;
   String? _sonYetkiTokeni;
 
+  /// Favori takımın arması. `null` = takım yok ya da katalogda EŞLEŞMEDİ —
+  /// ikinci durumda da hiçbir görsel konmaz (başka kulübün arması yasak).
+  String? _arma;
+  String? _sonFavAd;
+
+  Future<void> _armaSor(String favAd) async {
+    final img = await takimArmasiBul(favAd);
+    if (mounted && img != _arma) setState(() => _arma = img);
+  }
+
   Future<void> _yetkiSor(String? token) async {
     if (token == null) {
       if (mounted) setState(() => _operator = false);
@@ -170,6 +187,14 @@ class _KullaniciPaneliState extends State<KullaniciPaneli> {
                 if (_sonYetkiTokeni != s.token) {
                   _sonYetkiTokeni = s.token;
                   _yetkiSor(s.token);
+                }
+                // Favori takım DEĞİŞİNCE arma yeniden aranır; aynı adda
+                // tekrar sorulmaz (katalog zaten önbellekli, bu yalnız
+                // gereksiz setState'i önler).
+                final favAd = '${s.user?['favorite_team'] ?? ''}';
+                if (_sonFavAd != favAd) {
+                  _sonFavAd = favAd;
+                  _armaSor(favAd);
                 }
               });
 
@@ -280,15 +305,35 @@ class _KullaniciPaneliState extends State<KullaniciPaneli> {
                         ),
                       ),
                       const SizedBox(height: 3),
-                      Text(
-                        fav.isNotEmpty ? fav : 'Takım seçilmedi',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: _ikincilYazi,
-                          fontSize: 12.5,
-                          fontWeight: AppFont.semibold,
-                        ),
+                      // FAVORİ TAKIMIN ARMASI (kullanıcı isteği,
+                      // 2026-08-12: "takım logoları görünsün"). Panelde
+                      // eskiden yalnız takımın ADI yazıyordu; gerekçe,
+                      // paneli her açılışta katalog isteği atmamaktı. O
+                      // gerekçe artık geçersiz: katalog `takimArmasiBul`
+                      // içinde UYGULAMA ÖMRÜNDE BİR KEZ çekiliyor ve
+                      // filigran zaten onu çağırıyor — armanın ek maliyeti
+                      // yok.
+                      //
+                      // Arma KENDİ RENGİNDE kalır; tema ikonu değildir.
+                      Row(
+                        children: [
+                          if (_arma != null) ...[
+                            Logo(uri: _arma, name: fav, size: 16),
+                            const SizedBox(width: 5),
+                          ],
+                          Flexible(
+                            child: Text(
+                              fav.isNotEmpty ? fav : 'Takım seçilmedi',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: _ikincilYazi,
+                                fontSize: 12.5,
+                                fontWeight: AppFont.semibold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
