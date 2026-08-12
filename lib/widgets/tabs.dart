@@ -6,7 +6,6 @@
 import 'package:flutter/material.dart';
 
 import '../core/labels.dart';
-import '../core/theme/takim_temasi.dart';
 import '../core/theme/tokens.dart';
 
 /// `ui.js` → `Tabs`
@@ -29,8 +28,8 @@ class AppTabs extends StatelessWidget {
     return Container(
       // YAPISAL YÜZEY — takım teması varsa onun yüzey/kenarlık rengi.
       decoration: BoxDecoration(
-        color: context.temaYuzey,
-        border: Border(bottom: BorderSide(color: context.temaKenarlik)),
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -63,8 +62,8 @@ class AppTabs extends StatelessWidget {
                           t,
                           style: TextStyle(
                             color: active == t
-                                ? context.temaYuzeyMetin
-                                : context.temaSolukMetin,
+                                ? AppColors.text
+                                : AppColors.textMuted,
                             fontSize: 13,
                             fontWeight: active == t
                                 ? AppFont.black
@@ -77,7 +76,7 @@ class AppTabs extends StatelessWidget {
                         width: 40,
                         decoration: BoxDecoration(
                           color: active == t
-                              ? context.temaVurgu
+                              ? AppColors.accent
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(2),
                         ),
@@ -97,7 +96,13 @@ class AppTabs extends StatelessWidget {
 
 /// `ui.js` → `Accordion` (açılır-kapanır bölüm)
 class Accordion extends StatefulWidget {
-  const Accordion({
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  Accordion({
     super.key,
     required this.title,
     this.icon,
@@ -123,9 +128,9 @@ class _AccordionState extends State<Accordion> {
       margin: const EdgeInsets.only(bottom: Spacing.sm),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: context.temaYuzey,
+        color: AppColors.surface,
         borderRadius: AppRadius.mdR,
-        border: Border.all(color: context.temaKenarlik),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -142,7 +147,7 @@ class _AccordionState extends State<Accordion> {
                       '${widget.icon != null ? '${widget.icon}  ' : ''}'
                       '${widget.title}',
                       style: TextStyle(
-                        color: context.temaYuzeyMetin,
+                        color: AppColors.text,
                         fontSize: 14.5,
                         fontWeight: AppFont.heavy,
                       ),
@@ -196,7 +201,7 @@ class SectionCard extends StatelessWidget {
     margin: const EdgeInsets.only(bottom: Spacing.md),
     decoration: BoxDecoration(
       // KART YÜZEYİ — takım temasının kart rengi (varsayılanda beyaz).
-      color: context.temaYuzey,
+      color: AppColors.surface,
       borderRadius: AppRadius.lgR,
       boxShadow: AppShadow.soft,
     ),
@@ -218,7 +223,7 @@ class SectionCard extends StatelessWidget {
                       // temalarında (Beşiktaş) başlık okunmuyordu — önizlemede
                       // görüldü.
                       style: TextStyle(
-                        color: context.temaYuzeyMetin,
+                        color: AppColors.text,
                         fontSize: 15,
                         fontWeight: AppFont.heavy,
                       ),
@@ -241,7 +246,13 @@ class SectionCard extends StatelessWidget {
 /// Etiket HER ZAMAN `displayLabel`'dan geçer: veri anahtarı "BANKO" olsa bile
 /// kullanıcı "GÜÇLÜ ADAY" görür. Kesinlik iması taşıyan yazı gösterilmez.
 class SurpriseBadge extends StatelessWidget {
-  const SurpriseBadge({
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  SurpriseBadge({
     super.key,
     required this.label,
     this.labelColor,

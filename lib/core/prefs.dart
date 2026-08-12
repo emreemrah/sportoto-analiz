@@ -50,6 +50,14 @@ const Map<String, Object?> kPrefDefaults = {
   // ileride yeni bir sekme eklenirse eski kayıtlarda kendiliğinden AÇIK gelir;
   // kullanıcı hiç görmediği bir sekmeyi kapatmış sayılmaz.
   'macDetayGizliSekmeler': <String>[],
+  // GÖRÜNÜM TERCİHİ (kullanıcı isteği, 2026-08-12).
+  //
+  // Uygulamanın açık/koyu görünümü ARTIK FAVORİ TAKIMDAN GELMEZ; yalnız bu
+  // tercih belirler. Favori takım profil, arma ve filigran gibi KİMLİK
+  // alanlarında kalır.
+  //
+  // 'sistem' | 'acik' | 'koyu' — varsayılan, cihazın kendi ayarını izler.
+  'gorunumModu': 'sistem',
 };
 
 Map<String, Object?> _cache = Map.of(kPrefDefaults);

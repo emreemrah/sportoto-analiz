@@ -27,8 +27,8 @@ import 'package:go_router/go_router.dart';
 import 'core/auth.dart' as auth;
 import 'core/brand.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/gorunum.dart';
 import 'core/theme/takim_temasi.dart';
-import 'core/theme/tema_uygula.dart';
 import 'core/theme/tokens.dart';
 import 'features/bulletin/bulletin_screen.dart';
 import 'features/bulletin_history/bulletin_detail_screen.dart';
@@ -52,6 +52,7 @@ import 'features/profile/avatar_picker_screen.dart';
 import 'features/profile/blocked_users_screen.dart';
 import 'features/profile/delete_account_screen.dart';
 import 'features/profile/devices_screen.dart';
+import 'features/profile/gorunum_secim_screen.dart';
 import 'features/profile/kullanici_paneli.dart';
 import 'features/profile/premium_code_screen.dart';
 import 'features/profile/profile_screen.dart';
@@ -258,6 +259,10 @@ final _router = GoRouter(
                   builder: (_, _) => const TeamPickerScreen(),
                 ),
                 GoRoute(
+                  path: 'gorunum',
+                  builder: (_, _) => const GorunumSecimScreen(),
+                ),
+                GoRoute(
                   path: 'basari-panelim',
                   builder: (_, _) => const UserDashboardScreen(),
                 ),
@@ -328,54 +333,111 @@ class MasterAnalizApp extends StatefulWidget {
   State<MasterAnalizApp> createState() => _MasterAnalizAppState();
 }
 
-class _MasterAnalizAppState extends State<MasterAnalizApp> {
+class _MasterAnalizAppState extends State<MasterAnalizApp>
+    with WidgetsBindingObserver {
   late bool _kilitli = widget.baslangictaKilitli;
 
   @override
-  Widget build(BuildContext context) {
+  void initState() {
+    super.initState();
+    // Cihazın açık/koyu ayarı DEĞİŞİNCE haber alınır. `MediaQuery` bu
+    // widget'ın ÜSTÜNDE yoktur (onu MaterialApp kurar), bu yüzden parlaklık
+    // `PlatformDispatcher`tan okunur ve değişimi gözlemciyle dinlenir.
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    // Yalnız 'sistem' tercihinde bir şey değişir; yine de koşulsuz yeniden
+    // çizmek en ucuzu ve idempotent.
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<GorunumModu>(
+    valueListenable: gorunumNotifier,
+    builder: (context, modu, _) => _govde(modu),
+  );
+
+  Widget _govde(GorunumModu modu) {
+    // GÖRÜNÜM ÖNCE UYGULANIR: `AppTheme` ve bütün ekranlar renkleri
+    // `AppColors`tan okur, dolayısıyla tema kurulmadan ÖNCE doğru paletin
+    // yazılmış olması gerekir. İdempotenttir ve `setState` tetiklemez.
+    final etkin = etkinParlaklik(
+      WidgetsBinding.instance.platformDispatcher.platformBrightness,
+      modu,
+    );
+    gorunumuUygula(etkin);
+
     if (_kilitli) {
       // Router YOK: yalnız kilit ekranı. Tema aynı kalır ki kilit kalkınca
       // renk sıçraması olmasın.
       return MaterialApp(
         title: kAppName,
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
+        theme: AppTheme.gecerli(etkin),
         home: BiometricLockScreen(
           onUnlock: () => setState(() => _kilitli = false),
         ),
       );
     }
 
-    // TAKIM TEMASI (kullanıcı isteği, 2026-08-11): favori takım değişince
-    // uygulama YENİDEN BAŞLATILMADAN o takımın paletine geçer. Palet hem
-    // `ThemeData`ya (üst çubuk, zemin, ayırıcı) hem de ağaca (`TakimTemasi`)
-    // verilir; ikinci yol elle boyanan yüzeyler içindir.
+    // FAVORİ TAKIM ARTIK YAPISAL RENKLERE KARIŞMAZ (kullanıcı isteği,
+    // 2026-08-12). Palet yalnız ağaca verilir; onu okuyan yerler kimlik
+    // alanlarıdır (profil, arma, filigran, küçük takım vurguları). Zemin,
+    // metin, kart ve navigasyon yukarıdaki `gorunumuUygula` ile belirlenir.
     return ValueListenableBuilder<auth.AuthState>(
       valueListenable: auth.authState,
       builder: (context, s, _) {
         final palet = favoriTakimPaleti(s);
-
-        // YAPISAL RENK KAYNAĞINI ÇEVİR — `AppTheme` ve bütün ekranlar
-        // renkleri `AppColors`tan okur; palet oraya YAZILMADAN yalnız
-        // `ThemeData` değişir ve elle boyanan yüzeyler (bülten kartları,
-        // alt çubuk, yan menü) eski markada kalırdı. Çağrı `build` içinde,
-        // temanın kurulmasından ÖNCE: aynı karede iki kaynak da aynı paleti
-        // gösterir. Yan etki gibi durur ama idempotenttir ve `setState`
-        // tetiklemez.
-        temayiUygula(palet);
 
         return MaterialApp.router(
           // Kaynakta `documentTitle` merkezî marka kaynağından besleniyordu;
           // aynı sabit kullanılır — ekran adları başlığa SIZMAZ.
           title: kAppName,
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.takimli(palet),
+          theme: AppTheme.gecerli(etkin),
           routerConfig: _router,
           // Rotalar, modallar ve alt sayfalar Navigator'ın altındadır; kabuk
           // buraya takılınca hepsi aynı paleti görür.
           builder: (context, child) => TakimTemasi(
             palet: palet,
-            child: child ?? const SizedBox.shrink(),
+            // GÖRÜNÜM DEĞİŞİNCE AĞAÇ YENİDEN KURULUR (2026-08-12, emülatörde
+            // görüldü ve düzeltildi).
+            //
+            // BELİRTİ (takım teması döneminde ölçüldü): tema değişince
+            // sayfanın gövdesi yeni renge döndü ama maç detayının başlığı,
+            // sekme çubuğu ve "Kupona İşle" bloğu ESKİ renkte kaldı.
+            //
+            // SEBEP: uygulamanın neredeyse tamamı renkleri `AppColors`
+            // KÜRESELLERİNDEN okuyor, yani hiçbir InheritedWidget'a BAĞIMLI
+            // değil. Üstelik `child` widget örneği değişmediği için Flutter o
+            // alt ağacı hiç yeniden kurmuyor — eski renklerle çizilmiş hâli
+            // olduğu gibi kalıyor.
+            //
+            // ÇÖZÜM: etkin görünümü anahtara koymak. Anahtar değişince
+            // Flutter alt ağacın elemanlarını atar ve HER widget'ın `build`i
+            // yeniden çalışır; hepsi `AppColors`ın yeni değerlerini okur.
+            //
+            // TAKIM ADI DA ANAHTARDA: takım artık yapısal renkleri
+            // değiştirmiyor ama filigran ve kimlik vurguları onu okuyor;
+            // favori değişince o yüzeyler de yenilenmeli.
+            //
+            // BEDELİ: görünüm/takım değiştiğinde ekran içi durum (kaydırma
+            // konumu, açılmış paneller) sıfırlanır. Rota GoRouter'da
+            // tutulduğu için hangi ekranda olunduğu KORUNUR. İkisi de nadir
+            // ve bilinçli eylemdir; yarısı eski temada kalan bir ekrandansa
+            // sıfırlanan bir kaydırma tercih edilir.
+            child: KeyedSubtree(
+              key: ValueKey('${etkin.name}|${palet?.takim ?? '_varsayilan'}'),
+              child: child ?? const SizedBox.shrink(),
+            ),
           ),
         );
       },
@@ -425,8 +487,8 @@ class _AnaKabukState extends State<_AnaKabuk> {
       bottomNavigationBar: Container(
         // ALT MENÜ — yapısal yüzey; takım teması varsa onun yüzey rengi.
         decoration: BoxDecoration(
-          color: context.temaYuzey,
-          border: Border(top: BorderSide(color: context.temaKenarlik)),
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.border)),
         ),
         child: SafeArea(
           top: false,
@@ -555,7 +617,7 @@ class _AnaKabukState extends State<_AnaKabuk> {
                   fontSize: 10.5,
                   fontWeight: AppFont.heavy,
                   // SEÇİLİ SEKME — takım vurgusu.
-                  color: odakta ? context.temaVurgu : context.temaSolukMetin,
+                  color: odakta ? AppColors.accent : AppColors.textMuted,
                 ),
               ),
             ],

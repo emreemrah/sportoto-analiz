@@ -14,17 +14,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'takim_paleti.dart';
 import 'tokens.dart';
 
 abstract final class AppTheme {
-  /// Açık tema. Kaynakta `userInterfaceStyle: "light"` (app.json) sabittir;
-  /// koyu tema yoktur, bu yüzden burada da tanımlanmaz.
-  static ThemeData get light {
+  /// GEÇERLİ görünümün teması (kullanıcı isteği, 2026-08-12).
+  ///
+  /// Değerleri `AppColors`tan ÇALIŞMA ZAMANINDA okur; hangi paletin yazılı
+  /// olduğuna `gorunumuUygula` karar verir. Bu yüzden ayrı bir `darkTheme`
+  /// YOKTUR ve `themeMode` kullanılmaz: iki ThemeData'yı aynı anda kurmak,
+  /// tek bir küresel `AppColors` varken ikisinden birinin yanlış paletle
+  /// dolması demekti. Tek tema, doğru palet.
+  ///
+  /// [p] yalnız Material'in kendi varsayılanlarını (ripple tonu, seed
+  /// üretimi, durum çubuğu simgeleri) doğru uca çekmek için gerekir.
+  static ThemeData gecerli(Brightness p) {
     final scheme =
         ColorScheme.fromSeed(
           seedColor: AppColors.primary,
-          brightness: Brightness.light,
+          brightness: p,
         ).copyWith(
           surface: AppColors.surface,
           primary: AppColors.primary,
@@ -61,11 +68,11 @@ abstract final class AppTheme {
           fontSize: 17,
           fontWeight: AppFont.heavy,
         ),
-        systemOverlayStyle: SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.dark,
-          statusBarBrightness: Brightness.light,
-        ),
+        // Simgeler ÜST ÇUBUĞUN parlaklığından seçilir: koyu görünümde siyah
+        // simge okunmaz.
+        systemOverlayStyle: p == Brightness.dark
+            ? darkScreenOverlay
+            : lightScreenOverlay,
       ),
 
       dividerTheme: DividerThemeData(
@@ -95,64 +102,14 @@ abstract final class AppTheme {
 
       // Aşağı çekip yenileme göstergesi: kaynakta RefreshControl vurgu
       // rengiyle çizilir.
-      textTheme: Typography.blackMountainView.apply(
-        bodyColor: AppColors.text,
-        displayColor: AppColors.text,
-      ),
-    );
-  }
-
-  /// TAKIM TEMASI (kullanıcı isteği, 2026-08-11) — palet verildiğinde
-  /// Material seviyesindeki yapısal renkler o palete döner; palet null ise
-  /// [light] aynen döner ve uygulama bugünkü görünümünü korur.
-  ///
-  /// ANLAMSAL RENKLER DEĞİŞMEZ: `error` burada BİLEREK ezilmiyor. Kırmızı
-  /// takım seçildiğinde hata rengi de takım rengi olsaydı "bir şey ters gitti"
-  /// mesajı görsel olarak kaybolurdu.
-  ///
-  /// Durum çubuğu simgeleri üst çubuğun parlaklığından seçilir: koyu bir takım
-  /// yüzeyinde siyah simgeler okunmaz.
-  static ThemeData takimli(TakimPaleti? p) {
-    if (p == null) return light;
-    final t = light;
-    final yuzeyAcik = gorecelParlaklik(p.yuzey) > 0.4;
-
-    return t.copyWith(
-      scaffoldBackgroundColor: p.zemin,
-      canvasColor: p.zemin,
-      dividerColor: p.kenarlik,
-      colorScheme: t.colorScheme.copyWith(
-        surface: p.yuzey,
-        primary: p.secili,
-        secondary: p.vurgu,
-        onSurface: p.yuzeyUstuMetin,
-        onPrimary: okunurMetin(p.secili),
-        onSecondary: p.vurguUstuMetin,
-        outline: p.kenarlik,
-        // error / onError DOKUNULMADI — anlamsal.
-      ),
-      appBarTheme: t.appBarTheme.copyWith(
-        backgroundColor: p.yuzey,
-        foregroundColor: p.yuzeyUstuMetin,
-        titleTextStyle: t.appBarTheme.titleTextStyle?.copyWith(
-          color: p.yuzeyUstuMetin,
-        ),
-        systemOverlayStyle: yuzeyAcik ? lightScreenOverlay : darkScreenOverlay,
-      ),
-      cardTheme: t.cardTheme.copyWith(color: p.yuzey),
-      dividerTheme: t.dividerTheme.copyWith(color: p.kenarlik),
-      progressIndicatorTheme: t.progressIndicatorTheme.copyWith(
-        color: p.vurgu,
-        linearTrackColor: p.kenarlik,
-      ),
-      textSelectionTheme: TextSelectionThemeData(
-        cursorColor: p.vurgu,
-        selectionHandleColor: p.vurgu,
-      ),
-      textTheme: t.textTheme.apply(
-        bodyColor: p.yuzeyUstuMetin,
-        displayColor: p.yuzeyUstuMetin,
-      ),
+      // Taban tipografi uca göre seçilir; renkler zaten aşağıda eziliyor ama
+      // `blackMountainView` koyu görünümde ikon/imleç gibi türev renkleri de
+      // koyu üretiyordu.
+      textTheme:
+          (p == Brightness.dark
+                  ? Typography.whiteMountainView
+                  : Typography.blackMountainView)
+              .apply(bodyColor: AppColors.text, displayColor: AppColors.text),
     );
   }
 

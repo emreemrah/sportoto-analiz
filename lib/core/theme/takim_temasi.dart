@@ -28,7 +28,6 @@ import 'package:flutter/material.dart';
 import '../auth.dart' as auth;
 import 'takim_paleti.dart';
 import 'takim_renkleri.dart';
-import 'tokens.dart';
 
 /// Ağaçta gezen palet. `null` → varsayılan tema.
 class TakimTemasi extends InheritedWidget {
@@ -46,45 +45,19 @@ class TakimTemasi extends InheritedWidget {
       eski.palet?.takim != palet?.takim;
 }
 
-/// Yapısal renk erişimcileri. Her biri palet yoksa `AppColors`a düşer —
-/// çağıran tarafta `?? AppColors.x` yazmak gerekmesin.
+/// Favori takımın paletine erişim.
+///
+/// YAPISAL RENK ERİŞİMCİLERİ KALDIRILDI (kullanıcı isteği, 2026-08-12).
+/// Burada eskiden `temaZemin` / `temaYuzey` / `temaKenarlik` / `temaVurgu` /
+/// `temaSecili` / `temaYuzeyMetin` / `temaSolukMetin` vardı ve alt çubuk ile
+/// sekme çubuğu renklerini oradan alıyordu. Yeni kural: uygulamanın zemini,
+/// metni, kartı ve navigasyonu YALNIZ görünüm tercihinden gelir
+/// (`gorunum.dart`). O yüzeyler artık doğrudan `AppColors` okuyor.
+///
+/// Geriye kalan tek erişimci paletin KENDİSİDİR: takım kimliği gösteren
+/// yüzeyler (profil, arma, filigran, küçük takım vurguları) onu okur.
 extension TakimTemasiErisim on BuildContext {
   TakimPaleti? get takimPaleti => TakimTemasi.paletOf(this);
-
-  /// Uygulama ana arka planı.
-  Color get temaZemin => takimPaleti?.zemin ?? AppColors.bg;
-
-  /// Kart ve yüzeyler.
-  Color get temaYuzey => takimPaleti?.yuzey ?? AppColors.card;
-
-  /// Kenarlık ve ayırıcılar.
-  Color get temaKenarlik => takimPaleti?.kenarlik ?? AppColors.border;
-
-  /// Birincil vurgu (butonlar, etkin göstergeler).
-  Color get temaVurgu => takimPaleti?.vurgu ?? AppColors.accent;
-
-  /// Seçili durum (etkin sekme, işaretli seçenek).
-  Color get temaSecili => takimPaleti?.secili ?? AppColors.primary;
-
-  /// Zemin üzerindeki metin — parlaklıktan hesaplanır.
-  Color get temaZeminMetin => takimPaleti?.zeminUstuMetin ?? AppColors.text;
-
-  /// Yüzey (kart) üzerindeki metin.
-  Color get temaYuzeyMetin => takimPaleti?.yuzeyUstuMetin ?? AppColors.text;
-
-  /// Vurgu üzerindeki metin (buton yazısı).
-  Color get temaVurguMetin => takimPaleti?.vurguUstuMetin ?? AppColors.white;
-
-  /// İkincil/soluk metin — yüzey metninin yumuşatılmış hâli.
-  Color get temaSolukMetin {
-    final p = takimPaleti;
-    if (p == null) return AppColors.textMuted;
-    // Yüzey açıksa metni açarak, koyuysa karartarak soluklaştır: her iki uçta
-    // da okunur kalsın.
-    return gorecelParlaklik(p.yuzey) > 0.4
-        ? acikla(p.yuzeyUstuMetin, 0.45)
-        : karart(p.yuzeyUstuMetin, 0.35);
-  }
 }
 
 /// Favori takımı dinleyip paleti ağaca veren kabuk.

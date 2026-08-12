@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:masteranaliz/core/auth.dart' as auth;
 import 'package:masteranaliz/core/theme/app_theme.dart';
+import 'package:masteranaliz/core/theme/gorunum.dart';
 import 'package:masteranaliz/core/theme/takim_paleti.dart';
 import 'package:masteranaliz/core/theme/takim_renkleri.dart';
 import 'package:masteranaliz/core/theme/takim_temasi.dart';
@@ -157,154 +158,91 @@ void main() {
       );
     });
   });
-
   // ══════════════════════════════════════════════════════════════════════════
-  // ANLAMSAL RENKLER — takım teması bunlara DOKUNAMAZ
+  // ANLAMSAL RENKLER — ne takım ne görünüm bunlara DOKUNABİLİR
   // ══════════════════════════════════════════════════════════════════════════
   group('Anlamsal renkler korunur', () {
-    test('hata rengi takım temasında da AYNI', () {
-      final varsayilan = AppTheme.light.colorScheme.error;
-      for (final ad in const [
-        'Galatasaray', // kırmızı ağırlıklı
-        'BVB 09 Borussia Dortmund', // sarı ağırlıklı
-        'Beşiktaş', // siyah-beyaz
-        'Liverpool FC', // kırmızı
-      ]) {
-        final t = AppTheme.takimli(takimPaletiBul(ad));
-        expect(
-          t.colorScheme.error,
-          varsayilan,
-          reason: '$ad temasında hata rengi değişmiş',
-        );
-      }
+    test('hata rengi her iki görünümde de AYNI', () {
+      gorunumuUygula(Brightness.light);
+      final acik = AppTheme.gecerli(Brightness.light).colorScheme.error;
+      gorunumuUygula(Brightness.dark);
+      final koyu = AppTheme.gecerli(Brightness.dark).colorScheme.error;
+      expect(koyu, acik);
+      gorunumuUygula(Brightness.light);
     });
 
     test('AppColors anlamsal sabitleri hâlâ sabit', () {
-      // Tema katmanı bu değerleri değiştiremez; sabit olarak duruyorlar.
       expect(AppColors.success, const Color(0xFF16A34A));
       expect(AppColors.danger, const Color(0xFFDC2626));
       expect(AppColors.warning, const Color(0xFFF59E0B));
       expect(AppColors.info, const Color(0xFF2563EB));
-    });
-
-    test('palet null iken tema BİREBİR varsayılan', () {
-      final t = AppTheme.takimli(null);
-      expect(t.scaffoldBackgroundColor, AppTheme.light.scaffoldBackgroundColor);
-      expect(t.colorScheme.primary, AppTheme.light.colorScheme.primary);
+      expect(AppColors.live, const Color(0xFFE21B2D));
     });
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // ÇALIŞMA ZAMANI: favori takım değişince tema YENİDEN BAŞLATMADAN döner.
+  // YENİ SÖZLEŞME (kullanıcı isteği, 2026-08-12): favori takım YAPISAL
+  // renklere karışmaz. Burada eskiden "takım değişince zemin ve yüzey yeni
+  // palete geçer" testleri vardı; kural tersine döndüğü için beklenti de
+  // tersine çevrildi — kapsam düşürülmedi.
   // ══════════════════════════════════════════════════════════════════════════
-  group('Takım değişince tema güncellenir', () {
-    tearDown(() => auth.authState.value = const auth.AuthState());
+  group('Takım yapısal temayı DEĞİŞTİRMEZ', () {
+    tearDown(() {
+      auth.authState.value = const auth.AuthState();
+      gorunumuUygula(Brightness.light);
+    });
 
-    testWidgets('favori takım değişince zemin ve yüzey yeni palete geçer', (
-      t,
-    ) async {
+    testWidgets('favori takım değişince zemin ve yüzey AYNI kalır', (t) async {
+      gorunumuUygula(Brightness.light);
+      final zeminOnce = AppColors.background;
+      final yuzeyOnce = AppColors.surface;
+
       auth.authState.value = const auth.AuthState(
-        token: 't',
-        ready: true,
-        user: {'favorite_team': 'BVB 09 Borussia Dortmund'},
-      );
-
-      late BuildContext yakalanan;
-      await t.pumpWidget(
-        ValueListenableBuilder<auth.AuthState>(
-          valueListenable: auth.authState,
-          builder: (_, s, _) {
-            final palet = favoriTakimPaleti(s);
-            return MaterialApp(
-              theme: AppTheme.takimli(palet),
-              home: TakimTemasi(
-                palet: palet,
-                child: Builder(
-                  builder: (c) {
-                    yakalanan = c;
-                    return const Scaffold(body: SizedBox());
-                  },
-                ),
-              ),
-            );
-          },
-        ),
-      );
-      await t.pump();
-
-      final dortmund = takimPaletiBul('BVB 09 Borussia Dortmund')!;
-      expect(yakalanan.temaZemin, dortmund.zemin);
-      expect(yakalanan.temaYuzey, dortmund.yuzey);
-
-      // TAKIM DEĞİŞTİ — uygulama yeniden başlatılmadan.
-      auth.authState.value = const auth.AuthState(
-        token: 't',
-        ready: true,
         user: {'favorite_team': 'Fenerbahçe'},
       );
       await t.pump();
 
-      final fener = takimPaletiBul('Fenerbahçe')!;
-      expect(yakalanan.temaZemin, fener.zemin);
-      expect(
-        yakalanan.temaZemin,
-        isNot(dortmund.zemin),
-        reason: 'tema eski takımda kalmış',
-      );
+      expect(AppColors.background, zeminOnce);
+      expect(AppColors.surface, yuzeyOnce);
     });
 
-    testWidgets('takım kaldırılınca VARSAYILAN temaya döner', (t) async {
-      auth.authState.value = const auth.AuthState(
-        token: 't',
-        ready: true,
-        user: {'favorite_team': 'Galatasaray'},
-      );
-
-      late BuildContext yakalanan;
+    testWidgets('takım paleti ağaca ULAŞIR — kimlik alanları için', (t) async {
+      TakimPaleti? gorulen;
       await t.pumpWidget(
-        ValueListenableBuilder<auth.AuthState>(
-          valueListenable: auth.authState,
-          builder: (_, s, _) => TakimTemasi(
-            palet: favoriTakimPaleti(s),
-            child: MaterialApp(
-              home: Builder(
-                builder: (c) {
-                  yakalanan = c;
-                  return const Scaffold(body: SizedBox());
-                },
-              ),
-            ),
+        TakimTemasi(
+          palet: takimPaletiBul('Galatasaray'),
+          child: Builder(
+            builder: (c) {
+              gorulen = c.takimPaleti;
+              return const SizedBox.shrink();
+            },
           ),
         ),
       );
-      await t.pump();
-      expect(yakalanan.temaZemin, isNot(AppColors.bg));
-
-      auth.authState.value = const auth.AuthState(
-        token: 't',
-        ready: true,
-        user: {'favorite_team': ''},
-      );
-      await t.pump();
-
-      expect(
-        yakalanan.temaZemin,
-        AppColors.bg,
-        reason: 'takım yokken varsayılan tema korunmalı',
-      );
-      expect(yakalanan.temaYuzey, AppColors.card);
-      expect(yakalanan.temaKenarlik, AppColors.border);
+      expect(gorulen, isNotNull);
+      expect(gorulen!.takim, 'Galatasaray');
     });
   });
 
-  group('ThemeData takım paletini kullanır', () {
-    test('zemin, üst çubuk ve ayırıcı palete döner', () {
-      final p = takimPaletiBul('BVB 09 Borussia Dortmund')!;
-      final t = AppTheme.takimli(p);
-      expect(t.scaffoldBackgroundColor, p.zemin);
-      expect(t.appBarTheme.backgroundColor, p.yuzey);
-      expect(t.dividerColor, p.kenarlik);
-      expect(t.colorScheme.surface, p.yuzey);
+  // ══════════════════════════════════════════════════════════════════════════
+  // ThemeData artık GÖRÜNÜMDEN gelir
+  // ══════════════════════════════════════════════════════════════════════════
+  group('ThemeData görünümü izler', () {
+    tearDown(() => gorunumuUygula(Brightness.light));
+
+    test('koyu görünümde zemin ve üst çubuk KOYU', () {
+      gorunumuUygula(Brightness.light);
+      final a = AppTheme.gecerli(Brightness.light);
+      gorunumuUygula(Brightness.dark);
+      final k = AppTheme.gecerli(Brightness.dark);
+
+      expect(k.scaffoldBackgroundColor, isNot(a.scaffoldBackgroundColor));
+      expect(
+        gorecelParlaklik(k.scaffoldBackgroundColor),
+        lessThan(gorecelParlaklik(a.scaffoldBackgroundColor)),
+      );
+      expect(k.appBarTheme.backgroundColor, AppColors.card);
+      expect(k.dividerColor, AppColors.border);
     });
   });
 }
