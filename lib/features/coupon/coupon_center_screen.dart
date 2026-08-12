@@ -34,6 +34,7 @@ import '../../core/coupon/coupon_store.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/tokens.dart';
 import '../../widgets/app_ui.dart';
+import '../../widgets/takim_logo_zemin.dart';
 
 String _fmtTL(num n) {
   final s = n.round().toString();
@@ -107,8 +108,7 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
     ref.watch(couponSurumuProvider);
 
     if (roundsAsync.isLoading) {
-      return const Scaffold(
-        backgroundColor: AppColors.bg,
+      return Scaffold(
         body: Center(
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
@@ -179,116 +179,117 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
     final sync = getSyncState();
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.all(Spacing.md),
-          children: [
-            // ── Hafta gezinme ──
-            Row(
-              children: [
-                _okDugme('‹', canPrev, () {
-                  setState(
-                    () => _selectedId = (navRounds[selIdx - 1] as Map)['id'],
-                  );
-                }),
-                Expanded(
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Kupon Merkezi',
-                        style: TextStyle(
-                          color: AppColors.text,
-                          fontSize: 17,
-                          fontWeight: AppFont.black,
+      body: filigranli(
+        SafeArea(
+          bottom: false,
+          child: ListView(
+            padding: const EdgeInsets.all(Spacing.md),
+            children: [
+              // ── Hafta gezinme ──
+              Row(
+                children: [
+                  _okDugme('‹', canPrev, () {
+                    setState(
+                      () => _selectedId = (navRounds[selIdx - 1] as Map)['id'],
+                    );
+                  }),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Text(
+                          'Kupon Merkezi',
+                          style: TextStyle(
+                            color: AppColors.text,
+                            fontSize: 17,
+                            fontWeight: AppFont.black,
+                          ),
                         ),
-                      ),
-                      Text(
-                        '${selMeta?['name'] ?? '—'}'
-                        '${selMeta?['year'] != null ? ' · ${selMeta!['year']}' : ''}',
-                        style: const TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 12,
-                          fontWeight: AppFont.bold,
+                        Text(
+                          '${selMeta?['name'] ?? '—'}'
+                          '${selMeta?['year'] != null ? ' · ${selMeta!['year']}' : ''}',
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 12,
+                            fontWeight: AppFont.bold,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                _okDugme('›', canNext, () {
-                  setState(
-                    () => _selectedId = (navRounds[selIdx + 1] as Map)['id'],
-                  );
-                }),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // ── Senkron durumu — kayıt hatasında kupon YERELDE güvende ──
-            if (sync.loggedIn && sync.error != null)
-              _serit(
-                '⚠ Sunucuya kaydedilemedi: ${sync.error}\n'
-                'Kuponların cihazda güvende — tekrar denenebilir.',
-                AppColors.warning,
-                eylem: 'Tekrar Dene',
-                onEylem: () async {
-                  await retrySync();
-                  if (mounted) setState(() {});
-                },
-              )
-            else if (!sync.loggedIn)
-              _serit(
-                'Kuponlar yalnız bu cihazda. Hesabına bağlamak ve başka '
-                'cihazdan görmek için Profil sekmesinden giriş yap.',
-                AppColors.info,
+                  _okDugme('›', canNext, () {
+                    setState(
+                      () => _selectedId = (navRounds[selIdx + 1] as Map)['id'],
+                    );
+                  }),
+                ],
               ),
+              const SizedBox(height: 10),
 
-            // ── Yeni kupon ──
-            if (canEdit)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _dugme(
-                  '+ Yeni Kupon'
-                  '${bulletinMatches.isNotEmpty && openCount < bulletinMatches.length ? ' · $openCount maç açık' : ''}',
-                  dolu: true,
-                  onTap: () => GoRouter.of(
-                    context,
-                  ).go('/kuponlarim/kupon-editor/$selectedId'),
+              // ── Senkron durumu — kayıt hatasında kupon YERELDE güvende ──
+              if (sync.loggedIn && sync.error != null)
+                _serit(
+                  '⚠ Sunucuya kaydedilemedi: ${sync.error}\n'
+                  'Kuponların cihazda güvende — tekrar denenebilir.',
+                  AppColors.warning,
+                  eylem: 'Tekrar Dene',
+                  onEylem: () async {
+                    await retrySync();
+                    if (mounted) setState(() {});
+                  },
+                )
+              else if (!sync.loggedIn)
+                _serit(
+                  'Kuponlar yalnız bu cihazda. Hesabına bağlamak ve başka '
+                  'cihazdan görmek için Profil sekmesinden giriş yap.',
+                  AppColors.info,
                 ),
-              )
-            else if (silmeSebebi != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Text(silmeSebebi, style: _notStil),
-              ),
 
-            if (coupons.isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(top: 20),
-                child: EmptyState(
-                  icon: '🎟️',
-                  title: 'Bu hafta için kupon yok',
-                  message:
-                      'Maç detayındaki "KUPONA İŞLE" bloğundan seçim '
-                      'yapıp Kupon Oluştur ile kaydedebilirsin.',
+              // ── Yeni kupon ──
+              if (canEdit)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _dugme(
+                    '+ Yeni Kupon'
+                    '${bulletinMatches.isNotEmpty && openCount < bulletinMatches.length ? ' · $openCount maç açık' : ''}',
+                    dolu: true,
+                    onTap: () => GoRouter.of(
+                      context,
+                    ).go('/kuponlarim/kupon-editor/$selectedId'),
+                  ),
+                )
+              else if (silmeSebebi != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Text(silmeSebebi, style: _notStil),
                 ),
-              )
-            else
-              for (final c in coupons)
-                _kuponKarti(
-                  c,
-                  resultMap: resultMap,
-                  pricing: pricing,
-                  canEdit: canEdit,
-                  silmeSebebi: silmeSebebi,
-                  openCount: openCount,
-                  toplamMac: bulletinMatches.length,
-                  lockMap: lockMap,
-                  selectedId: selectedId,
-                  selMeta: selMeta,
-                ),
-          ],
+
+              if (coupons.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(top: 20),
+                  child: EmptyState(
+                    icon: '🎟️',
+                    title: 'Bu hafta için kupon yok',
+                    message:
+                        'Maç detayındaki "KUPONA İŞLE" bloğundan seçim '
+                        'yapıp Kupon Oluştur ile kaydedebilirsin.',
+                  ),
+                )
+              else
+                for (final c in coupons)
+                  _kuponKarti(
+                    c,
+                    resultMap: resultMap,
+                    pricing: pricing,
+                    canEdit: canEdit,
+                    silmeSebebi: silmeSebebi,
+                    openCount: openCount,
+                    toplamMac: bulletinMatches.length,
+                    lockMap: lockMap,
+                    selectedId: selectedId,
+                    selMeta: selMeta,
+                  ),
+            ],
+          ),
         ),
       ),
     );
@@ -346,7 +347,7 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
                   '${c['name']}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 14,
                     fontWeight: AppFont.black,
@@ -364,7 +365,7 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
                     borderRadius: AppRadius.smR,
                     border: Border.all(color: AppColors.primary),
                   ),
-                  child: const Text(
+                  child: Text(
                     'DERECELİ',
                     style: TextStyle(
                       color: AppColors.primary,
@@ -381,7 +382,7 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
             'Kolon: ${kolon ?? '—'}'
             // FİYAT UYDURULMAZ: veri yoksa tutar satırı hiç yazılmaz.
             '${maliyet != null ? ' · ${_fmtTL(maliyet)}' : ''}',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textMuted,
               fontSize: 11,
               fontWeight: AppFont.bold,
@@ -490,7 +491,7 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
   Widget _secimTablosu(Map? v, Map<Object, Object?> resultMap) {
     final selections = (v?['selections'] as List?) ?? const [];
     if (selections.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.only(top: 8),
         child: Text('Bu kuponda seçim yok.', style: _notStil),
       );
@@ -499,7 +500,7 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
     return Container(
       margin: const EdgeInsets.only(top: 10),
       padding: const EdgeInsets.only(top: 8),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: Column(
@@ -513,7 +514,7 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
                     width: 22,
                     child: Text(
                       '${sc['no']}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 11,
                         fontWeight: AppFont.black,
@@ -527,7 +528,7 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
                                 .join(),
                           ) ??
                           '—',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.text,
                         fontSize: 12.5,
                         fontWeight: AppFont.heavy,
@@ -657,13 +658,13 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
         width: 36,
         height: 36,
         alignment: Alignment.center,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.cardAlt,
           shape: BoxShape.circle,
         ),
         child: Text(
           ok,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 20,
             fontWeight: AppFont.black,
@@ -761,7 +762,7 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
   );
 }
 
-const TextStyle _notStil = TextStyle(
+TextStyle _notStil = TextStyle(
   color: AppColors.textMuted,
   fontSize: 10.5,
   height: 1.4,

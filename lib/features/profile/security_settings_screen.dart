@@ -173,13 +173,12 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
   Widget build(BuildContext context) => ValueListenableBuilder<auth.AuthState>(
     valueListenable: auth.authState,
     builder: (context, s, _) => Scaffold(
-      backgroundColor: AppColors.bg,
       appBar: AppBar(title: const Text('Güvenlik Ayarları')),
       body: ScreenBackdrop(
         child: ListView(
           padding: const EdgeInsets.all(Spacing.lg),
           children: [
-            const Text(
+            Text(
               'Güvenlik Ayarları',
               style: TextStyle(
                 color: AppColors.text,
@@ -222,7 +221,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                 _Ipucu(
                   'Mevcut adres: ${s.user?['email'] ?? '—'}. Değişiklik, yeni adrese gelen doğrulama bağlantısıyla tamamlanır.',
                 ),
-                const Text(
+                Text(
                   'Yeni e-posta',
                   style: TextStyle(
                     color: AppColors.textMuted,
@@ -235,10 +234,10 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                   controller: _newEmail,
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
-                  style: const TextStyle(color: AppColors.text, fontSize: 15),
+                  style: TextStyle(color: AppColors.text, fontSize: 15),
                   decoration: InputDecoration(
                     hintText: 'yeni@ornek.com',
-                    hintStyle: const TextStyle(color: AppColors.textMuted),
+                    hintStyle: TextStyle(color: AppColors.textMuted),
                     filled: true,
                     fillColor: AppColors.cardAlt,
                     isDense: true,
@@ -248,15 +247,15 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
-                      borderSide: const BorderSide(color: AppColors.border),
+                      borderSide: BorderSide(color: AppColors.border),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
-                      borderSide: const BorderSide(color: AppColors.border),
+                      borderSide: BorderSide(color: AppColors.border),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
-                      borderSide: const BorderSide(color: AppColors.border),
+                      borderSide: BorderSide(color: AppColors.border),
                     ),
                   ),
                 ),
@@ -295,7 +294,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
               baslik: '🕓 Son Güvenlik Olayları',
               children: [
                 if (_events == null)
-                  const Center(
+                  Center(
                     child: SizedBox(
                       width: 20,
                       height: 20,
@@ -322,7 +321,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
     final ipVar = ip != null && '$ip'.isNotEmpty;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       child: Column(
@@ -332,7 +331,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
             // Bilinmeyen olay TÜRÜ ham anahtarıyla gösterilir — sunucu yeni
             // bir olay eklediğinde satır KAYBOLMAZ (kaynak aynen).
             _eventLabels['${e['event']}'] ?? '${e['event']}',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 13,
               fontWeight: AppFont.bold,
@@ -342,10 +341,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
             padding: const EdgeInsets.only(top: 2),
             child: Text(
               '${_olayZamani(e['created_at'])}${ipVar ? ' · $ip' : ''}',
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 11.5,
-              ),
+              style: TextStyle(color: AppColors.textMuted, fontSize: 11.5),
             ),
           ),
         ],
@@ -442,7 +438,7 @@ class _BiometricCardState extends State<_BiometricCard> {
           children: [
             Text(
               _enabled ? 'Açık' : 'Kapalı',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 14,
                 fontWeight: AppFont.heavy,
@@ -481,7 +477,7 @@ class _Kart extends StatelessWidget {
       children: [
         Text(
           baslik,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 15.5,
             fontWeight: AppFont.heavy,
@@ -504,7 +500,7 @@ class _Ipucu extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: Spacing.md),
     child: Text(
       metin,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textMuted,
         fontSize: 12.5,
         height: 18 / 12.5,

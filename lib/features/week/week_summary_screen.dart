@@ -90,7 +90,9 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
     }
     final data = _data;
     if (data == null) {
-      return _kabuk(const LoadingState(message: 'Haftanın özeti hazırlanıyor…'));
+      return _kabuk(
+        const LoadingState(message: 'Haftanın özeti hazırlanıyor…'),
+      );
     }
 
     final sum = buildWeekSummary(data['matches'] as List?);
@@ -103,11 +105,9 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
 
     // Haftanın bileşimi. "Diğer" = kalanlar; toplamı bültenle tutturur ki
     // çubuk eksik parça göstermesin.
-    final diger = (sum.total -
-            sum.strong.length -
-            sum.surprises.length -
-            sum.balanced)
-        .clamp(0, sum.total);
+    final diger =
+        (sum.total - sum.strong.length - sum.surprises.length - sum.balanced)
+            .clamp(0, sum.total);
     final parcalar = <({String ad, int n, Color renk})>[
       (ad: 'Güçlü', n: sum.strong.length, renk: _yesil),
       (ad: 'Sürpriz', n: sum.surprises.length, renk: _kirmizi),
@@ -241,10 +241,10 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
                           color: AppColors.primary,
                           borderRadius: AppRadius.mdR,
                         ),
-                        child: const Text(
+                        child: Text(
                           'İlk Maçın Analizine Git ›',
                           style: TextStyle(
-                            color: AppColors.white,
+                            color: AppColors.onPrimary,
                             fontSize: 14,
                             fontWeight: AppFont.black,
                           ),
@@ -262,10 +262,9 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
   }
 
   Widget _kabuk(Widget govde) => Scaffold(
-        backgroundColor: AppColors.bg,
-        appBar: AppBar(title: const Text('Haftanın Özeti')),
-        body: govde,
-      );
+    appBar: AppBar(title: const Text('Haftanın Özeti')),
+    body: govde,
+  );
 
   /// Favori sembolü kullanıcıya 'X' olarak gösterilir — veri anahtarı '0'dır.
   static String _sembol(Object? s) => '$s'.replaceAll('0', 'X');
@@ -290,84 +289,84 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
   }
 
   Widget _baslikSatiri(int toplam, String weekTxt) => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                RichText(
-                  text: TextSpan(
-                    style: const TextStyle(
-                      color: AppColors.white,
-                      fontSize: 22,
-                      fontWeight: AppFont.black,
-                      letterSpacing: -0.3,
-                    ),
-                    children: [
-                      TextSpan(text: '$kBrandLine1 '),
-                      TextSpan(
-                        text: kBrandLine2,
-                        style: const TextStyle(color: _amber),
-                      ),
-                    ],
-                  ),
-                ),
-                const Padding(
-                  padding: EdgeInsets.only(top: 2),
-                  child: Text(
-                    'HAFTANIN ÖZETİ',
-                    style: TextStyle(
-                      color: _amber,
-                      fontSize: 12,
-                      fontWeight: AppFont.black,
-                      letterSpacing: 2.5,
-                    ),
-                  ),
-                ),
-                if (weekTxt.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      weekTxt,
-                      style: const TextStyle(
-                        color: _inkSoft,
-                        fontSize: 12.5,
-                        fontWeight: AppFont.heavy,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: Spacing.md),
-          // Maç sayısı: kutu değil, sağa hizalı iri sayı.
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '$toplam',
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            RichText(
+              text: TextSpan(
                 style: const TextStyle(
                   color: AppColors.white,
-                  fontSize: 40,
-                  height: 1,
+                  fontSize: 22,
                   fontWeight: AppFont.black,
-                  letterSpacing: -1.5,
+                  letterSpacing: -0.3,
                 ),
+                children: [
+                  TextSpan(text: '$kBrandLine1 '),
+                  TextSpan(
+                    text: kBrandLine2,
+                    style: const TextStyle(color: _amber),
+                  ),
+                ],
               ),
-              const Text(
-                'MAÇ',
+            ),
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: Text(
+                'HAFTANIN ÖZETİ',
                 style: TextStyle(
-                  color: _inkSoft,
-                  fontSize: 9.5,
+                  color: _amber,
+                  fontSize: 12,
                   fontWeight: AppFont.black,
-                  letterSpacing: 2,
+                  letterSpacing: 2.5,
                 ),
               ),
-            ],
+            ),
+            if (weekTxt.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  weekTxt,
+                  style: const TextStyle(
+                    color: _inkSoft,
+                    fontSize: 12.5,
+                    fontWeight: AppFont.heavy,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+      const SizedBox(width: Spacing.md),
+      // Maç sayısı: kutu değil, sağa hizalı iri sayı.
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            '$toplam',
+            style: const TextStyle(
+              color: AppColors.white,
+              fontSize: 40,
+              height: 1,
+              fontWeight: AppFont.black,
+              letterSpacing: -1.5,
+            ),
+          ),
+          const Text(
+            'MAÇ',
+            style: TextStyle(
+              color: _inkSoft,
+              fontSize: 9.5,
+              fontWeight: AppFont.black,
+              letterSpacing: 2,
+            ),
           ),
         ],
-      );
+      ),
+    ],
+  );
 
   /// HAFTANIN BİLEŞİMİ — tek yığılmış çubuk.
   /// Sıfır genişlikli dilim ÇİZİLMEZ: bir kategori yoksa çubukta yeri de
@@ -388,7 +387,11 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
       child: Row(
         children: [
           for (final p in parcalar)
-            if (p.n > 0) Expanded(flex: p.n, child: ColoredBox(color: p.renk)),
+            if (p.n > 0)
+              Expanded(
+                flex: p.n,
+                child: ColoredBox(color: p.renk),
+              ),
         ],
       ),
     );
@@ -396,143 +399,143 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
 
   /// Bileşim açıklaması — renk + sayı + ad.
   Widget _lejant(List<({String ad, int n, Color renk})> parcalar) => Padding(
-        padding: const EdgeInsets.only(top: 8),
-        child: Wrap(
-          spacing: 12,
-          runSpacing: 6,
-          children: [
-            for (final p in parcalar)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: p.renk,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    '${p.n}',
-                    style: const TextStyle(
-                      color: AppColors.white,
-                      fontSize: 12,
-                      fontWeight: AppFont.black,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    p.ad,
-                    style: const TextStyle(
-                      color: _inkSoft,
-                      fontSize: 11,
-                      fontWeight: AppFont.bold,
-                    ),
-                  ),
-                ],
+    padding: const EdgeInsets.only(top: 8),
+    child: Wrap(
+      spacing: 12,
+      runSpacing: 6,
+      children: [
+        for (final p in parcalar)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: p.renk,
+                  shape: BoxShape.circle,
+                ),
               ),
-          ],
-        ),
-      );
+              const SizedBox(width: 5),
+              Text(
+                '${p.n}',
+                style: const TextStyle(
+                  color: AppColors.white,
+                  fontSize: 12,
+                  fontWeight: AppFont.black,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                p.ad,
+                style: const TextStyle(
+                  color: _inkSoft,
+                  fontSize: 11,
+                  fontWeight: AppFont.bold,
+                ),
+              ),
+            ],
+          ),
+      ],
+    ),
+  );
 
   /// Zorluk — kutu DEĞİL, ince ayraçla bölünmüş bir bant.
   Widget _zorlukBandi(Map diff, Color renk) => Container(
-        margin: const EdgeInsets.only(top: Spacing.lg),
-        padding: const EdgeInsets.only(top: Spacing.md),
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: _line)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    margin: const EdgeInsets.only(top: Spacing.lg),
+    padding: const EdgeInsets.only(top: Spacing.md),
+    decoration: const BoxDecoration(
+      border: Border(top: BorderSide(color: _line)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            const Text(
+              'BÜLTEN ZORLUĞU',
+              style: TextStyle(
+                color: _inkSoft,
+                fontSize: 10.5,
+                fontWeight: AppFont.black,
+                letterSpacing: 1.4,
+              ),
+            ),
             Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
               children: [
-                const Text(
-                  'BÜLTEN ZORLUĞU',
+                Text(
+                  '${diff['level']}',
                   style: TextStyle(
-                    color: _inkSoft,
-                    fontSize: 10.5,
+                    color: renk,
+                    fontSize: 15,
                     fontWeight: AppFont.black,
-                    letterSpacing: 1.4,
                   ),
                 ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      '${diff['level']}',
-                      style: TextStyle(
-                        color: renk,
-                        fontSize: 15,
-                        fontWeight: AppFont.black,
-                      ),
+                const SizedBox(width: 8),
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                      color: AppColors.white,
+                      fontSize: 15,
+                      fontWeight: AppFont.black,
                     ),
-                    const SizedBox(width: 8),
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                          color: AppColors.white,
-                          fontSize: 15,
-                          fontWeight: AppFont.black,
+                    children: [
+                      TextSpan(text: '${diff['score']}'),
+                      const TextSpan(
+                        text: '/100',
+                        style: TextStyle(
+                          color: _inkSoft,
+                          fontSize: 11,
+                          fontWeight: AppFont.heavy,
                         ),
-                        children: [
-                          TextSpan(text: '${diff['score']}'),
-                          const TextSpan(
-                            text: '/100',
-                            style: TextStyle(
-                              color: _inkSoft,
-                              fontSize: 11,
-                              fontWeight: AppFont.heavy,
-                            ),
-                          ),
-                        ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
-            // Segmentli zorluk göstergesi: 100'lük ölçekte nerede olduğunu
-            // gösterir.
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Row(
-                children: [
-                  for (var i = 0; i < _segment; i++) ...[
-                    if (i > 0) const SizedBox(width: 5),
-                    Expanded(
-                      child: Container(
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: i < _doluSegment(diff['score']) ? renk : _line,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (diff['text'] != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 9),
-                child: Text(
-                  '${diff['text']}',
-                  style: const TextStyle(
-                    color: _inkSoft,
-                    fontSize: 11.5,
-                    height: 16 / 11.5,
-                  ),
-                ),
-              ),
           ],
         ),
-      );
+        // Segmentli zorluk göstergesi: 100'lük ölçekte nerede olduğunu
+        // gösterir.
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Row(
+            children: [
+              for (var i = 0; i < _segment; i++) ...[
+                if (i > 0) const SizedBox(width: 5),
+                Expanded(
+                  child: Container(
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: i < _doluSegment(diff['score']) ? renk : _line,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (diff['text'] != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 9),
+            child: Text(
+              '${diff['text']}',
+              style: const TextStyle(
+                color: _inkSoft,
+                fontSize: 11.5,
+                height: 16 / 11.5,
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
 
   static int _doluSegment(Object? skor) {
     final s = skor is num ? skor.clamp(0, 100) : 0;
@@ -541,41 +544,41 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
 
   /// Bölüm başlığı — renkli aksan çubuğuyla.
   Widget _bolumBasligi(Color renk, String baslik, int? sayi) => Padding(
-        padding: const EdgeInsets.only(top: Spacing.lg, bottom: 9),
-        child: Row(
-          children: [
-            Container(
-              width: 3,
-              height: 15,
-              decoration: BoxDecoration(
-                color: renk,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                baslik,
-                style: const TextStyle(
-                  color: AppColors.white,
-                  fontSize: 13,
-                  fontWeight: AppFont.black,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ),
-            if (sayi != null)
-              Text(
-                '$sayi',
-                style: TextStyle(
-                  color: renk,
-                  fontSize: 13,
-                  fontWeight: AppFont.black,
-                ),
-              ),
-          ],
+    padding: const EdgeInsets.only(top: Spacing.lg, bottom: 9),
+    child: Row(
+      children: [
+        Container(
+          width: 3,
+          height: 15,
+          decoration: BoxDecoration(
+            color: renk,
+            borderRadius: BorderRadius.circular(2),
+          ),
         ),
-      );
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            baslik,
+            style: const TextStyle(
+              color: AppColors.white,
+              fontSize: 13,
+              fontWeight: AppFont.black,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        if (sayi != null)
+          Text(
+            '$sayi',
+            style: TextStyle(
+              color: renk,
+              fontSize: 13,
+              fontWeight: AppFont.black,
+            ),
+          ),
+      ],
+    ),
+  );
 
   /// Maç satırı — bültendeki desen: arma KENDİ takımının adına yapışık,
   /// ev solda / deplasman sağda. Arma yoksa Logo nötr ⚽ çizer.
@@ -585,119 +588,116 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
     required String altMetin,
     required String olcut,
     required bool sonMu,
-  }) =>
-      GestureDetector(
-        onTap: () => _goMatch(m['no']),
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 13),
-          decoration: BoxDecoration(
-            border: sonMu
-                ? null
-                : const Border(bottom: BorderSide(color: _ayrac)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  }) => GestureDetector(
+    onTap: () => _goMatch(m['no']),
+    behavior: HitTestBehavior.opaque,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 13),
+      decoration: BoxDecoration(
+        border: sonMu ? null : const Border(bottom: BorderSide(color: _ayrac)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Logo(
-                          uri: crestOf(m.cast<String, dynamic>(), 'home'),
-                          name: (m['home'] as Map?)?['name'] as String?,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 7),
-                        Flexible(
-                          child: Text(
-                            takimAdi(m['home']),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.white,
-                              fontSize: 14,
-                              fontWeight: AppFont.heavy,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            takimAdi(m['away']),
-                            maxLines: 1,
-                            textAlign: TextAlign.right,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.white,
-                              fontSize: 14,
-                              fontWeight: AppFont.heavy,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 7),
-                        Logo(
-                          uri: crestOf(m.cast<String, dynamic>(), 'away'),
-                          name: (m['away'] as Map?)?['name'] as String?,
-                          size: 22,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
+              Expanded(
                 child: Row(
                   children: [
-                    Expanded(
-                      child: RichText(
+                    Logo(
+                      uri: crestOf(m.cast<String, dynamic>(), 'home'),
+                      name: (m['home'] as Map?)?['name'] as String?,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 7),
+                    Flexible(
+                      child: Text(
+                        takimAdi(m['home']),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        text: TextSpan(
-                          style: const TextStyle(
-                            color: _inkSoft,
-                            fontSize: 11,
-                            fontWeight: AppFont.bold,
-                            letterSpacing: 0.2,
-                          ),
-                          children: [
-                            TextSpan(
-                              text: '${m['no']}',
-                              style: const TextStyle(
-                                color: Color(0xFF7F93B4),
-                                fontWeight: AppFont.black,
-                              ),
-                            ),
-                            TextSpan(text: '  ·  $altMetin'),
-                          ],
+                        style: const TextStyle(
+                          color: AppColors.white,
+                          fontSize: 14,
+                          fontWeight: AppFont.heavy,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    // Ölçüt: çerçevesiz, renkli ve kalın.
-                    Text(
-                      olcut,
-                      style: TextStyle(
-                        color: renk,
-                        fontSize: 13.5,
-                        fontWeight: AppFont.black,
-                        letterSpacing: -0.2,
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        takimAdi(m['away']),
+                        maxLines: 1,
+                        textAlign: TextAlign.right,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.white,
+                          fontSize: 14,
+                          fontWeight: AppFont.heavy,
+                        ),
                       ),
+                    ),
+                    const SizedBox(width: 7),
+                    Logo(
+                      uri: crestOf(m.cast<String, dynamic>(), 'away'),
+                      name: (m['away'] as Map?)?['name'] as String?,
+                      size: 22,
                     ),
                   ],
                 ),
               ),
             ],
           ),
-        ),
-      );
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: RichText(
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    text: TextSpan(
+                      style: const TextStyle(
+                        color: _inkSoft,
+                        fontSize: 11,
+                        fontWeight: AppFont.bold,
+                        letterSpacing: 0.2,
+                      ),
+                      children: [
+                        TextSpan(
+                          text: '${m['no']}',
+                          style: const TextStyle(
+                            color: Color(0xFF7F93B4),
+                            fontWeight: AppFont.black,
+                          ),
+                        ),
+                        TextSpan(text: '  ·  $altMetin'),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Ölçüt: çerçevesiz, renkli ve kalın.
+                Text(
+                  olcut,
+                  style: TextStyle(
+                    color: renk,
+                    fontSize: 13.5,
+                    fontWeight: AppFont.black,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }

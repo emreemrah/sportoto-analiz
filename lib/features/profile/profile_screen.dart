@@ -123,8 +123,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
 
         if (!s.ready) {
-          return const Scaffold(
-            backgroundColor: AppColors.bg,
+          return Scaffold(
             body: Center(
               child: CircularProgressIndicator(color: AppColors.primary),
             ),
@@ -144,7 +143,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final favAd = '${user['favorite_team'] ?? ''}';
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
       // ARKA PLAN: hareketli desen (`ScreenBackdrop`) bu ekrandan KULLANICI
       // İSTEĞİYLE kaldırıldı (2026-08-04); zeminde yalnız favori takımın
       // arması filigran olarak kalır.
@@ -158,7 +156,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('Profil', style: _titleStil),
+                  Text('Profil', style: _titleStil),
                   const SizedBox(height: Spacing.lg),
 
                   // ── AVATAR + AD + E-POSTA + SAYAÇLAR ──
@@ -189,7 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       required isFocused,
                                       maxLength,
                                     }) => null,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.text,
                                   fontSize: 18,
                                   fontWeight: AppFont.heavy,
@@ -214,8 +212,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                   child: Text(
                                     _savingName ? '…' : 'Kaydet',
-                                    style: const TextStyle(
-                                      color: AppColors.white,
+                                    style: TextStyle(
+                                      color: AppColors.onPrimary,
                                       fontSize: 12,
                                       fontWeight: AppFont.heavy,
                                     ),
@@ -232,7 +230,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 '${user['email'] ?? ''}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.textMuted,
                                   fontSize: 12.5,
                                 ),
@@ -279,7 +277,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ],
                             Text(
                               _favLogo != null ? 'Takımım:' : '⚽ Takımım:',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 12.5,
                                 fontWeight: AppFont.bold,
@@ -326,7 +324,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ),
                                         ),
                                       ),
-                                      const Text(
+                                      Text(
                                         '›',
                                         style: TextStyle(
                                           color: AppColors.textMuted,
@@ -392,9 +390,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
 
                   const SizedBox(height: Spacing.md),
-                  const Text(kIndependenceNotice, style: _legalStil),
+                  Text(kIndependenceNotice, style: _legalStil),
                   const SizedBox(height: 6),
-                  const Text(kCopyright, style: _copyrightStil),
+                  Text(kCopyright, style: _copyrightStil),
                   const SizedBox(height: Spacing.xl),
                 ],
               ),
@@ -407,7 +405,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _sayac(String metin) => Text(
     metin,
-    style: const TextStyle(
+    style: TextStyle(
       color: AppColors.textSoft,
       fontSize: 12,
       fontWeight: AppFont.bold,
@@ -535,7 +533,6 @@ class _LoggedOut extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.bg,
     body: SafeArea(
       bottom: false,
       child: SingleChildScrollView(
@@ -550,13 +547,9 @@ class _LoggedOut extends StatelessWidget {
               style: TextStyle(fontSize: 46),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Profil',
-              textAlign: TextAlign.center,
-              style: _titleStil,
-            ),
+            Text('Profil', textAlign: TextAlign.center, style: _titleStil),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Maçlara yorum yapmak, beğenmek ve avatarını seçmek için '
               'giriş yap.',
               textAlign: TextAlign.center,
@@ -577,9 +570,9 @@ class _LoggedOut extends StatelessWidget {
               hakkinda: true,
             ),
             const SizedBox(height: Spacing.md),
-            const Text(kIndependenceNotice, style: _legalStil),
+            Text(kIndependenceNotice, style: _legalStil),
             const SizedBox(height: 6),
-            const Text(kCopyright, style: _copyrightStil),
+            Text(kCopyright, style: _copyrightStil),
           ],
         ),
       ),
@@ -624,20 +617,20 @@ class _LoggedOut extends StatelessWidget {
   );
 }
 
-const TextStyle _titleStil = TextStyle(
+TextStyle _titleStil = TextStyle(
   color: AppColors.text,
   fontSize: 24,
   fontWeight: AppFont.heavy,
 );
 
-const TextStyle _legalStil = TextStyle(
+TextStyle _legalStil = TextStyle(
   color: AppColors.textMuted,
   fontSize: 10.5,
   height: 15 / 10.5,
   textBaseline: TextBaseline.alphabetic,
 );
 
-const TextStyle _copyrightStil = TextStyle(
+TextStyle _copyrightStil = TextStyle(
   color: AppColors.textMuted,
   fontSize: 10.5,
   fontWeight: AppFont.semibold,

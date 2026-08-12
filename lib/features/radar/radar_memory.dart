@@ -148,7 +148,7 @@ class DnaDonemFiltresi extends StatelessWidget {
                 runSpacing: 6,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  const Text(
+                  Text(
                     'Yakınlık:',
                     style: TextStyle(
                       color: AppColors.textSoft,
@@ -275,7 +275,7 @@ class DnaDonemFiltresi extends StatelessWidget {
     padding: const EdgeInsets.only(top: 8),
     child: Text(
       t,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textMuted,
         fontSize: 11.5,
         height: 16 / 11.5,
@@ -384,7 +384,7 @@ class MemoryRow extends StatelessWidget {
                     child: Text(
                       '${item['no']}',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 15,
                         fontWeight: AppFont.heavy,
@@ -419,7 +419,7 @@ class MemoryRow extends StatelessWidget {
                           if (gunlukVar) ...[
                             Text(
                               bugunGunKisa ?? 'Bugün',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.primary,
                                 fontSize: 12.5,
                                 fontWeight: AppFont.heavy,
@@ -433,7 +433,7 @@ class MemoryRow extends StatelessWidget {
                           ],
                           Text(
                             acik ? '▲' : '▼',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.primary,
                               fontSize: 11,
                               fontWeight: AppFont.black,
@@ -514,7 +514,7 @@ class MemoryRow extends StatelessWidget {
                                 'verisi yok — filtre uygulanamadı.'
                           : 'Bu yakınlıkta geçmiş maç yok.')
                     : 'Bu dönemde geçmiş sonuç yok.',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 12,
                   fontStyle: FontStyle.italic,
@@ -537,14 +537,16 @@ class MemoryRow extends StatelessWidget {
   Widget _pctEtiketi() => Text(
     // Hafta sayısı parantez içinde yazılıyordu, kullanıcı kararıyla kaldırıldı.
     'Geçmiş ${item['no']}. sıra',
-    style: const TextStyle(
+    style: TextStyle(
       color: AppColors.textSoft,
       fontSize: 12,
       fontWeight: AppFont.heavy,
     ),
   );
 
-  static const Map<String, Color> _harfRengi = {
+  // GETTER, `static final` DEĞİL: takım teması `AppColors`ı çalışma zamanında
+  // değiştirir.
+  static Map<String, Color> get _harfRengi => {
     '1': AppColors.info,
     'X': AppColors.warning,
     '2': AppColors.accent,
@@ -581,7 +583,7 @@ class MemoryRow extends StatelessWidget {
         const SizedBox(width: 5),
         Text(
           '%${pct?[k]}',
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textSoft,
             fontSize: 12,
             fontWeight: AppFont.black,
@@ -596,7 +598,7 @@ class MemoryRow extends StatelessWidget {
   /// gerekmez.
   Widget _takimAdi(String ad) => Text(
     ad,
-    style: const TextStyle(
+    style: TextStyle(
       color: AppColors.text,
       fontSize: 14,
       fontWeight: AppFont.heavy,
@@ -633,7 +635,7 @@ class MemoryRow extends StatelessWidget {
     children: [
       Text(
         h,
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.textSoft,
           fontSize: 11.5,
           fontWeight: AppFont.heavy,
@@ -642,7 +644,7 @@ class MemoryRow extends StatelessWidget {
       const SizedBox(width: 3),
       Text(
         deger,
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.text,
           fontSize: 12.5,
           fontWeight: AppFont.heavy,
@@ -651,7 +653,7 @@ class MemoryRow extends StatelessWidget {
     ],
   );
 
-  static const Widget _ayrac = Padding(
+  static Widget _ayrac = Padding(
     padding: EdgeInsets.symmetric(horizontal: 4),
     child: Text(
       '·',
@@ -694,10 +696,9 @@ class MemoryRow extends StatelessWidget {
     children: [
       for (final (i, k) in bugunKaynaklar!.indexed) ...[
         if (i > 0) const SizedBox(height: 4),
-        _ucluSerit(
-          [for (final h in _kSecenekler) (h, '%${k.pct[h]}')],
-          kaynak: noktali ? k.kaynak : null,
-        ),
+        _ucluSerit([
+          for (final h in _kSecenekler) (h, '%${k.pct[h]}'),
+        ], kaynak: noktali ? k.kaynak : null),
       ],
     ],
   );
@@ -780,7 +781,7 @@ class _SiraGecmisListesiState extends State<SiraGecmisListesi> {
           // BAŞLIK SATIRI — 1/X/2'nin ne olduğu BİR KEZ burada söylenir.
           Container(
             padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 6),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.primary,
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(6),
@@ -863,7 +864,7 @@ class _SiraGecmisListesiState extends State<SiraGecmisListesi> {
   static Widget _kutu(Widget child) => Container(
     margin: const EdgeInsets.only(top: 8, left: 6),
     padding: const EdgeInsets.only(top: 8),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       border: Border(top: BorderSide(color: AppColors.border)),
     ),
     child: child,
@@ -873,7 +874,7 @@ class _SiraGecmisListesiState extends State<SiraGecmisListesi> {
     padding: const EdgeInsets.only(top: 6),
     child: Text(
       t,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.muted,
         fontSize: 11,
         fontStyle: FontStyle.italic,
@@ -911,7 +912,9 @@ class _Satir extends StatelessWidget {
 
   /// Sonuç rozetinin rengi. 1 mavi, X amber, 2 kırmızı — ekranın geri
   /// kalanıyla aynı dil.
-  static const Map<String, Color> _rozetZemin = {
+  // GETTER, `static final` DEĞİL: takım teması `AppColors`ı çalışma zamanında
+  // değiştirir.
+  static Map<String, Color> get _rozetZemin => {
     '1': AppColors.info,
     'X': AppColors.warning,
     '2': AppColors.accent,
@@ -931,7 +934,7 @@ class _Satir extends StatelessWidget {
       decoration: BoxDecoration(
         // Şeritleme — uzun listede gözün satırı kaybetmemesi için.
         color: cift ? AppColors.surfaceSoft : null,
-        border: const Border(bottom: BorderSide(color: AppColors.border)),
+        border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       child: Row(
         children: [
@@ -953,7 +956,7 @@ class _Satir extends StatelessWidget {
                     children: [
                       TextSpan(
                         text: '${week ?? '—'}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.muted,
                           fontSize: 9,
                           fontWeight: AppFont.heavy,
@@ -965,7 +968,7 @@ class _Satir extends StatelessWidget {
                         // kararı): marka rengi, takım adından büyük ve daha
                         // kalın.
                         text: '${score ?? '–'}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.primary,
                           fontSize: 12.5,
                           fontWeight: AppFont.black,
@@ -977,7 +980,7 @@ class _Satir extends StatelessWidget {
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 11,
                     fontWeight: AppFont.bold,

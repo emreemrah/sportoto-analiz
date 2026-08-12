@@ -242,10 +242,7 @@ void main() {
       expect(_metin(f), findsOneWidget);
     }
     // Kupon yok → filtrenin neye baktığı AÇIKÇA yazar.
-    expect(
-      _metinIceren('sistem tahminine göredir'),
-      findsOneWidget,
-    );
+    expect(_metinIceren('sistem tahminine göredir'), findsOneWidget);
     // Takım adları TAM (kesilmez) ve tarih satırı var.
     expect(
       _metinIceren('Ayvalıkgücü Belediyespor - Galatasaray'),
@@ -283,9 +280,7 @@ void main() {
   // 'Geçmiş sekmesi' testi KALDIRILDI (2026-08-10 rol ayrımı): sekme artık
   // yok — karne özeti yalnız Sistem Karnesi ekranında yaşar.
 
-  testWidgets('karnede OLMAYAN hafta için sistem sayısı uydurulmaz', (
-    t,
-  ) async {
+  testWidgets('karnede OLMAYAN hafta için sistem sayısı uydurulmaz', (t) async {
     _tasiyici.istekler.clear();
     _tasiyici.uclar = {
       ...kUclar,

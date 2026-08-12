@@ -24,6 +24,11 @@
 //
 // KURAL: bu iki uç haftanın TAMAMI için çağrılır; maç süzmesi ekranda
 // `item.no` ile yapılır. Aşağıdaki çağrılarda matchId GEÇİLMEZ.
+//
+// İKİ AYRI SEKME (kullanıcı isteği, 2026-08-11): panel artık "Oynanma
+// Yüzdeleri" ve "Oran Takibi" sekmelerinde AYRI AYRI çiziliyor. Kartlar
+// kopyalanmadı; hangi bölümün çizileceğini `bolum` söyler. Varsayılan
+// `hepsi` — parametresiz çağıran eski kullanım aynen çalışır.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,10 +73,18 @@ String? _sonGun(List? gunler) {
   return hepsi.isEmpty ? null : hepsi.first['date'] as String?;
 }
 
+/// Panelin hangi bölümü çizilsin? `hepsi` iki kartı da çizer (eski davranış).
+enum MacRadarBolumu { hepsi, oynanma, oran }
+
 class MacRadarPaneli extends ConsumerStatefulWidget {
-  const MacRadarPaneli({super.key, required this.m});
+  const MacRadarPaneli({
+    super.key,
+    required this.m,
+    this.bolum = MacRadarBolumu.hepsi,
+  });
 
   final Map<String, dynamic> m;
+  final MacRadarBolumu bolum;
 
   @override
   ConsumerState<MacRadarPaneli> createState() => _MacRadarPaneliState();
@@ -88,11 +101,11 @@ class _MacRadarPaneliState extends ConsumerState<MacRadarPaneli> {
     final no = widget.m['no'];
 
     if (roundId == null || no == null) {
-      return const _Kart(
+      return MacRadarKart(
         children: [
           Text(
             'Bu maç için hafta/sıra bilgisi yok — radar gösterilemez.',
-            style: _bos,
+            style: kMacRadarBos,
           ),
         ],
       );
@@ -107,83 +120,92 @@ class _MacRadarPaneliState extends ConsumerState<MacRadarPaneli> {
       'away': away?['mediumName'] ?? away?['name'] ?? 'Deplasman',
     };
 
-    final oynanma = ref.watch(_dailyPlayedProvider(roundId));
-    final oran = ref.watch(_dailyOddsProvider(roundId));
+    // Sekme yalnız bir bölümü gösteriyorsa ÖTEKİNİN İSTEĞİ HİÇ ATILMAZ:
+    // kullanıcı Oran Takibi'ne bakarken oynanma verisi çekmek boşuna trafiktir.
+    final oynanmaVar = widget.bolum != MacRadarBolumu.oran;
+    final oranVar = widget.bolum != MacRadarBolumu.oynanma;
+    final oynanma = oynanmaVar
+        ? ref.watch(_dailyPlayedProvider(roundId))
+        : null;
+    final oran = oranVar ? ref.watch(_dailyOddsProvider(roundId)) : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // ——— RADAR 3 ———
-        _Kart(
-          baslik: 'Radar 3 · Oynanma DNA',
-          alt:
-              '$no. sıra — günlük 1/X/2 oynanma yüzdeleri. Her kaynak ayrı '
-              'satır; dokununca o kaynağın geçmişi açılır.',
-          children: [
-            oynanma.when(
-              loading: () => const _Bekle(),
-              error: (e, _) =>
-                  Text('Oynanma verisi okunamadı: $e', style: _bos),
-              data: (d) {
-                final secili = _oynanmaGun ?? _sonGun(d['days'] as List?);
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _GunSecici(
-                      gunler: d['days'] as List?,
-                      secili: secili,
-                      onSec: (g) => setState(() => _oynanmaGun = g),
-                    ),
-                    PublicRow(
-                      item: satir,
-                      data: d,
-                      day: secili,
-                      openKey: _acikDna,
-                      onToggleDna: (k) => setState(() => _acikDna = k),
-                      dnaPanelBuilder: (kaynak) => PlayedDnaPanel(
-                        roundId: roundId,
-                        no: no,
-                        source: kaynak,
-                        day: secili,
-                        // Maç detayında otomatik tazeleme yok (Radar ekranının
-                        // 60 sn'lik sayacı buraya taşınmadı — kaynakta da 0).
-                        tick: 0,
+        if (oynanmaVar)
+          MacRadarKart(
+            baslik: 'Radar 3 · Oynanma DNA',
+            alt:
+                '$no. sıra — günlük 1/X/2 oynanma yüzdeleri. Her kaynak ayrı '
+                'satır; dokununca o kaynağın geçmişi açılır.',
+            children: [
+              oynanma!.when(
+                loading: () => const MacRadarBekle(),
+                error: (e, _) =>
+                    Text('Oynanma verisi okunamadı: $e', style: kMacRadarBos),
+                data: (d) {
+                  final secili = _oynanmaGun ?? _sonGun(d['days'] as List?);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _GunSecici(
+                        gunler: d['days'] as List?,
+                        secili: secili,
+                        onSec: (g) => setState(() => _oynanmaGun = g),
                       ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
+                      PublicRow(
+                        item: satir,
+                        data: d,
+                        day: secili,
+                        openKey: _acikDna,
+                        onToggleDna: (k) => setState(() => _acikDna = k),
+                        dnaPanelBuilder: (kaynak) => PlayedDnaPanel(
+                          roundId: roundId,
+                          no: no,
+                          source: kaynak,
+                          day: secili,
+                          // Maç detayında otomatik tazeleme yok (Radar ekranının
+                          // 60 sn'lik sayacı buraya taşınmadı — kaynakta da 0).
+                          tick: 0,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
 
         // ——— RADAR 4 ———
-        _Kart(
-          baslik: 'Radar 4 · Oran Takibi',
-          alt:
-              '$no. sıra — maç öncesi mühürlenmiş günlük 1/X/2 oranı ve bir '
-              'önceki güne göre yönü.',
-          children: [
-            oran.when(
-              loading: () => const _Bekle(),
-              error: (e, _) => Text('Oran verisi okunamadı: $e', style: _bos),
-              data: (d) {
-                final secili = _oranGun ?? _sonGun(d['days'] as List?);
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _GunSecici(
-                      gunler: d['days'] as List?,
-                      secili: secili,
-                      onSec: (g) => setState(() => _oranGun = g),
-                    ),
-                    MarketRow(item: satir, data: d, day: secili),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
+        if (oranVar)
+          MacRadarKart(
+            baslik: 'Radar 4 · Oran Takibi',
+            alt:
+                '$no. sıra — maç öncesi mühürlenmiş günlük 1/X/2 oranı ve bir '
+                'önceki güne göre yönü.',
+            children: [
+              oran!.when(
+                loading: () => const MacRadarBekle(),
+                error: (e, _) =>
+                    Text('Oran verisi okunamadı: $e', style: kMacRadarBos),
+                data: (d) {
+                  final secili = _oranGun ?? _sonGun(d['days'] as List?);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _GunSecici(
+                        gunler: d['days'] as List?,
+                        secili: secili,
+                        onSec: (g) => setState(() => _oranGun = g),
+                      ),
+                      MarketRow(item: satir, data: d, day: secili),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
       ],
     );
   }
@@ -266,8 +288,15 @@ class _GunSecici extends StatelessWidget {
   }
 }
 
-class _Kart extends StatelessWidget {
-  const _Kart({this.baslik, this.alt, required this.children});
+/// Maç detayındaki radar kartlarının ortak kabuğu. Bülten Sırası paneli de
+/// bunu kullanır — kopya kart yazılmadı ki üç sekme aynı çerçevede görünsün.
+class MacRadarKart extends StatelessWidget {
+  const MacRadarKart({
+    super.key,
+    this.baslik,
+    this.alt,
+    required this.children,
+  });
 
   final String? baslik;
   final String? alt;
@@ -288,7 +317,7 @@ class _Kart extends StatelessWidget {
         if (baslik != null)
           Text(
             baslik!,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 13.5,
               fontWeight: AppFont.black,
@@ -299,7 +328,7 @@ class _Kart extends StatelessWidget {
             padding: const EdgeInsets.only(top: 2, bottom: 8),
             child: Text(
               alt!,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 10.5,
                 height: 14 / 10.5,
@@ -312,17 +341,18 @@ class _Kart extends StatelessWidget {
   );
 }
 
-class _Bekle extends StatelessWidget {
-  const _Bekle();
+class MacRadarBekle extends StatelessWidget {
+  const MacRadarBekle({super.key});
 
   @override
-  Widget build(BuildContext context) => const Padding(
+  Widget build(BuildContext context) => Padding(
     padding: EdgeInsets.symmetric(vertical: 12),
     child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
   );
 }
 
-const TextStyle _bos = TextStyle(
+/// Veri yokluğu / hata cümlelerinin ortak stili.
+TextStyle kMacRadarBos = TextStyle(
   color: AppColors.textMuted,
   fontSize: 11.5,
   height: 16 / 11.5,

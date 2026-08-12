@@ -100,7 +100,7 @@ class MatchInfoCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: i > 0
-                  ? const BoxDecoration(
+                  ? BoxDecoration(
                       border: Border(top: BorderSide(color: AppColors.border)),
                     )
                   : null,

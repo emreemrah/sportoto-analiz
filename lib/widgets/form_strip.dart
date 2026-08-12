@@ -26,7 +26,7 @@ class FormStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (form == null || form!.isEmpty) {
-      return const Text(
+      return Text(
         '–',
         style: TextStyle(color: AppColors.textMuted, fontSize: 12),
       );

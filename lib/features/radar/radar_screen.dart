@@ -40,6 +40,7 @@ import 'radar_day_rows.dart';
 import 'radar_screen_data.dart';
 import 'radar_screen_logic.dart';
 import 'radar_tab_headers.dart';
+import '../../widgets/takim_logo_zemin.dart';
 
 /// `/api/radar/weeks` — hafta listesi.
 final _weeksProvider = FutureProvider.autoDispose<Map<String, dynamic>>(
@@ -212,34 +213,35 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
             (legacyRadar != null && legacyRadar.isNotEmpty));
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
       // ARKA PLAN DESENİ YOK — kaynakta `ScreenBackdrop` bu ekrandan KULLANICI
       // İSTEĞİYLE kaldırıldı (2026-08-04). Dosyadaki tek "ScreenBackdrop"
       // geçişi o kaldırmayı anlatan yorumdur; sarmalayıcının kendisi yok.
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _ekranBasligi(meta),
-            _haftaSecici(normalized.weeks, curId, gosterilen),
-            _sekmeCubugu(legacyMode),
-            Expanded(
-              child: RefreshIndicator(
-                color: AppColors.accent,
-                onRefresh: () async {
-                  ref.invalidate(_weeksProvider);
-                  ref.invalidate(_currentProvider);
-                  if (gosterilen != null && gosterilen != curId) {
-                    ref.invalidate(_roundProvider(gosterilen));
-                  }
-                  await ref.read(_currentProvider.future);
-                },
-                child: legacyMode
-                    ? _legacyListesi(legacyRadar)
-                    : _govde(durum, d, meta, hasData, gosterilen),
+      body: filigranli(
+        SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _ekranBasligi(meta),
+              _haftaSecici(normalized.weeks, curId, gosterilen),
+              _sekmeCubugu(legacyMode),
+              Expanded(
+                child: RefreshIndicator(
+                  color: AppColors.accent,
+                  onRefresh: () async {
+                    ref.invalidate(_weeksProvider);
+                    ref.invalidate(_currentProvider);
+                    if (gosterilen != null && gosterilen != curId) {
+                      ref.invalidate(_roundProvider(gosterilen));
+                    }
+                    await ref.read(_currentProvider.future);
+                  },
+                  child: legacyMode
+                      ? _legacyListesi(legacyRadar)
+                      : _govde(durum, d, meta, hasData, gosterilen),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -254,7 +256,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
   ) {
     if (durum == RadarEkranDurumu.loading) {
       return ListView(
-        children: const [
+        children: [
           SizedBox(height: 40),
           Center(child: CircularProgressIndicator(color: AppColors.primary)),
         ],
@@ -653,7 +655,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         // Sıralama
         Row(
           children: [
-            const Text(
+            Text(
               'Sıralama',
               style: TextStyle(
                 color: AppColors.textMuted,
@@ -678,7 +680,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         const SizedBox(height: 10),
 
         if (suzulmus.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 20),
             child: Text(
               'Bu süzgeçle maç yok.',
@@ -738,9 +740,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
             onGunSec: gunSec,
           ),
           const SizedBox(height: 24),
-          const Center(
-            child: CircularProgressIndicator(color: AppColors.primary),
-          ),
+          Center(child: CircularProgressIndicator(color: AppColors.primary)),
         ],
       ),
       error: (e, _) => ListView(
@@ -748,7 +748,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         children: [
           Text(
             '${oynanma ? 'Oynanma' : 'Oran'} verisi okunamadı: $e',
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 11.5),
+            style: TextStyle(color: AppColors.textMuted, fontSize: 11.5),
           ),
         ],
       ),
@@ -814,7 +814,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
           meta['round'] != null
               ? '${meta['round']} · Radar Merkezi'
               : 'Radar Merkezi',
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 17,
             fontWeight: AppFont.black,
@@ -834,7 +834,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
               '${fmtClock(meta['sealedAt'] ?? meta['frozenAt'])} itibarıyla '
               'kilitlendi — sonuçlar gelse de bu görüntü değişmez'
               '${meta['shortHash'] != null ? ' · Doğrulama #${meta['shortHash']}' : ''}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 10.5,
                 fontWeight: AppFont.bold,
@@ -856,7 +856,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         horizontal: Spacing.md,
         vertical: Spacing.sm,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
@@ -898,7 +898,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         (k: 'r2', label: 'Radar 2', sub: 'xG görünümü'),
       ];
       return Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.bgAlt,
           border: Border(bottom: BorderSide(color: AppColors.border)),
         ),
@@ -920,7 +920,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
     }
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.bgAlt,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),

@@ -218,12 +218,12 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                         TextSpan(text: '$kBrandLine1 '),
                         TextSpan(
                           text: kBrandLine2,
-                          style: const TextStyle(color: AppColors.accent),
+                          style: TextStyle(color: AppColors.accent),
                         ),
                       ],
                     ),
-                    style: const TextStyle(
-                      color: AppColors.white,
+                    style: TextStyle(
+                      color: AppColors.onPrimary,
                       fontSize: 20,
                       fontWeight: AppFont.black,
                     ),
@@ -283,7 +283,7 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                         borderRadius: AppRadius.mdR,
                       ),
                       child: _busy
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
@@ -291,7 +291,7 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                                 color: AppColors.bg,
                               ),
                             )
-                          : const Text(
+                          : Text(
                               '🫆  Kilidi Aç',
                               style: TextStyle(
                                 color: AppColors.bg,

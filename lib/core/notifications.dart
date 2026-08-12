@@ -97,7 +97,11 @@ String? _haftaAdi(Map? bulletin) {
   return null;
 }
 
-typedef NotifTarget = ({String tab, String? screen, Map<String, dynamic>? params});
+typedef NotifTarget = ({
+  String tab,
+  String? screen,
+  Map<String, dynamic>? params,
+});
 typedef NotifItem = ({
   String id,
   String kind,
@@ -278,9 +282,10 @@ Map<String, dynamic> nextState({
 }
 
 /// İlk açılışta geçmişe dönük bildirim yağmuru olmasın diye başlangıç durumu.
-Map<String, dynamic> seedState({
-  int now = 0,
-  Map? bulletin,
-  Map? progress,
-}) =>
-    nextState(now: now, state: const {}, bulletin: bulletin, progress: progress);
+Map<String, dynamic> seedState({int now = 0, Map? bulletin, Map? progress}) =>
+    nextState(
+      now: now,
+      state: const {},
+      bulletin: bulletin,
+      progress: progress,
+    );

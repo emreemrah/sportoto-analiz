@@ -21,7 +21,8 @@ import 'package:flutter/material.dart';
 import '../../core/theme/tokens.dart';
 import '../../widgets/app_ui.dart';
 
-const Map<String, Color> _roomColors = {
+// GETTER, `final` DEĞİL: takım teması `AppColors`ı çalışma zamanında değiştirir.
+Map<String, Color> get _roomColors => {
   'primary': AppColors.primary,
   'info': AppColors.info,
   'warning': AppColors.warning,
@@ -38,13 +39,10 @@ const List<({String key, String label})> _tabs = [
 /// Gerçek topluluk verisi backend'e bağlanınca doldurulacak.
 const List<Map<String, dynamic>> _posts = [];
 
-const List<({
-  String title,
-  String subtitle,
-  IconData icon,
-  String badge,
-  String tone,
-})> _quickRooms = [
+const List<
+  ({String title, String subtitle, IconData icon, String badge, String tone})
+>
+_quickRooms = [
   (
     title: 'Bülten Sohbeti',
     subtitle: 'Güncel maç listesi, eksik veri, saat kontrolü',
@@ -92,7 +90,6 @@ class _ForumScreenState extends State<ForumScreen> {
         : _posts.where((p) => p['type'] == _activeTab).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
       appBar: AppBar(title: const Text('Topluluk')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
@@ -108,7 +105,7 @@ class _ForumScreenState extends State<ForumScreen> {
             'Kullanıcı uygulamayı açınca aradığı konuya tek dokunuşla girsin.',
           ),
           _odaIzgarasi(),
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: Spacing.md),
             child: Text(
               'Odalar henüz açılmadı — topluluk özellikleri hazır olduğunda burada '
@@ -199,11 +196,7 @@ class _ForumScreenState extends State<ForumScreen> {
                 color: AppColors.darkCardSoft,
                 borderRadius: BorderRadius.circular(AppRadius.xl),
               ),
-              child: const Icon(
-                Icons.people,
-                size: 30,
-                color: AppColors.white,
-              ),
+              child: const Icon(Icons.people, size: 30, color: AppColors.white),
             ),
           ],
         ),
@@ -266,7 +259,7 @@ class _ForumScreenState extends State<ForumScreen> {
       children: [
         Text(
           baslik,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: AppFont.lg,
             fontWeight: AppFont.heavy,
@@ -276,10 +269,7 @@ class _ForumScreenState extends State<ForumScreen> {
           padding: const EdgeInsets.only(top: 2),
           child: Text(
             altBaslik,
-            style: const TextStyle(
-              color: AppColors.textSoft,
-              fontSize: AppFont.sm,
-            ),
+            style: TextStyle(color: AppColors.textSoft, fontSize: AppFont.sm),
           ),
         ),
       ],
@@ -320,14 +310,16 @@ class _ForumScreenState extends State<ForumScreen> {
                             size: 22,
                             color: _roomColors[r.tone] ?? AppColors.primary,
                           ),
-                          Flexible(child: Pill(label: r.badge, tone: r.tone)),
+                          Flexible(
+                            child: Pill(label: r.badge, tone: r.tone),
+                          ),
                         ],
                       ),
                       Padding(
                         padding: const EdgeInsets.only(top: Spacing.lg),
                         child: Text(
                           r.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.text,
                             fontSize: AppFont.md,
                             fontWeight: AppFont.heavy,
@@ -338,7 +330,7 @@ class _ForumScreenState extends State<ForumScreen> {
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           r.subtitle,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textSoft,
                             fontSize: AppFont.sm,
                           ),
@@ -441,47 +433,46 @@ class _ForumScreenState extends State<ForumScreen> {
     String altBaslik,
     String rozet,
     String ton,
-  ) =>
-      Container(
-        padding: const EdgeInsets.symmetric(vertical: Spacing.md),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppColors.border)),
+  ) => Container(
+    padding: const EdgeInsets.symmetric(vertical: Spacing.md),
+    decoration: BoxDecoration(
+      border: Border(bottom: BorderSide(color: AppColors.border)),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(right: Spacing.md),
+          child: Icon(icon, size: 22, color: renk),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(right: Spacing.md),
-              child: Icon(icon, size: 22, color: renk),
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    baslik,
-                    style: const TextStyle(
-                      color: AppColors.text,
-                      fontSize: AppFont.md,
-                      fontWeight: AppFont.bold,
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 3),
-                    child: Text(
-                      altBaslik,
-                      style: const TextStyle(
-                        color: AppColors.textSoft,
-                        fontSize: AppFont.sm,
-                      ),
-                    ),
-                  ),
-                ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                baslik,
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: AppFont.md,
+                  fontWeight: AppFont.bold,
+                ),
               ),
-            ),
-            const SizedBox(width: Spacing.sm),
-            Pill(label: rozet, tone: ton),
-          ],
+              Padding(
+                padding: const EdgeInsets.only(top: 3),
+                child: Text(
+                  altBaslik,
+                  style: TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: AppFont.sm,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      );
+        const SizedBox(width: Spacing.sm),
+        Pill(label: rozet, tone: ton),
+      ],
+    ),
+  );
 }

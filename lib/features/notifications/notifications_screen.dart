@@ -67,7 +67,8 @@ String zamanMetni(int ms) {
   return '${p(d.day)}.${p(d.month)}';
 }
 
-const Map<String, ({Color bg, Color br})> _ton = {
+// GETTER, `final` DEĞİL: `primarySoft`/`primary` takım temasıyla değişir.
+Map<String, ({Color bg, Color br})> get _ton => {
   'match-starting': (bg: AppColors.warningSoft, br: AppColors.warning),
   'result-official': (bg: AppColors.successSoft, br: AppColors.success),
   'new-round': (bg: AppColors.infoSoft, br: AppColors.info),
@@ -214,8 +215,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       _testBilgi = r != null && r.ok
           ? 'Test bildirimi kuruldu; $dk dakika sonra telefonunda görünecek. Görmezsen telefon ayarlarından bu uygulamanın bildirimlerini kontrol et.'
           : r?.neden == 'izin'
-              ? 'Bildirim izni olmadığı için test kurulamadı.'
-              : 'Test bildirimi kurulamadı: işletim sistemi zamanlamayı kabul etmedi.';
+          ? 'Bildirim izni olmadığı için test kurulamadı.'
+          : 'Test bildirimi kurulamadı: işletim sistemi zamanlamayı kabul etmedi.';
     });
     _pushDurumOku();
   }
@@ -256,8 +257,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       oldu = false;
     }
     if (!oldu && mounted) {
-      setState(() => _pushBilgi =
-          'Ayarlar ekranı açılamadı. Telefon ayarları → Uygulamalar → bu uygulama → Bildirimler yolunu izleyebilirsin.');
+      setState(
+        () => _pushBilgi =
+            'Ayarlar ekranı açılamadı. Telefon ayarları → Uygulamalar → bu uygulama → Bildirimler yolunu izleyebilirsin.',
+      );
     }
   }
 
@@ -285,8 +288,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           coupons: girdi.coupons,
         );
         if (s.durum == 'eksik' && mounted) {
-          setState(() => _pushBilgi =
-              'Planlanan ${s.plan} hatırlatmanın ${s.dogrulanan} tanesi cihazda doğrulanabildi; kalanı işletim sistemi kabul etmedi.');
+          setState(
+            () => _pushBilgi =
+                'Planlanan ${s.plan} hatırlatmanın ${s.dogrulanan} tanesi cihazda doğrulanabildi; kalanı işletim sistemi kabul etmedi.',
+          );
         }
       }
     } catch (_) {
@@ -300,7 +305,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final yol = switch (t.screen) {
       'Bulletin' => '/bulten',
       'LiveMatchDetail' => '/bulten/mac/${t.params?['no']}',
-      'WeekRecap' => '/ana-sayfa/hafta-kapanisi?roundId=${t.params?['roundId']}',
+      'WeekRecap' =>
+        '/ana-sayfa/hafta-kapanisi?roundId=${t.params?['roundId']}',
       _ => null,
     };
     if (yol != null) context.go(yol);
@@ -312,7 +318,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final destek = p?.destek == true;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
       appBar: AppBar(title: const Text('Bildirimler')),
       body: RefreshIndicator(
         color: AppColors.primary,
@@ -328,7 +333,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             _hero(),
             _pushKarti(p, destek),
             if (_loading)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: Spacing.lg),
                 child: Text(
                   'Yükleniyor…',
@@ -346,7 +351,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               )
             else
               for (final n in _items) _satir(n),
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: Spacing.md),
               child: Text(
                 'Yukarıdaki liste uygulama açıldığında hesaplanır. Telefona düşen '
@@ -362,7 +367,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               ),
             ),
             // Destek hattı cümlesi kaldırıldı (kullanıcı kararı, 2 Ağustos 2026).
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 6),
               child: Text(
                 '18 yaş altı kullanamaz. Bu uygulama analiz ve karar desteği sunar.',
@@ -377,36 +382,36 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   }
 
   Widget _hero() => Container(
-        margin: const EdgeInsets.only(bottom: Spacing.md),
-        padding: const EdgeInsets.all(Spacing.md),
-        decoration: BoxDecoration(
-          color: const Color(0xFF132244),
-          borderRadius: AppRadius.lgR,
+    margin: const EdgeInsets.only(bottom: Spacing.md),
+    padding: const EdgeInsets.all(Spacing.md),
+    decoration: BoxDecoration(
+      color: const Color(0xFF132244),
+      borderRadius: AppRadius.lgR,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '🔔 Bildirimler',
+          style: TextStyle(
+            color: AppColors.white,
+            fontSize: 18,
+            fontWeight: AppFont.black,
+          ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '🔔 Bildirimler',
-              style: TextStyle(
-                color: AppColors.white,
-                fontSize: 18,
-                fontWeight: AppFont.black,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Yalnız gerçekleşmiş olaylar listelenir: yeni bülten, kuponundaki maçın '
-              'başlaması, resmî sonuçların açıklanması ve sunucunun doğruladığı puan.',
-              style: TextStyle(
-                color: AppColors.white.withValues(alpha: 0.82),
-                fontSize: 12,
-                height: 17 / 12,
-              ),
-            ),
-          ],
+        const SizedBox(height: 6),
+        Text(
+          'Yalnız gerçekleşmiş olaylar listelenir: yeni bülten, kuponundaki maçın '
+          'başlaması, resmî sonuçların açıklanması ve sunucunun doğruladığı puan.',
+          style: TextStyle(
+            color: AppColors.white.withValues(alpha: 0.82),
+            fontSize: 12,
+            height: 17 / 12,
+          ),
         ),
-      );
+      ],
+    ),
+  );
 
   Widget _pushKarti(PushDurumOzet? p, bool destek) {
     final acik = p?.acik == true;
@@ -425,7 +430,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -486,11 +491,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             ),
           if (_pushBilgi.isNotEmpty) _bilgi(_pushBilgi),
           if (destek && !acik && _ayarOner)
-            _altDugme(
-              '⚙️ Telefon bildirim ayarlarını aç',
-              false,
-              _ayarlaraGit,
-            ),
+            _altDugme('⚙️ Telefon bildirim ayarlarını aç', false, _ayarlaraGit),
 
           // TEST BİLDİRİMİ — gerçek kanal, gerçek zamanlama, 1 dakika sonrası.
           // İçinde tahmin, seçim, skor, puan veya hesap bilgisi YOKTUR.
@@ -509,8 +510,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   ),
                   child: Text(
                     _testMesgul ? 'Kuruluyor…' : '🔔 Test bildirimi gönder',
-                    style: const TextStyle(
-                      color: AppColors.white,
+                    style: TextStyle(
+                      color: AppColors.onPrimary,
                       fontSize: 13,
                       fontWeight: AppFont.black,
                     ),
@@ -531,13 +532,13 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             Container(
               margin: const EdgeInsets.only(top: Spacing.md),
               padding: const EdgeInsets.only(top: Spacing.sm),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.border)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     '🧪 GELİŞTİRME — yayın sürümünde görünmez',
                     style: TextStyle(
                       color: AppColors.muted,
@@ -570,60 +571,60 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   }
 
   Widget _not(String metin) => Padding(
-        padding: const EdgeInsets.only(top: 8),
-        child: Text(
-          metin,
-          style: const TextStyle(
-            color: AppColors.muted,
-            fontSize: 11.5,
-            height: 16 / 11.5,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.only(top: 8),
+    child: Text(
+      metin,
+      style: TextStyle(
+        color: AppColors.muted,
+        fontSize: 11.5,
+        height: 16 / 11.5,
+      ),
+    ),
+  );
 
   Widget _bilgi(String metin) => Container(
-        margin: const EdgeInsets.only(top: 8),
-        padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 9),
+    margin: const EdgeInsets.only(top: 8),
+    padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 9),
+    decoration: BoxDecoration(
+      color: AppColors.primarySoft,
+      borderRadius: AppRadius.smR,
+    ),
+    child: Text(
+      metin,
+      style: TextStyle(
+        color: AppColors.text,
+        fontSize: 11.5,
+        height: 16 / 11.5,
+        fontWeight: AppFont.bold,
+      ),
+    ),
+  );
+
+  Widget _altDugme(String metin, bool mesgul, VoidCallback onTap) => Opacity(
+    opacity: mesgul ? 0.6 : 1,
+    child: GestureDetector(
+      onTap: mesgul ? null : onTap,
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.primarySoft,
-          borderRadius: AppRadius.smR,
+          color: AppColors.surfaceSoft,
+          borderRadius: AppRadius.mdR,
+          border: Border.all(color: AppColors.border),
         ),
         child: Text(
           metin,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
-            fontSize: 11.5,
-            height: 16 / 11.5,
-            fontWeight: AppFont.bold,
+            fontSize: 12.5,
+            fontWeight: AppFont.black,
           ),
         ),
-      );
-
-  Widget _altDugme(String metin, bool mesgul, VoidCallback onTap) => Opacity(
-        opacity: mesgul ? 0.6 : 1,
-        child: GestureDetector(
-          onTap: mesgul ? null : onTap,
-          child: Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(top: 10),
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceSoft,
-              borderRadius: AppRadius.mdR,
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Text(
-              metin,
-              style: const TextStyle(
-                color: AppColors.text,
-                fontSize: 12.5,
-                fontWeight: AppFont.black,
-              ),
-            ),
-          ),
-        ),
-      );
+      ),
+    ),
+  );
 
   Widget _satir(NotifItem n) {
     final ton =
@@ -648,7 +649,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 children: [
                   Text(
                     n.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.text,
                       fontSize: 14,
                       fontWeight: AppFont.black,
@@ -658,7 +659,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
                       n.body,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textSoft,
                         fontSize: 12.5,
                         height: 17 / 12.5,
@@ -669,7 +670,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       zamanMetni(n.at),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.muted,
                         fontSize: 11,
                         fontWeight: AppFont.bold,
@@ -680,7 +681,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               ),
             ),
             const SizedBox(width: 10),
-            const Text(
+            Text(
               '›',
               style: TextStyle(
                 color: AppColors.muted,

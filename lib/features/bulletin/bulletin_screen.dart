@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/brand.dart';
+import '../../core/bulten_gunleri.dart';
 import '../../core/coupon/coupon_eval.dart';
 import '../../core/coupon/coupon_store.dart';
 import '../../core/prefs.dart';
@@ -30,6 +31,7 @@ import '../../widgets/app_ui.dart';
 import '../../widgets/score_legend.dart';
 import '../../widgets/snapshot_seal_banner.dart';
 import 'bulletin_format.dart';
+import 'bulten_tarih_seridi.dart';
 import '../live/live_match_detail_screen.dart';
 import '../match_detail/gecmis_mac_detay_screen.dart';
 import 'bulletin_providers.dart';
@@ -37,6 +39,7 @@ import 'history_controller.dart';
 import 'history_match_card.dart';
 import 'live_bulletin_view.dart';
 import 'prize_section.dart';
+import '../../widgets/takim_logo_zemin.dart';
 
 /// Maç başlamış mı? Sonucu/skoru var VEYA maç saati geçmiş
 /// (görüntüleme anında hesaplanır).
@@ -56,6 +59,9 @@ class BulletinScreen extends ConsumerStatefulWidget {
 }
 
 class _BulletinScreenState extends ConsumerState<BulletinScreen> {
+  /// Gün şeridinde seçili gün; null = süzgeç kapalı (bültenin tamamı).
+  String? _seciliGun;
+
   Timer? _canliZamanlayici;
   bool _sezonAcik = false;
 
@@ -120,74 +126,78 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
     });
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        bottom: false,
-        child: bulletinAsync.when(
-          // İlk yükleme: hiç veri yokken tam ekran bekleme
-          loading: () => const _Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(color: AppColors.primary),
-                SizedBox(height: 12),
-                Text(
-                  'Bülten yükleniyor…',
-                  style: TextStyle(color: AppColors.textMuted, fontSize: 12.5),
-                ),
-              ],
+      body: filigranli(
+        SafeArea(
+          bottom: false,
+          child: bulletinAsync.when(
+            // İlk yükleme: hiç veri yokken tam ekran bekleme
+            loading: () => _Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: AppColors.primary),
+                  SizedBox(height: 12),
+                  Text(
+                    'Bülten yükleniyor…',
+                    style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          error: (e, _) => _Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('⚠️', style: TextStyle(fontSize: 34)),
-                const SizedBox(height: 10),
-                const Text(
-                  'Güncel başlamamış haftalık program alınamadı.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppColors.text,
-                    fontSize: 15,
-                    fontWeight: AppFont.heavy,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$e',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 12.5,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                GestureDetector(
-                  onTap: () => ref.invalidate(bulletinProvider),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 9,
+            error: (e, _) => _Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('⚠️', style: TextStyle(fontSize: 34)),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Güncel başlamamış haftalık program alınamadı.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.text,
+                      fontSize: 15,
+                      fontWeight: AppFont.heavy,
                     ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: AppRadius.smR,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$e',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12.5,
                     ),
-                    child: const Text(
-                      'Tekrar Dene',
-                      style: TextStyle(
-                        color: AppColors.white,
-                        fontSize: 13,
-                        fontWeight: AppFont.heavy,
+                  ),
+                  const SizedBox(height: 14),
+                  GestureDetector(
+                    onTap: () => ref.invalidate(bulletinProvider),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 9,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: AppRadius.smR,
+                      ),
+                      child: Text(
+                        'Tekrar Dene',
+                        style: TextStyle(
+                          color: AppColors.onPrimary,
+                          fontSize: 13,
+                          fontWeight: AppFont.heavy,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+            data: (data) => _icerik(data, rounds, selectedId),
           ),
-          data: (data) => _icerik(data, rounds, selectedId),
         ),
       ),
     );
@@ -355,9 +365,26 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
         ?int.tryParse(e.key): e.value,
     };
 
+    // GÜN ŞERİDİ (kullanıcı isteği, 2026-08-11): günler bültenin KENDİ maç
+    // tarihlerinden türetilir; maçı olmayan gün çizilmez. Varsayılan seçim
+    // YOK ("Tümü") — bülten açılışta bugüne kadar hep 15 maçı birden
+    // gösteriyordu, süzgeç kullanıcının dokunuşuyla devreye girer.
+    final gunler = bultenGunleri(currentMatches);
+    final gosterilenMaclar = filtreleGune(currentMatches, _seciliGun);
+
     return LiveBulletinView(
-      header: header,
-      matches: currentMatches,
+      header: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          header,
+          BultenTarihSeridi(
+            gunler: gunler,
+            secili: _seciliGun,
+            onSec: (g) => setState(() => _seciliGun = g),
+          ),
+        ],
+      ),
+      matches: gosterilenMaclar,
       subtitle: subtitle,
       userPicks: userPicks,
       aktarimlar: aktarimlar,
@@ -410,7 +437,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
       return Column(
         children: [
           header,
-          const Expanded(
+          Expanded(
             child: _Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -521,7 +548,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                     ),
                     child: Row(
                       children: [
-                        const SizedBox(
+                        SizedBox(
                           width: 14,
                           height: 14,
                           child: CircularProgressIndicator(
@@ -574,7 +601,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                     ),
                   ),
                 if (sirali.isEmpty)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: 24),
                     child: Text(
                       'Bu haftanın maç listesi bulunamadı.',
@@ -633,7 +660,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
         vertical: Spacing.md,
         horizontal: Spacing.md,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.card,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
@@ -655,7 +682,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                             ? _sezonChip(roundYear, navRounds, sezonlar)
                             : Text(
                                 sezonAdi(roundYear),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.textMuted,
                                   fontSize: 11,
                                   fontWeight: AppFont.bold,
@@ -664,7 +691,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                       Text(
                         'Haftalık Bülten · $roundName',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.text,
                           fontSize: 18,
                           fontWeight: AppFont.heavy,
@@ -675,7 +702,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                         Text(
                           subtitle,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textMuted,
                             fontSize: 12.5,
                           ),
@@ -732,7 +759,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                   borderRadius: AppRadius.smR,
                   border: Border.all(color: AppColors.primary),
                 ),
-                child: const Text(
+                child: Text(
                   'Güncel Bültene Dön',
                   style: TextStyle(
                     color: AppColors.primary,
@@ -747,7 +774,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
           GestureDetector(
             onTap: () => context.push('/bulten/gecmis'),
             behavior: HitTestBehavior.opaque,
-            child: const Text(
+            child: Text(
               '📜 Bülten Geçmişi · Kilitli Analiz ›',
               style: TextStyle(
                 color: AppColors.primary,
@@ -761,7 +788,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
           Text(
             kLegalFooter,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textMuted,
               fontSize: 10,
               fontWeight: AppFont.semibold,
@@ -785,13 +812,13 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
             width: 40,
             height: 40,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.cardAlt,
               shape: BoxShape.circle,
             ),
             child: Text(
               arrow,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 24,
                 fontWeight: AppFont.black,
@@ -826,7 +853,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  Text(
                     'SEZON',
                     style: TextStyle(
                       color: AppColors.textMuted,
@@ -838,7 +865,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                   const SizedBox(width: 6),
                   Text(
                     sezonAdi(roundYear),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.text,
                       fontSize: 11.5,
                       fontWeight: AppFont.heavy,
@@ -847,10 +874,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                   const SizedBox(width: 4),
                   Text(
                     _sezonAcik ? '▲' : '▼',
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 9,
-                    ),
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 9),
                   ),
                 ],
               ),

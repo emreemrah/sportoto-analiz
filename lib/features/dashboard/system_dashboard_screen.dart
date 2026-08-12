@@ -39,7 +39,6 @@ class SystemDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.bg,
     appBar: AppBar(title: const Text('Analiz Detayı (Demo)')),
     body: ListView(
       padding: const EdgeInsets.all(Spacing.lg),

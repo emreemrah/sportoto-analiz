@@ -24,8 +24,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/auth.dart' as auth;
 import 'core/brand.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/takim_temasi.dart';
+import 'core/theme/tema_uygula.dart';
 import 'core/theme/tokens.dart';
 import 'features/bulletin/bulletin_screen.dart';
 import 'features/bulletin_history/bulletin_detail_screen.dart';
@@ -49,10 +52,12 @@ import 'features/profile/avatar_picker_screen.dart';
 import 'features/profile/blocked_users_screen.dart';
 import 'features/profile/delete_account_screen.dart';
 import 'features/profile/devices_screen.dart';
+import 'features/profile/kullanici_paneli.dart';
 import 'features/profile/premium_code_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/profile/security_settings_screen.dart';
 import 'features/profile/team_picker_screen.dart';
+import 'widgets/avatar.dart';
 import 'features/radar/radar_screen.dart';
 import 'features/security/biometric_lock_screen.dart';
 import 'features/week/week_recap_screen.dart';
@@ -341,33 +346,87 @@ class _MasterAnalizAppState extends State<MasterAnalizApp> {
       );
     }
 
-    return MaterialApp.router(
-      // Kaynakta `documentTitle` merkezî marka kaynağından besleniyordu;
-      // aynı sabit kullanılır — ekran adları başlığa SIZMAZ.
-      title: kAppName,
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      routerConfig: _router,
+    // TAKIM TEMASI (kullanıcı isteği, 2026-08-11): favori takım değişince
+    // uygulama YENİDEN BAŞLATILMADAN o takımın paletine geçer. Palet hem
+    // `ThemeData`ya (üst çubuk, zemin, ayırıcı) hem de ağaca (`TakimTemasi`)
+    // verilir; ikinci yol elle boyanan yüzeyler içindir.
+    return ValueListenableBuilder<auth.AuthState>(
+      valueListenable: auth.authState,
+      builder: (context, s, _) {
+        final palet = favoriTakimPaleti(s);
+
+        // YAPISAL RENK KAYNAĞINI ÇEVİR — `AppTheme` ve bütün ekranlar
+        // renkleri `AppColors`tan okur; palet oraya YAZILMADAN yalnız
+        // `ThemeData` değişir ve elle boyanan yüzeyler (bülten kartları,
+        // alt çubuk, yan menü) eski markada kalırdı. Çağrı `build` içinde,
+        // temanın kurulmasından ÖNCE: aynı karede iki kaynak da aynı paleti
+        // gösterir. Yan etki gibi durur ama idempotenttir ve `setState`
+        // tetiklemez.
+        temayiUygula(palet);
+
+        return MaterialApp.router(
+          // Kaynakta `documentTitle` merkezî marka kaynağından besleniyordu;
+          // aynı sabit kullanılır — ekran adları başlığa SIZMAZ.
+          title: kAppName,
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.takimli(palet),
+          routerConfig: _router,
+          // Rotalar, modallar ve alt sayfalar Navigator'ın altındadır; kabuk
+          // buraya takılınca hepsi aynı paleti görür.
+          builder: (context, child) => TakimTemasi(
+            palet: palet,
+            child: child ?? const SizedBox.shrink(),
+          ),
+        );
+      },
     );
   }
 }
 
-class _AnaKabuk extends StatelessWidget {
+class _AnaKabuk extends StatefulWidget {
   const _AnaKabuk({required this.shell});
 
   final StatefulNavigationShell shell;
 
   @override
+  State<_AnaKabuk> createState() => _AnaKabukState();
+}
+
+class _AnaKabukState extends State<_AnaKabuk> {
+  /// Paneli açmak Scaffold'un kendi işidir; ona ulaşmak için anahtar gerekir.
+  final _kabukAnahtari = GlobalKey<ScaffoldState>();
+
+  StatefulNavigationShell get shell => widget.shell;
+
+  void _paneliAc() => _kabukAnahtari.currentState?.openEndDrawer();
+
+  @override
   Widget build(BuildContext context) {
     final aktif = shell.currentIndex;
 
+    return ValueListenableBuilder<auth.AuthState>(
+      valueListenable: auth.authState,
+      builder: (context, s, _) => _kabuk(aktif, s.girisli && s.user != null),
+    );
+  }
+
+  Widget _kabuk(int aktif, bool girisli) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      key: _kabukAnahtari,
       body: shell,
+      // KULLANICI PANELİ — ekranın SAĞINDAN açılır. Arkasının kararması, panel
+      // dışına dokununca ve geri hareketiyle kapanması Scaffold'un kendi
+      // davranışıdır; elle kurulmuş bir kapatma mantığı yoktur.
+      endDrawer: const KullaniciPaneli(),
+      // YÜZEN ROZET KALDIRILDI (2026-08-11, kullanıcı: "profil resmi sağ
+      // alttaki mavi adamın oraya gelsin"): avatar artık alt çubuktaki Profil
+      // sekmesinin kendi ikonu. Aynı köşede aynı resmi iki kez göstermek
+      // tekrardı; panelin girişi tek ve beklenen yerde.
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.bgAlt,
-          border: Border(top: BorderSide(color: AppColors.border)),
+        // ALT MENÜ — yapısal yüzey; takım teması varsa onun yüzey rengi.
+        decoration: BoxDecoration(
+          color: context.temaYuzey,
+          border: Border(top: BorderSide(color: context.temaKenarlik)),
         ),
         child: SafeArea(
           top: false,
@@ -408,11 +467,24 @@ class _AnaKabuk extends StatelessWidget {
                       color: aktif == 3 ? AppColors.accent : AppColors.muted,
                     ),
                   ),
+                  // PROFİL SEKMESİ — giriş yapmış kullanıcıda Profil dalına
+                  // ATLAMAZ, sağdaki paneli açar (kullanıcı kararı). Profil
+                  // sayfasının tamamına panelin üstündeki kullanıcı kartından
+                  // geçilir. Girişsizken eski davranış korunur: dokunmak giriş
+                  // ekranını açar.
+                  //
+                  // İKON — giriş yapmışsa KULLANICININ KENDİ RESMİ (kullanıcı
+                  // isteği, 2026-08-11): sağ alttaki nötr silüetin yerini
+                  // avatar alır. Girişsizken silüet kalır; olmayan bir hesabın
+                  // resmi gösterilmez.
                   _sekme(
                     4,
                     aktif,
                     'Profil',
-                    _pngIkon('assets/tab-profile.png', aktif == 4),
+                    girisli
+                        ? _avatarIkon(aktif == 4)
+                        : _pngIkon('assets/tab-profile.png', aktif == 4),
+                    onTap: girisli ? _paneliAc : null,
                   ),
                 ],
               ),
@@ -429,20 +501,47 @@ class _AnaKabuk extends StatelessWidget {
     child: Image.asset(yol, width: 28, height: 28, fit: BoxFit.contain),
   );
 
-  Widget _sekme(int index, int aktif, String etiket, Widget ikon) {
+  /// Profil sekmesinin ikonu olarak kullanıcının kendi avatarı.
+  ///
+  /// Diğer sekmelerdeki %50 opaklık BURAYA UYGULANMAZ: kullanıcının resmini
+  /// soluklaştırmak onu "pasif" göstermek olurdu. Odak, ikonun etrafındaki
+  /// halkayla belirtilir — diğer sekmelerdeki accent vurgusunun karşılığı.
+  Widget _avatarIkon(bool odakta) => Container(
+    width: 28,
+    height: 28,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      border: Border.all(
+        color: odakta ? AppColors.accent : Colors.transparent,
+        width: 2,
+      ),
+    ),
+    child: const ProfileAvatar(size: 24),
+  );
+
+  Widget _sekme(
+    int index,
+    int aktif,
+    String etiket,
+    Widget ikon, {
+    VoidCallback? onTap,
+  }) {
     final odakta = index == aktif;
     return Expanded(
+      key: Key('alt-sekme-$etiket'),
       child: Semantics(
         button: true,
         selected: odakta,
         label: etiket,
         child: InkWell(
-          onTap: () => shell.goBranch(
-            index,
-            // popToTopOnBlur karşılığı: zaten açık sekmeye tekrar dokunmak
-            // o dalı köküne döndürür.
-            initialLocation: index == aktif,
-          ),
+          onTap:
+              onTap ??
+              () => shell.goBranch(
+                index,
+                // popToTopOnBlur karşılığı: zaten açık sekmeye tekrar dokunmak
+                // o dalı köküne döndürür.
+                initialLocation: index == aktif,
+              ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -455,7 +554,8 @@ class _AnaKabuk extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 10.5,
                   fontWeight: AppFont.heavy,
-                  color: odakta ? AppColors.accent : AppColors.textMuted,
+                  // SEÇİLİ SEKME — takım vurgusu.
+                  color: odakta ? context.temaVurgu : context.temaSolukMetin,
                 ),
               ),
             ],

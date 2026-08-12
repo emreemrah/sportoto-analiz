@@ -11,7 +11,9 @@ import '../core/theme/tokens.dart';
 class ScoreLegend extends StatelessWidget {
   const ScoreLegend({super.key});
 
-  static const _items = <({Color c, String l})>[
+  // GETTER, `static final` DEĞİL: `accent` takım temasıyla değişir; `final`
+  // liste ilk okunduğu renkte donardı.
+  static List<({Color c, String l})> get _items => [
     (c: AppColors.success, l: 'Resmi sonuç'),
     (c: AppColors.warning, l: 'Henüz resmi değil'),
     (c: AppColors.accent, l: 'Canlı'),
@@ -41,7 +43,7 @@ class ScoreLegend extends StatelessWidget {
               const SizedBox(width: 5),
               Text(
                 it.l,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 10.5,
                   fontWeight: AppFont.bold,

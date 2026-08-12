@@ -42,8 +42,8 @@ class PredictionBadge extends StatelessWidget {
     final c = bos
         ? AppColors.gray
         : (s == '102'
-            ? AppColors.red
-            : (s.length == 2 ? AppColors.yellow : AppColors.primary));
+              ? AppColors.red
+              : (s.length == 2 ? AppColors.yellow : AppColors.primary));
 
     return Container(
       constraints: BoxConstraints(minWidth: small ? 30 : 38),
@@ -98,7 +98,7 @@ class PercentBar extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 12,
                     fontWeight: AppFont.bold,
@@ -108,7 +108,7 @@ class PercentBar extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 '%$value',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.text,
                   fontSize: 12,
                   fontWeight: AppFont.heavy,
@@ -157,44 +157,44 @@ class DashboardChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(bottom: Spacing.sm),
-        padding: const EdgeInsets.all(Spacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: AppRadius.lgR,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (title != null && title!.isNotEmpty) ...[
-              Text(
-                title!,
-                style: const TextStyle(
-                  color: AppColors.text,
-                  fontSize: 14,
-                  fontWeight: AppFont.heavy,
-                ),
+    margin: const EdgeInsets.only(bottom: Spacing.sm),
+    padding: const EdgeInsets.all(Spacing.md),
+    decoration: BoxDecoration(
+      color: AppColors.card,
+      borderRadius: AppRadius.lgR,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (title != null && title!.isNotEmpty) ...[
+          Text(
+            title!,
+            style: TextStyle(
+              color: AppColors.text,
+              fontSize: 14,
+              fontWeight: AppFont.heavy,
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        if (rows.isNotEmpty)
+          for (final r in rows)
+            PercentBar(label: r.label, value: r.value, color: r.color)
+        else
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              emptyText ?? 'Henüz veri yok.',
+              style: TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
               ),
-              const SizedBox(height: 8),
-            ],
-            if (rows.isNotEmpty)
-              for (final r in rows)
-                PercentBar(label: r.label, value: r.value, color: r.color)
-            else
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  emptyText ?? 'Henüz veri yok.',
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      );
+            ),
+          ),
+      ],
+    ),
+  );
 }
 
 /// `components/MatchPredictionRow.js`
@@ -233,7 +233,7 @@ class MatchPredictionRow extends StatelessWidget {
                 child: Text(
                   '${match['orderNo'] ?? ''}',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 13,
                     fontWeight: AppFont.heavy,
@@ -249,7 +249,7 @@ class MatchPredictionRow extends StatelessWidget {
                       '$home - $away',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.text,
                         fontSize: 14,
                         fontWeight: AppFont.bold,
@@ -261,7 +261,7 @@ class MatchPredictionRow extends StatelessWidget {
                         '${match['league'] ?? ''} · ${d.day} ${d.time}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 11,
                         ),
@@ -271,10 +271,7 @@ class MatchPredictionRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: Spacing.sm),
-              PredictionBadge(
-                symbol: a?['prediction'] as String?,
-                small: true,
-              ),
+              PredictionBadge(symbol: a?['prediction'] as String?, small: true),
             ],
           ),
           if (a != null) ...[
@@ -316,7 +313,7 @@ class MatchPredictionRow extends StatelessWidget {
                   '$yorum',
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 11.5,
                     height: 16 / 11.5,
@@ -343,11 +340,7 @@ class MatchPredictionRow extends StatelessWidget {
 }
 
 class _Olcut extends StatelessWidget {
-  const _Olcut({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
+  const _Olcut({required this.label, required this.value, required this.color});
 
   final String label;
   final String value;
@@ -355,29 +348,29 @@ class _Olcut extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 10,
-              fontWeight: AppFont.bold,
-            ),
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: TextStyle(
+          color: AppColors.textMuted,
+          fontSize: 10,
+          fontWeight: AppFont.bold,
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.only(top: 1),
+        child: Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 13,
+            fontWeight: AppFont.black,
           ),
-          Padding(
-            padding: const EdgeInsets.only(top: 1),
-            child: Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontSize: 13,
-                fontWeight: AppFont.black,
-              ),
-            ),
-          ),
-        ],
-      );
+        ),
+      ),
+    ],
+  );
 }
 
 /// `components/ResultComparisonCard.js`
@@ -433,7 +426,7 @@ class ResultComparisonCard extends StatelessWidget {
             child: Text(
               '${orderNo ?? ''}',
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 12,
                 fontWeight: AppFont.heavy,
@@ -446,7 +439,7 @@ class ResultComparisonCard extends StatelessWidget {
               '$homeTeam - $awayTeam',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 13,
                 fontWeight: AppFont.bold,
@@ -491,29 +484,29 @@ class _Sutun extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: 38,
-        child: Column(
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 9,
-                fontWeight: AppFont.bold,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: 1),
-              child: Text(
-                value ?? '–',
-                style: TextStyle(
-                  color: highlight ? AppColors.text : AppColors.textMuted,
-                  fontSize: 13,
-                  fontWeight: highlight ? AppFont.black : AppFont.heavy,
-                ),
-              ),
-            ),
-          ],
+    width: 38,
+    child: Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: AppColors.textMuted,
+            fontSize: 9,
+            fontWeight: AppFont.bold,
+          ),
         ),
-      );
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Text(
+            value ?? '–',
+            style: TextStyle(
+              color: highlight ? AppColors.text : AppColors.textMuted,
+              fontSize: 13,
+              fontWeight: highlight ? AppFont.black : AppFont.heavy,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }

@@ -13,14 +13,13 @@ Map _mac({
   required int ga,
   required bool isHome,
   String? oppTier,
-}) =>
-    {
-      'result': result,
-      'gf': gf,
-      'ga': ga,
-      'isHome': isHome,
-      'oppTier': ?oppTier,
-    };
+}) => {
+  'result': result,
+  'gf': gf,
+  'ga': ga,
+  'isHome': isHome,
+  'oppTier': ?oppTier,
+};
 
 void main() {
   group('statsFromLog', () {
@@ -82,8 +81,11 @@ void main() {
       expect(tumu.n, 6);
       expect(tumu.w, 2);
 
-      final son5 =
-          statsFromLog(team, const StatFiltre(period: 'last5'), 'home')!;
+      final son5 = statsFromLog(
+        team,
+        const StatFiltre(period: 'last5'),
+        'home',
+      )!;
       expect(son5.n, 5);
       expect(son5.w, 2); // ilk iki galibiyet kesitin içinde
     });
@@ -96,19 +98,28 @@ void main() {
         ],
       };
 
-      final evTarafi =
-          statsFromLog(team, const StatFiltre(venueScope: 'split'), 'home')!;
+      final evTarafi = statsFromLog(
+        team,
+        const StatFiltre(venueScope: 'split'),
+        'home',
+      )!;
       expect(evTarafi.n, 1);
       expect(evTarafi.w, 1);
 
-      final depTarafi =
-          statsFromLog(team, const StatFiltre(venueScope: 'split'), 'away')!;
+      final depTarafi = statsFromLog(
+        team,
+        const StatFiltre(venueScope: 'split'),
+        'away',
+      )!;
       expect(depTarafi.n, 1);
       expect(depTarafi.l, 1);
 
       // 'home' seçilirse İKİ takım için de iç saha kesiti kullanılır.
-      final ikisiDeIcerde =
-          statsFromLog(team, const StatFiltre(venueScope: 'home'), 'away')!;
+      final ikisiDeIcerde = statsFromLog(
+        team,
+        const StatFiltre(venueScope: 'home'),
+        'away',
+      )!;
       expect(ikisiDeIcerde.n, 1);
       expect(ikisiDeIcerde.w, 1);
     });

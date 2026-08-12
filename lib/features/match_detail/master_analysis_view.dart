@@ -49,7 +49,7 @@ class _MasterAnalysisViewState extends ConsumerState<MasterAnalysisView> {
 
     return async.when(
       loading: () => _kutu(
-        child: const Column(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _Baslik(),
@@ -259,7 +259,7 @@ class _MasterAnalysisViewState extends ConsumerState<MasterAnalysisView> {
               children: [
                 Text(
                   humanizeVerdictText('${ms['summary']}') ?? '',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 12.5,
                     height: 19 / 12.5,
@@ -309,7 +309,7 @@ class _MasterAnalysisViewState extends ConsumerState<MasterAnalysisView> {
                   _showDetail
                       ? 'Kriter detaylarını gizle ▲'
                       : 'Kriter detaylarını göster ▼',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textSoft,
                     fontSize: 12,
                     fontWeight: AppFont.heavy,
@@ -341,7 +341,7 @@ class _MasterAnalysisViewState extends ConsumerState<MasterAnalysisView> {
         title: 'Ana tercihi destekleyenler (${anaSatirlar.length})',
         children: [
           if (anaSatirlar.isEmpty)
-            const Text('Bu yönü destekleyen kriter yok.', style: _mutedTxt)
+            Text('Bu yönü destekleyen kriter yok.', style: _mutedTxt)
           else
             for (final c in anaSatirlar.take(8)) _kriterSatiri(c, aile: true),
         ],
@@ -352,7 +352,7 @@ class _MasterAnalysisViewState extends ConsumerState<MasterAnalysisView> {
               '${_outName[o]} ($o) yönünü destekleyenler (${dirRows(o).length})',
           children: [
             if (dirRows(o).isEmpty)
-              const Text('Sinyal yok.', style: _mutedTxt)
+              Text('Sinyal yok.', style: _mutedTxt)
             else
               for (final c in dirRows(o).take(5)) _kriterSatiri(c),
           ],
@@ -400,7 +400,7 @@ class _MasterAnalysisViewState extends ConsumerState<MasterAnalysisView> {
     final dedup = c['familyDedupFactor'];
     return RichText(
       text: TextSpan(
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.textSoft,
           fontSize: 11.5,
           height: 17 / 11.5,
@@ -417,10 +417,7 @@ class _MasterAnalysisViewState extends ConsumerState<MasterAnalysisView> {
           if (aile && dedup is num && dedup < 1)
             TextSpan(
               text: ' (aile dengesi ×$dedup)',
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 10.5,
-              ),
+              style: TextStyle(color: AppColors.textMuted, fontSize: 10.5),
             ),
         ],
       ),
@@ -453,7 +450,7 @@ class _Baslik extends StatelessWidget {
   const _Baslik();
 
   @override
-  Widget build(BuildContext context) => const Text(
+  Widget build(BuildContext context) => Text(
     '🧠 Master Analiz',
     style: TextStyle(
       color: AppColors.text,
@@ -509,7 +506,7 @@ class _Section extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.only(top: Spacing.md),
     padding: const EdgeInsets.only(top: 8),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       border: Border(top: BorderSide(color: AppColors.border)),
     ),
     child: Column(
@@ -519,7 +516,7 @@ class _Section extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 6),
           child: Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 12.5,
               fontWeight: AppFont.black,
@@ -555,7 +552,7 @@ class _SupportBar extends StatelessWidget {
             child: Text(
               label,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 12.5,
                 fontWeight: AppFont.black,
@@ -605,14 +602,14 @@ class _AnaPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       color: AppColors.primary,
       borderRadius: AppRadius.pillR,
     ),
     child: Text(
       text,
-      style: const TextStyle(
-        color: AppColors.white,
+      style: TextStyle(
+        color: AppColors.onPrimary,
         fontSize: 13,
         fontWeight: AppFont.black,
       ),
@@ -627,13 +624,13 @@ class _AltPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       color: AppColors.cardAlt,
       borderRadius: AppRadius.pillR,
     ),
     child: Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.text,
         fontSize: 12.5,
         fontWeight: AppFont.heavy,
@@ -642,19 +639,19 @@ class _AltPill extends StatelessWidget {
   );
 }
 
-const TextStyle _mutedTxt = TextStyle(
+TextStyle _mutedTxt = TextStyle(
   color: AppColors.textMuted,
   fontSize: 12,
   height: 17 / 12,
 );
 
-const TextStyle _noteTxt = TextStyle(
+TextStyle _noteTxt = TextStyle(
   color: AppColors.textSoft,
   fontSize: 11.5,
   height: 16 / 11.5,
 );
 
-const TextStyle _tinyNote = TextStyle(
+TextStyle _tinyNote = TextStyle(
   color: AppColors.textMuted,
   fontSize: 10,
   height: 14 / 10,

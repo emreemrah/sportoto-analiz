@@ -55,7 +55,7 @@ class GunCekimBilgisi extends StatelessWidget {
       child: Text(
         '${d['label']} · '
         '${d['lastObservedLabel'] != null ? 'kaynaktan son çekim ${d['lastObservedLabel']}' : 'bu gün için kayıt alınamadı'}',
-        style: const TextStyle(
+        style: TextStyle(
           // Verinin yaşı — uyarı değil, olgu. Bu yüzden uyarı sarısı değil
           // sönük ton.
           color: AppColors.textMuted,
@@ -183,7 +183,7 @@ class OddsCounter extends StatelessWidget {
       child: Text(
         "${d['label']}: $toplam maçın $varOlan'inde oran var"
         '${varOlan < toplam ? ' · ${toplam - varOlan} maçta yok (sebebi satırında yazıyor)' : ''}',
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.textMuted,
           fontSize: 11.5,
           fontWeight: AppFont.bold,
@@ -197,7 +197,7 @@ Widget _not(String metin) => Padding(
   padding: const EdgeInsets.only(top: 8),
   child: Text(
     metin,
-    style: const TextStyle(
+    style: TextStyle(
       color: AppColors.textMuted,
       fontSize: 11.5,
       height: 16 / 11.5,
@@ -344,7 +344,7 @@ class RadarSekmePaneli extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               '— Bu radar bu hafta devre dışı',
               style: TextStyle(
                 color: AppColors.text,
@@ -356,7 +356,7 @@ class RadarSekmePaneli extends StatelessWidget {
               padding: const EdgeInsets.only(top: 4),
               child: Text(
                 '${items.firstOrNull?['note'] ?? 'Gerekli veri bulunamadı; skora katkısı yok.'}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textSoft,
                   fontSize: 11.5,
                   height: 16 / 11.5,

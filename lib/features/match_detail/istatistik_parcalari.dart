@@ -57,7 +57,7 @@ class H2hCell extends StatelessWidget {
             maxLines: 2,
             textAlign: TextAlign.center,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textMuted,
               fontSize: 10.5,
               fontWeight: AppFont.bold,
@@ -86,7 +86,7 @@ class InjuryCol extends StatelessWidget {
           title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 12.5,
             fontWeight: AppFont.black,
@@ -103,7 +103,7 @@ class InjuryCol extends StatelessWidget {
                     '🚑 ${(raw as Map)['name']}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.text,
                       fontSize: 12,
                       fontWeight: AppFont.semibold,
@@ -112,7 +112,7 @@ class InjuryCol extends StatelessWidget {
                   if (raw['reason'] != null)
                     Text(
                       '${raw['reason']}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 11,
                       ),
@@ -121,7 +121,7 @@ class InjuryCol extends StatelessWidget {
               ),
             )
         else
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 6),
             child: Text(
               'Bilinen eksik yok',
@@ -182,7 +182,7 @@ class SquadSection extends StatelessWidget {
                       '$title  ·  ${s.length} oyuncu',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.text,
                         fontSize: 13,
                         fontWeight: AppFont.black,
@@ -191,10 +191,7 @@ class SquadSection extends StatelessWidget {
                   ),
                   Text(
                     open ? '▲' : '▼',
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                   ),
                 ],
               ),
@@ -265,7 +262,7 @@ class SquadSection extends StatelessWidget {
                     '${p['name'] ?? ''}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.text,
                       fontSize: 12,
                       fontWeight: AppFont.semibold,
@@ -281,10 +278,7 @@ class SquadSection extends StatelessWidget {
               _posLong['${p['pos']}'] ?? '${p['pos'] ?? ''}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 11.5,
-              ),
+              style: TextStyle(color: AppColors.textMuted, fontSize: 11.5),
             ),
           ),
           _hucre('${p['age'] ?? '-'}', soluk: true),
@@ -331,7 +325,7 @@ class _Bh extends StatelessWidget {
   Widget build(BuildContext context) => Text(
     t,
     textAlign: orta ? TextAlign.center : TextAlign.left,
-    style: const TextStyle(
+    style: TextStyle(
       color: AppColors.textMuted,
       fontSize: 10.5,
       fontWeight: AppFont.black,
@@ -460,7 +454,7 @@ class _LeagueTableFullState extends State<LeagueTableFull> {
                 widget.league!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.text,
                   fontSize: 12.5,
                   fontWeight: AppFont.black,
@@ -486,8 +480,7 @@ class _LeagueTableFullState extends State<LeagueTableFull> {
                           color: t.key == active
                               ? AppColors.primary
                               : AppColors.bgAlt,
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.pill),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
                         child: Text(
                           t.label,
@@ -518,15 +511,11 @@ class _LeagueTableFullState extends State<LeagueTableFull> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        width: 3,
-                        height: 11,
-                        color: _zoneColor[z.key],
-                      ),
+                      Container(width: 3, height: 11, color: _zoneColor[z.key]),
                       const SizedBox(width: 5),
                       Text(
                         z.label,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 10,
                         ),
@@ -548,7 +537,7 @@ class _LeagueTableFullState extends State<LeagueTableFull> {
 
   Widget _baslikSatiri() => Container(
     padding: const EdgeInsets.symmetric(vertical: 6),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       border: Border(bottom: BorderSide(color: AppColors.border)),
     ),
     child: Row(
@@ -580,8 +569,8 @@ class _LeagueTableFullState extends State<LeagueTableFull> {
         color: isHome
             ? AppColors.primarySoft
             : (isAway
-                ? AppColors.warningSoft
-                : (idx % 2 == 1 ? AppColors.bgAlt : null)),
+                  ? AppColors.warningSoft
+                  : (idx % 2 == 1 ? AppColors.bgAlt : null)),
         border: Border(
           left: BorderSide(
             color: z != null ? _zoneColor[z]! : Colors.transparent,
@@ -597,7 +586,7 @@ class _LeagueTableFullState extends State<LeagueTableFull> {
             child: Text(
               '${r['position']}',
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 11,
                 fontWeight: AppFont.semibold,
@@ -608,7 +597,8 @@ class _LeagueTableFullState extends State<LeagueTableFull> {
             child: Row(
               children: [
                 TableLogo(
-                  logo: (r['logo'] as String?) ??
+                  logo:
+                      (r['logo'] as String?) ??
                       (isHome
                           ? widget.homeLogo
                           : (isAway ? widget.awayLogo : null)),
@@ -638,10 +628,7 @@ class _LeagueTableFullState extends State<LeagueTableFull> {
             child: Text(
               '${avNum >= 0 ? '+' : ''}$avNum',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 11,
-              ),
+              style: TextStyle(color: AppColors.textMuted, fontSize: 11),
             ),
           ),
           SizedBox(
@@ -649,7 +636,7 @@ class _LeagueTableFullState extends State<LeagueTableFull> {
             child: Text(
               '${r['points'] ?? ''}',
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 11.5,
                 fontWeight: AppFont.black,

@@ -228,11 +228,15 @@ void main() {
       final s = mapSnapshot(
         ornekSnap(),
         evalByMatchId: {
-          '77': {'correct': true, 'officialResult': '2', 'fullTimeScore': '0-1'},
+          '77': {
+            'correct': true,
+            'officialResult': '2',
+            'fullTimeScore': '0-1',
+          },
         },
       )!;
-      final ri = ((s['matchesAnalysis'] as List).first as Map)['resultInfo']
-          as Map;
+      final ri =
+          ((s['matchesAnalysis'] as List).first as Map)['resultInfo'] as Map;
       // Yerel karşılaştırma '1' vs '2' → yanlış derdi; sunucu "doğru" dedi.
       expect(ri['systemCorrect'], isTrue);
     });
@@ -244,8 +248,8 @@ void main() {
           '77': {'officialResult': 'X', 'fullTimeScore': '1-1'},
         },
       )!;
-      final ri = ((s['matchesAnalysis'] as List).first as Map)['resultInfo']
-          as Map;
+      final ri =
+          ((s['matchesAnalysis'] as List).first as Map)['resultInfo'] as Map;
       expect(ri['systemCorrect'], isTrue);
       expect(ri['errorNote'], isNull);
     });
@@ -257,8 +261,8 @@ void main() {
           '77': {'officialResult': '2', 'fullTimeScore': '0-2'},
         },
       )!;
-      final ri = ((s['matchesAnalysis'] as List).first as Map)['resultInfo']
-          as Map;
+      final ri =
+          ((s['matchesAnalysis'] as List).first as Map)['resultInfo'] as Map;
       expect(ri['systemCorrect'], isFalse);
       expect(ri['errorNote'], 'Sistem 1 bekliyordu, resmî sonuç 2 geldi.');
       expect(ri['errorTag'], isNull);

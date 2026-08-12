@@ -92,10 +92,7 @@ typedef BildirimIcerik = ({
 /// yoldan üretilmiş olmaz. Gövdede yalnız maç numarası, takım adları ve saat
 /// bulunur — tahmin, kupon seçimi, kullanıcı, e-posta ya da oturum bilgisi
 /// geçmez.
-BildirimIcerik macBildirimIcerigi(
-  MacBilgisi g, {
-  String baslik = kMacBaslik,
-}) =>
+BildirimIcerik macBildirimIcerigi(MacBilgisi g, {String baslik = kMacBaslik}) =>
     (
       // Not: "başlıyor" haber cümlesidir; tahmin ya da tavsiye içermez.
       title: baslik,
@@ -153,9 +150,7 @@ typedef Atlanan = ({int saatYok, int gecmis, int basladi, int sinir});
     if (no == null || !secili.contains(no)) continue;
 
     // Başlamış ya da resmîleşmiş maça hatırlatma kurulmaz.
-    if (m?['status'] == 'finished' ||
-        m?['status'] == 'live' ||
-        isOfficial(m)) {
+    if (m?['status'] == 'finished' || m?['status'] == 'live' || isOfficial(m)) {
       basladi += 1;
       continue;
     }

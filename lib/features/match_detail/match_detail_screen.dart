@@ -1,8 +1,23 @@
 // KAYNAK: app/src/screens/MatchDetailScreen.js (1142 satır)
 //
-// ÇEVRİLEN: ekran iskeleti, MatchHeader, 5 sekmeli çubuk, **Özet sekmesinin
+// ÇEVRİLEN: ekran iskeleti, MatchHeader, sekmeli çubuk, **Özet sekmesinin
 // tamamı**, **Analiz sekmesi** (MasterAnalysisView + KriterBasariListesi →
-// KriterKirilimScreen) ve **Radar sekmesi** (MacRadarPaneli · Radar 3/4).
+// KriterKirilimScreen) ve radar sekmeleri.
+//
+// ═══════ SEKME DÜZENİ YENİLENDİ (kullanıcı isteği, 2026-08-11) ═════════════
+// Eski tek 'Radar' sekmesi KALDIRILDI; yerine üç ayrı sekme geldi:
+//   Oynanma Yüzdeleri (Radar 3) · Oran Takibi (Radar 4) · Bülten Sırası (R5)
+// Üçü de YALNIZ açılan maçın verisini gösterir (haftanın 15 maçı değil).
+// Sekme sırası: Özet · Analiz · İstatistik · Oynanma Yüzdeleri · Oran Takibi ·
+// Bülten Sırası · Yorumlar. Katalog `mac_detay_sekmeleri.dart` içinde.
+//
+// ANA RADAR EKRANI BU DEĞİŞİKLİKTEN ETKİLENMEZ: `features/radar/` altındaki
+// hiçbir ekran/işlev kaldırılmadı; buradaki paneller o ekranın BİLEŞENLERİNİ
+// yeniden kullanır (kopya bileşen ve ikinci bir hesap yazılmadı).
+//
+// GEÇİŞ: sekme başlığına dokunarak VEYA içerik alanını sağa-sola kaydırarak.
+// İkisi de aynı `TabController`'a bağlı olduğu için seçili başlık içerikle
+// kendiliğinden eşleşir — elle senkron tutulan bir durum yoktur.
 //
 // POLLS (app/src/Polls.js · 348 satır) BİLEREK ÇEVRİLMEDİ — kaynakta ÖLÜ KOD:
 // hiçbir dosya `PollsSection`'ı içe aktarmıyor ve kendi bağımlılığı olan
@@ -25,16 +40,23 @@ import '../../core/utils.dart';
 import '../../widgets/app_ui.dart';
 import '../../widgets/form_strip.dart';
 import '../../widgets/match_header.dart';
+// AppTabs artık kullanılmıyor (maç detayının kendi çubuğu var) ama Özet
+// sekmesindeki Accordion ve SurpriseBadge aynı dosyadan geliyor.
 import '../../widgets/tabs.dart';
 import 'comments_section.dart';
 import 'coupon_pick_block.dart';
 import 'istatistik_tab.dart';
 import 'kriter_basari_listesi.dart';
+import 'mac_bulten_sirasi_paneli.dart';
+import 'mac_detay_sekme_ayarlari.dart';
+import 'mac_detay_sekmeleri.dart';
 import 'mac_radar_paneli.dart';
+import 'mac_sonuc_anketi.dart';
 import 'master_analysis_view.dart';
 import 'match_detail_text.dart';
 import 'match_info_card.dart';
 import 'takim_fikstur_modal.dart';
+import '../../widgets/takim_logo_zemin.dart';
 
 /// Hangi sekme dalındayız? Kriter Kırılımı rotası HER dala ayrı kayıtlı
 /// olduğu için (kaynaktaki sessiz-başarısızlık tuzağı), gezinirken bulunduğun
@@ -44,22 +66,6 @@ String _dalKoku(BuildContext context) {
   final ilk = yol.split('/').where((p) => p.isNotEmpty).firstOrNull;
   return '/${ilk ?? 'bulten'}';
 }
-
-const List<String> _kTabs = [
-  'Özet',
-  'Analiz',
-  'İstatistik',
-  'Radar',
-  'Yorumlar',
-];
-
-const Map<String, String> _kTabIcons = {
-  'Özet': '🕐',
-  'Analiz': '📈',
-  'İstatistik': '📊',
-  'Radar': '🎯',
-  'Yorumlar': '💬',
-};
 
 /// `api.match(no)` — maç detayı.
 final matchProvider = FutureProvider.autoDispose
@@ -78,35 +84,85 @@ class MatchDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<MatchDetailScreen> createState() => _MatchDetailScreenState();
 }
 
-class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
-  late String _tab = widget.initialTab ?? 'Özet';
+class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
+    with TickerProviderStateMixin {
+  late List<MacDetaySekme> _sekmeler;
+  late TabController _tc;
+
+  @override
+  void initState() {
+    super.initState();
+    _sekmeler = macDetayGorunurSekmeler();
+    _tc = _denetleyiciKur(_baslangicIndeksi());
+  }
+
+  /// Rotadan gelen `?tab=` adı. Tanınmayan (ör. artık olmayan 'Radar') ya da
+  /// kullanıcının KAPATTIĞI bir ad geldiğinde ekran ilk sekmeyle açılır —
+  /// bağlantı bozuk diye boş bir ekrana düşülmez.
+  int _baslangicIndeksi() {
+    final ad = widget.initialTab;
+    if (ad == null) return 0;
+    final i = _sekmeler.indexWhere((s) => s.ad == ad);
+    return i < 0 ? 0 : i;
+  }
+
+  TabController _denetleyiciKur(int index) =>
+      TabController(length: _sekmeler.length, vsync: this, initialIndex: index)
+        ..addListener(_sekmeDegisti);
+
+  /// KUPONA İŞLE bloğunun görünürlüğü seçili sekmeye bağlı; parmakla yapılan
+  /// geçişte de yeniden çizilmesi gerekir.
+  void _sekmeDegisti() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _tc.removeListener(_sekmeDegisti);
+    _tc.dispose();
+    super.dispose();
+  }
+
+  /// Ayar sayfası KAYDEDİLEREK kapandıysa sekme listesi yeniden kurulur.
+  /// Kullanıcının bulunduğu sekme hâlâ açıksa orada kalınır; kapatıldıysa ilk
+  /// sekmeye dönülür.
+  Future<void> _ayarlariAc() async {
+    final kaydedildi = await macDetaySekmeAyarlariniAc(context);
+    if (!kaydedildi || !mounted) return;
+    final oncekiAd = _sekmeler[_tc.index].ad;
+    setState(() {
+      _sekmeler = macDetayGorunurSekmeler();
+      final yeni = _sekmeler.indexWhere((s) => s.ad == oncekiAd);
+      _tc.removeListener(_sekmeDegisti);
+      _tc.dispose();
+      _tc = _denetleyiciKur(yeni < 0 ? 0 : yeni);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(matchProvider(widget.no));
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        bottom: false,
-        child: async.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.primary),
-          ),
-          error: (e, _) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                '$e',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 12.5,
+      body: filigranli(
+        SafeArea(
+          bottom: false,
+          child: async.when(
+            loading: () => Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+            error: (e, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  '$e',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 12.5),
                 ),
               ),
             ),
+            data: _govde,
           ),
-          data: _govde,
         ),
       ),
     );
@@ -171,15 +227,14 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                 )
               : null,
         ),
-        AppTabs(
-          tabs: _kTabs,
-          active: _tab,
-          onChange: (t) => setState(() => _tab = t),
-          icons: _kTabIcons,
+        MacDetaySekmeCubugu(
+          controller: _tc,
+          sekmeler: _sekmeler,
+          onAyarlar: _ayarlariAc,
         ),
         // KUPONA İŞLE — Yorumlar sekmesi DIŞINDA her sekmede görünür
         // (kaynakta da `tab !== 'Yorumlar'`).
-        if (_tab != 'Yorumlar')
+        if (_sekmeler[_tc.index].ad != 'Yorumlar')
           Container(
             width: double.infinity,
             color: AppColors.bg,
@@ -195,55 +250,83 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
               ).go('${_dalKoku(context)}/kupon-editor/$roundId'),
             ),
           ),
+        // İÇERİK — parmakla sağa/sola kaydırınca sekme değişir; TabBarView
+        // seçili sekmeyi denetleyici üzerinden çubukla paylaşır.
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
-              Spacing.lg,
-              Spacing.lg,
-              Spacing.lg,
-              Spacing.xl,
-            ),
-            child: switch (_tab) {
-              'Özet' => _ozet(m, a, s, homeName, awayName),
-              // MASTER ANALİZ — kriter hesabının tek doğruluk kaynağı
-              // BACKEND'dir. Mühürlü haftada mühürlü değerlendirme gösterilir.
-              // Radar kıyası ayrı sistem olarak sunulur.
-              //
-              // KRİTER BAŞARILARI (kullanıcı kararı, 2026-08-07): burada
-              // eskiden kullanıcının kriter seçtiği panel vardı; o sistem
-              // tamamen kaldırıldı. Yerine kriterlerin GEÇMİŞ karnesi geldi.
-              // Ekran hüküm vermez — kullanıcı ham maçlara bakarak kendi
-              // kararını verir.
-              'Analiz' => Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  MasterAnalysisView(no: widget.no),
-                  KriterBasariListesi(
-                    onKriterSec: (key, ad) => GoRouter.of(context).go(
-                      '${_dalKoku(context)}/kriter/'
-                      '${Uri.encodeComponent(key)}'
-                      '?ad=${Uri.encodeQueryComponent(ad)}',
-                    ),
-                  ),
-                ],
-              ),
-              'İstatistik' => IstatistikTab(
-                m: m,
-                homeName: homeName,
-                awayName: awayName,
-              ),
-              // RADAR SEKMESİ (kullanıcı isteği, 2026-08-07): Radar 3/4 maçın
-              // içinde, YALNIZ bu maçın kendi sırasıyla. Radar ekranı 15 maçı
-              // birden listeler; maçın içindeyken tek satır lazım.
-              'Radar' => MacRadarPaneli(m: m),
-              // YORUMLAR — yorum akışı ve moderasyon. Kaynakta da sekmenin
-              // tamamı budur; Polls bölümü hiçbir ekrana bağlı değil (bkz.
-              // dosya başındaki not).
-              _ => CommentsSection(matchId: m['sportotoMatchId'] ?? widget.no),
-            },
+          child: TabBarView(
+            controller: _tc,
+            children: [
+              for (final sekme in _sekmeler)
+                _sekmeIcerigi(sekme, m, a, s, homeName, awayName),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _sekmeIcerigi(
+    MacDetaySekme sekme,
+    Map<String, dynamic> m,
+    Map a,
+    Map s,
+    String homeName,
+    String awayName,
+  ) {
+    return SingleChildScrollView(
+      // Her sekme KENDİ kaydırma konumunu korur; sekmeler arasında gidip
+      // gelirken liste başa sarmaz.
+      key: PageStorageKey<String>('mac-detay-${sekme.ad}'),
+      padding: const EdgeInsets.fromLTRB(
+        Spacing.lg,
+        Spacing.lg,
+        Spacing.lg,
+        Spacing.xl,
+      ),
+      child: switch (sekme.ad) {
+        'Özet' => _ozet(m, a, s, homeName, awayName),
+        // MASTER ANALİZ — kriter hesabının tek doğruluk kaynağı BACKEND'dir.
+        // Mühürlü haftada mühürlü değerlendirme gösterilir. Radar kıyası ayrı
+        // sistem olarak sunulur.
+        //
+        // KRİTER BAŞARILARI (kullanıcı kararı, 2026-08-07): burada eskiden
+        // kullanıcının kriter seçtiği panel vardı; o sistem tamamen kaldırıldı.
+        // Yerine kriterlerin GEÇMİŞ karnesi geldi. Ekran hüküm vermez —
+        // kullanıcı ham maçlara bakarak kendi kararını verir.
+        'Analiz' => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            MasterAnalysisView(no: widget.no),
+            KriterBasariListesi(
+              onKriterSec: (key, ad) => GoRouter.of(context).go(
+                '${_dalKoku(context)}/kriter/'
+                '${Uri.encodeComponent(key)}'
+                '?ad=${Uri.encodeQueryComponent(ad)}',
+              ),
+            ),
+          ],
+        ),
+        'İstatistik' => IstatistikTab(
+          m: m,
+          homeName: homeName,
+          awayName: awayName,
+        ),
+        // OYNANMA YÜZDELERİ (Radar 3) ve ORAN TAKİBİ (Radar 4): aynı panelin
+        // iki bölümü, ikisi de YALNIZ bu maçın kendi sırasını gösterir. Radar
+        // ekranı 15 maçı birden listeler; maçın içindeyken tek satır lazım.
+        'Oynanma Yüzdeleri' => MacRadarPaneli(
+          m: m,
+          bolum: MacRadarBolumu.oynanma,
+        ),
+        'Oran Takibi' => MacRadarPaneli(m: m, bolum: MacRadarBolumu.oran),
+        // BÜLTEN SIRASI (Radar 5): bu maçın bültendeki sırası ve o sırada
+        // geçmişte çıkan sonuçlar.
+        'Bülten Sırası' => MacBultenSirasiPaneli(m: m),
+        // YORUMLAR — yorum akışı ve moderasyon. Kaynakta da sekmenin tamamı
+        // budur; Polls bölümü hiçbir ekrana bağlı değil (bkz. dosya başındaki
+        // not).
+        _ => CommentsSection(matchId: m['sportotoMatchId'] ?? widget.no),
+      },
     );
   }
 
@@ -277,7 +360,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'MAÇ ÖZETİ',
                 style: TextStyle(
                   color: AppColors.textMuted,
@@ -291,7 +374,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                 humanize(comment),
                 maxLines: 6,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.text,
                   fontSize: 12,
                   height: 16 / 12,
@@ -312,6 +395,17 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
           ),
         ),
 
+        // ── MAÇ SONUCU ANKETİ (kullanıcı isteği, 2026-08-11) ──
+        // Kimlik, yorum bölümüyle AYNI kaynaktan alınır: anket oyları ile
+        // yorumlar aynı maça bağlanmalı, yoksa iki bölüm farklı "maç"lardan
+        // konuşur.
+        MacSonucAnketi(
+          matchId: m['sportotoMatchId'] ?? widget.no,
+          homeName: homeName,
+          awayName: awayName,
+          macBasladi: m['started'] == true,
+        ),
+
         // ── RİSK ETİKETLERİ — hızlı okunur, her biri nedenli
         //    (backend'den; veri yoksa satır hiç yok) ──
         if (tags != null && tags.isNotEmpty)
@@ -330,7 +424,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                       children: [
                         Text(
                           '• ${tg['t']}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.text,
                             fontSize: 13,
                             fontWeight: AppFont.black,
@@ -340,7 +434,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                           padding: const EdgeInsets.only(left: 12),
                           child: Text(
                             '${tg['why']}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.textSoft,
                               fontSize: 11.5,
                               height: 16 / 11.5,
@@ -368,7 +462,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                     padding: const EdgeInsets.only(bottom: 6),
                     child: Text(
                       '•  $sg',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textSoft,
                         fontSize: 12.5,
                         height: 17 / 12.5,
@@ -399,13 +493,13 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                         width: 15,
                         height: 15,
                       ),
-                      const Text(' iç saha   ·  ', style: _legendStil),
+                      Text(' iç saha   ·  ', style: _legendStil),
                       Image.asset(
                         'assets/venue/away-win.png',
                         width: 15,
                         height: 15,
                       ),
-                      const Text(
+                      Text(
                         ' deplasman   ·   🟢 galibiyet · 🟡 beraberlik · '
                         '🔴 mağlubiyet',
                         style: _legendStil,
@@ -446,7 +540,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
           ad,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 12,
             fontWeight: AppFont.heavy,
@@ -454,7 +548,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
         ),
         const SizedBox(height: 6),
         if (detay == null || detay.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 2),
             child: Text(
               'Detay yok',
@@ -465,7 +559,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
           for (final d in detay.cast<Map>())
             Container(
               padding: const EdgeInsets.symmetric(vertical: 4),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.border)),
               ),
               child: Row(
@@ -481,7 +575,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                       '${d['oppName'] ?? '—'}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 11.5,
                         fontWeight: AppFont.semibold,
@@ -527,7 +621,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
   }
 }
 
-const TextStyle _legendStil = TextStyle(
+TextStyle _legendStil = TextStyle(
   color: AppColors.textMuted,
   fontSize: 10,
   height: 14 / 10,

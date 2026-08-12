@@ -233,7 +233,7 @@ class DashboardMetric extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textSoft,
                 fontSize: 12,
                 fontWeight: AppFont.heavy,
@@ -247,7 +247,7 @@ class DashboardMetric extends StatelessWidget {
                 hint!,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 10.5,
                   fontWeight: AppFont.semibold,
@@ -290,7 +290,7 @@ class DashboardSection extends StatelessWidget {
             Flexible(
               child: RichText(
                 text: TextSpan(
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 16,
                     fontWeight: AppFont.black,
@@ -320,7 +320,7 @@ class DashboardSection extends StatelessWidget {
             padding: const EdgeInsets.only(top: 3),
             child: Text(
               sub!,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 11.5,
                 fontWeight: AppFont.semibold,
@@ -334,7 +334,11 @@ class DashboardSection extends StatelessWidget {
 
 /// Görünüm modu: Sade / Detaylı / Teknik.
 class ViewModeToggle extends StatelessWidget {
-  const ViewModeToggle({super.key, required this.value, required this.onChange});
+  const ViewModeToggle({
+    super.key,
+    required this.value,
+    required this.onChange,
+  });
 
   final String? value;
   final ValueChanged<String> onChange;
@@ -464,7 +468,8 @@ class MetricBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ??
+    final c =
+        color ??
         (value >= 60
             ? AppColors.success
             : (value >= 45 ? AppColors.warning : AppColors.danger));
@@ -481,7 +486,7 @@ class MetricBar extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   text: TextSpan(
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textSoft,
                       fontSize: 12,
                       fontWeight: AppFont.bold,
@@ -491,7 +496,7 @@ class MetricBar extends StatelessWidget {
                       if (total != null)
                         TextSpan(
                           text: '  ($total)',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textMuted,
                             fontSize: 11,
                             fontWeight: AppFont.bold,
@@ -562,7 +567,7 @@ class DashboardEmpty extends StatelessWidget {
           child: Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 17,
               fontWeight: AppFont.black,
@@ -577,7 +582,7 @@ class DashboardEmpty extends StatelessWidget {
               child: Text(
                 message!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 13,
                   fontWeight: AppFont.semibold,
@@ -602,8 +607,8 @@ class DashboardEmpty extends StatelessWidget {
                 ),
                 child: Text(
                   actionLabel!,
-                  style: const TextStyle(
-                    color: AppColors.white,
+                  style: TextStyle(
+                    color: AppColors.onPrimary,
                     fontSize: 13.5,
                     fontWeight: AppFont.heavy,
                   ),

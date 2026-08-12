@@ -20,9 +20,7 @@
 import 'moderation_reasons.dart';
 
 /// Sebeplerin bilinen sırası — özet metninde de aynı sıra kullanılır.
-final List<String> _sebepSirasi = [
-  for (final s in kBildirimSebepleri) s.key,
-];
+final List<String> _sebepSirasi = [for (final s in kBildirimSebepleri) s.key];
 
 int _sayi(Object? v) => v is num ? v.toInt() : (int.tryParse('$v') ?? 0);
 
@@ -56,20 +54,24 @@ List<String> ozetSatirlari(Map? sonuc) {
 /// Çok bildirilen sebep önce yazılır; eşitlikte sebep listesinin kendi sırası
 /// korunur, böylece aynı veri her açılışta aynı sırayla görünür.
 String sebepOzeti(Map? reasons) {
-  final girdiler = <MapEntry<String, int>>[
-    for (final e in (reasons ?? const {}).entries)
-      if (_sayi(e.value) > 0) MapEntry('${e.key}', _sayi(e.value)),
-  ]..sort((a, b) {
-      final fark = b.value - a.value;
-      if (fark != 0) return fark;
-      final ia = _sebepSirasi.indexOf(a.key);
-      final ib = _sebepSirasi.indexOf(b.key);
-      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-    });
+  final girdiler =
+      <MapEntry<String, int>>[
+        for (final e in (reasons ?? const {}).entries)
+          if (_sayi(e.value) > 0) MapEntry('${e.key}', _sayi(e.value)),
+      ]..sort((a, b) {
+        final fark = b.value - a.value;
+        if (fark != 0) return fark;
+        final ia = _sebepSirasi.indexOf(a.key);
+        final ib = _sebepSirasi.indexOf(b.key);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      });
   if (girdiler.isEmpty) return '';
   return girdiler
-      .map((e) =>
-          e.value > 1 ? '${sebepEtiketi(e.key)} ×${e.value}' : sebepEtiketi(e.key))
+      .map(
+        (e) => e.value > 1
+            ? '${sebepEtiketi(e.key)} ×${e.value}'
+            : sebepEtiketi(e.key),
+      )
       .join(' · ');
 }
 
@@ -88,12 +90,7 @@ typedef GizlemeDurumu = ({
 /// operatöre kalıcı sandığı bir kararın geçici olduğunu gizlerdi.
 GizlemeDurumu gizlemeDurumu(Map? item) {
   if (item?['hidden'] != true) {
-    return (
-      gizli: false,
-      otomatik: false,
-      etiket: 'Görünür',
-      renk: 'yesil',
-    );
+    return (gizli: false, otomatik: false, etiket: 'Görünür', renk: 'yesil');
   }
   final otomatik = item!['hiddenBy'] != 'elle';
   return (
@@ -104,12 +101,7 @@ GizlemeDurumu gizlemeDurumu(Map? item) {
   );
 }
 
-typedef ModEylem = ({
-  String key,
-  String label,
-  String aciklama,
-  bool tehlike,
-});
+typedef ModEylem = ({String key, String label, String aciklama, bool tehlike});
 
 /// Bir yorum için anlamlı düğmeler.
 ///

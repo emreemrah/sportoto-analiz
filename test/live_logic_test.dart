@@ -55,16 +55,22 @@ void main() {
 
   group('deriveStatus', () {
     test('resmi durum kodu her şeyin önünde gelir', () {
-      expect(deriveStatus({'liveStatus': 'PST', 'live': true}),
-          MacDurum.postponed);
-      expect(deriveStatus({'liveStatus': 'CANC', 'finalized': true}),
-          MacDurum.cancelled);
+      expect(
+        deriveStatus({'liveStatus': 'PST', 'live': true}),
+        MacDurum.postponed,
+      );
+      expect(
+        deriveStatus({'liveStatus': 'CANC', 'finalized': true}),
+        MacDurum.cancelled,
+      );
       expect(deriveStatus({'liveStatus': 'SUSP'}), MacDurum.suspended);
     });
 
     test('final > canlı > başladı-sonuç-yok > başlamadı', () {
-      expect(deriveStatus({'finalized': true, 'live': true}),
-          MacDurum.finished);
+      expect(
+        deriveStatus({'finalized': true, 'live': true}),
+        MacDurum.finished,
+      );
       expect(deriveStatus({'status': 'finished'}), MacDurum.finished);
       expect(deriveStatus({'live': true}), MacDurum.live);
       expect(deriveStatus({'started': true}), MacDurum.awaiting);
@@ -91,15 +97,14 @@ void main() {
       bool live = false,
       bool finalized = false,
       String? liveStatus,
-    }) =>
-        {
-          if (sym != null) 'prediction': {'symbol': sym},
-          // `?deger` = değer null ise girdi HİÇ eklenmez (null-aware element).
-          'score': ?score,
-          'live': live,
-          'finalized': finalized,
-          'liveStatus': ?liveStatus,
-        };
+    }) => {
+      if (sym != null) 'prediction': {'symbol': sym},
+      // `?deger` = değer null ise girdi HİÇ eklenmez (null-aware element).
+      'score': ?score,
+      'live': live,
+      'finalized': finalized,
+      'liveStatus': ?liveStatus,
+    };
 
     test('başlamamış maçta ⏳ — asla ✅/❌', () {
       final p = matchPicks(mac(sym: '1'));

@@ -91,7 +91,6 @@ class _DevicesScreenState extends State<DevicesScreen> {
     final not = _data?['note'];
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
       appBar: AppBar(title: const Text('Bağlı Cihazlar')),
       body: ScreenBackdrop(
         child: RefreshIndicator(
@@ -100,7 +99,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
           child: ListView(
             padding: const EdgeInsets.all(Spacing.lg),
             children: [
-              const Text(
+              Text(
                 'Bağlı Cihazlar',
                 style: TextStyle(
                   color: AppColors.text,
@@ -109,7 +108,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Hesabına açık oturumlar aşağıda. Tanımadığın bir cihaz görürsen oturumunu '
                 'kapat ve şifreni değiştir.',
                 style: TextStyle(
@@ -132,7 +131,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
                   ),
                 ),
               if (_data == null)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: Spacing.lg),
                   child: Center(
                     child: CircularProgressIndicator(color: AppColors.primary),
@@ -177,7 +176,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
               children: [
                 RichText(
                   text: TextSpan(
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.text,
                       fontSize: 14.5,
                       fontWeight: AppFont.heavy,
@@ -204,10 +203,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
                     'Son görülme: ${timeAgo(s['lastSeenAt'])} · Giriş: ${trTarih(s['createdAt'])}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 11,
-                    ),
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 11),
                   ),
                 ),
               ],
@@ -261,7 +257,7 @@ class _Not extends StatelessWidget {
     child: Text(
       metin,
       textAlign: TextAlign.center,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textMuted,
         fontSize: 12.5,
         height: 18 / 12.5,

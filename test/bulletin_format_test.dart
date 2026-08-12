@@ -73,16 +73,29 @@ void main() {
 
   group('resmî sonuç ayrımı', () {
     test('officialResolved: hem result hem score gerekir', () {
-      expect(officialResolved({'result': '1', 'score': {'home': 1, 'away': 0}}),
-          isTrue);
+      expect(
+        officialResolved({
+          'result': '1',
+          'score': {'home': 1, 'away': 0},
+        }),
+        isTrue,
+      );
       expect(officialResolved({'result': '1'}), isFalse);
-      expect(officialResolved({'score': {'home': 1, 'away': 0}}), isFalse);
+      expect(
+        officialResolved({
+          'score': {'home': 1, 'away': 0},
+        }),
+        isFalse,
+      );
       expect(officialResolved(null), isFalse);
     });
 
     test('histCategory: resmî / geçici / bekliyor', () {
       expect(
-        histCategory({'result': 'X', 'score': {'home': 1, 'away': 1}}),
+        histCategory({
+          'result': 'X',
+          'score': {'home': 1, 'away': 1},
+        }),
         'official',
       );
       expect(
@@ -98,7 +111,10 @@ void main() {
 
     test('pastResult: resmî varsa resmî, yoksa geçiciden türetilir', () {
       expect(
-        pastResult({'result': '2', 'score': {'home': 0, 'away': 1}}),
+        pastResult({
+          'result': '2',
+          'score': {'home': 0, 'away': 1},
+        }),
         '2',
       );
       expect(

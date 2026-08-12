@@ -47,7 +47,7 @@ class PrizeSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'İkramiye & Bilen Kişiler',
             style: TextStyle(
               color: AppColors.text,
@@ -81,7 +81,7 @@ class PrizeSection extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 6),
     child: Text(
       metin,
-      style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+      style: TextStyle(color: AppColors.textMuted, fontSize: 13),
     ),
   );
 
@@ -118,7 +118,7 @@ class PrizeSection extends StatelessWidget {
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 7),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: Row(
@@ -127,7 +127,7 @@ class PrizeSection extends StatelessWidget {
             width: 78,
             child: Text(
               hit,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 13,
                 fontWeight: AppFont.heavy,
@@ -137,7 +137,7 @@ class PrizeSection extends StatelessWidget {
           Expanded(
             child: Text(
               count,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 12.5,
                 fontWeight: AppFont.semibold,
@@ -160,7 +160,7 @@ class PrizeSection extends StatelessWidget {
 
   Widget _metaSatir(String etiket, String deger) => Container(
     padding: const EdgeInsets.symmetric(vertical: 7),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       border: Border(top: BorderSide(color: AppColors.border)),
     ),
     child: Row(
@@ -170,7 +170,7 @@ class PrizeSection extends StatelessWidget {
           width: 78,
           child: Text(
             etiket,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 13,
               fontWeight: AppFont.heavy,
@@ -181,7 +181,7 @@ class PrizeSection extends StatelessWidget {
           child: Text(
             deger,
             textAlign: TextAlign.right,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textSoft,
               fontSize: 12,
               fontWeight: AppFont.bold,

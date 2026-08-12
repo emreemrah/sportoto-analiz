@@ -52,7 +52,6 @@ class AboutScreen extends StatelessWidget {
     final links = legalUrls(apiBase);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
       appBar: AppBar(title: const Text('Hakkında')),
       body: ScreenBackdrop(
         child: ListView(
@@ -63,7 +62,7 @@ class AboutScreen extends StatelessWidget {
             Spacing.xl * 2,
           ),
           children: [
-            const Text(
+            Text(
               kAppName,
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -73,13 +72,13 @@ class AboutScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Sürüm $kAppVersion',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textMuted, fontSize: 12.5),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               kAppTagline,
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -155,7 +154,7 @@ class AboutScreen extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     'Hesabını uygulamayı kurmadan da silebilirsin: ${links.deleteAccount}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 11.5,
                       height: 17 / 11.5,
@@ -165,7 +164,7 @@ class AboutScreen extends StatelessWidget {
               ],
             ),
 
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: Spacing.lg, bottom: Spacing.md),
               child: Text(
                 kCopyright,
@@ -201,7 +200,7 @@ class _Kart extends StatelessWidget {
         if (baslik != null) ...[
           Text(
             baslik!,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 15,
               fontWeight: AppFont.heavy,
@@ -225,7 +224,7 @@ class _Govde extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: 8),
     child: Text(
       metin,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textMuted,
         fontSize: 13.5,
         height: 20 / 13.5,
@@ -255,7 +254,7 @@ class _Baglanti extends StatelessWidget {
         ),
         child: Text(
           metin,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 14,
             fontWeight: AppFont.bold,

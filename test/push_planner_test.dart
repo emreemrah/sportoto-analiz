@@ -11,13 +11,14 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:masteranaliz/core/push_planner.dart';
 
-final int _now = DateTime.parse('2026-07-25T12:00:00.000Z').millisecondsSinceEpoch;
+final int _now = DateTime.parse(
+  '2026-07-25T12:00:00.000Z',
+).millisecondsSinceEpoch;
 
-String _sonra(int dk) =>
-    DateTime.fromMillisecondsSinceEpoch(
-      _now + dk * 60000,
-      isUtc: true,
-    ).toIso8601String();
+String _sonra(int dk) => DateTime.fromMillisecondsSinceEpoch(
+  _now + dk * 60000,
+  isUtc: true,
+).toIso8601String();
 
 List<Map<String, Object?>> _kupon(int roundId, List<int> nolar) => [
   {
@@ -41,7 +42,11 @@ List<Map<String, Object?>> _kupon(int roundId, List<int> nolar) => [
   },
 ];
 
-Map<String, Object?> _mac(int no, int dk, [Map<String, Object?> ek = const {}]) => {
+Map<String, Object?> _mac(
+  int no,
+  int dk, [
+  Map<String, Object?> ek = const {},
+]) => {
   'no': no,
   'date': _sonra(dk),
   'home': {'name': 'Ev $no'},
@@ -99,7 +104,11 @@ void main() {
       bulletin: b,
       coupons: _kupon(10, [1]),
     );
-    expect(r.items, isEmpty, reason: 'saati bilinmeyen maça bildirim kurulmamalı');
+    expect(
+      r.items,
+      isEmpty,
+      reason: 'saati bilinmeyen maça bildirim kurulmamalı',
+    );
     expect(r.atlanan.saatYok, 1);
   });
 
@@ -228,55 +237,65 @@ void main() {
     }
   });
 
-  test('metinde KİŞİSEL VERİ sızmaz (e-posta, belirteç, kullanıcı adı, puan)', () {
-    final kirli = _kupon(10, [1]);
-    kirli[0]['userEmail'] = 'gizli@ornek.com';
-    kirli[0]['token'] = 'BELIRTEC-123';
-    kirli[0]['username'] = 'emrah41';
-    kirli[0]['points'] = 4820;
+  test(
+    'metinde KİŞİSEL VERİ sızmaz (e-posta, belirteç, kullanıcı adı, puan)',
+    () {
+      final kirli = _kupon(10, [1]);
+      kirli[0]['userEmail'] = 'gizli@ornek.com';
+      kirli[0]['token'] = 'BELIRTEC-123';
+      kirli[0]['username'] = 'emrah41';
+      kirli[0]['points'] = 4820;
 
-    final b = {
-      'roundId': 10,
-      'matches': [_mac(1, 180)],
-    };
-    final r = planMatchReminders(now: _now, bulletin: b, coupons: kirli);
-    final metin = jsonEncode([
-      for (final i in r.items)
-        {'id': i.id, 'title': i.title, 'body': i.body, 'data': i.data},
-    ]);
-    for (final s in ['gizli@ornek.com', 'BELIRTEC-123', 'emrah41', '4820']) {
-      expect(metin.contains(s), isFalse, reason: 'kişisel veri sızdı: $s');
-    }
-    expect(
-      r.items[0].body.startsWith('1. Ev 1 – Dep 1 · '),
-      isTrue,
-      reason: 'yalnız maç no / takım / saat yazılmalı',
-    );
-  });
+      final b = {
+        'roundId': 10,
+        'matches': [_mac(1, 180)],
+      };
+      final r = planMatchReminders(now: _now, bulletin: b, coupons: kirli);
+      final metin = jsonEncode([
+        for (final i in r.items)
+          {'id': i.id, 'title': i.title, 'body': i.body, 'data': i.data},
+      ]);
+      for (final s in ['gizli@ornek.com', 'BELIRTEC-123', 'emrah41', '4820']) {
+        expect(metin.contains(s), isFalse, reason: 'kişisel veri sızdı: $s');
+      }
+      expect(
+        r.items[0].body.startsWith('1. Ev 1 – Dep 1 · '),
+        isTrue,
+        reason: 'yalnız maç no / takım / saat yazılmalı',
+      );
+    },
+  );
 
-  test('kimlik kararlıdır: aynı girdi aynı kimliği üretir, tekrar kurulmaz', () {
-    // yinelenen kayıt
-    final b = {
-      'roundId': 10,
-      'matches': [_mac(1, 180), _mac(1, 180)],
-    };
-    final a1 = planMatchReminders(
-      now: _now,
-      bulletin: b,
-      coupons: _kupon(10, [1]),
-    );
-    final a2 = planMatchReminders(
-      now: _now,
-      bulletin: b,
-      coupons: _kupon(10, [1]),
-    );
-    expect(a1.items.length, 1, reason: 'yinelenen maç iki bildirim üretmemeli');
-    expect(a1.items[0].id, 'mac:10:1');
-    expect(
-      [for (final i in a1.items) i.id],
-      [for (final i in a2.items) i.id],
-    );
-  });
+  test(
+    'kimlik kararlıdır: aynı girdi aynı kimliği üretir, tekrar kurulmaz',
+    () {
+      // yinelenen kayıt
+      final b = {
+        'roundId': 10,
+        'matches': [_mac(1, 180), _mac(1, 180)],
+      };
+      final a1 = planMatchReminders(
+        now: _now,
+        bulletin: b,
+        coupons: _kupon(10, [1]),
+      );
+      final a2 = planMatchReminders(
+        now: _now,
+        bulletin: b,
+        coupons: _kupon(10, [1]),
+      );
+      expect(
+        a1.items.length,
+        1,
+        reason: 'yinelenen maç iki bildirim üretmemeli',
+      );
+      expect(a1.items[0].id, 'mac:10:1');
+      expect(
+        [for (final i in a1.items) i.id],
+        [for (final i in a2.items) i.id],
+      );
+    },
+  );
 
   test('bildirimler saate göre sıralanır ve üst sınır dürüstçe raporlanır', () {
     final matches = <Map<String, Object?>>[];
@@ -324,13 +343,8 @@ void main() {
   });
 
   group('diffSchedule', () {
-    PlanItem p(String id, int fireAt) => (
-      id: id,
-      fireAt: fireAt,
-      title: '',
-      body: '',
-      data: const {},
-    );
+    PlanItem p(String id, int fireAt) =>
+        (id: id, fireAt: fireAt, title: '', body: '', data: const {});
 
     test('değişmeyen kayda DOKUNULMAZ', () {
       final plan = [p('mac:10:1', 111), p('mac:10:2', 222)];
@@ -356,11 +370,9 @@ void main() {
         [(id: 'mac:10:1', fireAt: 111)],
       );
       expect([for (final k in r.kurulacak) k.fireAt], [999]);
-      expect(
-        r.iptal,
-        ['mac:10:1'],
-        reason: 'eski kayıt kalırsa telefon yanlış saatte çalar',
-      );
+      expect(r.iptal, [
+        'mac:10:1',
+      ], reason: 'eski kayıt kalırsa telefon yanlış saatte çalar');
     });
 
     // KAYNAKTAKİ "bozuk kayıtlar çökmeye yol açmaz" TESTİNİN KARŞILIĞI YOK:

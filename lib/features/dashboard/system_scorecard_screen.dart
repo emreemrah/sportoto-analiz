@@ -73,14 +73,21 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
 
       // Yan karneler AYRI AYRI — biri düşerse diğerleri görünmeye devam eder.
       // (Retrospektif uç ÇAĞRILMAZ — legacy başarılar kullanıcıya gösterilmez.)
-      api.scorecardsRadar().then((r) {
-        if (mounted) {
-          setState(() => _radar = (r as Map).cast<String, dynamic>());
-        }
-      }).catchError((_) {});
-      api.scorecardsCalibration().then((c) {
-        if (mounted) setState(() => _cal = (c as Map).cast<String, dynamic>());
-      }).catchError((_) {});
+      api
+          .scorecardsRadar()
+          .then((r) {
+            if (mounted) {
+              setState(() => _radar = (r as Map).cast<String, dynamic>());
+            }
+          })
+          .catchError((_) {});
+      api
+          .scorecardsCalibration()
+          .then((c) {
+            if (mounted)
+              setState(() => _cal = (c as Map).cast<String, dynamic>());
+          })
+          .catchError((_) {});
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
     } finally {
@@ -91,7 +98,9 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading && _sc == null) {
-      return _kabuk(const LoadingState(message: 'Sistem karnesi doğrulanıyor…'));
+      return _kabuk(
+        const LoadingState(message: 'Sistem karnesi doğrulanıyor…'),
+      );
     }
     if (_error != null) {
       return _kabuk(
@@ -154,7 +163,6 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
   }
 
   Widget _kabuk(Widget govde) => Scaffold(
-    backgroundColor: AppColors.bg,
     appBar: AppBar(title: const Text('Sistem Karnesi')),
     body: govde,
   );
@@ -186,7 +194,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
       _kart([
         RichText(
           text: TextSpan(
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 17,
               fontWeight: AppFont.heavy,
@@ -221,7 +229,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
             child: Text(
               'Son hafta (${sonHafta['round'] ?? '#${sonHafta['roundId']}'}): '
               '${weekRecordLabel(sonHafta)} doğru · %${sonHafta['accuracy']}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textSoft,
                 fontSize: 13,
                 fontWeight: AppFont.semibold,
@@ -229,7 +237,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
               ),
             ),
           ),
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(top: 10),
           child: Text(
             'Buradaki her tahmin maç başlamadan önce kilitlenip mühürlenir — '
@@ -248,14 +256,14 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
         _kart([
           Text(
             'Sistemin bilemedikleri (son ${yanlislar.length})',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 13.5,
               fontWeight: AppFont.black,
             ),
           ),
           for (final raw in yanlislar) _ozetYanlis(raw as Map),
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 10),
             child: Text(
               'Yanlışları saklamıyoruz — dürüst ölçümün gereği bu.',
@@ -267,7 +275,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
             ),
           ),
         ]),
-      const Padding(
+      Padding(
         padding: EdgeInsets.only(top: 8),
         child: Text(
           'Daha fazla ayrıntı isteyen için üstteki sekmeler var: hafta hafta '
@@ -288,7 +296,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
     padding: const EdgeInsets.only(top: 8),
     child: RichText(
       text: TextSpan(
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.textSoft,
           fontSize: 13,
           fontWeight: AppFont.semibold,
@@ -330,17 +338,14 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
       _kart([
         Text(
           head.title,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 13.5,
             fontWeight: AppFont.black,
           ),
         ),
         const SizedBox(height: 6),
-        MetricBar(
-          label: 'Tekli ana tahmin isabeti',
-          value: _n(head.accuracy),
-        ),
+        MetricBar(label: 'Tekli ana tahmin isabeti', value: _n(head.accuracy)),
         _satir(
           'Resmî ileri-test haftası',
           '${head.weeks}${(pending != null && pending != 0) ? ' (+$pending sonuç bekliyor)' : ''}',
@@ -381,7 +386,8 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
     return [
       const DashboardSection(
         title: 'Resmî Hafta Performansı',
-        sub: 'Yalnız mühürlü ileri-test haftaları. Kısmi haftalar açıkça '
+        sub:
+            'Yalnız mühürlü ileri-test haftaları. Kısmi haftalar açıkça '
             'işaretlenir; sonuçlanmamış hafta başarıya yazılmaz.',
       ),
       for (final raw in weeks) _haftaKarti(raw as Map),
@@ -417,7 +423,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
                   '${w['round'] ?? '#${w['roundId']}'}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 13,
                     fontWeight: AppFont.black,
@@ -426,10 +432,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: bg,
                   borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -447,9 +450,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                pending
-                    ? '—'
-                    : '${weekRecordLabel(w)} · %${w['accuracy']}',
+                pending ? '—' : '${weekRecordLabel(w)} · %${w['accuracy']}',
                 style: TextStyle(
                   color: pending
                       ? AppColors.textMuted
@@ -466,7 +467,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
               'Tahminli ${w['predicted']}/${w['matchCount']} · '
               'resmî sonuç ${w['resolved']}/${w['matchCount']} · '
               'kapsama ${cov['covered']}/${cov['total']}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 10.5,
                 fontWeight: AppFont.semibold,
@@ -478,7 +479,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
             child: Text(
               'Mühür ${_fmtT(w['snapshotAt'])} · donma ${_fmtT(w['freezeAt'])} · '
               '#${w['verificationHashShort'] ?? '—'} · ${w['methodologyVersion'] ?? '—'}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 10.5,
                 fontWeight: AppFont.semibold,
@@ -503,7 +504,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
 
     return [
       _kart([
-        const Text(
+        Text(
           'Resmî sonuca göre tekli isabet',
           style: TextStyle(
             color: AppColors.text,
@@ -532,7 +533,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
             padding: const EdgeInsets.only(top: 10),
             child: Text(
               'Sistemin yanlışları (${errors.length})',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 13.5,
                 fontWeight: AppFont.black,
@@ -549,7 +550,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
     padding: const EdgeInsets.only(top: 4),
     child: RichText(
       text: TextSpan(
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.textSoft,
           fontSize: 11.5,
           fontWeight: AppFont.semibold,
@@ -557,7 +558,8 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
         ),
         children: [
           TextSpan(
-            text: '${e['round'] ?? e['roundId']} #${e['no']} · '
+            text:
+                '${e['round'] ?? e['roundId']} #${e['no']} · '
                 '${e['home']} - ${e['away']} → sistem ',
           ),
           TextSpan(
@@ -587,7 +589,8 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
     return [
       const DashboardSection(
         title: 'Kapsama Başarısı',
-        sub: 'Mühürlü kupon tercihlerinin (tek/çift/üçlü) resmî sonucu kapsama '
+        sub:
+            'Mühürlü kupon tercihlerinin (tek/çift/üçlü) resmî sonucu kapsama '
             'oranı.',
       ),
       if (cov is Map && cov['hasData'] == true)
@@ -643,7 +646,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
 
     return [
       _kart([
-        const Text(
+        Text(
           'Resmî Radar Karnesi (mühürlü ileri-test)',
           style: TextStyle(
             color: AppColors.text,
@@ -706,7 +709,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
 
     return [
       _kart([
-        const Text(
+        Text(
           'Kalibrasyon — söylediğimiz olasılık ne kadar doğruydu?',
           style: TextStyle(
             color: AppColors.text,
@@ -736,7 +739,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
           child: Text(
             '${h.n} maç · ${h.weeks} hafta'
             '${h.vsBaseline != null ? ' · lig taban oranına göre: ${h.vsBaseline!.metin.replaceAll('Piyasadan', '')}' : ''}',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textMuted,
               fontSize: 11.5,
               fontWeight: AppFont.bold,
@@ -745,10 +748,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
         ),
         if (notice != null) _uyariKutusu(notice.title, notice.body),
         if (bagimsiz != null)
-          _uyariKutusu(
-            '${bagimsiz.title} · ${bagimsiz.n} maç',
-            bagimsiz.body,
-          ),
+          _uyariKutusu('${bagimsiz.title} · ${bagimsiz.n} maç', bagimsiz.body),
         _altBaslik('Skorlar (düşük = iyi)'),
         for (final r in scoreRows(cal))
           _ikiliSatir(
@@ -765,7 +765,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
         // Beklenti ayarı — ZORUNLU.
         _durustNot(kExpectationNote),
         if (cal?['conventions'] != null)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 6),
             child: Text(
               'Ölçüm: Brier [0,2] · log-loss doğal logaritma · marj temizleme multiplicative',
@@ -801,7 +801,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
     padding: const EdgeInsets.symmetric(vertical: 7),
     decoration: son
         ? null
-        : const BoxDecoration(
+        : BoxDecoration(
             border: Border(bottom: BorderSide(color: AppColors.border)),
           ),
     child: Row(
@@ -809,7 +809,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
       children: [
         Text(
           k,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textMuted,
             fontSize: 12,
             fontWeight: AppFont.bold,
@@ -821,7 +821,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
             v,
             maxLines: 2,
             textAlign: TextAlign.right,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 12,
               fontWeight: AppFont.heavy,
@@ -835,7 +835,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
   Widget _ikiliSatir(String sol, String sag, {bool ikiSatir = false}) =>
       Container(
         padding: const EdgeInsets.symmetric(vertical: 6),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: AppColors.border)),
         ),
         child: Row(
@@ -845,7 +845,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
                 sol,
                 maxLines: ikiSatir ? 2 : 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.text,
                   fontSize: 12.5,
                   fontWeight: AppFont.bold,
@@ -857,7 +857,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
               child: Text(
                 sag,
                 textAlign: TextAlign.right,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textSoft,
                   fontSize: 11.5,
                   fontWeight: AppFont.black,
@@ -872,7 +872,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
     padding: const EdgeInsets.only(top: 12, bottom: 2),
     child: Text(
       metin,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.text,
         fontSize: 12,
         fontWeight: AppFont.black,
@@ -893,7 +893,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
       children: [
         Text(
           baslik,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 11.5,
             fontWeight: AppFont.black,
@@ -903,7 +903,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
           padding: const EdgeInsets.only(top: 3),
           child: Text(
             govde,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textSoft,
               fontSize: 11,
               fontWeight: AppFont.semibold,
@@ -919,7 +919,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
     padding: const EdgeInsets.only(top: 8),
     child: Text(
       metin,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textMuted,
         fontSize: 10.5,
         fontWeight: AppFont.semibold,
@@ -931,7 +931,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
   Widget _bosSatir(String metin) => _kart([
     Text(
       metin,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textMuted,
         fontSize: 12.5,
         fontWeight: AppFont.bold,

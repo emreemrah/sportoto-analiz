@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/labels.dart';
+import '../core/theme/takim_temasi.dart';
 import '../core/theme/tokens.dart';
 
 /// `ui.js` → `Tabs`
@@ -26,9 +27,10 @@ class AppTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.bgAlt,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+      // YAPISAL YÜZEY — takım teması varsa onun yüzey/kenarlık rengi.
+      decoration: BoxDecoration(
+        color: context.temaYuzey,
+        border: Border(bottom: BorderSide(color: context.temaKenarlik)),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -61,8 +63,8 @@ class AppTabs extends StatelessWidget {
                           t,
                           style: TextStyle(
                             color: active == t
-                                ? AppColors.text
-                                : AppColors.textMuted,
+                                ? context.temaYuzeyMetin
+                                : context.temaSolukMetin,
                             fontSize: 13,
                             fontWeight: active == t
                                 ? AppFont.black
@@ -75,7 +77,7 @@ class AppTabs extends StatelessWidget {
                         width: 40,
                         decoration: BoxDecoration(
                           color: active == t
-                              ? AppColors.accent
+                              ? context.temaVurgu
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(2),
                         ),
@@ -121,9 +123,9 @@ class _AccordionState extends State<Accordion> {
       margin: const EdgeInsets.only(bottom: Spacing.sm),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: context.temaYuzey,
         borderRadius: AppRadius.mdR,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.temaKenarlik),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -139,8 +141,8 @@ class _AccordionState extends State<Accordion> {
                     child: Text(
                       '${widget.icon != null ? '${widget.icon}  ' : ''}'
                       '${widget.title}',
-                      style: const TextStyle(
-                        color: AppColors.text,
+                      style: TextStyle(
+                        color: context.temaYuzeyMetin,
                         fontSize: 14.5,
                         fontWeight: AppFont.heavy,
                       ),
@@ -169,7 +171,7 @@ class _AccordionState extends State<Accordion> {
                 bottom: Spacing.md,
                 top: Spacing.md,
               ),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.border)),
               ),
               child: widget.child,
@@ -193,7 +195,8 @@ class SectionCard extends StatelessWidget {
     padding: const EdgeInsets.all(Spacing.lg),
     margin: const EdgeInsets.only(bottom: Spacing.md),
     decoration: BoxDecoration(
-      color: AppColors.card,
+      // KART YÜZEYİ — takım temasının kart rengi (varsayılanda beyaz).
+      color: context.temaYuzey,
       borderRadius: AppRadius.lgR,
       boxShadow: AppShadow.soft,
     ),
@@ -210,8 +213,12 @@ class SectionCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       title!,
-                      style: const TextStyle(
-                        color: AppColors.text,
+                      // Kart başlığı KART YÜZEYİNİN üstünde durur; rengi de
+                      // ondan hesaplanmalı. Sabit koyu bırakılınca koyu takım
+                      // temalarında (Beşiktaş) başlık okunmuyordu — önizlemede
+                      // görüldü.
+                      style: TextStyle(
+                        color: context.temaYuzeyMetin,
                         fontSize: 15,
                         fontWeight: AppFont.heavy,
                       ),

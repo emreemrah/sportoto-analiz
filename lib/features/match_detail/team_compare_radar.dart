@@ -62,7 +62,7 @@ class TeamCompareRadar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             '🕸️ Güç Karşılaştırması',
             style: TextStyle(
               color: AppColors.text,
@@ -70,7 +70,7 @@ class TeamCompareRadar extends StatelessWidget {
               fontWeight: AppFont.black,
             ),
           ),
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 3),
             child: Text(
               'İki takımın kendi aralarında kıyası — büyük değer 100 kabul '
@@ -108,7 +108,7 @@ class TeamCompareRadar extends StatelessWidget {
                 for (final ax in axes)
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 4),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       border: Border(top: BorderSide(color: AppColors.border)),
                     ),
                     child: Row(
@@ -127,7 +127,7 @@ class TeamCompareRadar extends StatelessWidget {
                           child: Text(
                             ax.label,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.textMuted,
                               fontSize: 11.5,
                               fontWeight: AppFont.bold,
@@ -171,7 +171,7 @@ class TeamCompareRadar extends StatelessWidget {
             ad ?? '',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textSoft,
               fontSize: 12,
               fontWeight: AppFont.heavy,
@@ -224,7 +224,7 @@ class _RadarBoyaci extends CustomPainter {
       final tp = TextPainter(
         text: TextSpan(
           text: axes[i].label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 10.5,
             fontWeight: FontWeight.bold,
             color: AppColors.textMuted,

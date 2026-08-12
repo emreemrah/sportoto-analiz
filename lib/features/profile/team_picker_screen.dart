@@ -71,7 +71,6 @@ class _TeamPickerScreenState extends State<TeamPickerScreen> {
       govde = _liste();
     }
     return Scaffold(
-      backgroundColor: AppColors.bg,
       appBar: AppBar(title: const Text('Takım Seç')),
       body: govde,
     );
@@ -107,7 +106,7 @@ class _TeamPickerScreenState extends State<TeamPickerScreen> {
         Spacing.xl,
       ),
       children: [
-        const Text(
+        Text(
           'Takımını Seç',
           style: TextStyle(
             color: AppColors.text,
@@ -116,17 +115,17 @@ class _TeamPickerScreenState extends State<TeamPickerScreen> {
           ),
         ),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'Ligini aç, takımına dokun — profilinde görünür.',
           style: TextStyle(color: AppColors.textMuted, fontSize: 12.5),
         ),
         const SizedBox(height: 12),
         TextField(
           onChanged: (v) => setState(() => _arama = v),
-          style: const TextStyle(color: AppColors.text, fontSize: 13.5),
+          style: TextStyle(color: AppColors.text, fontSize: 13.5),
           decoration: InputDecoration(
             hintText: '🔍 Takım ara (tüm liglerde)',
-            hintStyle: const TextStyle(color: AppColors.textMuted),
+            hintStyle: TextStyle(color: AppColors.textMuted),
             filled: true,
             fillColor: AppColors.card,
             isDense: true,
@@ -136,15 +135,15 @@ class _TeamPickerScreenState extends State<TeamPickerScreen> {
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: AppColors.border),
             ),
           ),
         ),
@@ -156,10 +155,7 @@ class _TeamPickerScreenState extends State<TeamPickerScreen> {
             child: Text(
               '"$_arama" için sonuç yok. Takımın listedeki liglerde olmayabilir.',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 12.5,
-              ),
+              style: TextStyle(color: AppColors.textMuted, fontSize: 12.5),
             ),
           ),
       ],
@@ -202,7 +198,7 @@ class _TeamPickerScreenState extends State<TeamPickerScreen> {
                       '${lig['label']}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.text,
                         fontSize: 13.5,
                         fontWeight: AppFont.black,
@@ -212,7 +208,7 @@ class _TeamPickerScreenState extends State<TeamPickerScreen> {
                   const SizedBox(width: 10),
                   Text(
                     hatali ? '—' : '${takimlar.length}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 12,
                       fontWeight: AppFont.bold,
@@ -221,7 +217,7 @@ class _TeamPickerScreenState extends State<TeamPickerScreen> {
                   const SizedBox(width: 10),
                   Text(
                     acik ? '▾' : '▸',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 13,
                       fontWeight: AppFont.black,
@@ -248,7 +244,7 @@ class _TeamPickerScreenState extends State<TeamPickerScreen> {
                     ),
                   )
                 : Container(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       border: Border(top: BorderSide(color: AppColors.border)),
                     ),
                     child: Column(
@@ -269,7 +265,7 @@ class _TeamPickerScreenState extends State<TeamPickerScreen> {
       onTap: _kaydedilen != null ? null : () => _sec(ad),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: AppColors.border)),
         ),
         child: Row(
@@ -281,7 +277,7 @@ class _TeamPickerScreenState extends State<TeamPickerScreen> {
                 ad,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.text,
                   fontSize: 13,
                   fontWeight: AppFont.semibold,
@@ -290,7 +286,7 @@ class _TeamPickerScreenState extends State<TeamPickerScreen> {
             ),
             const SizedBox(width: 10),
             if (_kaydedilen == ad)
-              const SizedBox(
+              SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
@@ -299,7 +295,7 @@ class _TeamPickerScreenState extends State<TeamPickerScreen> {
                 ),
               )
             else
-              const Text(
+              Text(
                 'Seç ›',
                 style: TextStyle(
                   color: AppColors.accent,

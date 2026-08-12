@@ -41,9 +41,7 @@ class LiveTimeline extends StatelessWidget {
     for (final m in markers) {
       cap = math.max(cap, m.e.at);
     }
-    final nowPos = dk != null
-        ? math.max(0.0, math.min(1.0, dk / cap))
-        : null;
+    final nowPos = dk != null ? math.max(0.0, math.min(1.0, dk / cap)) : null;
     final halfPos = kHalfMinutes / cap;
     final home = markers.where((m) => m.e.side == 'home').toList();
     final away = markers.where((m) => m.e.side == 'away').toList();
@@ -70,7 +68,7 @@ class LiveTimeline extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(child: _yan(homeName, _homeC, TextAlign.start)),
-                const Text(
+                Text(
                   'Maç Şeridi',
                   style: TextStyle(
                     color: AppColors.textMuted,
@@ -147,7 +145,7 @@ class LiveTimeline extends StatelessWidget {
               child: Text(
                 '${noSide.length} olayın takımı eşleştirilemedi — şeritte '
                 'gösterilmiyor, listede duruyor.',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 9.5,
                   fontStyle: FontStyle.italic,
@@ -218,7 +216,7 @@ class _Olcek extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     t,
-    style: const TextStyle(
+    style: TextStyle(
       color: AppColors.textMuted,
       fontSize: 8.5,
       fontWeight: AppFont.heavy,

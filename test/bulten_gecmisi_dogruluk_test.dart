@@ -36,29 +36,32 @@ Map<String, Object?> _snapMac(
 
 void main() {
   group('mapSnapshot — tekli ana tahmin ile kupon kapsaması AYRI', () {
-    test('ana tahmin tutarsa anaTahminCorrect true; kupon önerisi karışmaz', () {
-      final snap = mapSnapshot(
-        {
-          'id': 's1',
-          'bulletinId': 1,
-          'payload': {
-            'matches': [
-              // Kupon önerisi '10' sonucu kapsar (kapsama DOĞRU) ama tekli
-              // ana tahmin '2' TUTMAZ — iki ölçü burada AYRIŞIR.
-              _snapMac(1, anaTahmin: '2', kuponOnerisi: '10'),
-            ],
+    test(
+      'ana tahmin tutarsa anaTahminCorrect true; kupon önerisi karışmaz',
+      () {
+        final snap = mapSnapshot(
+          {
+            'id': 's1',
+            'bulletinId': 1,
+            'payload': {
+              'matches': [
+                // Kupon önerisi '10' sonucu kapsar (kapsama DOĞRU) ama tekli
+                // ana tahmin '2' TUTMAZ — iki ölçü burada AYRIŞIR.
+                _snapMac(1, anaTahmin: '2', kuponOnerisi: '10'),
+              ],
+            },
           },
-        },
-        resultsByMatchId: {
-          'm1': {'officialResult': '1'},
-        },
-      );
-      final m = (snap!['matchesAnalysis'] as List).first as Map;
-      expect(m['anaTahmin'], '2');
-      expect((m['resultInfo'] as Map)['anaTahminCorrect'], isFalse);
-      // Kupon kapsaması ayrı alanda ve DOĞRU — silinmedi, karıştırılmadı.
-      expect((m['resultInfo'] as Map)['systemCorrect'], isTrue);
-    });
+          resultsByMatchId: {
+            'm1': {'officialResult': '1'},
+          },
+        );
+        final m = (snap!['matchesAnalysis'] as List).first as Map;
+        expect(m['anaTahmin'], '2');
+        expect((m['resultInfo'] as Map)['anaTahminCorrect'], isFalse);
+        // Kupon kapsaması ayrı alanda ve DOĞRU — silinmedi, karıştırılmadı.
+        expect((m['resultInfo'] as Map)['systemCorrect'], isTrue);
+      },
+    );
 
     test('mühürde tekli ana tahmin YOKSA maç değerlendirilmez (null)', () {
       final snap = mapSnapshot(

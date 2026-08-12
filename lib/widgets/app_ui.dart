@@ -60,10 +60,7 @@ class Logo extends StatelessWidget {
     width: size,
     height: size,
     alignment: Alignment.center,
-    decoration: const BoxDecoration(
-      color: AppColors.cardAlt,
-      shape: BoxShape.circle,
-    ),
+    decoration: BoxDecoration(color: AppColors.cardAlt, shape: BoxShape.circle),
     child: Text('⚽', style: TextStyle(fontSize: size * 0.5)),
   );
 }
@@ -128,7 +125,7 @@ class RecordBadges extends StatelessWidget {
             padding: const EdgeInsets.only(right: 2),
             child: Text(
               alignRight ? '⚽ $played' : '$played ⚽',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 12,
                 fontWeight: AppFont.bold,
@@ -237,7 +234,7 @@ class EmptyState extends StatelessWidget {
         Text(
           title,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: AppFont.lg,
             fontWeight: AppFont.heavy,
@@ -248,10 +245,7 @@ class EmptyState extends StatelessWidget {
           Text(
             message!,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppColors.textSoft,
-              fontSize: AppFont.sm,
-            ),
+            style: TextStyle(color: AppColors.textSoft, fontSize: AppFont.sm),
           ),
         ],
       ],
@@ -322,7 +316,7 @@ class MatchCard extends StatelessWidget {
                   children: [
                     Text(
                       '#${match['no']}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.accent,
                         fontSize: 12,
                         fontWeight: AppFont.black,
@@ -335,7 +329,7 @@ class MatchCard extends StatelessWidget {
                           league,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textMuted,
                             fontSize: 11,
                             fontWeight: AppFont.bold,
@@ -352,7 +346,7 @@ class MatchCard extends StatelessWidget {
                     else
                       Text(
                         '${d.day} · ${d.time}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 11.5,
                           fontWeight: AppFont.bold,
@@ -379,7 +373,7 @@ class MatchCard extends StatelessWidget {
                               homeName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.text,
                                 fontSize: 14.5,
                                 fontWeight: AppFont.bold,
@@ -405,7 +399,7 @@ class MatchCard extends StatelessWidget {
                               maxLines: 1,
                               textAlign: TextAlign.right,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.text,
                                 fontSize: 14.5,
                                 fontWeight: AppFont.bold,
@@ -429,7 +423,7 @@ class MatchCard extends StatelessWidget {
                   const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.only(top: 10),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       border: Border(top: BorderSide(color: AppColors.border)),
                     ),
                     child: Row(
@@ -479,7 +473,7 @@ class MatchCard extends StatelessWidget {
       color: AppColors.bgAlt,
       borderRadius: BorderRadius.circular(6),
     ),
-    child: const Text(
+    child: Text(
       'VS',
       style: TextStyle(
         color: AppColors.textMuted,
@@ -541,14 +535,14 @@ class MatchCard extends StatelessWidget {
   );
 
   Widget _msTag(String res, Color c) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
     decoration: BoxDecoration(
       color: c,
       borderRadius: BorderRadius.circular(999),
     ),
     child: Text(
       'MS $res',
-      style: const TextStyle(
+      style: TextStyle(
         color: Color(0xFFFFFFFF),
         fontSize: 10.5,
         fontWeight: AppFont.black,
@@ -568,7 +562,9 @@ class Pill extends StatelessWidget {
   final String label;
   final String tone;
 
-  static const Map<String, (Color, Color)> _tones = {
+  // GETTER, `static final` DEĞİL: takım teması `AppColors`ı çalışma zamanında
+  // değiştirir; `final` harita ilk okunduğu renklerde donardı.
+  static Map<String, (Color, Color)> get _tones => {
     'default': (AppColors.primarySoft, AppColors.primary),
     'primary': (AppColors.primarySoft, AppColors.primary),
     'accent': (AppColors.accentSoft, AppColors.accent),
@@ -587,10 +583,7 @@ class Pill extends StatelessWidget {
         horizontal: Spacing.md,
         vertical: Spacing.xs,
       ),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: AppRadius.pillR,
-      ),
+      decoration: BoxDecoration(color: bg, borderRadius: AppRadius.pillR),
       child: Text(
         label,
         style: TextStyle(
@@ -611,7 +604,9 @@ class ProgressBar extends StatelessWidget {
   final num value;
   final String tone;
 
-  static const Map<String, Color> _tones = {
+  // GETTER, `static final` DEĞİL: takım teması `AppColors`ı çalışma zamanında
+  // değiştirir; `final` harita ilk okunduğu renklerde donardı.
+  static Map<String, Color> get _tones => {
     'primary': AppColors.primary,
     'accent': AppColors.accent,
     'success': AppColors.success,
@@ -657,10 +652,7 @@ class DemoDataBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, 0),
-    padding: const EdgeInsets.symmetric(
-      vertical: 10,
-      horizontal: Spacing.md,
-    ),
+    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: Spacing.md),
     decoration: BoxDecoration(
       color: AppColors.warningSoft,
       border: Border.all(color: AppColors.warning, width: 1.5),
@@ -689,7 +681,7 @@ class DemoDataBanner extends StatelessWidget {
           child: Text(
             note ??
                 'Bu ekrandaki bülten/sonuç/kupon örnektir — gerçek Spor Toto verisi değildir.',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 12,
               height: 17 / 12,

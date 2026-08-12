@@ -57,7 +57,7 @@ class _InfoIpucuState extends State<InfoIpucu> {
                       widget.ozet,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.text,
                         fontSize: 11,
                         fontWeight: AppFont.heavy,
@@ -92,12 +92,12 @@ class _InfoIpucuState extends State<InfoIpucu> {
             Container(
               margin: const EdgeInsets.only(top: 5),
               padding: const EdgeInsets.only(top: 5),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.border)),
               ),
               child: Text(
                 widget.detay,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textSoft,
                   fontSize: 11,
                   height: 15 / 11,

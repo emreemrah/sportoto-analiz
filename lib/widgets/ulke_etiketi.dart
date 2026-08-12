@@ -54,7 +54,7 @@ class UlkeEtiketi extends StatelessWidget {
         league ?? '',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.muted,
           fontSize: 10.5,
           fontWeight: AppFont.bold,
@@ -92,7 +92,7 @@ class UlkeEtiketi extends StatelessWidget {
             ad,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textSoft,
               fontSize: 10.5,
               fontWeight: AppFont.black,
@@ -106,7 +106,7 @@ class UlkeEtiketi extends StatelessWidget {
               ' · $ligKalan',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.muted,
                 fontSize: 10.5,
                 fontWeight: AppFont.bold,

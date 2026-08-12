@@ -247,7 +247,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           Spacing.xxxl,
         ),
         children: [
-          const Text(
+          Text(
             'Haftalık Başarı',
             style: TextStyle(
               color: AppColors.text,
@@ -259,7 +259,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           _haftaGezme(navRounds, selIdx, selMeta, canPrev, canNext),
 
           if (_histLoading && _hist == null)
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(24),
               child: Column(
                 children: [
@@ -295,7 +295,6 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
   }
 
   Widget _kabuk(Widget govde) => Scaffold(
-    backgroundColor: AppColors.bg,
     appBar: AppBar(title: const Text('Haftalık Başarı')),
     body: govde,
   );
@@ -424,8 +423,8 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
             children: [
               Text(
                 '${selMeta?['name'] ?? '—'}',
-                style: const TextStyle(
-                  color: AppColors.white,
+                style: TextStyle(
+                  color: AppColors.onPrimary,
                   fontSize: 17,
                   fontWeight: AppFont.black,
                 ),
@@ -463,7 +462,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               width: 40,
               height: 40,
               alignment: Alignment.center,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.darkCardSoft,
                 shape: BoxShape.circle,
               ),
@@ -625,7 +624,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   text: TextSpan(
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 12,
                       fontWeight: AppFont.bold,
@@ -634,7 +633,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                       const TextSpan(text: 'Sistem ana tahmin: '),
                       TextSpan(
                         text: ozet,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.text,
                           fontWeight: AppFont.black,
                         ),
@@ -644,7 +643,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Sistem Karnesi ›',
                 style: TextStyle(
                   color: AppColors.primary,
@@ -685,7 +684,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
             baslik,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textMuted,
               fontSize: 10.5,
               fontWeight: AppFont.black,
@@ -696,7 +695,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           if (dogru == null || toplam == null || toplam == 0)
             Text(
               bosNot,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 12.5,
                 fontWeight: AppFont.semibold,
@@ -705,7 +704,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           else ...[
             RichText(
               text: TextSpan(
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.text,
                   fontSize: 24,
                   fontWeight: AppFont.black,
@@ -717,10 +716,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                   ),
                   TextSpan(
                     text: '/$toplam',
-                    style: const TextStyle(
-                      color: AppColors.textSoft,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: AppColors.textSoft, fontSize: 16),
                   ),
                 ],
               ),
@@ -728,7 +724,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
             const SizedBox(height: 2),
             Text(
               'doğru · %$yuzde başarı',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 11.5,
                 fontWeight: AppFont.bold,
@@ -801,7 +797,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Bu hafta kupon oluşturmadın',
               style: TextStyle(
                 color: AppColors.text,
@@ -810,7 +806,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Bu haftanın resmi sonuçları görüntülenebilir, ancak senin başarı hesabın için kayıtlı kupon yok.',
               style: TextStyle(
                 color: AppColors.textMuted,
@@ -850,7 +846,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: r == null
-                ? const Text(
+                ? Text(
                     '—',
                     style: TextStyle(
                       color: AppColors.text,
@@ -860,7 +856,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                   )
                 : RichText(
                     text: TextSpan(
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.text,
                         fontSize: 20,
                         fontWeight: AppFont.black,
@@ -875,7 +871,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                           if (r.resolved < 15)
                             TextSpan(
                               text: '  · ${r.resolved}/15 resmi',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 12,
                                 fontWeight: AppFont.bold,
@@ -892,7 +888,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               padding: const EdgeInsets.only(top: Spacing.md, bottom: 4),
               child: Text(
                 'Diğer Kuponlar · ${week.others.length}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 11.5,
                   fontWeight: AppFont.black,
@@ -916,7 +912,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     behavior: HitTestBehavior.opaque,
     child: Container(
       padding: const EdgeInsets.symmetric(vertical: 7),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: Row(
@@ -926,14 +922,14 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               text: TextSpan(
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.text,
                   fontSize: 13,
                   fontWeight: AppFont.bold,
                 ),
                 children: [
                   TextSpan(text: 'Kupon ${o.couponNo}'),
-                  const TextSpan(
+                  TextSpan(
                     text: '  · Derecesiz',
                     style: TextStyle(
                       color: AppColors.textMuted,
@@ -948,7 +944,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           const SizedBox(width: 8),
           RichText(
             text: TextSpan(
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 12,
                 fontWeight: AppFont.semibold,
@@ -987,8 +983,8 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
       ),
       child: Text(
         metin,
-        style: const TextStyle(
-          color: AppColors.white,
+        style: TextStyle(
+          color: AppColors.onPrimary,
           fontSize: 13.5,
           fontWeight: AppFont.heavy,
         ),
@@ -1082,7 +1078,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           week.hasCoupon
               ? 'Doğru/Yanlış filtresi senin tahminine göredir.'
               : 'Kupon yok — Doğru/Yanlış filtresi sistem tahminine göredir.',
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textMuted,
             fontSize: 11,
             fontStyle: FontStyle.italic,
@@ -1094,7 +1090,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
         child: ScoreLegend(),
       ),
       if (filtreli.isEmpty)
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(top: 16),
           child: Text(
             'Bu filtreye uyan maç yok.',
@@ -1138,7 +1134,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
             width: 22,
             child: Text(
               '${m['no']}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 12,
                 fontWeight: AppFont.black,
@@ -1152,7 +1148,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                 // TAKIM ADLARI TAM — kesme/üç nokta yok; uzun ad sarar.
                 Text(
                   '${(m['home'] as Map?)?['name']} - ${(m['away'] as Map?)?['name']}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 13.5,
                     fontWeight: AppFont.heavy,
@@ -1164,7 +1160,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
                       '${d.day}${d.day.isNotEmpty && d.time.isNotEmpty ? ' · ' : ''}${d.time}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 11,
                       ),
@@ -1190,7 +1186,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                         ),
                       ),
                       if (sv.result != null) ...[
-                        const TextSpan(
+                        TextSpan(
                           text: ' · ',
                           style: TextStyle(color: AppColors.textMuted),
                         ),
@@ -1218,7 +1214,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                   ),
                 )
               else
-                const Text(
+                Text(
                   'bekliyor',
                   style: TextStyle(color: AppColors.textMuted, fontSize: 11.5),
                 ),
@@ -1228,7 +1224,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                   padding: const EdgeInsets.only(top: 4),
                   child: RichText(
                     text: TextSpan(
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 11.5,
                       ),
@@ -1236,7 +1232,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                         const TextSpan(text: 'Sen: '),
                         TextSpan(
                           text: myPick.join('/'),
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.primary,
                             fontWeight: AppFont.black,
                           ),
@@ -1266,7 +1262,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                   padding: const EdgeInsets.only(top: 3),
                   child: RichText(
                     text: TextSpan(
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 11.5,
                       ),
@@ -1274,7 +1270,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                         const TextSpan(text: 'Sistem: '),
                         TextSpan(
                           text: sym ?? '—',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.text,
                             fontWeight: AppFont.black,
                           ),
@@ -1318,7 +1314,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               ),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       '⚙ Teknik bilgiler',
                       style: TextStyle(
@@ -1330,7 +1326,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                   ),
                   Text(
                     _teknikAcik ? '▲' : '▼',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 10,
                       fontWeight: AppFont.black,
@@ -1364,7 +1360,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     padding: const EdgeInsets.symmetric(vertical: 7),
     decoration: son
         ? null
-        : const BoxDecoration(
+        : BoxDecoration(
             border: Border(bottom: BorderSide(color: AppColors.border)),
           ),
     child: Row(
@@ -1373,7 +1369,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
         Expanded(
           child: Text(
             k,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textMuted,
               fontSize: 11.5,
               fontWeight: AppFont.bold,
@@ -1386,7 +1382,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
             v,
             maxLines: 2,
             textAlign: TextAlign.right,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 11.5,
               fontWeight: AppFont.semibold,

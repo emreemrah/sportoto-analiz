@@ -34,7 +34,6 @@ class AvatarPickerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.bg,
     appBar: AppBar(title: const Text('Avatar Seç')),
     body: ValueListenableBuilder<AuthState>(
       valueListenable: authState,
@@ -54,7 +53,7 @@ class AvatarPickerScreen extends StatelessWidget {
             Spacing.xl,
           ),
           children: [
-            const Text(
+            Text(
               'Futbol temalı hazır avatarlar. Birine dokun, profilin güncellensin.',
               style: TextStyle(color: AppColors.textMuted, fontSize: 13),
             ),
@@ -94,7 +93,7 @@ class _Izgara extends StatelessWidget {
         children: [
           Text(
             kategori.label,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 15,
               fontWeight: AppFont.bold,
@@ -162,7 +161,7 @@ class _Kutu extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textMuted,
               fontSize: 10.5,
               fontWeight: AppFont.semibold,

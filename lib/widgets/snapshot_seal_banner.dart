@@ -126,7 +126,7 @@ class _SnapshotSealBannerState extends State<SnapshotSealBanner> {
               'Bu bültenin tahmin ve analizleri kilitlendi; hiçbir şekilde '
               'değiştirilemez.'
               '${snapshot?['late'] == true ? ' (Mühür, sunucu yeniden açıldığında alındı — veri anı kayıtlıdır.)' : ''}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 11.5,
                 height: 15 / 11.5,
@@ -136,7 +136,7 @@ class _SnapshotSealBannerState extends State<SnapshotSealBanner> {
             Text(
               'Doğrulama: #${snapshot?['shortHash'] ?? '—'}'
               '${archive['status'] == 'completed' && doneD != null ? ' · Tamamlandı: ${doneD.day}' : ''}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 10.5,
                 fontWeight: AppFont.bold,

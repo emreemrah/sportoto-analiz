@@ -114,10 +114,7 @@ class LoadingState extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: AppFont.md,
-              color: AppColors.textSoft,
-            ),
+            style: TextStyle(fontSize: AppFont.md, color: AppColors.textSoft),
           ),
         ],
       ),
@@ -159,7 +156,7 @@ class ErrorState extends StatelessWidget {
         const SizedBox(height: Spacing.md),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: AppFont.lg,
             fontWeight: AppFont.heavy,
@@ -172,10 +169,7 @@ class ErrorState extends StatelessWidget {
             child: Text(
               message!,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.textSoft,
-                fontSize: AppFont.sm,
-              ),
+              style: TextStyle(color: AppColors.textSoft, fontSize: AppFont.sm),
             ),
           ),
         ],
@@ -189,7 +183,7 @@ class ErrorState extends StatelessWidget {
                 color: AppColors.primary,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Text(
+              child: Text(
                 'Tekrar Dene',
                 style: TextStyle(color: AppColors.bg, fontWeight: AppFont.bold),
               ),

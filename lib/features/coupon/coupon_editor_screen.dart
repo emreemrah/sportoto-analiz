@@ -37,6 +37,7 @@ import '../../core/coupon/coupon_config.dart';
 import '../../core/coupon/coupon_store.dart';
 import '../../core/coupon/smart.dart';
 import '../../core/network/api_client.dart';
+import '../../core/prefs.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils.dart';
 import '../../widgets/app_ui.dart';
@@ -56,6 +57,43 @@ final _editorBulletinProvider =
       (ref) async => Map<String, dynamic>.from(await api.bulletin() as Map),
     );
 
+/// ANKET DAĞILIMI — bültenin TAMAMI için TEK istek (`/ms-summary`).
+///
+/// Uç zaten bunun için var: "maç başına ayrı istek atılmaz; 15 maçlık bülten
+/// tek istekte gelir". Anahtar `sportotoMatchId`'lerin virgülle birleştirilmiş
+/// hâlidir — family anahtarı karşılaştırılabilir olmalı, liste olamaz.
+final _anketDagilimiProvider = FutureProvider.autoDispose
+    .family<Map<String, Map<String, int>>, String>((ref, kimlikler) async {
+      if (kimlikler.isEmpty) return const {};
+      final d = await api.msSummary(kimlikler.split(','));
+      final ozet = (d is Map ? d['summary'] : null) as Map?;
+      return {
+        for (final e in (ozet ?? const {}).entries)
+          '${e.key}': {
+            for (final k in const ['total', 'home', 'draw', 'away'])
+              k: ((e.value as Map?)?[k] as num?)?.toInt() ?? 0,
+          },
+      };
+    });
+
+/// Kupon türü tercihi (`prefs.couponSysMode`).
+///
+/// EKRANDA İKİ TÜR VAR: "Tekli Kupon" ve "Geniş Kupon" (= otomatik karar).
+/// Diskte bu ikisinin dışında bir değer kalmış olabilir — tercih önce
+/// 'single'|'wide' idi, sonra dört değerli oldu. Ekranda karşılığı olmayan bir
+/// kayıt GENİŞ sayılır; yoksa hiçbir çip seçili görünmez ve kullanıcı hangi
+/// türde olduğunu ekrandan okuyamazdı.
+AktarimGenisligi genislikTercihi() => getPref('couponSysMode') == 'single'
+    ? AktarimGenisligi.tekli
+    : AktarimGenisligi.otomatik;
+
+String genislikAnahtari(AktarimGenisligi g) => switch (g) {
+  AktarimGenisligi.otomatik => 'auto',
+  AktarimGenisligi.tekli => 'single',
+  AktarimGenisligi.cifte => 'double',
+  AktarimGenisligi.kapali => 'closed',
+};
+
 class CouponEditorScreen extends ConsumerStatefulWidget {
   const CouponEditorScreen({super.key, required this.roundId, this.couponId});
 
@@ -67,6 +105,10 @@ class CouponEditorScreen extends ConsumerStatefulWidget {
 }
 
 class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
+  /// Sistem/Anket aktarımının genişliği. Tercih diskte saklanır; kullanıcı
+  /// her kupon açtığında yeniden seçmek zorunda kalmasın.
+  late AktarimGenisligi _genislik = genislikTercihi();
+
   final Map<String, List<String>> _picks = {};
 
   /// AKTARIM DAMGALARI (2026-08-11): maç no → {secim, zaman, kaynak, …}.
@@ -117,16 +159,14 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
     final async = ref.watch(_editorBulletinProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
       appBar: AppBar(
         title: Text(
           widget.couponId != null ? 'Kuponu Düzenle' : 'Kupon Hazırla',
         ),
       ),
       body: async.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
+        loading: () =>
+            Center(child: CircularProgressIndicator(color: AppColors.primary)),
         error: (e, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -239,10 +279,10 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
                       required isFocused,
                       maxLength,
                     }) => null,
-                style: const TextStyle(color: AppColors.text, fontSize: 14),
+                style: TextStyle(color: AppColors.text, fontSize: 14),
                 decoration: InputDecoration(
                   labelText: 'Kupon adı (isteğe bağlı)',
-                  labelStyle: const TextStyle(
+                  labelStyle: TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 12,
                   ),
@@ -251,11 +291,11 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
                   isDense: true,
                   border: OutlineInputBorder(
                     borderRadius: AppRadius.mdR,
-                    borderSide: const BorderSide(color: AppColors.border),
+                    borderSide: BorderSide(color: AppColors.border),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: AppRadius.mdR,
-                    borderSide: const BorderSide(color: AppColors.border),
+                    borderSide: BorderSide(color: AppColors.border),
                   ),
                 ),
               ),
@@ -288,7 +328,10 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
               // kaldırılmış; modal kodu duruyor ama hiçbir yerden açılmıyor).
               // Saf mantığı core/coupon/smart.dart'a çevrildi ve testlendi;
               // düğme kaynağa geri gelirse buradan bağlanır.
-              if (!allLocked)
+              if (!allLocked) ...[
+                // GENİŞLİK SEÇİMİ (kullanıcı isteği, 2026-08-11): sistem ve
+                // anket aktarımı tekli / çifte / kapalı yapılabilir.
+                _genislikSecici(),
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
                   child: Row(
@@ -302,6 +345,15 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
                       const SizedBox(width: Spacing.sm),
                       Expanded(
                         child: _aktarimDugmesi(
+                          // TOPLULUK KUPONU: analiz yapmadan, yalnız
+                          // kullanıcıların oy dağılımına göre doldurur.
+                          '🗳️ Topluluk',
+                          () => _aktarimBaslat(matches, lockedNos, 'anket'),
+                        ),
+                      ),
+                      const SizedBox(width: Spacing.sm),
+                      Expanded(
+                        child: _aktarimDugmesi(
                           '✍️ Seçimim',
                           () => _secimimTemizle(lockedNos),
                         ),
@@ -309,6 +361,7 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
                     ],
                   ),
                 ),
+              ],
             ],
           ),
         ),
@@ -316,7 +369,7 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
         // ── ALT ÇUBUK: kolon + maliyet + kaydet ──
         Container(
           padding: const EdgeInsets.all(Spacing.md),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.surface,
             border: Border(top: BorderSide(color: AppColors.border)),
           ),
@@ -340,7 +393,7 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
                       Text(
                         // FİYAT UYDURULMAZ.
                         cost != null ? _fmtTL(cost) : 'birim bedel verisi yok',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 11,
                           fontWeight: AppFont.bold,
@@ -375,8 +428,8 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
                       ),
                       child: Text(
                         _saving ? '…' : 'Kaydet',
-                        style: const TextStyle(
-                          color: AppColors.white,
+                        style: TextStyle(
+                          color: AppColors.onPrimary,
                           fontSize: 14,
                           fontWeight: AppFont.black,
                         ),
@@ -419,7 +472,7 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
                   width: 20,
                   child: Text(
                     '${m['no']}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 11,
                       fontWeight: AppFont.black,
@@ -438,7 +491,7 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
                     '${away?['mediumName'] ?? away?['name'] ?? ''}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.text,
                       fontSize: 12.5,
                       fontWeight: AppFont.heavy,
@@ -492,7 +545,7 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
       ),
       child: Text(
         metin,
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.textSoft,
           fontSize: 12.5,
           fontWeight: AppFont.heavy,
@@ -524,23 +577,163 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
     };
   }
 
+  String _genislikAdi() => switch (_genislik) {
+    AktarimGenisligi.otomatik => 'Geniş Kupon',
+    AktarimGenisligi.tekli => 'Tekli Kupon',
+    AktarimGenisligi.cifte => 'çifte',
+    AktarimGenisligi.kapali => 'kapalı',
+  };
+
+  /// Tekli / Çifte / Kapalı çipleri + ne anlama geldiğini söyleyen tek satır.
+  ///
+  /// Kapalı seçimin bedeli AÇIKÇA yazılır: her maç 1-X-2 olunca kolon sayısı
+  /// üç katına çıkar ve kullanıcı bunu ödeme ekranında değil, seçerken bilmeli.
+  Widget _genislikSecici() => Padding(
+    padding: const EdgeInsets.only(top: 12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Kupon türü',
+          style: TextStyle(
+            color: AppColors.textSoft,
+            fontSize: 11.5,
+            fontWeight: AppFont.heavy,
+          ),
+        ),
+        const SizedBox(height: 6),
+        // İKİ SEÇENEK (kullanıcı kararı, 2026-08-11): "Tekli Kupon"da her maça
+        // tek sonuç; "Geniş Kupon"da karar dağılıma bırakılır (açık ara → tek,
+        // iki sonuç yakın → çifte, üçü de yakın → 1-X-2 kapalı).
+        //
+        // Elle "hep çifte" / "hep kapalı" seçenekleri ARAYÜZDEN kaldırıldı:
+        // kullanıcı iki net tür istedi. `AktarimGenisligi` içindeki o iki
+        // değer kodda ve testlerde duruyor — `proposalFrom` onları desteklemeye
+        // devam ediyor, yalnız bu ekranda gösterilmiyor.
+        Row(
+          children: [
+            for (final (g, ad) in const [
+              (AktarimGenisligi.tekli, 'Tekli Kupon'),
+              (AktarimGenisligi.otomatik, 'Geniş Kupon'),
+            ]) ...[
+              Expanded(
+                child: Semantics(
+                  button: true,
+                  selected: _genislik == g,
+                  label: ad,
+                  child: GestureDetector(
+                    key: Key('kupon-genislik-${genislikAnahtari(g)}'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      setState(() => _genislik = g);
+                      setPref('couponSysMode', genislikAnahtari(g));
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: _genislik == g
+                            ? AppColors.primary
+                            : AppColors.bgAlt,
+                        borderRadius: AppRadius.smR,
+                        border: Border.all(
+                          color: _genislik == g
+                              ? AppColors.primary
+                              : AppColors.border,
+                        ),
+                      ),
+                      child: Text(
+                        ad,
+                        style: TextStyle(
+                          color: _genislik == g
+                              ? AppColors.white
+                              : AppColors.textSoft,
+                          fontSize: 12.5,
+                          fontWeight: AppFont.heavy,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (g != AktarimGenisligi.otomatik) const SizedBox(width: 6),
+            ],
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: Text(
+            switch (_genislik) {
+              AktarimGenisligi.otomatik =>
+                'Her maç kendi dağılımına göre: bir sonuç açık ara öndeyse '
+                    'tek, iki sonuç yakınsa çifte, üçü de yakınsa 1-X-2 kapalı '
+                    'eklenir. Kolon sayısı maçlara göre değişir — aşağıda '
+                    'anlık görünür.',
+              AktarimGenisligi.tekli =>
+                'Her maça en yüksek oyu/olasılığı alan TEK sonuç eklenir.',
+              AktarimGenisligi.cifte =>
+                'Her maça en güçlü iki işaret — kolon sayısı artar.',
+              AktarimGenisligi.kapali =>
+                'Her maça 1-X-2 birden: maç hangi sonuçla biterse bitsin '
+                    'kolonda kapsanır. Kolon sayısı en çok bu seçimde artar.',
+            },
+            style: TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 10.5,
+              height: 14 / 10.5,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
   Future<void> _aktarimBaslat(
     List matches,
     Set lockedNos,
     String source,
   ) async {
-    final proposed = proposalFrom(matches, source);
+    // ANKET: dağılım tek istekte çekilir. Okunamazsa aktarım YAPILMAZ —
+    // "oy yok" varsayıp boş kupon doldurmak, olmayan bir topluluk tercihini
+    // varmış gibi göstermek olurdu.
+    Map<String, Map<String, int>>? anket;
+    if (source == 'anket') {
+      final kimlikler = matches
+          .cast<Map>()
+          .map((m) => '${m['sportotoMatchId'] ?? m['no']}')
+          .join(',');
+      try {
+        anket = await ref.read(_anketDagilimiProvider(kimlikler).future);
+      } catch (e) {
+        await _uyari(
+          'Anket okunamadı',
+          'Oy dağılımı alınamadı: ${e is ApiException ? e.message : e}',
+        );
+        return;
+      }
+      if (!mounted) return;
+    }
+
+    final proposed = proposalFrom(
+      matches,
+      source,
+      genislik: _genislik,
+      anketDagilimi: anket,
+    );
     // Kilitli maçlara öneri UYGULANMAZ (seçim donmuştur).
     proposed.removeWhere(
       (no, _) => lockedNos.contains(no) || lockedNos.contains('$no'),
     );
     if (proposed.isEmpty) {
-      await _uyari(
-        'Veri yok',
-        source == 'radar'
-            ? 'Radar tahmini kayıtlı değil — aktarım yapılamaz (uydurulmaz).'
-            : 'Sistem tahmini bulunamadı.',
-      );
+      await _uyari('Veri yok', switch (source) {
+        'radar' =>
+          'Radar tahmini kayıtlı değil — aktarım yapılamaz (uydurulmaz).',
+        'anket' =>
+          'Bu bültende henüz oy verilmiş açık maç yok. Topluluk kuponu '
+              'yalnız gerçek oylardan doldurulur; oy yokken seçim '
+              'uydurulmaz.',
+        _ => 'Sistem tahmini bulunamadı.',
+      });
       return;
     }
     final changes = diffSelections(_picks, {
@@ -556,10 +749,12 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card,
         title: Text(
-          source == 'radar'
-              ? 'Radar tahminlerinden aktar'
-              : 'Sistem Master Analizi tahminlerinden aktar',
-          style: const TextStyle(
+          switch (source) {
+            'radar' => 'Radar tahminlerinden aktar',
+            'anket' => 'Topluluk Kuponu — ${_genislikAdi()}',
+            _ => 'Sistem Master Analizi — ${_genislikAdi()}',
+          },
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 16,
             fontWeight: AppFont.black,
@@ -571,7 +766,7 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Mevcut seçimlerin SİLİNMEZ — aşağıdaki değişiklikleri sen '
                 'onaylarsan uygulanır:',
                 style: TextStyle(color: AppColors.textMuted, fontSize: 12),
@@ -598,7 +793,7 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
                                 const TextSpan(text: ' → '),
                                 TextSpan(
                                   text: c.to,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppColors.accent,
                                     fontWeight: AppFont.black,
                                   ),
@@ -610,7 +805,7 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
                                 ),
                               ],
                             ),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.textSoft,
                               fontSize: 12,
                             ),

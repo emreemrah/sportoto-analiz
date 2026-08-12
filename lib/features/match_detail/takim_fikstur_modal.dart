@@ -134,9 +134,7 @@ class _TakimFiksturSayfasiState extends State<TakimFiksturSayfasi> {
     final y = RenderAbstractViewport.of(box).getOffsetToReveal(box, 0).offset;
     _kaydirildi = true;
     _kaydirma.jumpTo(
-      math
-          .max(0.0, y - 60)
-          .clamp(0.0, _kaydirma.position.maxScrollExtent),
+      math.max(0.0, y - 60).clamp(0.0, _kaydirma.position.maxScrollExtent),
     );
   }
 
@@ -156,7 +154,7 @@ class _TakimFiksturSayfasiState extends State<TakimFiksturSayfasi> {
             maxHeight: MediaQuery.of(context).size.height * 0.86,
           ),
           child: Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.card,
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(20),
@@ -166,7 +164,10 @@ class _TakimFiksturSayfasiState extends State<TakimFiksturSayfasi> {
             clipBehavior: Clip.antiAlias,
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [_baslik(), Flexible(child: _icerik(fikstur, ilkGelecek, ligler))],
+              children: [
+                _baslik(),
+                Flexible(child: _icerik(fikstur, ilkGelecek, ligler)),
+              ],
             ),
           ),
         ),
@@ -179,7 +180,7 @@ class _TakimFiksturSayfasiState extends State<TakimFiksturSayfasi> {
     final toplam = _veri?['toplam'];
     return Container(
       padding: const EdgeInsets.all(Spacing.lg),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       child: Row(
@@ -194,7 +195,7 @@ class _TakimFiksturSayfasiState extends State<TakimFiksturSayfasi> {
                   '${_veri?['takimAdi'] ?? widget.name ?? '—'}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 16,
                     fontWeight: AppFont.black,
@@ -207,7 +208,7 @@ class _TakimFiksturSayfasiState extends State<TakimFiksturSayfasi> {
                     '${_veri != null ? ' · $oynanan/$toplam maç oynandı' : ''}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 11.5,
                       fontWeight: AppFont.bold,
@@ -224,7 +225,7 @@ class _TakimFiksturSayfasiState extends State<TakimFiksturSayfasi> {
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () => Navigator.of(context).maybePop(),
-              child: const Padding(
+              child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                 child: Text(
                   '✕',
@@ -244,7 +245,7 @@ class _TakimFiksturSayfasiState extends State<TakimFiksturSayfasi> {
 
   Widget _icerik(List fikstur, int ilkGelecek, List<String> ligler) {
     if (_yukleniyor) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.all(Spacing.xl),
         child: Center(
           child: CircularProgressIndicator(color: AppColors.primary),
@@ -258,7 +259,7 @@ class _TakimFiksturSayfasiState extends State<TakimFiksturSayfasi> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'Fikstür alınamadı',
               style: TextStyle(
                 color: AppColors.text,
@@ -270,17 +271,14 @@ class _TakimFiksturSayfasiState extends State<TakimFiksturSayfasi> {
             Text(
               _hata!,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 12.5,
-              ),
+              style: TextStyle(color: AppColors.textMuted, fontSize: 12.5),
             ),
           ],
         ),
       );
     }
     if (fikstur.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.all(Spacing.xl),
         child: Text(
           'Bu takım için sezon maçı bulunamadı.',
@@ -300,10 +298,7 @@ class _TakimFiksturSayfasiState extends State<TakimFiksturSayfasi> {
         children: [
           for (var i = 0; i < fikstur.length; i++) ...[
             if (i == ilkGelecek) _ayrac(),
-            _SatirMac(
-              f: fikstur[i] as Map,
-              ligYaz: ligler.length > 1,
-            ),
+            _SatirMac(f: fikstur[i] as Map, ligYaz: ligler.length > 1),
           ],
           // KAPSAM NOTU — hangi turnuvaların dahil olduğu YAZILIR.
           // Liste dolu göründüğü için, kupa/Avrupa maçlarının eksik olduğu
@@ -319,7 +314,7 @@ class _TakimFiksturSayfasiState extends State<TakimFiksturSayfasi> {
               child: Text(
                 'Kapsam: ${ligler.join(' · ')}',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 10.5,
                   fontWeight: AppFont.bold,
@@ -333,15 +328,12 @@ class _TakimFiksturSayfasiState extends State<TakimFiksturSayfasi> {
 
   Widget _ayrac() => Padding(
     key: _ayracKey,
-    padding: const EdgeInsets.symmetric(
-      horizontal: Spacing.lg,
-      vertical: 8,
-    ),
+    padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: 8),
     child: Row(
       children: [
-        const Expanded(child: Divider(height: 1, color: AppColors.border)),
+        Expanded(child: Divider(height: 1, color: AppColors.border)),
         const SizedBox(width: 8),
-        const Text(
+        Text(
           'SIRADAKİ',
           style: TextStyle(
             color: AppColors.primary,
@@ -351,7 +343,7 @@ class _TakimFiksturSayfasiState extends State<TakimFiksturSayfasi> {
           ),
         ),
         const SizedBox(width: 8),
-        const Expanded(child: Divider(height: 1, color: AppColors.border)),
+        Expanded(child: Divider(height: 1, color: AppColors.border)),
       ],
     ),
   );
@@ -372,13 +364,10 @@ class _SatirMac extends StatelessWidget {
     final lig = '${f['lig'] ?? ''}';
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: 9,
-        horizontal: Spacing.lg,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 9, horizontal: Spacing.lg),
       decoration: BoxDecoration(
         color: oynandi ? null : AppColors.bgAlt,
-        border: const Border(bottom: BorderSide(color: AppColors.border)),
+        border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       child: Row(
         children: [
@@ -392,7 +381,7 @@ class _SatirMac extends StatelessWidget {
                   tarihEtiketi(f['dateUnix']),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 11,
                     fontWeight: AppFont.heavy,
@@ -409,7 +398,7 @@ class _SatirMac extends StatelessWidget {
                         lig,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 9,
                           fontWeight: AppFont.bold,

@@ -32,6 +32,7 @@ import '../../widgets/kayan_serit.dart';
 import '../../widgets/ulke_etiketi.dart';
 import '../bulletin/bulletin_providers.dart';
 import 'lig_seridi.dart';
+import '../../widgets/takim_logo_zemin.dart';
 
 // SÜRPRİZ SKORU EŞİKLERİ — TEK KAYNAK. Hem filtreyi hem etiketi bunlar besler.
 // Ayrı yazılırlarsa biri değişip diğeri kalır ve ekran yalan söyler: "Öne Çıkan
@@ -138,130 +139,134 @@ class HomeScreen extends ConsumerWidget {
     }, onceki);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
-          color: AppColors.accent,
-          onRefresh: () async {
-            ref.invalidate(bulletinProvider);
-            ref.invalidate(_oncekiHaftaProvider);
-            await ref.read(bulletinProvider.future);
-          },
-          child: ListView(
-            padding: const EdgeInsets.only(bottom: Spacing.xl + 12),
-            children: [
-              _Header(data: data),
-              _HeroCard(
-                data: data,
-                loading: data == null && error == null,
-                onBulteniAc: () => GoRouter.of(context).go('/bulten'),
-                onOzet: () => context.push('/ana-sayfa/hafta-ozeti'),
-                onKapanis: () => context.push('/ana-sayfa/hafta-kapanisi'),
-              ),
+      body: filigranli(
+        SafeArea(
+          bottom: false,
+          child: RefreshIndicator(
+            color: AppColors.accent,
+            onRefresh: () async {
+              ref.invalidate(bulletinProvider);
+              ref.invalidate(_oncekiHaftaProvider);
+              await ref.read(bulletinProvider.future);
+            },
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: Spacing.xl + 12),
+              children: [
+                _Header(data: data),
+                _HeroCard(
+                  data: data,
+                  loading: data == null && error == null,
+                  onBulteniAc: () => GoRouter.of(context).go('/bulten'),
+                  onOzet: () => context.push('/ana-sayfa/hafta-ozeti'),
+                  onKapanis: () => context.push('/ana-sayfa/hafta-kapanisi'),
+                ),
 
-              // Bu haftanın ülkeleri: bayrak + ad, kayan tek satır. Bülten
-              // yokken bileşen hiç çizilmez (boş çubuk bırakmaz).
-              LigSeridi(matches: data?['matches'] as List?),
+                // Bu haftanın ülkeleri: bayrak + ad, kayan tek satır. Bülten
+                // yokken bileşen hiç çizilmez (boş çubuk bırakmaz).
+                LigSeridi(matches: data?['matches'] as List?),
 
-              // YAKLAŞAN MAÇLAR — konum kullanıcı isteğiyle "Öne Çıkan
-              // Analizler"in ÜSTÜNDE: önce "ne zaman ne oynanıyor", sonra
-              // "hangisi ilginç".
-              if (upcoming.isNotEmpty) ...[
+                // YAKLAŞAN MAÇLAR — konum kullanıcı isteğiyle "Öne Çıkan
+                // Analizler"in ÜSTÜNDE: önce "ne zaman ne oynanıyor", sonra
+                // "hangisi ilginç".
+                if (upcoming.isNotEmpty) ...[
+                  _SectionHead(
+                    title: 'Yaklaşan Maçlar',
+                    right: 'Tümünü Gör ›',
+                    onTap: () => GoRouter.of(context).go('/bulten'),
+                  ),
+                  KayanSerit(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Spacing.md,
+                      vertical: 4,
+                    ),
+                    semanticsLabel:
+                        'Yaklaşan maçlar: ${upcoming.length} karşılaşma',
+                    children: [
+                      for (final m in upcoming) _KickoffCard(match: m),
+                    ],
+                  ),
+                ],
+
                 _SectionHead(
-                  title: 'Yaklaşan Maçlar',
+                  title: 'Öne Çıkan Analizler',
+                  right: 'Tümünü Gör ›',
+                  onTap: () => GoRouter.of(context).go('/radar'),
+                ),
+
+                if (data == null && error == null)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: Spacing.md),
+                    child: SkeletonCard(),
+                  )
+                else if (error != null || matches.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+                    child: EmptyState(
+                      icon: '📊',
+                      title: error != null
+                          ? 'Bülten alınamadı'
+                          : 'Dashboard hazırlanıyor',
+                      message:
+                          error ??
+                          'Güncel bülten yayınlanınca analiz kartları burada '
+                              'görünecek.',
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final m in displayAnalysis) ...[
+                          Expanded(
+                            child: _AnalysisCard(match: m, dar: darEkran),
+                          ),
+                          if (m != displayAnalysis.last)
+                            const SizedBox(width: 8),
+                        ],
+                      ],
+                    ),
+                  ),
+
+                _SectionHead(
+                  title: 'Sürpriz İhtimali Yüksek',
                   right: 'Tümünü Gör ›',
                   onTap: () => GoRouter.of(context).go('/bulten'),
                 ),
-                KayanSerit(
+
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(
                     horizontal: Spacing.md,
                     vertical: 4,
                   ),
-                  semanticsLabel:
-                      'Yaklaşan maçlar: ${upcoming.length} karşılaşma',
-                  children: [for (final m in upcoming) _KickoffCard(match: m)],
-                ),
-              ],
-
-              _SectionHead(
-                title: 'Öne Çıkan Analizler',
-                right: 'Tümünü Gör ›',
-                onTap: () => GoRouter.of(context).go('/radar'),
-              ),
-
-              if (data == null && error == null)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: Spacing.md),
-                  child: SkeletonCard(),
-                )
-              else if (error != null || matches.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
-                  child: EmptyState(
-                    icon: '📊',
-                    title: error != null
-                        ? 'Bülten alınamadı'
-                        : 'Dashboard hazırlanıyor',
-                    message:
-                        error ??
-                        'Güncel bülten yayınlanınca analiz kartları burada '
-                            'görünecek.',
-                  ),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (final m in displayAnalysis) ...[
-                        Expanded(
-                          child: _AnalysisCard(match: m, dar: darEkran),
-                        ),
-                        if (m != displayAnalysis.last) const SizedBox(width: 8),
-                      ],
-                    ],
-                  ),
-                ),
-
-              _SectionHead(
-                title: 'Sürpriz İhtimali Yüksek',
-                right: 'Tümünü Gör ›',
-                onTap: () => GoRouter.of(context).go('/bulten'),
-              ),
-
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: Spacing.md,
-                  vertical: 4,
-                ),
-                child: Row(
-                  children: displaySurprise.isEmpty
-                      ? [
-                          Container(
-                            padding: const EdgeInsets.all(Spacing.md),
-                            decoration: BoxDecoration(
-                              color: AppColors.card,
-                              borderRadius: AppRadius.mdR,
-                            ),
-                            child: const Text(
-                              'Sürpriz analizi için veri bekleniyor.',
-                              style: TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 12,
+                    children: displaySurprise.isEmpty
+                        ? [
+                            Container(
+                              padding: const EdgeInsets.all(Spacing.md),
+                              decoration: BoxDecoration(
+                                color: AppColors.card,
+                                borderRadius: AppRadius.mdR,
+                              ),
+                              child: Text(
+                                'Sürpriz analizi için veri bekleniyor.',
+                                style: TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
-                          ),
-                        ]
-                      : [
-                          for (final m in displaySurprise)
-                            _SurpriseCard(match: m),
-                        ],
+                          ]
+                        : [
+                            for (final m in displaySurprise)
+                              _SurpriseCard(match: m),
+                          ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -291,7 +296,7 @@ class _Header extends StatelessWidget {
         Expanded(
           child: RichText(
             text: TextSpan(
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 19,
                 fontWeight: AppFont.black,
@@ -301,7 +306,7 @@ class _Header extends StatelessWidget {
                 TextSpan(text: '$kBrandLine1 '),
                 TextSpan(
                   text: kBrandLine2,
-                  style: const TextStyle(color: AppColors.accent),
+                  style: TextStyle(color: AppColors.accent),
                 ),
               ],
             ),
@@ -412,15 +417,15 @@ class _HeroCard extends StatelessWidget {
               Container(
                 width: 8,
                 height: 8,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: AppColors.accent,
                   shape: BoxShape.circle,
                 ),
               ),
               Text(
                 '${data?['round'] ?? '—'}',
-                style: const TextStyle(
-                  color: AppColors.white,
+                style: TextStyle(
+                  color: AppColors.onPrimary,
                   fontSize: 12,
                   fontWeight: AppFont.heavy,
                   letterSpacing: 0.5,
@@ -610,7 +615,7 @@ class _SectionHead extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 16,
             fontWeight: AppFont.black,
@@ -622,7 +627,7 @@ class _SectionHead extends StatelessWidget {
             behavior: HitTestBehavior.opaque,
             child: Text(
               right!,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.accent,
                 fontSize: 12,
                 fontWeight: AppFont.heavy,
@@ -727,11 +732,11 @@ class _AnalysisCard extends StatelessWidget {
                       width: dar ? 26 : 32,
                       height: dar ? 26 : 32,
                       alignment: Alignment.center,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: AppColors.bgAlt,
                         shape: BoxShape.circle,
                       ),
-                      child: const Text(
+                      child: Text(
                         'VS',
                         style: TextStyle(
                           color: AppColors.textMuted,
@@ -749,7 +754,7 @@ class _AnalysisCard extends StatelessWidget {
                           '${_matchTime(match['date'])}',
                           maxLines: dar ? 2 : 1,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textMuted,
                             fontSize: 9.5,
                             fontWeight: AppFont.bold,
@@ -806,7 +811,7 @@ class _AnalysisCard extends StatelessWidget {
               child: Text(
                 'Analiz Detayı ›',
                 style: TextStyle(
-                  color: AppColors.white,
+                  color: AppColors.onPrimary,
                   fontSize: dar ? 11 : 12.5,
                   fontWeight: AppFont.black,
                 ),
@@ -941,7 +946,7 @@ class _SurpriseCard extends StatelessWidget {
                   name: (match['home'] as Map?)?['name'] as String?,
                   size: 30,
                 ),
-                const Text(
+                Text(
                   'VS',
                   style: TextStyle(
                     color: AppColors.textMuted,
@@ -1005,7 +1010,7 @@ class _SurpriseCard extends StatelessWidget {
                     score > 0 ? 'İhtimal: %$score' : 'Veri bekleniyor',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 10.5,
                       fontWeight: AppFont.bold,
@@ -1020,7 +1025,7 @@ class _SurpriseCard extends StatelessWidget {
     );
   }
 
-  static const TextStyle _adStil = TextStyle(
+  static TextStyle _adStil = TextStyle(
     color: AppColors.text,
     fontSize: 11.5,
     fontWeight: AppFont.heavy,
@@ -1100,7 +1105,7 @@ class _KickoffCard extends StatelessWidget {
                     day,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 10,
                       fontWeight: AppFont.bold,
@@ -1109,7 +1114,7 @@ class _KickoffCard extends StatelessWidget {
                 ),
                 Text(
                   d != null ? _matchTime(match['date']) : '—',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 12,
                     fontWeight: AppFont.black,
@@ -1142,7 +1147,7 @@ class _KickoffCard extends StatelessWidget {
           _shortTeam((m[taraf] as Map?)?['name']),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 11.5,
             fontWeight: AppFont.bold,

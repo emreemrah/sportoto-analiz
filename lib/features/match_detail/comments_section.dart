@@ -229,7 +229,7 @@ class _CommentsSectionState extends State<CommentsSection> {
           children: [
             Text(
               'Yorumlar (${_comments.length})',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 16,
                 fontWeight: AppFont.black,
@@ -280,7 +280,7 @@ class _CommentsSectionState extends State<CommentsSection> {
               ),
 
             if (_loading)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 16),
                 child: Center(
                   child: CircularProgressIndicator(color: AppColors.primary),
@@ -293,10 +293,7 @@ class _CommentsSectionState extends State<CommentsSection> {
                   _filter == 'Cevaplar'
                       ? 'Henüz cevaplanan yorum yok.'
                       : 'Henüz yorum yok. İlk yorumu sen yaz! 👀',
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 12.5,
-                  ),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 12.5),
                 ),
               )
             else
@@ -394,7 +391,7 @@ class _CommentsSectionState extends State<CommentsSection> {
                     ' kullanıcısına cevap',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.primary,
                       fontSize: 11.5,
                       fontWeight: AppFont.heavy,
@@ -406,7 +403,7 @@ class _CommentsSectionState extends State<CommentsSection> {
                   label: 'Yanıtı iptal et',
                   child: GestureDetector(
                     onTap: () => setState(() => _replyTo = null),
-                    child: const Padding(
+                    child: Padding(
                       padding: EdgeInsets.all(4),
                       child: Text(
                         '✕',
@@ -431,8 +428,8 @@ class _CommentsSectionState extends State<CommentsSection> {
               (_, {required currentLength, required isFocused, maxLength}) =>
                   null,
           onChanged: (_) => setState(() {}),
-          style: const TextStyle(color: AppColors.text, fontSize: 13.5),
-          decoration: const InputDecoration(
+          style: TextStyle(color: AppColors.text, fontSize: 13.5),
+          decoration: InputDecoration(
             hintText: 'Bu maç hakkında ne düşünüyorsun?',
             hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13.5),
             border: InputBorder.none,
@@ -445,7 +442,7 @@ class _CommentsSectionState extends State<CommentsSection> {
           children: [
             Text(
               '${_textCtl.text.length}/500',
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+              style: TextStyle(color: AppColors.textMuted, fontSize: 11),
             ),
             Opacity(
               opacity: (_posting || _textCtl.text.trim().isEmpty) ? 0.5 : 1,
@@ -464,8 +461,8 @@ class _CommentsSectionState extends State<CommentsSection> {
                   ),
                   child: Text(
                     _posting ? '...' : 'Gönder',
-                    style: const TextStyle(
-                      color: AppColors.white,
+                    style: TextStyle(
+                      color: AppColors.onPrimary,
                       fontSize: 13,
                       fontWeight: AppFont.black,
                     ),
@@ -484,7 +481,7 @@ class _GuestNote extends StatelessWidget {
   const _GuestNote();
 
   @override
-  Widget build(BuildContext context) => const Padding(
+  Widget build(BuildContext context) => Padding(
     padding: EdgeInsets.symmetric(vertical: 6),
     child: Text(
       'Yorum yazmak ve beğenmek için Profil sekmesinden giriş yap. '
@@ -575,7 +572,7 @@ class _CommentCardState extends State<_CommentCard> {
                         '${author?['username'] ?? 'Kullanıcı'}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.text,
                           fontSize: 13,
                           fontWeight: AppFont.heavy,
@@ -586,7 +583,7 @@ class _CommentCardState extends State<_CommentCard> {
                     Text(
                       '· ${timeAgo(c['createdAt'])}'
                       '${c['editedAt'] != null ? ' · düzenlendi' : ''}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 11,
                       ),
@@ -609,18 +606,13 @@ class _CommentCardState extends State<_CommentCard> {
                               required isFocused,
                               maxLength,
                             }) => null,
-                        style: const TextStyle(
-                          color: AppColors.text,
-                          fontSize: 13,
-                        ),
+                        style: TextStyle(color: AppColors.text, fontSize: 13),
                         decoration: InputDecoration(
                           isDense: true,
                           contentPadding: const EdgeInsets.all(8),
                           border: OutlineInputBorder(
                             borderRadius: AppRadius.smR,
-                            borderSide: const BorderSide(
-                              color: AppColors.border,
-                            ),
+                            borderSide: BorderSide(color: AppColors.border),
                           ),
                         ),
                       ),
@@ -644,7 +636,7 @@ class _CommentCardState extends State<_CommentCard> {
                 else
                   Text(
                     '${c['text'] ?? ''}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.text,
                       fontSize: 13.5,
                       height: 19 / 13.5,
@@ -839,7 +831,7 @@ class _ReportSheetState extends State<_ReportSheet> {
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Container(
         padding: const EdgeInsets.all(Spacing.lg),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
@@ -847,7 +839,7 @@ class _ReportSheetState extends State<_ReportSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
+            Text(
               'Bu yorumu bildir',
               style: TextStyle(
                 color: AppColors.text,
@@ -856,7 +848,7 @@ class _ReportSheetState extends State<_ReportSheet> {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Bildirimin incelenmek üzere kaydedilir. Sonucu sana '
               'bildirilmez.',
               style: TextStyle(
@@ -909,7 +901,7 @@ class _ReportSheetState extends State<_ReportSheet> {
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   secili.hint,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 11.5,
                     height: 16 / 11.5,
@@ -923,18 +915,18 @@ class _ReportSheetState extends State<_ReportSheet> {
               maxLength: kNotSiniri,
               inputFormatters: [LengthLimitingTextInputFormatter(kNotSiniri)],
               onChanged: (_) => setState(() {}),
-              style: const TextStyle(color: AppColors.text, fontSize: 13),
+              style: TextStyle(color: AppColors.text, fontSize: 13),
               decoration: InputDecoration(
                 hintText: zorunlu
                     ? 'Kısaca açıkla (zorunlu)'
                     : 'Eklemek istediğin bir şey var mı? (isteğe bağlı)',
-                hintStyle: const TextStyle(
+                hintStyle: TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 12.5,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: AppRadius.smR,
-                  borderSide: const BorderSide(color: AppColors.border),
+                  borderSide: BorderSide(color: AppColors.border),
                 ),
                 isDense: true,
               ),
@@ -946,7 +938,7 @@ class _ReportSheetState extends State<_ReportSheet> {
               children: [
                 TextButton(
                   onPressed: _busy ? null : () => Navigator.of(context).pop(),
-                  child: const Text(
+                  child: Text(
                     'Vazgeç',
                     style: TextStyle(color: AppColors.textSoft),
                   ),
@@ -966,12 +958,12 @@ class _ReportSheetState extends State<_ReportSheet> {
                         borderRadius: AppRadius.smR,
                       ),
                       child: _busy
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 14,
                               height: 14,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: AppColors.white,
+                                color: AppColors.onPrimary,
                               ),
                             )
                           : const Text(
@@ -1038,7 +1030,7 @@ class _BlockDialogState extends State<_BlockDialog> {
       backgroundColor: AppColors.surface,
       title: Text(
         '$ad engellensin mi?',
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.text,
           fontSize: 15,
           fontWeight: AppFont.black,
@@ -1048,7 +1040,7 @@ class _BlockDialogState extends State<_BlockDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Engellersen onun yorumlarını görmezsin, o da seninkileri '
             'göremez. Karşı tarafa bildirim gitmez. İstediğin zaman '
             'Profil → Engellenen Kullanıcılar ekranından geri alabilirsin.',
@@ -1064,10 +1056,7 @@ class _BlockDialogState extends State<_BlockDialog> {
       actions: [
         TextButton(
           onPressed: _busy ? null : () => Navigator.of(context).pop(),
-          child: const Text(
-            'Vazgeç',
-            style: TextStyle(color: AppColors.textSoft),
-          ),
+          child: Text('Vazgeç', style: TextStyle(color: AppColors.textSoft)),
         ),
         Opacity(
           opacity: _busy ? 0.5 : 1,
@@ -1104,7 +1093,7 @@ class _BlockDialogState extends State<_BlockDialog> {
   }
 }
 
-const TextStyle _metaTxt = TextStyle(
+TextStyle _metaTxt = TextStyle(
   color: AppColors.textMuted,
   fontSize: 12,
   fontWeight: AppFont.bold,

@@ -44,7 +44,7 @@ class MatchHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.only(bottom: Spacing.lg),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.bgAlt,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
@@ -68,7 +68,7 @@ class MatchHeader extends StatelessWidget {
                     onTap: onBack,
                     behavior: HitTestBehavior.opaque,
                     // Kaynaktaki hitSlop 10 → dokunma alanı büyütülür.
-                    child: const Padding(
+                    child: Padding(
                       padding: EdgeInsets.all(10),
                       child: Text(
                         '‹',
@@ -86,14 +86,14 @@ class MatchHeader extends StatelessWidget {
                   children: [
                     Text(
                       '⚽ $kAppNameUpper',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.text,
                         fontSize: 16,
                         fontWeight: AppFont.black,
                         letterSpacing: 1,
                       ),
                     ),
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(top: 1),
                       child: Text(
                         'BAĞIMSIZ ANALİZ UYGULAMASI',
@@ -151,7 +151,7 @@ class MatchHeader extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 10.5,
                                 fontWeight: AppFont.bold,
@@ -168,7 +168,7 @@ class MatchHeader extends StatelessWidget {
                                 if (dateLabel != null && dateLabel!.isNotEmpty)
                                   Text(
                                     dateLabel!,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: AppColors.textMuted,
                                       fontSize: 11,
                                       fontWeight: AppFont.bold,
@@ -176,7 +176,7 @@ class MatchHeader extends StatelessWidget {
                                   ),
                                 Text(
                                   time,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppColors.text,
                                     fontSize: 21,
                                     fontWeight: AppFont.black,
@@ -197,7 +197,7 @@ class MatchHeader extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 10.5,
                                 fontWeight: AppFont.semibold,
@@ -227,7 +227,7 @@ class MatchHeader extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 14,
             fontWeight: AppFont.heavy,
@@ -236,7 +236,7 @@ class MatchHeader extends StatelessWidget {
         // Fikstür bağlantısı yalnız kaynak takım kimliği VARSA çizilir —
         // tıklanıp boş açılan bir kart olmaz.
         if (onTap != null)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 0),
             child: Text(
               'maçlar ›',
@@ -263,7 +263,7 @@ class _Tire extends StatelessWidget {
   const _Tire();
 
   @override
-  Widget build(BuildContext context) => const Text(
+  Widget build(BuildContext context) => Text(
     '-',
     style: TextStyle(
       color: AppColors.textMuted,

@@ -45,7 +45,7 @@ class _Field extends StatelessWidget {
                   null,
           autocorrect: false,
           textCapitalization: TextCapitalization.none,
-          style: const TextStyle(color: AppColors.text, fontSize: 15),
+          style: TextStyle(color: AppColors.text, fontSize: 15),
           decoration: _girdiSusu(placeholder),
         ),
       ],
@@ -55,22 +55,22 @@ class _Field extends StatelessWidget {
 
 InputDecoration _girdiSusu(String? placeholder) => InputDecoration(
   hintText: placeholder,
-  hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 15),
+  hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 15),
   filled: true,
   fillColor: AppColors.card,
   isDense: true,
   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
   border: OutlineInputBorder(
     borderRadius: AppRadius.mdR,
-    borderSide: const BorderSide(color: AppColors.border),
+    borderSide: BorderSide(color: AppColors.border),
   ),
   enabledBorder: OutlineInputBorder(
     borderRadius: AppRadius.mdR,
-    borderSide: const BorderSide(color: AppColors.border),
+    borderSide: BorderSide(color: AppColors.border),
   ),
   focusedBorder: OutlineInputBorder(
     borderRadius: AppRadius.mdR,
-    borderSide: const BorderSide(color: AppColors.primary),
+    borderSide: BorderSide(color: AppColors.primary),
   ),
 );
 
@@ -126,7 +126,7 @@ class _PasswordFieldState extends State<PasswordField> {
                   enableSuggestions: false,
                   textCapitalization: TextCapitalization.none,
                   onChanged: (_) => setState(() {}),
-                  style: const TextStyle(color: AppColors.text, fontSize: 15),
+                  style: TextStyle(color: AppColors.text, fontSize: 15),
                   decoration: _girdiSusu(
                     widget.placeholder ?? 'en az $kMinPasswordLength karakter',
                   ),
@@ -215,7 +215,7 @@ class _Submit extends StatelessWidget {
           borderRadius: AppRadius.mdR,
         ),
         child: busy
-            ? const SizedBox(
+            ? SizedBox(
                 width: 18,
                 height: 18,
                 child: CircularProgressIndicator(
@@ -225,7 +225,7 @@ class _Submit extends StatelessWidget {
               )
             : Text(
                 text,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.bg,
                   fontSize: 16,
                   fontWeight: AppFont.heavy,
@@ -250,7 +250,7 @@ class _Link extends StatelessWidget {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.primary,
           fontSize: 13.5,
           fontWeight: AppFont.bold,
@@ -307,7 +307,7 @@ class _VerificationNoticeState extends State<_VerificationNotice> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           '📧 E-postanı doğrula',
           style: TextStyle(
             color: AppColors.text,
@@ -318,7 +318,7 @@ class _VerificationNoticeState extends State<_VerificationNotice> {
         const SizedBox(height: 6),
         Text(
           widget.message,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textMuted,
             fontSize: 13,
             height: 19 / 13,
@@ -556,7 +556,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget build(BuildContext context) => _Kabuk(
     baslik: 'Şifremi Unuttum',
     children: [
-      const Padding(
+      Padding(
         padding: EdgeInsets.only(bottom: Spacing.md),
         child: Text(
           'E-postanı gir; şifre sıfırlama bağlantısı gönderelim.',
@@ -588,7 +588,6 @@ class _Kabuk extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.bg,
     appBar: AppBar(title: Text(baslik)),
     body: SingleChildScrollView(
       padding: const EdgeInsets.all(Spacing.lg),
@@ -600,7 +599,7 @@ class _Kabuk extends StatelessWidget {
   );
 }
 
-const TextStyle _labelStil = TextStyle(
+TextStyle _labelStil = TextStyle(
   color: AppColors.textMuted,
   fontSize: 12,
   fontWeight: AppFont.bold,

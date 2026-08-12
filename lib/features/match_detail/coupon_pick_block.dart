@@ -72,7 +72,7 @@ class _CouponPickBlockState extends State<CouponPickBlock> {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   '🎟️ KUPONA İŞLE',
                   style: TextStyle(
@@ -97,10 +97,10 @@ class _CouponPickBlockState extends State<CouponPickBlock> {
                       color: AppColors.primary,
                       borderRadius: AppRadius.smR,
                     ),
-                    child: const Text(
+                    child: Text(
                       'Kupon Oluştur ›',
                       style: TextStyle(
-                        color: AppColors.white,
+                        color: AppColors.onPrimary,
                         fontSize: 10.5,
                         fontWeight: AppFont.black,
                       ),
@@ -144,7 +144,7 @@ class _CouponPickBlockState extends State<CouponPickBlock> {
                           borderRadius: AppRadius.smR,
                           border: Border.all(color: AppColors.border),
                         ),
-                        child: const Text(
+                        child: Text(
                           '⚙ Sistemden al',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

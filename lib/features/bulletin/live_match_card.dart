@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/favorite_team.dart';
 import '../../core/live_logic.dart';
+import 'mac_takip_ui.dart';
 import '../../core/services/muhurlu_sistem.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils.dart';
@@ -201,9 +202,21 @@ class _LiveMatchCardState extends State<LiveMatchCard>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Ülke satırı — hangi ülkenin maçı (kullanıcı isteği, 2026-08-04)
+                //
+                // SAĞ UÇTA (kullanıcı isteği, 2026-08-11): maç takibi yıldızı
+                // ve o maça özel bildirim ayarları çarkı. İkisi de KART
+                // AÇILMADAN çalışır; dokunuşları kartın kendi `onPress`'ine
+                // karışmasın diye ayrı vurulur.
                 Padding(
                   padding: const EdgeInsets.only(bottom: 7),
-                  child: UlkeEtiketi(league: m['league'] as String?),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: UlkeEtiketi(league: m['league'] as String?),
+                      ),
+                      MacTakipSimgeleri(match: m),
+                    ],
+                  ),
                 ),
 
                 // ÜST BLOK: solda sıra numarası, sağda takım satırı + son
@@ -222,7 +235,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
                         child: Text(
                           '${m['no']}',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textSoft,
                             fontSize: 25,
                             fontWeight: AppFont.black,
@@ -255,7 +268,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
                                             '${favSide == 'home' ? '⭐ ' : ''}$homeName',
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               color: AppColors.text,
                                               fontSize: 13.5,
                                               fontWeight: AppFont.heavy,
@@ -289,7 +302,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
                                       ? [
                                           Text(
                                             d != null ? d.time : '—',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               color: AppColors.text,
                                               fontSize: 14,
                                               fontWeight: AppFont.heavy,
@@ -300,7 +313,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
                                             d != null ? d.day : '',
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               color: AppColors.muted,
                                               fontSize: 10,
                                               fontWeight: AppFont.bold,
@@ -340,7 +353,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
                                             maxLines: 1,
                                             textAlign: TextAlign.right,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               color: AppColors.text,
                                               fontSize: 13.5,
                                               fontWeight: AppFont.heavy,
@@ -385,7 +398,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   _formTarafi(stats, 'home', sag: false),
-                                  const Text(
+                                  Text(
                                     'son maçlar',
                                     style: TextStyle(
                                       color: AppColors.textMuted,
@@ -412,7 +425,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
 
                 // ── ALT: Sen / Sistem ──
                 if (hidePicks)
-                  const Text(
+                  Text(
                     'Resmi karar bekleniyor',
                     style: TextStyle(
                       color: AppColors.textMuted,
@@ -511,12 +524,12 @@ class _LiveMatchCardState extends State<LiveMatchCard>
     final sysSym = yaz(p.system.sym);
     final eski = _eskiSistemSecimi(p.system.sym);
 
-    const label = TextStyle(
+    final label = TextStyle(
       color: AppColors.muted,
       fontSize: 11,
       fontWeight: AppFont.heavy,
     );
-    const isaretli = TextStyle(fontSize: 12, color: AppColors.text);
+    final isaretli = TextStyle(fontSize: 12, color: AppColors.text);
 
     final sistemBolumu = RichText(
       maxLines: 1,
@@ -524,11 +537,11 @@ class _LiveMatchCardState extends State<LiveMatchCard>
       text: TextSpan(
         style: isaretli,
         children: [
-          const TextSpan(text: 'Sistem ', style: label),
+          TextSpan(text: 'Sistem ', style: label),
           if (eski != null) ...[
             TextSpan(
               text: yaz(eski),
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.muted,
                 fontWeight: AppFont.bold,
               ),
@@ -543,10 +556,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
           ],
           TextSpan(
             text: sysSym,
-            style: const TextStyle(
-              color: AppColors.text,
-              fontWeight: AppFont.black,
-            ),
+            style: TextStyle(color: AppColors.text, fontWeight: AppFont.black),
           ),
           if (sMark != Isaret.pending && kIsaretMetni[sMark]!.isNotEmpty)
             TextSpan(text: ' ${kIsaretMetni[sMark]}'),
@@ -564,10 +574,10 @@ class _LiveMatchCardState extends State<LiveMatchCard>
             text: TextSpan(
               style: isaretli,
               children: [
-                const TextSpan(text: 'Sen ', style: label),
+                TextSpan(text: 'Sen ', style: label),
                 TextSpan(
                   text: p.user.sym == null ? 'Kupon yok' : yaz(p.user.sym),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textSoft,
                     fontWeight: AppFont.bold,
                   ),
@@ -575,7 +585,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
                 if (uMark != Isaret.pending && kIsaretMetni[uMark]!.isNotEmpty)
                   TextSpan(text: ' ${kIsaretMetni[uMark]}'),
                 if (st == MacDurum.postponed)
-                  const TextSpan(
+                  TextSpan(
                     text: '  · Ertelendi',
                     style: TextStyle(
                       color: AppColors.textMuted,
@@ -656,7 +666,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
       children: [
         Text(
           'Sistem tahmini ${yaz(eski)} → ${yaz(guncel)}',
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 16,
             fontWeight: AppFont.black,
@@ -670,7 +680,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
                 '${_kisaZaman(damga['zaman'])}',
           ),
         if (!geldi)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 10),
             child: Text(
               'Kayıt okunuyor…',
@@ -693,14 +703,14 @@ class _LiveMatchCardState extends State<LiveMatchCard>
           const SizedBox(height: 8),
           Text(
             'Kayıtlı değişiklikler (${iz.gozlemSayisi} gözlem)',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 12.5,
               fontWeight: AppFont.black,
             ),
           ),
           if (iz.degisimler.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 6),
               child: Text(
                 'Kayıtlarda bu maçta sistem tahmini değişmemiş.',
@@ -715,7 +725,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
                 children: [
                   Text(
                     '${yaz(d.eski)} → ${yaz(d.yeni)} · ${_kisaZaman(d.zaman)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.text,
                       fontSize: 12.5,
                       fontWeight: AppFont.heavy,
@@ -726,7 +736,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
                       Text(
                         'olasılık 1/X/2: %${e['1']}/%${e['X']}/%${e['2']}'
                         ' → %${y['1']}/%${y['X']}/%${y['2']}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textSoft,
                           fontSize: 11.5,
                         ),
@@ -737,7 +747,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
                         'oran ev/ber/dep: '
                         '${e['home']}/${e['draw']}/${e['away']}'
                         ' → ${y['home']}/${y['draw']}/${y['away']}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textSoft,
                           fontSize: 11.5,
                         ),
@@ -748,7 +758,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
         ],
         if (gerekce != null) ...[
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Sistemin şu anki gerekçesi',
             style: TextStyle(
               color: AppColors.text,
@@ -760,7 +770,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
             padding: const EdgeInsets.only(top: 4),
             child: Text(
               '$gerekce',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textSoft,
                 fontSize: 11.5,
                 height: 1.4,
@@ -769,7 +779,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
           ),
         ],
         const SizedBox(height: 12),
-        const Text(
+        Text(
           'Kriter bazlı öncesi/sonrası kayıtta tutulmuyor; bu yüzden '
           'gösterilmiyor.',
           style: TextStyle(
@@ -787,15 +797,12 @@ class _LiveMatchCardState extends State<LiveMatchCard>
     padding: const EdgeInsets.only(top: 3),
     child: RichText(
       text: TextSpan(
-        style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+        style: TextStyle(color: AppColors.textMuted, fontSize: 12),
         children: [
           TextSpan(text: '$baslik: '),
           TextSpan(
             text: deger,
-            style: const TextStyle(
-              color: AppColors.text,
-              fontWeight: AppFont.bold,
-            ),
+            style: TextStyle(color: AppColors.text, fontWeight: AppFont.bold),
           ),
         ],
       ),

@@ -166,8 +166,9 @@ class _CouponShareScreenState extends State<CouponShareScreen> {
     // güncel bülten. İkisi de yoksa satır çizilir ama takım adı yerine "—"
     // durur (uydurma ad ya da "benzeri" arma ASLA konmaz).
     final arsiv = (_hist?['matches'] as List?) ?? const [];
-    final macKaynak =
-        arsiv.isNotEmpty ? arsiv : ((_bulten?['matches'] as List?) ?? const []);
+    final macKaynak = arsiv.isNotEmpty
+        ? arsiv
+        : ((_bulten?['matches'] as List?) ?? const []);
     final macByNo = <Object, Map>{
       for (final m in macKaynak)
         if ((m as Map)['no'] != null) m['no'] as Object: m,
@@ -184,8 +185,8 @@ class _CouponShareScreenState extends State<CouponShareScreen> {
     final headSub = headSubParcalar.isNotEmpty
         ? headSubParcalar.join(' · ')
         : (_hist?['weekNumber'] != null
-            ? '${_hist!['weekNumber']}. Hafta'
-            : '');
+              ? '${_hist!['weekNumber']}. Hafta'
+              : '');
 
     final playedLine = coupon['playedMarkedAt'] != null
         ? 'Tahmin kilitlendi — kullanıcı beyanı, bağımsız olarak doğrulanmamıştır'
@@ -225,8 +226,9 @@ class _CouponShareScreenState extends State<CouponShareScreen> {
                 child: Text(
                   _done,
                   textAlign: TextAlign.center,
-                  style: studioFont(600)
-                      .copyWith(color: S.ink, fontSize: o.t.kucuk),
+                  style: studioFont(
+                    600,
+                  ).copyWith(color: S.ink, fontSize: o.t.kucuk),
                 ),
               ),
             // Hızlı paylaş (WhatsApp/Telegram metin düğmeleri) eklendi ve aynı
@@ -247,14 +249,14 @@ class _CouponShareScreenState extends State<CouponShareScreen> {
   }
 
   Widget _kabuk(Widget govde) => Scaffold(
-        backgroundColor: S.bg,
-        appBar: AppBar(
-          title: const Text('Kupon Paylaş'),
-          backgroundColor: S.panel,
-          foregroundColor: S.ink,
-        ),
-        body: govde,
-      );
+    backgroundColor: S.bg,
+    appBar: AppBar(
+      title: const Text('Kupon Paylaş'),
+      backgroundColor: S.panel,
+      foregroundColor: S.ink,
+    ),
+    body: govde,
+  );
 
   /* ————— PAYLAŞILAN KARE —————
      Kadraj: yalnız RepaintBoundary içi. Tutar anahtarı ve paylaşım düğmesi
@@ -341,8 +343,14 @@ class _CouponShareScreenState extends State<CouponShareScreen> {
                   ],
                 ),
                 for (var i = 0; i < secimler.length; i++)
-                  _satir(o, secimler[i] as Map, i, macByNo, sagGenislik,
-                      kompakt),
+                  _satir(
+                    o,
+                    secimler[i] as Map,
+                    i,
+                    macByNo,
+                    sagGenislik,
+                    kompakt,
+                  ),
                 Tfoot(k: o.k, text: altSatirlar.join('\n')),
               ],
             ),
@@ -374,8 +382,8 @@ class _CouponShareScreenState extends State<CouponShareScreen> {
     bool kompakt,
   ) {
     final m = macByNo[sc['no']];
-    final secimler =
-        ((sc['selectedOutcomes'] as List?) ?? const []).cast<String>();
+    final secimler = ((sc['selectedOutcomes'] as List?) ?? const [])
+        .cast<String>();
     return MacSatiri(
       k: o.k,
       zebra: i % 2 == 1,
@@ -384,80 +392,77 @@ class _CouponShareScreenState extends State<CouponShareScreen> {
       // zebrayı yutup tabloyu soluk somon bir bloğa çevirirdi. Hangi işaretin
       // basıldığını sağdaki kutular gösterir.
       sira: sc['no'] ?? '',
-      home: (m?['home'] as Map?)?['mediumName'] as String? ??
+      home:
+          (m?['home'] as Map?)?['mediumName'] as String? ??
           (m?['home'] as Map?)?['name'] as String?,
-      away: (m?['away'] as Map?)?['mediumName'] as String? ??
+      away:
+          (m?['away'] as Map?)?['mediumName'] as String? ??
           (m?['away'] as Map?)?['name'] as String?,
       homeLogo: (m?['home'] as Map?)?['logo'] as String?,
       awayLogo: (m?['away'] as Map?)?['logo'] as String?,
       // `salt` — `disabled` DEĞİL. Kare zaten dokunulamaz; `disabled` kutuları
       // %42 saydam çizip paylaşılan görseli soluk yapıyordu.
-      sag: PickBoxes(
-        outcomes: secimler,
-        salt: true,
-        k: o.k,
-        compact: kompakt,
-      ),
+      sag: PickBoxes(outcomes: secimler, salt: true, k: o.k, compact: kompakt),
       sagGenislik: sagGenislik,
     );
   }
 
   Widget _tutarSatiri(KuponOlcek o) => Row(
-        children: [
-          Expanded(
-            child: Text(
-              _pricing != null
-                  ? 'Tutarı görselde göster'
-                  : 'Tutar gösterilemez — birim bedel verisi yok',
-              style:
-                  studioFont(600).copyWith(color: S.inkSoft, fontSize: o.t.kucuk),
-            ),
-          ),
-          const SizedBox(width: SP.sm),
-          _anahtar(
-            o,
-            _showCost,
-            _showCost ? 'AÇIK' : 'KAPALI',
-            // Birim bedel verisi yoksa anahtar HİÇBİR ŞEY yapmaz: tutar
-            // uydurulmaz.
-            _pricing != null ? () => setState(() => _showCost = !_showCost) : null,
-          ),
-        ],
-      );
+    children: [
+      Expanded(
+        child: Text(
+          _pricing != null
+              ? 'Tutarı görselde göster'
+              : 'Tutar gösterilemez — birim bedel verisi yok',
+          style: studioFont(
+            600,
+          ).copyWith(color: S.inkSoft, fontSize: o.t.kucuk),
+        ),
+      ),
+      const SizedBox(width: SP.sm),
+      _anahtar(
+        o,
+        _showCost,
+        _showCost ? 'AÇIK' : 'KAPALI',
+        // Birim bedel verisi yoksa anahtar HİÇBİR ŞEY yapmaz: tutar
+        // uydurulmaz.
+        _pricing != null ? () => setState(() => _showCost = !_showCost) : null,
+      ),
+    ],
+  );
 
   Widget _anahtar(
     KuponOlcek o,
     bool acik,
     String etiket,
     VoidCallback? onTap,
-  ) =>
-      Semantics(
-        button: true,
-        selected: acik,
-        child: GestureDetector(
-          onTap: onTap,
-          behavior: HitTestBehavior.opaque,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: acik ? S.accentSoft : S.panel,
-              border: Border.all(
-                color: acik ? S.accent : S.line,
-                width: TABLE.hair,
-              ),
-              borderRadius: BorderRadius.circular(R.sm),
-            ),
-            child: Text(
-              etiket,
-              style: studioFont(600).copyWith(
-                color: acik ? S.accent : S.inkSoft,
-                fontSize: o.t.mikro,
-                letterSpacing: kEtiketLetterSpacing,
-              ),
-            ),
+  ) => Semantics(
+    button: true,
+    selected: acik,
+    child: GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: acik ? S.accentSoft : S.panel,
+          border: Border.all(
+            color: acik ? S.accent : S.line,
+            width: TABLE.hair,
+          ),
+          borderRadius: BorderRadius.circular(R.sm),
+        ),
+        child: Text(
+          etiket,
+          style: studioFont(600).copyWith(
+            color: acik ? S.accent : S.inkSoft,
+            fontSize: o.t.mikro,
+            letterSpacing: kEtiketLetterSpacing,
           ),
         ),
-      );
+      ),
+    ),
+  );
 
   Future<void> _paylas() async {
     if (_busy) return;

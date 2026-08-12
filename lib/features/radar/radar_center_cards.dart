@@ -13,7 +13,9 @@ typedef ClassMeta = ({String label, Color color, Color soft, String icon});
 
 /// Kullanıcı dili sadeleştirmesi: "Orta Risk"→"Temkinli", "Sürpriz Adayı"→
 /// "Sürpriz Sinyali", "Yetersiz Veri"→"Analiz Hazır Değil" (anahtarlar aynı).
-const Map<String, ClassMeta> kClassMeta = {
+/// GETTER, `final` DEĞİL: takım teması `AppColors`ı çalışma zamanında değiştirir
+/// (buradaki `muted`/`surfaceSoft` yapısaldır); `final` harita donardı.
+Map<String, ClassMeta> get kClassMeta => {
   'strong_candidate': (
     label: 'Güçlü Aday',
     color: AppColors.success,
@@ -136,7 +138,7 @@ class _MetaChip extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textMuted,
             fontSize: 9.5,
             fontWeight: AppFont.bold,
@@ -237,7 +239,7 @@ class MasterMatchCard extends StatelessWidget {
                   width: 22,
                   child: Text(
                     '${item['no']}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 15,
                       fontWeight: AppFont.heavy,
@@ -253,7 +255,7 @@ class MasterMatchCard extends StatelessWidget {
                         '${item['home']} – ${item['away']}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.text,
                           fontSize: 13.5,
                           fontWeight: AppFont.heavy,
@@ -264,7 +266,7 @@ class MasterMatchCard extends StatelessWidget {
                         '${item['league'] != null ? ' · ${item['league']}' : ''}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 10.5,
                         ),
@@ -311,7 +313,7 @@ class MasterMatchCard extends StatelessWidget {
 
             // ── Tahmin satırı ──
             if (veriYetersiz)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 8),
                 child: Text(
                   '— Tahmin üretilmedi: veri yetersiz.',
@@ -346,7 +348,7 @@ class MasterMatchCard extends StatelessWidget {
                       Text(
                         'Favori ${(m['favorite'] as Map)['symbol']} · '
                         '%${(m['favorite'] as Map)['percent']}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textSoft,
                           fontSize: 11,
                           fontWeight: AppFont.bold,
@@ -411,7 +413,7 @@ class MasterMatchCard extends StatelessWidget {
                 child: Text(
                   '🏛 Ertelendi — noter kararı: ${official['result']} · '
                   'radar karnesine sayılmaz.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textSoft,
                     fontSize: 11.5,
                     fontWeight: AppFont.heavy,
@@ -422,7 +424,7 @@ class MasterMatchCard extends StatelessWidget {
               // Mühürlü hafta bitti ama sonuç hâlâ yok: sessizlik hata gibi
               // görünür. Dürüst durum: kaynakta sonuç yok — büyük ihtimalle
               // ertelendi; noter kararı girilince burada görünecek.
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 8),
                 child: Text(
                   '— Sonuç bekleniyor: kaynakta resmî sonuç yok — maç '
@@ -445,7 +447,7 @@ class MasterMatchCard extends StatelessWidget {
                   children: [
                     RichText(
                       text: TextSpan(
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textSoft,
                           fontSize: 11.5,
                         ),
@@ -453,7 +455,7 @@ class MasterMatchCard extends StatelessWidget {
                           const TextSpan(text: 'Resmî sonuç: '),
                           TextSpan(
                             text: '${official['result']}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.text,
                               fontWeight: AppFont.black,
                             ),
@@ -495,7 +497,7 @@ class MasterMatchCard extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           text: TextSpan(
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.textSoft,
                               fontSize: 11,
                               height: 1.45,
@@ -504,7 +506,7 @@ class MasterMatchCard extends StatelessWidget {
                               const TextSpan(text: '• '),
                               TextSpan(
                                 text: '${r['radar']}: ',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.textMuted,
                                   fontWeight: AppFont.heavy,
                                 ),
@@ -550,7 +552,7 @@ class MasterMatchCard extends StatelessWidget {
       Container(
         margin: const EdgeInsets.only(top: 10),
         padding: const EdgeInsets.only(top: 10),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(top: BorderSide(color: AppColors.border)),
         ),
         child: Column(
@@ -561,7 +563,7 @@ class MasterMatchCard extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
                   '📎 $usedLine',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 10.5,
                     fontWeight: AppFont.bold,
@@ -595,11 +597,7 @@ class MasterMatchCard extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: 2),
     child: Text(
       '• $t',
-      style: const TextStyle(
-        color: AppColors.textSoft,
-        fontSize: 11,
-        height: 1.45,
-      ),
+      style: TextStyle(color: AppColors.textSoft, fontSize: 11, height: 1.45),
     ),
   );
 
@@ -642,7 +640,7 @@ class _DetayBaslik extends StatelessWidget {
     padding: const EdgeInsets.only(top: 8, bottom: 4),
     child: Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.text,
         fontSize: 11.5,
         fontWeight: AppFont.black,
@@ -672,7 +670,7 @@ class _RadarRow extends StatelessWidget {
               children: [
                 Text(
                   '${r['name']}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 11.5,
                     fontWeight: AppFont.heavy,
@@ -682,7 +680,7 @@ class _RadarRow extends StatelessWidget {
                   Text(
                     '${r['homeScore'] != null ? '1 %${r['homeScore']} · X %${r['drawScore']} · 2 %${r['awayScore']}' : 'Yön puanı üretmez (yardımcı sinyal)'}'
                     '${r['favoriteFailureRisk'] != null ? ' · Sürpriz göstergesi ${r['favoriteFailureRisk']}' : ''}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textSoft,
                       fontSize: 10.5,
                       height: 1.4,
@@ -692,7 +690,7 @@ class _RadarRow extends StatelessWidget {
                   Text(
                     '${r['status'] == 'no_source' ? '⏳ Veri kaynağı bekleniyor' : '— Veri yetersiz'}'
                     '${r['note'] != null ? ' · ${r['note']}' : ''}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 10.5,
                       fontStyle: FontStyle.italic,
@@ -704,7 +702,7 @@ class _RadarRow extends StatelessWidget {
           if (r['hasData'] == true)
             Text(
               'Veri %${r['dataQuality']}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 10,
                 fontWeight: AppFont.bold,
@@ -733,7 +731,7 @@ class RadarTabCard extends StatelessWidget {
     if (r == null) {
       return _kutu(
         child: _ust(
-          alt: const Text(
+          alt: Text(
             '— Bu maçta bu radar için veri yok',
             style: TextStyle(
               color: AppColors.textMuted,
@@ -771,7 +769,7 @@ class RadarTabCard extends StatelessWidget {
                     '${r['homeScore'] != null ? '1 %${r['homeScore']} · X %${r['drawScore']} · 2 %${r['awayScore']} · ' : ''}'
                     '${r['direction'] != null ? 'Yön: ${r['direction']} · ' : ''}'
                     'Veri %${r['dataQuality']}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 10.5,
                     ),
@@ -780,7 +778,7 @@ class RadarTabCard extends StatelessWidget {
                     r['status'] == 'no_source'
                         ? '⏳ Veri kaynağı bekleniyor'
                         : '— Bu maçta veri yetersiz',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 10.5,
                       fontStyle: FontStyle.italic,
@@ -802,7 +800,7 @@ class RadarTabCard extends StatelessWidget {
                           fontWeight: AppFont.black,
                         ),
                       ),
-                      const Text(
+                      Text(
                         'Sürpriz göstergesi',
                         style: TextStyle(
                           color: AppColors.textMuted,
@@ -821,7 +819,7 @@ class RadarTabCard extends StatelessWidget {
                 '• $t',
                 maxLines: radarId == 'performance' ? 3 : 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textSoft,
                   fontSize: 11,
                   height: 1.45,
@@ -844,7 +842,7 @@ class RadarTabCard extends StatelessWidget {
                 children: [
                   Text(
                     '💬 ${playedDna['userSentence']}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.text,
                       fontSize: 11,
                       height: 1.45,
@@ -854,7 +852,7 @@ class RadarTabCard extends StatelessWidget {
                   if ((playedDna['similarDna'] as Map?)?['hasData'] == true)
                     Text(
                       '📈 ${(playedDna['similarDna'] as Map)['sentence']}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textSoft,
                         fontSize: 10.5,
                         height: 1.45,
@@ -863,7 +861,7 @@ class RadarTabCard extends StatelessWidget {
                   else
                     Text(
                       '${(playedDna['similarDna'] as Map?)?['note'] ?? 'Benzer sonuç için sistem öğreniyor.'}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 10.5,
                         fontStyle: FontStyle.italic,
@@ -872,7 +870,7 @@ class RadarTabCard extends StatelessWidget {
                   if (playedDna['note'] != null)
                     Text(
                       '${playedDna['note']}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 10,
                       ),
@@ -892,7 +890,7 @@ class RadarTabCard extends StatelessWidget {
         width: 22,
         child: Text(
           '${item['no']}',
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textMuted,
             fontSize: 15,
             fontWeight: AppFont.heavy,
@@ -908,7 +906,7 @@ class RadarTabCard extends StatelessWidget {
               '${item['home']} – ${item['away']}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 13.5,
                 fontWeight: AppFont.heavy,

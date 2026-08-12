@@ -127,11 +127,10 @@ void main() {
       {'minute': 20, 'type': 'Goal', 'detail': 'Own Goal', 'side': 'home'},
       {'minute': 30, 'type': 'Goal', 'detail': 'Penalty', 'side': 'away'},
     ]);
-    expect([for (final g in prog) '${g.home}-${g.away}'], [
-      '1-0',
-      '1-1',
-      '1-2',
-    ]);
+    expect(
+      [for (final g in prog) '${g.home}-${g.away}'],
+      ['1-0', '1-1', '1-2'],
+    );
     expect(prog[1].ownGoal, isTrue);
     expect(prog[1].side, 'away', reason: 'kendi kalesine gol rakibe yazılır');
     expect(prog[2].penalty, isTrue);
@@ -157,7 +156,11 @@ void main() {
     );
     expect(pr.basis, contains('Şut'));
     expect(pr.basis, contains('Topla oynama'));
-    expect(pr.basis, isNot(contains('Faul')), reason: 'faul baskı ölçüsü değil');
+    expect(
+      pr.basis,
+      isNot(contains('Faul')),
+      reason: 'faul baskı ölçüsü değil',
+    );
   });
 
   test('baskı: yetersiz veride GÖSTERGE ÜRETİLMEZ (uydurma yok)', () {
@@ -205,12 +208,10 @@ void main() {
       {'type': 'Bilinmeyen'},
       {'type': 'Ball Possession'},
     ]);
-    expect([for (final s in sorted) s['type']], [
-      'Ball Possession',
-      'Total Shots',
-      'Offsides',
-      'Bilinmeyen',
-    ]);
+    expect(
+      [for (final s in sorted) s['type']],
+      ['Ball Possession', 'Total Shots', 'Offsides', 'Bilinmeyen'],
+    );
     expect(kRegMinutes, 90);
   });
 }
