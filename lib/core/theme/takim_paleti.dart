@@ -44,6 +44,12 @@ double kontrastOrani(Color a, Color b) {
 /// WCAG AA eşiği (normal metin).
 const double kAaEsigi = 4.5;
 
+/// WCAG AA eşiği — BÜYÜK/KALIN metin ve arayüz bileşenleri (3:1).
+///
+/// Yalnız rozet, buton, sekme gibi kalın-büyük yüzeyler için geçerlidir;
+/// gövde metnine uygulanmaz.
+const double kAaBuyukEsigi = 3.0;
+
 /// Zeminin üstünde okunacak metin rengi — HESAPLANIR.
 ///
 /// Koyu seçenek projenin kendi metin rengidir (saf siyah değil): açık
@@ -135,6 +141,40 @@ class TakimPaleti {
 
   /// Seçili durumun üstünde okunacak metin (etkin sekme yazısı).
   Color get seciliUstuMetin => okunurMetin(secili);
+}
+
+/// Takımın İKİ RENGİNİ karşılıklı kullanan bir yüzey çifti.
+typedef KimlikCifti = ({Color zemin, Color yazi});
+
+/// KARŞILIKLI RENK — kimlik yüzeyleri için (kullanıcı isteği, 2026-08-12).
+///
+/// Kural kullanıcının kendi cümlesi: "Galatasaray temasında bir kutunun zemini
+/// sarıysa yazı ve ikonlar kırmızı olsun; kutunun zemini kırmızıysa yazı ve
+/// ikonlar sarı olsun." Yani takımın iki rengi birbirinin üstünde kullanılır;
+/// biri yalnız zemin, diğeri yalnız küçük detay olarak kalmaz.
+///
+/// [anaZemin] true → zemin ANA renk, yazı İKİNCİL renk. false → tersi.
+///
+/// EŞİK NEDEN [kAaBuyukEsigi] (3.0), 4.5 DEĞİL — ölçülmüş bir zorunluluk:
+/// Galatasaray'ın sarısı kendi kırmızısının üstünde **4.41** veriyor, yani
+/// normal metin eşiğinin kılpayı altında. 4.5 dayatılsaydı kullanıcının
+/// ADIYLA istediği örnek ("kırmızı zeminde sarı") hiç uygulanamazdı.
+/// 3.0, WCAG'ın BÜYÜK/KALIN metin ve arayüz bileşeni eşiğidir; bu çift zaten
+/// yalnız rozet, buton ve sekme gibi kalın-büyük yüzeylerde kullanılır.
+/// Küçük gövde metninde KULLANILMAZ.
+///
+/// OKUNURLUK YİNE DE EZER: eşiği de geçemeyen çiftlerde (iki rengi birbirine
+/// çok yakın takımlar) yazı, zeminin kendi okunur metnine düşer. Kullanıcının
+/// şartı buydu: "kontrastı koruduğu sürece".
+KimlikCifti kimlikCifti(TakimPaleti p, {bool anaZemin = true}) {
+  final zemin = anaZemin ? p.ana : p.ikincil;
+  final karsi = anaZemin ? p.ikincil : p.ana;
+  return (
+    zemin: zemin,
+    yazi: kontrastOrani(karsi, zemin) >= kAaBuyukEsigi
+        ? karsi
+        : okunurMetin(zemin),
+  );
 }
 
 /// İki elle renkten dokuz alanlı paleti türetir.
@@ -279,18 +319,36 @@ Color _vurguUret(Color ham, Color yuzey, Color zemin) {
 /// Mevcut uygulamanın zemini de böyledir (#F3F5F9). Renk burada YUMUŞAR ama
 /// kaybolmaz — kimliği asıl taşıyan vurgu, seçili ve kenarlık tonlarıdır.
 Color _acikZemin(Color kaynak) {
-  var z = acikla(kaynak, 0.86);
-  var adim = 0;
-  while (gorecelParlaklik(z) < 0.55 && adim < 30) {
-    z = acikla(z, 0.06);
-    adim++;
-  }
+  // TON KORUNUR (kullanıcı isteği 2026-08-12: "renkler rastgele tonlara
+  // dönüşmesin, takımın bilinen ana renkleri esas alınsın").
+  //
+  // Önce şöyleydi: beyazla %86 karıştır, sonra fazla açıksa SİYAHA doğru
+  // karart. İkinci adım hatalıydı — siyaha doğru karartmak rengi aynı anda
+  // hem koyultup hem DOYGUNLUĞUNU düşürür. Ölçüldü: Dortmund sarısı
+  // (#FDE100) bu yolla #F0ECCE'ye, yani KREME dönüyordu; ekranda "sarı takım"
+  // hissi kalmıyordu.
+  //
+  // Şimdi tek bir düğme çevriliyor: BEYAZ KARIŞIM ORANI. Oranı azaltmak
+  // rengin kendisine geri döner (ton korunur), artırmak açar. Parlaklık
+  // hedefi aynı bandda kaldığı için kartın zeminden ayrışması bozulmaz.
+  var oran = 0.86;
+  var z = acikla(kaynak, oran);
+
   // ÜST SINIR: zemin beyaza dayanırsa kart (beyaz) ondan AYRIŞAMAZ — ölçüldü,
   // Göztepe'de ayrım 1.050'ye kadar düşüyordu. Varsayılan temanın zemini de
   // #F3F5F9 (L≈0.90); aynı hizada tutulur.
+  var adim = 0;
+  while (gorecelParlaklik(z) > 0.88 && oran > 0.02 && adim < 60) {
+    oran -= 0.02;
+    z = acikla(kaynak, oran);
+    adim++;
+  }
+
+  // ALT SINIR: koyu bir kaynak renkte zemin fazla koyu kalmasın.
   adim = 0;
-  while (gorecelParlaklik(z) > 0.88 && adim < 30) {
-    z = karart(z, 0.03);
+  while (gorecelParlaklik(z) < 0.55 && oran < 0.98 && adim < 60) {
+    oran += 0.02;
+    z = acikla(kaynak, oran);
     adim++;
   }
   return z;

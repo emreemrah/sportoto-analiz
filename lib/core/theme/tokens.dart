@@ -59,6 +59,14 @@ abstract final class AppColors {
   static Color onPrimary = Color(0xFFFFFFFF);
   static Color onAccent = Color(0xFFFFFFFF);
 
+  /// `primary` zemininde İKİNCİL yazı (üst başlık, alt satır).
+  ///
+  /// Gerekliydi: `primary` zeminli kartlarda ekranlar kendi soluk grilerini
+  /// yazmıştı (0xFF8FA6C9, 0xFFB7C4DA, 0xFFD7DEEA) — hepsi marka laciverdine
+  /// göre seçilmişti ve sarı bir `primary` üstünde okunmuyordu. [temayiUygula]
+  /// bunu AA eşiğini geçene kadar iterek hesaplar.
+  static Color onPrimarySoft = Color(0xFFB7C4DA);
+
   static const success = Color(0xFF16A34A);
   static const successSoft = Color(0xFFE8F7EE);
 
@@ -71,6 +79,21 @@ abstract final class AppColors {
   static const info = Color(0xFF2563EB);
   static const infoSoft = Color(0xFFEAF1FF);
 
+  // CANLI — ANLAMSAL, takım temasından BAĞIMSIZ (kullanıcı isteği 2026-08-12:
+  // "başarı, hata, uyarı ve canlı durum gibi anlamsal renkler tema renginden
+  // bağımsız kalsın").
+  //
+  // Eskiden canlı rozeti `accent` kullanıyordu. Varsayılan markada accent
+  // kırmızı olduğu için sorun görünmüyordu; takım temasında accent ikincil
+  // takım rengine döndüğü an "CANLI" Dortmund'da sarı, Fenerbahçe'de sarı
+  // oluyordu — yayıncılıktaki "canlı = kırmızı" kuralı bozuluyordu.
+  //
+  // Değer, markanın bugünkü accent kırmızısının AYNISI: varsayılan temada
+  // hiçbir piksel değişmez. [onLive] beyazdır (kontrast 4.54 — AA).
+  static const live = Color(0xFFE21B2D);
+  static const liveSoft = Color(0xFFFFE8EB);
+  static const onLive = Color(0xFFFFFFFF);
+
   static Color text = Color(0xFF101828);
   static Color textSoft = Color(0xFF475467);
   static Color muted = Color(0xFF98A2B3);
@@ -78,6 +101,37 @@ abstract final class AppColors {
 
   static Color darkCard = Color(0xFF111C34);
   static Color darkCardSoft = Color(0xFF18243F);
+
+  // KOYU YÜZEYİN ÜSTÜ (kullanıcı isteği 2026-08-12: "eski lacivert/gri
+  // renkler birçok yerde kalıyor").
+  //
+  // Uygulamada koyu panelli ekranlar var (Haftalık Özet, Hafta Kapanışı,
+  // bildirimler, kilit ekranı, yan menü, gösterge kartları). Bunların
+  // üstündeki yazı için TOKEN YOKTU; her ekran kendi açık grisini elle
+  // yazmıştı — ölçüldü: 0xFF9DB0CD, 0xFFC9D4EA, 0xFFB7C4DA, 0xFF8FA6C9,
+  // 0xFFB9C6DC, 0xFFD7DEEA, 0xFFB8C1D1, 0xFFD6DDE5, 0xFF8FA3BD, 0xFF7F93B4
+  // — hepsi marka laciverdinin tonu, hiçbiri takım temasını dinlemiyordu.
+  //
+  // Artık üçü de [darkCard]tan HESAPLANIR ve AA eşiğini geçer. Varsayılan
+  // değerler bugünkü marka görünümüyle birebir aynı bırakıldı.
+  static Color onDark = Color(0xFFFFFFFF);
+  static Color onDarkSoft = Color(0xFF9DB0CD);
+  static Color darkBorder = Color(0xFF2A3A57);
+
+  // VURGULU PANEL — "hero" kartı (kullanıcı isteği 2026-08-12: koyu mod
+  // "sade" olacak).
+  //
+  // Bu panel eskiden `primary`yi ZEMİN olarak kullanıyordu. Açık görünümde
+  // doğru (lacivert hero), ama koyu görünümde `primary` AÇIK olmak zorunda
+  // (kart içinde YAZI olarak da okunuyor) ve sonuç, siyah bir ekranın
+  // ortasında parlak açık mavi bir blok oluyordu — emülatörde görüldü.
+  //
+  // Ayrı token: açık görünümde marka laciverti, koyu görünümde yükseltilmiş
+  // koyu yüzey. İki rolü tek renge yükleme sorunu böylece bitiyor.
+  static Color heroZemin = Color(0xFF0B1B3A);
+  static Color onHero = Color(0xFFFFFFFF);
+  static Color onHeroSoft = Color(0xFFB7C4DA);
+
   static const white = Color(0xFFFFFFFF);
   static const black = Color(0xFF000000);
 
@@ -100,6 +154,9 @@ abstract final class AppColors {
 /// VARSAYILAN (marka) yapısal renkler — takım seçilmediğinde bunlara dönülür.
 /// `AppColors` değişken alanlarının başlangıç değerleriyle birebir aynıdır.
 abstract final class VarsayilanRenkler {
+  static const heroZemin = Color(0xFF0B1B3A);
+  static const onHero = Color(0xFFFFFFFF);
+  static const onHeroSoft = Color(0xFFB7C4DA);
   static const background = Color(0xFFF3F5F9);
   static const surface = Color(0xFFFFFFFF);
   static const surfaceSoft = Color(0xFFF8FAFC);
@@ -110,14 +167,85 @@ abstract final class VarsayilanRenkler {
   static const accentSoft = Color(0xFFFFE8EB);
   static const onPrimary = Color(0xFFFFFFFF);
   static const onAccent = Color(0xFFFFFFFF);
+  static const onPrimarySoft = Color(0xFFB7C4DA);
   static const text = Color(0xFF101828);
   static const textSoft = Color(0xFF475467);
   static const muted = Color(0xFF98A2B3);
   static const border = Color(0xFFE4E7EC);
   static const darkCard = Color(0xFF111C34);
   static const darkCardSoft = Color(0xFF18243F);
+  static const onDark = Color(0xFFFFFFFF);
+  static const onDarkSoft = Color(0xFF9DB0CD);
+  static const darkBorder = Color(0xFF2A3A57);
   static const cardAlt = Color(0xFFE8EEF8);
   static const track = Color(0xFFE8EEF8);
+}
+
+/// KOYU GÖRÜNÜM — yapısal renkler (kullanıcı isteği, 2026-08-12).
+///
+/// TAKIMDAN BAĞIMSIZ. Uygulamanın genel zemini, metni, kartı ve navigasyonu
+/// artık yalnız görünüm tercihiyle (açık / koyu / sistem) belirlenir; favori
+/// takım bu değerlere karışmaz.
+///
+/// ROL KURALLARI [VarsayilanRenkler] ile AYNIDIR, yalnız uçlar terstir:
+///  • `primary` ve `accent` hem ZEMİN (buton, seçili sekme) hem YAZI (kart
+///    içi vurgu) olarak kullanılıyor. Koyu görünümde bu ikisi AÇIK tonda
+///    olmak zorunda: koyu kartın üstünde okunacaklar. Üstlerindeki yazı da
+///    bu yüzden KOYU (`onPrimary` / `onAccent`).
+///  • Marka kimliği korunur: `primary` laciverdin açık tonu, `accent`
+///    markanın kırmızısının açık tonudur — yeni bir renk ailesi
+///    uydurulmadı.
+///  • Değerler `test/gorunum_modu_test.dart` içinde AA eşiğine karşı
+///    ölçülür; elle "olur herhâlde" denmedi.
+abstract final class KoyuRenkler {
+  /// Koyu görünümde hero, ayrı bir renk değil YÜKSELTİLMİŞ yüzeydir.
+  static const heroZemin = Color(0xFF242A35);
+  static const onHero = Color(0xFFE9ECF2);
+  static const onHeroSoft = Color(0xFFA9B2C0);
+  // ÜÇ KADEME: koyu panel < zemin < kart. Aralar ÖLÇÜLEREK açıldı — ilk
+  // denemede panel ile zemin 1.0475'te kalıyordu (eşik 1.05) ve Haftalık
+  // Özet gibi tek panelden ibaret ekranlar zeminden ayrışmıyordu.
+  static const background = Color(0xFF12161D);
+  static const surface = Color(0xFF1B2029);
+  static const surfaceSoft = Color(0xFF242A35);
+
+  static const primary = Color(0xFF7FA8EE);
+  static const primaryDark = Color(0xFF5B84C8);
+  static const primarySoft = Color(0xFF1C2740);
+
+  /// Markanın kırmızısının koyu görünüm karşılığı.
+  ///
+  /// İLK DENEME #FF8A94'TÜ VE PEMBEYE KAÇIYORDU (vitrinde görüldü). Koyu
+  /// zeminde okunması için açılması gerekiyor ama açtıkça doygunluk düşüp
+  /// somona dönüyor. #FF5A66 dengeyi tutuyor: kart üstünde 5.4, üstündeki
+  /// koyu yazıyla 6.4 — ikisi de AA, ve renk hâlâ KIRMIZI okunuyor.
+  static const accent = Color(0xFFFF5A66);
+  static const accentSoft = Color(0xFF3A1418);
+
+  static const onPrimary = Color(0xFF0E1116);
+  static const onAccent = Color(0xFF17090C);
+
+  /// `primary` zemininde İKİNCİL yazı. Koyu görünümde `primary` AÇIK bir
+  /// mavidir, dolayısıyla üstündeki ikincil yazı da KOYU olmak zorunda —
+  /// açık görünümdekinin (soluk gri-mavi) aynısını koymak 1.37 kontrast
+  /// verirdi (hesaplandı, test bunu bekçiliyor).
+  static const onPrimarySoft = Color(0xFF2A3340);
+
+  static const text = Color(0xFFE9ECF2);
+  static const textSoft = Color(0xFFB4BCC9);
+  static const muted = Color(0xFF8A93A3);
+  static const border = Color(0xFF2C333F);
+
+  /// Koyu görünümde "koyu panel" zeminden bir tık DAHA koyudur; açık
+  /// görünümdeki kontrastın karşılığı budur.
+  static const darkCard = Color(0xFF05070A);
+  static const darkCardSoft = Color(0xFF0F1318);
+  static const onDark = Color(0xFFE9ECF2);
+  static const onDarkSoft = Color(0xFFA9B2C0);
+  static const darkBorder = Color(0xFF262C36);
+
+  static const cardAlt = Color(0xFF1C2740);
+  static const track = Color(0xFF242A35);
 }
 
 /// `theme.js` → `labelColors`
