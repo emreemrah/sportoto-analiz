@@ -151,6 +151,7 @@ void gorunumuUygula(Brightness p) {
     // takım temasına aittir, bu iki modda hiçbir şey değişmemeli.
     AppColors.onBackground = KoyuRenkler.text;
     AppColors.onBackgroundAccent = KoyuRenkler.accent;
+    AppColors.onBackgroundAccentText = KoyuRenkler.onAccent;
     // ANLAMSAL YUMUŞAK YÜZEYLER — marka değerleri, birebir.
     AppColors.successSoft = const Color(0xFFE8F7EE);
     AppColors.warningSoft = const Color(0xFFFFF4DD);
@@ -196,6 +197,7 @@ void gorunumuUygula(Brightness p) {
   // takım temasına aittir, bu iki modda hiçbir şey değişmemeli.
   AppColors.onBackground = VarsayilanRenkler.text;
   AppColors.onBackgroundAccent = VarsayilanRenkler.accent;
+  AppColors.onBackgroundAccentText = VarsayilanRenkler.onAccent;
   AppColors.successSoft = const Color(0xFFE8F7EE);
   AppColors.warningSoft = const Color(0xFFFFF4DD);
   AppColors.dangerSoft = const Color(0xFFFEE2E2);

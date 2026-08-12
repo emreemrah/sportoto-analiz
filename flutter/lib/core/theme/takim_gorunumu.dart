@@ -47,9 +47,13 @@ void takimGorunumunuUygula(TakimPaleti p) {
   AppColors.surface = p.yuzey;
   AppColors.card = p.yuzey;
 
-  // ARA YÜZEY (şerit, çip zemini): kartın kendi tonu — beyaza/griye KAÇMAZ.
-  // Kartın metnini okutmak zorunda, yoksa şeritteki yazı kayboluyor.
-  final araYuzey = _komsuTon(p.yuzey, p.metin);
+  // ARA YÜZEY (şerit, çip zemini) PALETTEN gelir: kartla AYNI OLMAMASI
+  // türetmede garanti edilir. Burada hesaplandığında, "kartın metni hâlâ
+  // okunmalı" kısıtı yüzünden döngü hep başa dönüyor ve ara yüzey KARTIN
+  // AYNISI kalıyordu — ölçüldü: 150 takımın 149'unda kontrast 1.00, yani
+  // kullanıcının dediği gibi "kutu olduğu anlaşılmıyordu". Artık `metin`
+  // İKİ YÜZEYE göre türetiliyor (bkz. paletUret), kısıt oraya taşındı.
+  final araYuzey = p.yuzeySoft;
   AppColors.surfaceSoft = araYuzey;
   AppColors.bgAlt = araYuzey;
   AppColors.cardAlt = araYuzey;
@@ -89,10 +93,14 @@ void takimGorunumunuUygula(TakimPaleti p) {
   AppColors.accent = p.vurgu;
   AppColors.onAccent = p.vurguMetni;
   AppColors.onBackgroundAccent = p.secili;
+  AppColors.onBackgroundAccentText = p.seciliMetni;
 
   // Yumuşak rozet zeminleri: ÜSTLERİNDE aynı renk YAZI olarak duruyor
   // (`Pill`), o yüzden ikisi de AA sağlamak zorunda.
-  AppColors.primarySoft = _yumusakZemin(p.vurgu);
+  // Rozet zemini KARTTAN DA ayrışmalı: yalnız "üstündeki yazı okunsun"
+  // kısıtıyla üretilince 150 takımın 47'sinde tam kartın rengine oturuyordu
+  // (ölçüldü: primarySoft/kart = 1.00) ve rozetin sınırı kayboluyordu.
+  AppColors.primarySoft = _yumusakZemin(p.vurgu, p.yuzey);
   AppColors.accentSoft = AppColors.primarySoft;
   AppColors.onPrimarySoft = _solukAmaOkunur(p.vurguMetni, [p.vurgu], 0.28);
 
@@ -168,17 +176,33 @@ Color _komsuTon(Color renk, Color ustundekiMetin) {
 
 /// Rozet/çip zemini: [renk]in yumuşak tonu, ama ÜSTÜNDE [renk] YAZI olarak
 /// okunacak kadar ondan uzak. Hue korunur — gri/krem üretilmez.
-Color _yumusakZemin(Color renk) {
+Color _yumusakZemin(Color renk, Color kart) {
   final acigaGit = gorecelParlaklik(renk) < 0.5;
   final l = HSLColor.fromColor(renk).lightness;
+  bool uygun(Color c) =>
+      // Üstünde [renk] YAZI olarak duruyor → AA.
+      kontrastOrani(c, renk) >= kAaEsigi &&
+      // Kartın üstünde bir KUTU → sınırı seçilebilmeli.
+      kontrastOrani(c, kart) >= 1.25;
   for (var i = 1; i <= 100; i++) {
     final hedef = acigaGit ? l + i / 100 : l - i / 100;
     if (hedef < 0 || hedef > 1) break;
     final aday = tonla(renk, hedef);
-    if (kontrastOrani(aday, renk) >= kAaEsigi) return aday;
+    if (uygun(aday)) return aday;
   }
-  // Hue ekseninde yer kalmadı → son çare beyaz/siyah (erişilebilirlik).
-  return acigaGit ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
+  // Ters yönü de dene — bir uçta sıkışmış olabilir.
+  for (var i = 1; i <= 100; i++) {
+    final hedef = acigaGit ? l - i / 100 : l + i / 100;
+    if (hedef < 0 || hedef > 1) break;
+    final aday = tonla(renk, hedef);
+    if (uygun(aday)) return aday;
+  }
+  // İKİ YÖN DE TUTMADI. Beyaz/siyaha düşmek YANLIŞ olurdu: kart zaten beyaz
+  // olan takımlarda rozet tam kartın rengine oturuyor ve sınırı kayboluyordu
+  // (ölçüldü: 18 takımda primarySoft/kart = 1.00). Öncelik KUTUNUN GÖRÜNMESİ:
+  // kartın kendi komşu tonuna düşülür. Üstündeki yazı `primary`dir ve rozet
+  // kalın-büyük bir yüzeydir (WCAG 3.0), gövde metni değil.
+  return komsuTon(kart, ayrimEsigi: 1.40);
 }
 
 /// İkincil yazı rengi: [metin]i soluklaştırır ama [zeminler]in HEPSİNDE AA

@@ -136,6 +136,14 @@ abstract final class AppColors {
   // ayrı tokendan gelir (takım temasında İKİNCİL rengin tonu).
   static Color onBackgroundAccent = Color(0xFFE11D2E);
 
+  /// [onBackgroundAccent] ZEMİN OLARAK kullanıldığında üstündeki yazı.
+  ///
+  /// Sayfa zeminine oturan DOLU butonlar (ör. "+ Yeni Kupon") için gerekli:
+  /// dolguyu `primary` yapmak yanlıştı, çünkü `primary` KART için türetilir ve
+  /// zeminle çakışıp butonun kutusunu görünmez bırakıyordu (ölçüldü:
+  /// BB Erzurumspor teması, mavi zeminde mavi buton).
+  static Color onBackgroundAccentText = Color(0xFFFFFFFF);
+
   static Color darkCard = Color(0xFF111C34);
   static Color darkCardSoft = Color(0xFF18243F);
 

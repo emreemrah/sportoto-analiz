@@ -605,8 +605,24 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
   ///
   /// Kapalı seçimin bedeli AÇIKÇA yazılır: her maç 1-X-2 olunca kolon sayısı
   /// üç katına çıkar ve kullanıcı bunu ödeme ekranında değil, seçerken bilmeli.
-  Widget _genislikSecici() => Padding(
-    padding: const EdgeInsets.only(top: 12),
+  /// KUPON TÜRÜ SEÇİCİSİ — KART YÜZEYİNE OTURUR.
+  ///
+  /// Eskiden doğrudan SAYFA ZEMİNİ üstündeydi ve kart ailesinden renk
+  /// kullanıyordu: ters kontrast düzeninde "Kupon türü" etiketi ve altındaki
+  /// açıklama zeminle aynı renge düşüp KAYBOLUYORDU (emülatörde görüldü,
+  /// BB Erzurumspor teması — mavi zeminde mavi yazı). Seçili düğmenin dolgusu
+  /// da (`primary`) zeminle çakışıp kutusu görünmüyordu.
+  ///
+  /// Çözüm bloğu bir KUTUYA almak: içerideki her renk artık kart ailesinden
+  /// ve türetme onları kartta AA'ya karşı garanti ediyor.
+  Widget _genislikSecici() => Container(
+    margin: const EdgeInsets.only(top: 12),
+    padding: const EdgeInsets.all(Spacing.md),
+    decoration: BoxDecoration(
+      color: AppColors.surface,
+      borderRadius: AppRadius.mdR,
+      border: Border.all(color: AppColors.border),
+    ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -655,19 +671,39 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
                         borderRadius: AppRadius.smR,
                         border: Border.all(
                           color: _genislik == g
-                              ? AppColors.primary
+                              ? AppColors.text
                               : AppColors.border,
+                          width: _genislik == g ? 2 : 1,
                         ),
                       ),
-                      child: Text(
-                        ad,
-                        style: TextStyle(
-                          color: _genislik == g
-                              ? AppColors.onPrimary
-                              : AppColors.textSoft,
-                          fontSize: 12.5,
-                          fontWeight: AppFont.heavy,
-                        ),
+                      // SEÇİLİ DURUM YALNIZ RENKLE ANLAŞILMAZ (kullanıcı
+                      // isteği): dolu zemin + güçlü kenarlık + ONAY İŞARETİ.
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_genislik == g) ...[
+                            Icon(
+                              Icons.check_circle,
+                              size: 14,
+                              color: AppColors.onPrimary,
+                            ),
+                            const SizedBox(width: 5),
+                          ],
+                          Flexible(
+                            child: Text(
+                              ad,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: _genislik == g
+                                    ? AppColors.onPrimary
+                                    : AppColors.textSoft,
+                                fontSize: 12.5,
+                                fontWeight: AppFont.heavy,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
