@@ -193,9 +193,8 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
 
     return Column(
       children: [
-        // ÜST PANEL — maç bilgi alanı ve sekme şeridi TEK kutu (kullanıcı
-        // isteği, 2026-08-12). Alt köşeler oval; ikisi ayrı ayrı
-        // yuvarlatılsaydı ekranın ortasında iki kavisli blok görünürdü.
+        // İKİ AYRI PANEL (kullanıcı isteği, 2026-08-12 son tur): maç bilgi
+        // alanı bir kart, SEKMELER ayrı bir kart.
         UstPanel(
           renk: AppColors.bgAlt,
           child: Column(
@@ -236,12 +235,17 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
                       )
                     : null,
               ),
-              MacDetaySekmeCubugu(
-                controller: _tc,
-                sekmeler: _sekmeler,
-                onAyarlar: _ayarlariAc,
-              ),
             ],
+          ),
+        ),
+        // SEKME PANELİ — kendi kartı, `surfaceSoft` zeminiyle bilgi
+        // kartından ton farkıyla da ayrışır.
+        UstPanel(
+          renk: AppColors.surfaceSoft,
+          child: MacDetaySekmeCubugu(
+            controller: _tc,
+            sekmeler: _sekmeler,
+            onAyarlar: _ayarlariAc,
           ),
         ),
         // KUPONA İŞLE — Yorumlar sekmesi DIŞINDA her sekmede görünür
