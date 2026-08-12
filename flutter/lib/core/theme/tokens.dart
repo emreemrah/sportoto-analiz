@@ -323,11 +323,23 @@ abstract final class AppRadius {
   static const double xl = 22;
   static const double pill = 999;
 
+  /// EKRANIN EN ÜSTÜNDEKİ geniş başlık/filtre panelinin ALT köşe yarıçapı
+  /// (kullanıcı isteği, 2026-08-12): "keskin dikdörtgen bir blok gibi
+  /// görünmesin, alt köşeler oval olsun". `xl`den büyük seçildi çünkü panel
+  /// EKRAN GENİŞLİĞİNDE; aynı yarıçap küçük bir kartta belirgin görünürken
+  /// tam genişlikte fark edilmiyor.
+  static const double ustPanel = 28;
+
   static const smR = BorderRadius.all(Radius.circular(sm));
   static const mdR = BorderRadius.all(Radius.circular(md));
   static const lgR = BorderRadius.all(Radius.circular(lg));
   static const xlR = BorderRadius.all(Radius.circular(xl));
   static const pillR = BorderRadius.all(Radius.circular(pill));
+
+  /// Üst panel: ÜST kenar ekranın doğal sınırında kalır, ALT köşeler oval.
+  static const ustPanelR = BorderRadius.vertical(
+    bottom: Radius.circular(ustPanel),
+  );
 }
 
 /// `theme.js` → `font` (boyutlar + ağırlıklar)

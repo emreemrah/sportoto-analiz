@@ -57,6 +57,12 @@ abstract final class AppTheme {
       splashFactory: InkRipple.splashFactory,
 
       appBarTheme: AppBarTheme(
+        // ÜST ÇUBUĞUN ALT KÖŞELERİ OVAL (kullanıcı isteği, 2026-08-12):
+        // "keskin dikdörtgen bir blok gibi görünmesin". Tema düzeyinde
+        // verildiği için Kupon Hazırla, Güvenlik Ayarları, Görünüm, Bağlı
+        // Cihazlar gibi `AppBar` kullanan BÜTÜN ekranlar aynı yarıçapı alır —
+        // ekran ekran elle yazılsaydı biri unutulurdu.
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.ustPanelR),
         backgroundColor: AppColors.card,
         foregroundColor: AppColors.text,
         surfaceTintColor: Colors.transparent,

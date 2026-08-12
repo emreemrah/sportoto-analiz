@@ -50,6 +50,10 @@ class MatchHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.only(bottom: Spacing.lg),
+      // OVAL KÖŞE BURADA DEĞİL: bu başlık, altındaki sekme şeridiyle BİRLİKTE
+      // tek bir `UstPanel` içinde duruyor (bkz. match_detail_screen.dart) ve
+      // yuvarlaklık o panele ait. Burada da verilseydi ekranın ortasında iki
+      // ayrı kavisli blok görünürdü — emülatörde öyle çıktı.
       decoration: BoxDecoration(
         color: AppColors.bgAlt,
         border: Border(bottom: BorderSide(color: AppColors.border)),

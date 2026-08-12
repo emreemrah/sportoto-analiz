@@ -34,6 +34,7 @@ import '../../core/coupon/coupon_store.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/tokens.dart';
 import '../../widgets/app_ui.dart';
+import '../../widgets/ust_panel.dart';
 import '../../widgets/takim_logo_zemin.dart';
 
 String _fmtTL(num n) {
@@ -183,113 +184,133 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
         SafeArea(
           bottom: false,
           child: ListView(
-            padding: const EdgeInsets.all(Spacing.md),
+            // BAŞLIK TAM GENİŞLİKTE bir ÜST PANEL olsun diye listenin kendi
+            // yastığı sıfırlandı; kalan içerik aşağıda tek bir `Padding` ile
+            // sarılıyor. Yastık listede kalsaydı panel kenarlardan içeride
+            // durur ve ekranın üstüne oturmazdı.
+            padding: EdgeInsets.zero,
             children: [
-              // ── Hafta gezinme ──
-              Row(
-                children: [
-                  _okDugme('‹', canPrev, () {
-                    setState(
-                      () => _selectedId = (navRounds[selIdx - 1] as Map)['id'],
-                    );
-                  }),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Text(
-                          'Kupon Merkezi',
-                          style: TextStyle(
-                            color:
-                                AppColors.onBackground, // sayfa zemini üstünde
-                            fontSize: 17,
-                            fontWeight: AppFont.black,
-                          ),
+              // ── Hafta gezinme — ÜST PANEL (alt köşeler oval) ──
+              UstPanel(
+                child: Padding(
+                  padding: const EdgeInsets.all(Spacing.md),
+                  child: Row(
+                    children: [
+                      _okDugme('‹', canPrev, () {
+                        setState(
+                          () => _selectedId =
+                              (navRounds[selIdx - 1] as Map)['id'],
+                        );
+                      }),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text(
+                              'Kupon Merkezi',
+                              style: TextStyle(
+                                // ARTIK ÜST PANELİN (kart yüzeyi) İÇİNDE:
+                                // zemin ailesi kullanılınca beyaz panelde
+                                // kayboluyordu.
+                                color: AppColors.text,
+                                fontSize: 17,
+                                fontWeight: AppFont.black,
+                              ),
+                            ),
+                            Text(
+                              '${selMeta?['name'] ?? '—'}'
+                              '${selMeta?['year'] != null ? ' · ${selMeta!['year']}' : ''}',
+                              style: TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 12,
+                                fontWeight: AppFont.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          '${selMeta?['name'] ?? '—'}'
-                          '${selMeta?['year'] != null ? ' · ${selMeta!['year']}' : ''}',
-                          style: TextStyle(
-                            color: AppColors
-                                .onBackgroundMuted, // sayfa zemini üstünde
-                            fontSize: 12,
-                            fontWeight: AppFont.bold,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                      _okDugme('›', canNext, () {
+                        setState(
+                          () => _selectedId =
+                              (navRounds[selIdx + 1] as Map)['id'],
+                        );
+                      }),
+                    ],
                   ),
-                  _okDugme('›', canNext, () {
-                    setState(
-                      () => _selectedId = (navRounds[selIdx + 1] as Map)['id'],
-                    );
-                  }),
-                ],
+                ),
               ),
-              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.all(Spacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 10),
 
-              // ── Senkron durumu — kayıt hatasında kupon YERELDE güvende ──
-              if (sync.loggedIn && sync.error != null)
-                _serit(
-                  '⚠ Sunucuya kaydedilemedi: ${sync.error}\n'
-                  'Kuponların cihazda güvende — tekrar denenebilir.',
-                  AppColors.warning,
-                  eylem: 'Tekrar Dene',
-                  onEylem: () async {
-                    await retrySync();
-                    if (mounted) setState(() {});
-                  },
-                )
-              else if (!sync.loggedIn)
-                _serit(
-                  'Kuponlar yalnız bu cihazda. Hesabına bağlamak ve başka '
-                  'cihazdan görmek için Profil sekmesinden giriş yap.',
-                  AppColors.info,
+                    // ── Senkron durumu — kayıt hatasında kupon YERELDE güvende ──
+                    if (sync.loggedIn && sync.error != null)
+                      _serit(
+                        '⚠ Sunucuya kaydedilemedi: ${sync.error}\n'
+                        'Kuponların cihazda güvende — tekrar denenebilir.',
+                        AppColors.warning,
+                        eylem: 'Tekrar Dene',
+                        onEylem: () async {
+                          await retrySync();
+                          if (mounted) setState(() {});
+                        },
+                      )
+                    else if (!sync.loggedIn)
+                      _serit(
+                        'Kuponlar yalnız bu cihazda. Hesabına bağlamak ve başka '
+                        'cihazdan görmek için Profil sekmesinden giriş yap.',
+                        AppColors.info,
+                      ),
+
+                    // ── Yeni kupon ──
+                    if (canEdit)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _dugme(
+                          '+ Yeni Kupon'
+                          '${bulletinMatches.isNotEmpty && openCount < bulletinMatches.length ? ' · $openCount maç açık' : ''}',
+                          dolu: true,
+                          onTap: () => GoRouter.of(
+                            context,
+                          ).go('/kuponlarim/kupon-editor/$selectedId'),
+                        ),
+                      )
+                    else if (silmeSebebi != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Text(silmeSebebi, style: _notStil),
+                      ),
+
+                    if (coupons.isEmpty)
+                      Padding(
+                        padding: EdgeInsets.only(top: 20),
+                        child: EmptyState(
+                          icon: Icons.confirmation_number_outlined,
+                          title: 'Bu hafta için kupon yok',
+                          message:
+                              'Maç detayındaki "KUPONA İŞLE" bloğundan seçim '
+                              'yapıp Kupon Oluştur ile kaydedebilirsin.',
+                        ),
+                      )
+                    else
+                      for (final c in coupons)
+                        _kuponKarti(
+                          c,
+                          resultMap: resultMap,
+                          pricing: pricing,
+                          canEdit: canEdit,
+                          silmeSebebi: silmeSebebi,
+                          openCount: openCount,
+                          toplamMac: bulletinMatches.length,
+                          lockMap: lockMap,
+                          selectedId: selectedId,
+                          selMeta: selMeta,
+                        ),
+                  ],
                 ),
-
-              // ── Yeni kupon ──
-              if (canEdit)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _dugme(
-                    '+ Yeni Kupon'
-                    '${bulletinMatches.isNotEmpty && openCount < bulletinMatches.length ? ' · $openCount maç açık' : ''}',
-                    dolu: true,
-                    onTap: () => GoRouter.of(
-                      context,
-                    ).go('/kuponlarim/kupon-editor/$selectedId'),
-                  ),
-                )
-              else if (silmeSebebi != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Text(silmeSebebi, style: _notStil),
-                ),
-
-              if (coupons.isEmpty)
-                Padding(
-                  padding: EdgeInsets.only(top: 20),
-                  child: EmptyState(
-                    icon: Icons.confirmation_number_outlined,
-                    title: 'Bu hafta için kupon yok',
-                    message:
-                        'Maç detayındaki "KUPONA İŞLE" bloğundan seçim '
-                        'yapıp Kupon Oluştur ile kaydedebilirsin.',
-                  ),
-                )
-              else
-                for (final c in coupons)
-                  _kuponKarti(
-                    c,
-                    resultMap: resultMap,
-                    pricing: pricing,
-                    canEdit: canEdit,
-                    silmeSebebi: silmeSebebi,
-                    openCount: openCount,
-                    toplamMac: bulletinMatches.length,
-                    lockMap: lockMap,
-                    selectedId: selectedId,
-                    selMeta: selMeta,
-                  ),
+              ),
             ],
           ),
         ),

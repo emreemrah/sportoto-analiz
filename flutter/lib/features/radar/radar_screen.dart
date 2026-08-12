@@ -31,6 +31,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/takim_paleti.dart';
 import '../../core/theme/tokens.dart';
+import '../../widgets/ust_panel.dart';
 import '../../widgets/app_ui.dart';
 import 'hafta_secici.dart';
 import 'legacy_radar_card.dart';
@@ -222,9 +223,20 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
           bottom: false,
           child: Column(
             children: [
-              _ekranBasligi(meta),
-              _haftaSecici(normalized.weeks, curId, gosterilen),
-              _sekmeCubugu(legacyMode),
+              // ÜST PANEL — başlık, sezon/hafta seçimi ve sekme şeridi TEK
+              // kutu (kullanıcı isteği, 2026-08-12): üçü ayrı ayrı keskin
+              // blok gibi duruyordu. Alt köşeler oval; üst kenar ekranın
+              // doğal sınırında kalır.
+              UstPanel(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _ekranBasligi(meta),
+                    _haftaSecici(normalized.weeks, curId, gosterilen),
+                    _sekmeCubugu(legacyMode),
+                  ],
+                ),
+              ),
               Expanded(
                 child: RefreshIndicator(
                   color: AppColors.accent,
@@ -906,10 +918,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         (k: 'r2', label: 'Radar 2', sub: 'xG görünümü'),
       ];
       return Container(
-        decoration: BoxDecoration(
-          color: AppColors.bgAlt,
-          border: Border(bottom: BorderSide(color: AppColors.border)),
-        ),
+        decoration: BoxDecoration(color: AppColors.bgAlt),
         padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
         child: Row(
           children: [
@@ -928,10 +937,10 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
     }
 
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.bgAlt,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
+      // ALT ÇİZGİ YOK: bu blok üst panelin EN ALTIDIR ve panelin kendi
+      // kenarlığı zaten sınırı çiziyor. Bırakılsaydı yuvarlatılmış köşenin
+      // üstünden düz bir çizgi geçerdi.
+      decoration: BoxDecoration(color: AppColors.bgAlt),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: Spacing.md),

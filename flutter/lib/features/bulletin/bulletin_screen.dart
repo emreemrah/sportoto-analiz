@@ -30,6 +30,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/utils.dart';
 import '../../widgets/app_ui.dart';
 import '../../widgets/score_legend.dart';
+import '../../widgets/ust_panel.dart';
 import '../../widgets/snapshot_seal_banner.dart';
 import 'bulletin_format.dart';
 import 'bulten_tarih_seridi.dart';
@@ -374,16 +375,22 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
     final gosterilenMaclar = filtreleGune(currentMatches, _seciliGun);
 
     return LiveBulletinView(
-      header: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          header,
-          BultenTarihSeridi(
-            gunler: gunler,
-            secili: _seciliGun,
-            onSec: (g) => setState(() => _seciliGun = g),
-          ),
-        ],
+      // ÜST PANEL — başlık, hafta seçimi, durum ve tarih süzgeci TEK kutu
+      // (kullanıcı isteği, 2026-08-12). Alt köşeler oval; üst kenar ekranın
+      // doğal sınırında kalır.
+      header: UstPanel(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            header,
+            BultenTarihSeridi(
+              gunler: gunler,
+              secili: _seciliGun,
+              onSec: (g) => setState(() => _seciliGun = g),
+            ),
+          ],
+        ),
       ),
       matches: gosterilenMaclar,
       subtitle: subtitle,

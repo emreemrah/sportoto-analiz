@@ -104,10 +104,10 @@ class MacDetaySekmeCubugu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.bgAlt,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
+      // ALT ÇİZGİ YOK: bu çubuk üst panelin EN ALTIDIR ve panelin kendi
+      // kenarlığı sınırı çiziyor; bırakılsaydı yuvarlatılmış köşenin üstünden
+      // düz bir çizgi geçerdi.
+      decoration: BoxDecoration(color: AppColors.bgAlt),
       child: Row(
         children: [
           // AYAR DİŞLİSİ — solda SABİT: sekmelerle birlikte kaymaz, hangi

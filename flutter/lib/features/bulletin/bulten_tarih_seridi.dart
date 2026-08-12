@@ -34,10 +34,10 @@ class BultenTarihSeridi extends StatelessWidget {
     if (gunler.length < 2) return const SizedBox.shrink();
 
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
+      // ALT ÇİZGİ YOK: bu şerit üst panelin EN ALTIDIR ve panelin kendi
+      // kenarlığı sınırı çiziyor. Bırakılsaydı yuvarlatılmış köşenin
+      // üstünden düz bir çizgi geçerdi.
+      decoration: BoxDecoration(color: AppColors.surface),
       child: Row(
         children: [
           // TÜMÜ — solda sabit durur, şeritle birlikte kaymaz.
