@@ -191,7 +191,8 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
             const _BiometricCard(),
 
             _Kart(
-              baslik: '🔑 Şifre Değiştir',
+              baslik: 'Şifre Değiştir',
+              ikon: Icons.key_outlined,
               children: [
                 const _Ipucu(
                   'Onaylandığında diğer cihazlardaki oturumların güvenlik için kapatılır.',
@@ -216,7 +217,8 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
             ),
 
             _Kart(
-              baslik: '📧 E-posta Değiştir',
+              baslik: 'E-posta Değiştir',
+              ikon: Icons.alternate_email,
               children: [
                 _Ipucu(
                   'Mevcut adres: ${s.user?['email'] ?? '—'}. Değişiklik, yeni adrese gelen doğrulama bağlantısıyla tamamlanır.',
@@ -275,7 +277,8 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
             ),
 
             _Kart(
-              baslik: '🚪 Diğer Oturumları Kapat',
+              baslik: 'Diğer Oturumları Kapat',
+              ikon: Icons.logout,
               children: [
                 const _Ipucu(
                   'Şüpheli bir durum fark edersen bu cihaz dışındaki tüm oturumları tek dokunuşla kapatabilirsin.',
@@ -291,7 +294,8 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
             ),
 
             _Kart(
-              baslik: '🕓 Son Güvenlik Olayları',
+              baslik: 'Son Güvenlik Olayları',
+              ikon: Icons.history,
               children: [
                 if (_events == null)
                   Center(
@@ -418,7 +422,8 @@ class _BiometricCardState extends State<_BiometricCard> {
     // devam ediyor (güvenlik kararı); kullanıcı kapatma yolunu kaybetmemeli.
     if (!_supported && !_enabled) return const SizedBox.shrink();
     return _Kart(
-      baslik: '🫆 Biyometrik Kilit',
+      baslik: 'Biyometrik Kilit',
+      ikon: Icons.fingerprint,
       children: [
         const _Ipucu(
           'Açıkken uygulama her açılışta parmak izi / yüz tanıma ister. Biyometrik '
@@ -458,10 +463,14 @@ class _BiometricCardState extends State<_BiometricCard> {
 }
 
 class _Kart extends StatelessWidget {
-  const _Kart({required this.baslik, required this.children});
+  const _Kart({required this.baslik, required this.children, this.ikon});
 
   final String baslik;
   final List<Widget> children;
+
+  /// Başlığın solundaki ikon — VEKTÖR, başlığa gömülü emoji DEĞİL (kullanıcı
+  /// isteği, 2026-08-12).
+  final IconData? ikon;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -475,13 +484,23 @@ class _Kart extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          baslik,
-          style: TextStyle(
-            color: AppColors.text,
-            fontSize: 15.5,
-            fontWeight: AppFont.heavy,
-          ),
+        Row(
+          children: [
+            if (ikon != null) ...[
+              Icon(ikon, size: 17, color: AppColors.textSoft),
+              const SizedBox(width: 8),
+            ],
+            Flexible(
+              child: Text(
+                baslik,
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 15.5,
+                  fontWeight: AppFont.heavy,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         ...children,

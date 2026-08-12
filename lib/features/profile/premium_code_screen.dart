@@ -142,7 +142,7 @@ class _PremiumCodeScreenState extends State<PremiumCodeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  premium ? '⭐ Premium erişimin açık' : 'Premium erişimin yok',
+                  premium ? 'Premium erişimin açık' : 'Premium erişimin yok',
                   style: TextStyle(
                     color: AppColors.text,
                     fontSize: 15,

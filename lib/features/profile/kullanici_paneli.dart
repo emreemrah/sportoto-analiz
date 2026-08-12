@@ -62,7 +62,11 @@ Color get _ikincilYazi => AppColors.onDarkSoft;
 class _Giris {
   const _Giris(this.ikon, this.etiket, this.yol);
 
-  final String ikon;
+  /// VEKTÖR ikon, emoji DEĞİL (kullanıcı isteği, 2026-08-12): emoji rengi
+  /// emoji fontundan gelir ve tema değişince olduğu gibi kalırdı. Panelin
+  /// zemini koyu olduğu için sabit renkli emojiler burada özellikle
+  /// kopuk duruyordu.
+  final IconData ikon;
   final String etiket;
 
   /// `/profil/<yol>` rotası.
@@ -73,20 +77,24 @@ class _Giris {
 /// eklenirken iki yerde de görünmeli; rota adları `profile_screen.dart`
 /// içindeki `hazir` kümesiyle birebir aynıdır.
 const List<_Giris> _kGirisler = [
-  _Giris('📊', 'Haftalık Başarı', 'basari-panelim'),
-  _Giris('⚽', 'Hazır Avatar Seç', 'avatar'),
-  _Giris('🏳️', 'Takımım', 'takim-sec'),
-  _Giris('🌗', 'Görünüm', 'gorunum'),
-  _Giris('⭐', 'Premium Kodu', 'premium-kod'),
-  _Giris('🔐', 'Güvenlik Ayarları', 'guvenlik'),
-  _Giris('📱', 'Bağlı Cihazlar', 'cihazlar'),
-  _Giris('🚫', 'Engellenen Kullanıcılar', 'engellenenler'),
-  _Giris('ℹ️', 'Hakkında ve Gizlilik', 'hakkinda'),
+  _Giris(Icons.insights, 'Haftalık Başarı', 'basari-panelim'),
+  _Giris(Icons.sports_soccer, 'Hazır Avatar Seç', 'avatar'),
+  _Giris(Icons.shield_outlined, 'Takımım', 'takim-sec'),
+  _Giris(Icons.brightness_6_outlined, 'Görünüm', 'gorunum'),
+  _Giris(Icons.star_outline, 'Premium Kodu', 'premium-kod'),
+  _Giris(Icons.lock_outline, 'Güvenlik Ayarları', 'guvenlik'),
+  _Giris(Icons.devices_outlined, 'Bağlı Cihazlar', 'cihazlar'),
+  _Giris(Icons.block_outlined, 'Engellenen Kullanıcılar', 'engellenenler'),
+  _Giris(Icons.info_outline, 'Hakkında ve Gizlilik', 'hakkinda'),
 ];
 
 /// Yalnız operatöre görünen erişimler (kapıyı SUNUCU açar).
-const _Giris _kInceleme = _Giris('🛡️', 'İnceleme', 'inceleme');
-const _Giris _kSistemKarnesi = _Giris('📊', 'Sistem Karnesi', 'sistem-karnesi');
+const _Giris _kInceleme = _Giris(Icons.gavel_outlined, 'İnceleme', 'inceleme');
+const _Giris _kSistemKarnesi = _Giris(
+  Icons.assessment_outlined,
+  'Sistem Karnesi',
+  'sistem-karnesi',
+);
 
 class KullaniciPaneli extends StatefulWidget {
   const KullaniciPaneli({super.key});
@@ -197,14 +205,18 @@ class _KullaniciPaneliState extends State<KullaniciPaneli> {
                 Divider(color: _ayrac, height: 1),
                 const SizedBox(height: Spacing.md),
                 _girisSatiri(
-                  const _Giris('🚪', 'Çıkış Yap', ''),
+                  const _Giris(Icons.logout, 'Çıkış Yap', ''),
                   onTap: () {
                     Navigator.of(context).pop();
                     auth.logout();
                   },
                 ),
                 _girisSatiri(
-                  const _Giris('🗑️', 'Hesabımı Sil', 'hesap-sil'),
+                  const _Giris(
+                    Icons.delete_outline,
+                    'Hesabımı Sil',
+                    'hesap-sil',
+                  ),
                   tehlike: true,
                 ),
                 const SizedBox(height: Spacing.lg),
@@ -320,7 +332,14 @@ class _KullaniciPaneliState extends State<KullaniciPaneli> {
               children: [
                 SizedBox(
                   width: 24,
-                  child: Text(g.ikon, style: const TextStyle(fontSize: 15)),
+                  // İKON DA METİNLE AYNI RENGİ İZLER: tehlikeli satırda
+                  // (Hesabımı Sil) kırmızı, diğerlerinde panelin koyu
+                  // zeminine göre hesaplanan `onDark`.
+                  child: Icon(
+                    g.ikon,
+                    size: 17,
+                    color: tehlike ? AppColors.danger : AppColors.onDark,
+                  ),
                 ),
                 const SizedBox(width: 6),
                 Expanded(

@@ -127,15 +127,17 @@ class AboutScreen extends StatelessWidget {
               baslik: 'Yasal',
               children: [
                 _Baglanti(
-                  '🔒  Gizlilik Politikası',
+                  'Gizlilik Politikası',
                   () => _ac(context, links.privacy, 'Gizlilik Politikası'),
+                  ikon: Icons.lock_outline,
                 ),
                 // Topluluk Kuralları: yorum yazan herkesi bağlar. Bildirme ve
                 // engelleme yolları uygulamanın içinde; kuralların kendisi ise
                 // uygulama kurulmadan da açılabilen bir sayfada durur.
                 _Baglanti(
-                  '📋  Topluluk Kuralları',
+                  'Topluluk Kuralları',
                   () => _ac(context, links.rules, 'Topluluk Kuralları'),
+                  ikon: Icons.rule_outlined,
                 ),
                 // Sorumlu Oyun sayfası: kazanç garantisi olmadığı beyanı. Mağaza
                 // incelemesi için uygulama dışından da açılabilir bir sayfadır
@@ -143,12 +145,14 @@ class AboutScreen extends StatelessWidget {
                 // Destek hattı numarası bağlantı METNİNDEN kaldırıldı (kullanıcı
                 // kararı, 2 Ağustos 2026); sayfanın kendisi yerinde duruyor.
                 _Baglanti(
-                  '🛟  Sorumlu Oyun',
+                  'Sorumlu Oyun',
                   () => _ac(context, links.responsibleGaming, 'Sorumlu Oyun'),
+                  ikon: Icons.health_and_safety_outlined,
                 ),
                 _Baglanti(
-                  '🗑️  Hesabımı Sil',
+                  'Hesabımı Sil',
                   () => context.go('/profil/hesap-sil'),
+                  ikon: Icons.delete_outline,
                 ),
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -234,10 +238,15 @@ class _Govde extends StatelessWidget {
 }
 
 class _Baglanti extends StatelessWidget {
-  const _Baglanti(this.metin, this.onTap);
+  const _Baglanti(this.metin, this.onTap, {this.ikon});
 
   final String metin;
   final VoidCallback onTap;
+
+  /// VEKTÖR ikon, metne gömülü emoji DEĞİL (kullanıcı isteği, 2026-08-12):
+  /// emoji `TextStyle.color`ı dinlemediği için tema değişince yazı dönerken
+  /// ikon sabit kalıyordu.
+  final IconData? ikon;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -252,13 +261,23 @@ class _Baglanti extends StatelessWidget {
           color: AppColors.cardAlt,
           borderRadius: BorderRadius.circular(AppRadius.sm),
         ),
-        child: Text(
-          metin,
-          style: TextStyle(
-            color: AppColors.text,
-            fontSize: 14,
-            fontWeight: AppFont.bold,
-          ),
+        child: Row(
+          children: [
+            if (ikon != null) ...[
+              Icon(ikon, size: 18, color: AppColors.text),
+              const SizedBox(width: 10),
+            ],
+            Expanded(
+              child: Text(
+                metin,
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 14,
+                  fontWeight: AppFont.bold,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     ),

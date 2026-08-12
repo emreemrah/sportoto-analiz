@@ -124,7 +124,8 @@ class _TeamPickerScreenState extends State<TeamPickerScreen> {
           onChanged: (v) => setState(() => _arama = v),
           style: TextStyle(color: AppColors.text, fontSize: 13.5),
           decoration: InputDecoration(
-            hintText: '🔍 Takım ara (tüm liglerde)',
+            hintText: 'Takım ara (tüm liglerde)',
+            prefixIcon: Icon(Icons.search, size: 18, color: AppColors.muted),
             hintStyle: TextStyle(color: AppColors.textMuted),
             filled: true,
             fillColor: AppColors.card,

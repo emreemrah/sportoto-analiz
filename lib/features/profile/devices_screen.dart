@@ -14,10 +14,13 @@ import '../../core/network/api_client.dart';
 import '../../core/theme/tokens.dart';
 import '../../widgets/screen_backdrop.dart';
 
-const Map<String, String> _platformIcon = {
-  'android': '🤖',
-  'ios': '📱',
-  'web': '💻',
+/// Platform simgeleri VEKTÖR (kullanıcı isteği, 2026-08-12): emoji rengi
+/// tema ile değişmiyordu; cihaz kartı koyu temada dönerken simge sabit
+/// kalıyordu.
+const Map<String, IconData> _platformIcon = {
+  'android': Icons.android,
+  'ios': Icons.phone_iphone,
+  'web': Icons.language,
 };
 
 /// Kaynaktaki `timeAgo`.
@@ -165,9 +168,10 @@ class _DevicesScreenState extends State<DevicesScreen> {
       ),
       child: Row(
         children: [
-          Text(
-            _platformIcon['${s['platform']}'] ?? '🖥️',
-            style: const TextStyle(fontSize: 26),
+          Icon(
+            _platformIcon['${s['platform']}'] ?? Icons.desktop_windows_outlined,
+            size: 26,
+            color: AppColors.textSoft,
           ),
           const SizedBox(width: 12),
           Expanded(

@@ -372,30 +372,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   const SizedBox(height: Spacing.md),
 
-                  _dugme('🌗  Görünüm (açık / koyu)', () => _git('gorunum')),
-                  _dugme('⚽  Hazır Avatar Seç', () => _git('avatar')),
+                  _dugme(
+                    'Görünüm (açık / koyu)',
+                    () => _git('gorunum'),
+                    ikon: Icons.brightness_6_outlined,
+                  ),
+                  _dugme(
+                    'Hazır Avatar Seç',
+                    () => _git('avatar'),
+                    ikon: Icons.sports_soccer,
+                  ),
                   if (user['avatar_type'] != 'default')
                     _dugme(
                       'Resmi Kaldır (varsayılana dön)',
                       _avatarKaldir,
                       tur: _DugmeTuru.hayalet,
                     ),
-                  _dugme('📊  Haftalık Başarı', () => _git('basari-panelim')),
+                  _dugme(
+                    'Haftalık Başarı',
+                    () => _git('basari-panelim'),
+                    ikon: Icons.insights,
+                  ),
                   // PREMIUM KODU — hak SUNUCUDA yazılır; uygulama kendi başına
                   // premium ilan edemez.
-                  _dugme('⭐  Premium Kodu', () => _git('premium-kod')),
-                  _dugme('🔐  Güvenlik Ayarları', () => _git('guvenlik')),
-                  _dugme('📱  Bağlı Cihazlar', () => _git('cihazlar')),
+                  _dugme(
+                    'Premium Kodu',
+                    () => _git('premium-kod'),
+                    ikon: Icons.star_outline,
+                  ),
+                  _dugme(
+                    'Güvenlik Ayarları',
+                    () => _git('guvenlik'),
+                    ikon: Icons.lock_outline,
+                  ),
+                  _dugme(
+                    'Bağlı Cihazlar',
+                    () => _git('cihazlar'),
+                    ikon: Icons.devices_outlined,
+                  ),
                   // Engellemek yorumun altından yapılır; GERİ ALMAK için de bir
                   // yol olmak zorunda.
                   _dugme(
-                    '🚫  Engellenen Kullanıcılar',
+                    'Engellenen Kullanıcılar',
                     () => _git('engellenenler'),
+                    ikon: Icons.block_outlined,
                   ),
                   if (_operator)
                     _dugme(
-                      '🛡️  İnceleme (bildirilen yorumlar)',
+                      'İnceleme (bildirilen yorumlar)',
                       () => _git('inceleme'),
+                      ikon: Icons.gavel_outlined,
                     ),
                   // SİSTEM KARNESİ — normal kullanıcıya GÖSTERİLMEZ: uygulamadaki
                   // "Sistem" sütunu kupon kapsamasıdır (çoklu tercih dahil), bu
@@ -403,10 +429,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // verir. Kapı: operatör YA DA geliştirme derlemesi.
                   if (_operator || _kIsDevBuild)
                     _dugme(
-                      '📊  Sistem Karnesi (Master analiz)',
+                      'Sistem Karnesi (Master analiz)',
                       () => _git('sistem-karnesi'),
+                      ikon: Icons.assessment_outlined,
                     ),
-                  _dugme('ℹ️  Hakkında ve Gizlilik', () => _git('hakkinda')),
+                  _dugme(
+                    'Hakkında ve Gizlilik',
+                    () => _git('hakkinda'),
+                    ikon: Icons.info_outline,
+                  ),
                   _dugme('Çıkış Yap', auth.logout, tur: _DugmeTuru.cikis),
                   // HESAP SİLME — Google Play, hesap açan uygulamalarda uygulama
                   // içinden erişilebilen bir silme yolu ister. Silme gerçek ve
@@ -505,10 +536,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// Profil alt ekranlarına götüren satır butonu.
+  ///
+  /// [ikon] AYRI PARAMETRE, etiketin içine gömülü emoji DEĞİL (kullanıcı
+  /// isteği, 2026-08-12): emoji rengini emoji fontundan alır, `fg` ile
+  /// boyanmaz — açık/koyu/takım temasında yazı rengi dönerken ikon sabit
+  /// kalıyordu. Vektör ikon butonun kendi ön plan rengini izler.
   Widget _dugme(
     String etiket,
     VoidCallback onTap, {
     _DugmeTuru tur = _DugmeTuru.alt,
+    IconData? ikon,
   }) {
     final (bg, fg, border) = switch (tur) {
       _DugmeTuru.alt => (AppColors.card, AppColors.text, AppColors.border),
@@ -541,13 +579,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: AppRadius.mdR,
             border: Border.all(color: border),
           ),
-          child: Text(
-            etiket,
-            style: TextStyle(
-              color: fg,
-              fontSize: 14,
-              fontWeight: AppFont.heavy,
-            ),
+          child: Row(
+            children: [
+              if (ikon != null) ...[
+                Icon(ikon, size: 18, color: fg),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child: Text(
+                  etiket,
+                  style: TextStyle(
+                    color: fg,
+                    fontSize: 14,
+                    fontWeight: AppFont.heavy,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

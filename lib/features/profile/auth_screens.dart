@@ -145,9 +145,14 @@ class _PasswordFieldState extends State<PasswordField> {
                       borderRadius: AppRadius.mdR,
                       border: Border.all(color: AppColors.border),
                     ),
-                    child: Text(
-                      _hidden ? '👁' : '🙈',
-                      style: const TextStyle(fontSize: 16),
+                    // VEKTÖR: emojiyken kutunun kenarlığı ve zemini temaya
+                    // uyarken göz simgesi sabit renkte kalıyordu.
+                    child: Icon(
+                      _hidden
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      size: 18,
+                      color: AppColors.textSoft,
                     ),
                   ),
                 ),
