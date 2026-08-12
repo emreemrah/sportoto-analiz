@@ -79,7 +79,16 @@ class UlkeEtiketi extends StatelessWidget {
           ? Semantics(label: ad, child: _bayrak(code, tekBasina: true))
           : Semantics(
               label: ad,
-              child: const Text('⚽', style: TextStyle(fontSize: 11)),
+              // BAYRAK YOKSA NÖTR TOP — VEKTÖR (kullanıcı isteği,
+              // 2026-08-12): emoji top rengini emoji fontundan alıyordu ve
+              // yanındaki lig adı temaya uyarken sabit kalıyordu. Bu bir
+              // ÜLKE BAYRAĞI DEĞİL, uygulamanın kendi yedek simgesidir —
+              // gerçek bayraklar (`_bayrak`) resim olarak korunur.
+              child: Icon(
+                Icons.sports_soccer,
+                size: 12,
+                color: AppColors.textSoft,
+              ),
             );
     }
 
@@ -89,9 +98,13 @@ class UlkeEtiketi extends StatelessWidget {
         if (code.isNotEmpty)
           _bayrak(code)
         else
-          const Padding(
-            padding: EdgeInsets.only(right: 4),
-            child: Text('⚽', style: TextStyle(fontSize: 11)),
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Icon(
+              Icons.sports_soccer,
+              size: 12,
+              color: AppColors.textSoft,
+            ),
           ),
         Flexible(
           child: Text(

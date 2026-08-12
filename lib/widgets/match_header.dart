@@ -76,28 +76,38 @@ class MatchHeader extends StatelessWidget {
                     // Kaynaktaki hitSlop 10 → dokunma alanı büyütülür.
                     child: Padding(
                       padding: EdgeInsets.all(10),
-                      child: Text(
-                        '‹',
-                        style: TextStyle(
-                          color: AppColors.text,
-                          fontSize: 30,
-                          fontWeight: AppFont.black,
-                          height: 1,
-                        ),
+                      child: Icon(
+                        Icons.chevron_left,
+                        size: 30,
+                        color: AppColors.text,
                       ),
                     ),
                   ),
                 ),
                 Column(
                   children: [
-                    Text(
-                      '⚽ $kAppNameUpper',
-                      style: TextStyle(
-                        color: AppColors.text,
-                        fontSize: 16,
-                        fontWeight: AppFont.black,
-                        letterSpacing: 1,
-                      ),
+                    // BAŞLIK İKONU AYRI WIDGET: emojiyken rengi metinden
+                    // bağımsızdı ve koyu/takım temasında başlık koyulaşırken
+                    // top olduğu gibi kalıyordu.
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.sports_soccer,
+                          size: 16,
+                          color: AppColors.text,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          kAppNameUpper,
+                          style: TextStyle(
+                            color: AppColors.text,
+                            fontSize: 16,
+                            fontWeight: AppFont.black,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
                     ),
                     Padding(
                       padding: EdgeInsets.only(top: 1),
@@ -118,13 +128,10 @@ class MatchHeader extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   child: const Padding(
                     padding: EdgeInsets.all(10),
-                    child: Text(
-                      '☆',
-                      style: TextStyle(
-                        color: AppColors.gold,
-                        fontSize: 22,
-                        fontWeight: AppFont.black,
-                      ),
+                    child: Icon(
+                      Icons.star_border,
+                      size: 24,
+                      color: AppColors.gold,
                     ),
                   ),
                 ),

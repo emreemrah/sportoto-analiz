@@ -146,13 +146,16 @@ class ErrorState extends StatelessWidget {
     super.key,
     this.message,
     this.onRetry,
-    this.icon = '⚠️',
+    this.icon = Icons.error_outline,
     this.title = 'Bir şeyler ters gitti',
   });
 
   final String? message;
   final VoidCallback? onRetry;
-  final String icon;
+
+  /// VEKTÖR ikon, emoji DEĞİL (kullanıcı isteği, 2026-08-12) — emojinin rengi
+  /// tema ile değişmiyordu.
+  final IconData icon;
   final String title;
 
   @override
@@ -170,7 +173,9 @@ class ErrorState extends StatelessWidget {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(icon, style: const TextStyle(fontSize: 34)),
+        // HATA İKONU ANLAMSAL RENKTE: `danger` takımdan bağımsızdır, koyu
+        // temada da kırmızıdır — hata her temada hata gibi görünür.
+        Icon(icon, size: 38, color: AppColors.danger),
         const SizedBox(height: Spacing.md),
         Text(
           title,

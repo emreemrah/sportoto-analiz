@@ -166,8 +166,9 @@ class _SnapshotSealBannerState extends State<SnapshotSealBanner> {
         children: [
           InfoIpucu(
             renk: AppColors.warning,
+            ikon: Icons.lock_outline,
             ozet:
-                '🔒 Kilit: ${d.day} ${d.time}'
+                'Kilit: ${d.day} ${d.time}'
                 '${left != null ? ' · kalan $left' : ' · mühürleniyor…'}',
             detay:
                 'Kilitten sonra tahmin/analiz değişmez, arşive mühürlenir. '

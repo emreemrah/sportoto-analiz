@@ -21,7 +21,12 @@ class AppTabs extends StatelessWidget {
   final List<String> tabs;
   final String active;
   final ValueChanged<String> onChange;
-  final Map<String, String> icons;
+
+  /// Sekme adı → VEKTÖR ikon. Emoji DEĞİL (kullanıcı isteği, 2026-08-12):
+  /// emoji rengi emoji fontundan gelir, bu yüzden seçili/pasif ayrımı eskiden
+  /// OPAKLIKLA yapılıyordu ve koyu temada pasif ikon zeminle karışıyordu.
+  /// Vektörde ikon `accent` ↔ `textMuted` alır — etiketle aynı dil.
+  final Map<String, IconData> icons;
 
   @override
   Widget build(BuildContext context) {
@@ -48,12 +53,12 @@ class AppTabs extends StatelessWidget {
                       if (icons[t] != null)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 2),
-                          child: Opacity(
-                            opacity: active == t ? 1 : 0.55,
-                            child: Text(
-                              icons[t]!,
-                              style: const TextStyle(fontSize: 17),
-                            ),
+                          child: Icon(
+                            icons[t],
+                            size: 18,
+                            color: active == t
+                                ? AppColors.accent
+                                : AppColors.textMuted,
                           ),
                         ),
                       Padding(
@@ -111,7 +116,11 @@ class Accordion extends StatefulWidget {
   });
 
   final String title;
-  final String? icon;
+
+  /// VEKTÖR ikon, emoji DEĞİL (kullanıcı isteği, 2026-08-12): emojinin rengi
+  /// `TextStyle.color` ile değişmediği için başlık temaya uyarken ikon sabit
+  /// kalıyordu.
+  final IconData? icon;
   final bool defaultOpen;
   final Widget child;
 
@@ -142,10 +151,22 @@ class _AccordionState extends State<Accordion> {
               padding: const EdgeInsets.all(Spacing.md),
               child: Row(
                 children: [
+                  // İKON ARTIK BAŞLIK METNİNİN İÇİNDE DEĞİL, AYRI WIDGET:
+                  // emoji metne gömülüyordu, vektör ikon kendi rengini alır.
+                  // Açıkken vurgu, kapalıyken soluk — başlığın durumu ikondan
+                  // da okunur.
+                  if (widget.icon != null)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Icon(
+                        widget.icon,
+                        size: 17,
+                        color: _open ? AppColors.accent : AppColors.textSoft,
+                      ),
+                    ),
                   Expanded(
                     child: Text(
-                      '${widget.icon != null ? '${widget.icon}  ' : ''}'
-                      '${widget.title}',
+                      widget.title,
                       style: TextStyle(
                         color: AppColors.text,
                         fontSize: 14.5,
@@ -155,13 +176,10 @@ class _AccordionState extends State<Accordion> {
                   ),
                   Padding(
                     padding: const EdgeInsets.only(left: 8),
-                    child: Text(
-                      _open ? '▴' : '▾',
-                      style: TextStyle(
-                        color: _open ? AppColors.accent : AppColors.textMuted,
-                        fontSize: 16,
-                        fontWeight: AppFont.black,
-                      ),
+                    child: Icon(
+                      _open ? Icons.expand_less : Icons.expand_more,
+                      size: 20,
+                      color: _open ? AppColors.accent : AppColors.textMuted,
                     ),
                   ),
                 ],
@@ -189,10 +207,21 @@ class _AccordionState extends State<Accordion> {
 
 /// `ui.js` → `SectionCard` (premium kart / bölüm)
 class SectionCard extends StatelessWidget {
-  const SectionCard({super.key, this.title, this.right, required this.child});
+  const SectionCard({
+    super.key,
+    this.title,
+    this.right,
+    this.icon,
+    required this.child,
+  });
 
   final String? title;
   final Widget? right;
+
+  /// Başlığın solundaki ikon — VEKTÖR, başlığa gömülü emoji DEĞİL (kullanıcı
+  /// isteği, 2026-08-12): başlık yazısı kart yüzeyinden hesaplanan renge
+  /// uyarken emoji sabit kalıyordu.
+  final IconData? icon;
   final Widget child;
 
   @override
@@ -214,6 +243,11 @@ class SectionCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                if (icon != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Icon(icon, size: 17, color: AppColors.textSoft),
+                  ),
                 if (title != null)
                   Expanded(
                     child: Text(

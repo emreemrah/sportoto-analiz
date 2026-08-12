@@ -68,7 +68,9 @@ class Logo extends StatelessWidget {
     height: size,
     alignment: Alignment.center,
     decoration: BoxDecoration(color: AppColors.cardAlt, shape: BoxShape.circle),
-    child: Text('⚽', style: TextStyle(fontSize: size * 0.5)),
+    // ARMA YOKKEN ÇİZİLEN YEDEK — kulübün arması DEĞİL, uygulamanın kendi
+    // yer tutucusudur; bu yüzden temaya uyar (kullanıcı isteği, 2026-08-12).
+    child: Icon(Icons.sports_soccer, size: size * 0.55, color: AppColors.muted),
   );
 }
 
@@ -133,18 +135,31 @@ class RecordBadges extends StatelessWidget {
       ),
     );
 
-    // Sağda ⚽ rozetlerden önce (⚽ 10 ...), solda rozetlerden sonra (... 10 ⚽).
+    // Sağda top rozetlerden önce (⚽ 10 ...), solda sonra (... 10 ⚽).
+    // TOP VEKTÖR (kullanıcı isteği, 2026-08-12): emojiyken yanındaki sayı
+    // `textMuted` alırken top sabit renkte kalıyordu.
+    final topIkonu = Icon(
+      Icons.sports_soccer,
+      size: 12,
+      color: AppColors.textMuted,
+    );
+    final sayi = Text(
+      '$played',
+      style: TextStyle(
+        color: AppColors.textMuted,
+        fontSize: 12,
+        fontWeight: AppFont.bold,
+      ),
+    );
     final playedTag = played == null
         ? null
         : Padding(
             padding: const EdgeInsets.only(right: 2),
-            child: Text(
-              alignRight ? '⚽ $played' : '$played ⚽',
-              style: TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 12,
-                fontWeight: AppFont.bold,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: alignRight
+                  ? [topIkonu, const SizedBox(width: 3), sayi]
+                  : [sayi, const SizedBox(width: 3), topIkonu],
             ),
           );
 
@@ -232,9 +247,18 @@ class EmptyState extends StatelessWidget {
   // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
   // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
   // ignore: prefer_const_constructors_in_immutables
-  EmptyState({super.key, this.icon = '📭', required this.title, this.message});
+  EmptyState({
+    super.key,
+    this.icon = Icons.inbox_outlined,
+    required this.title,
+    this.message,
+  });
 
-  final String icon;
+  /// VEKTÖR ikon, emoji DEĞİL (kullanıcı isteği, 2026-08-12). Boş durum
+  /// kartının ikonu emojiydi; rengi emoji fontundan geldiği için tema
+  /// değişince olduğu gibi kalıyordu. Tip `IconData` olduğundan emoji metni
+  /// buraya artık DERLENMEZ.
+  final IconData icon;
   final String title;
   final String? message;
 
@@ -257,7 +281,9 @@ class EmptyState extends StatelessWidget {
       // yazılır.
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(icon, style: const TextStyle(fontSize: 34)),
+        // Boş durumun ikonu SESSİZ olmalı: başlık okunmadan önce göz onu
+        // "hata" sanmasın diye vurgu değil soluk metin rengini alır.
+        Icon(icon, size: 38, color: AppColors.textSoft),
         const SizedBox(height: Spacing.md),
         Text(
           title,

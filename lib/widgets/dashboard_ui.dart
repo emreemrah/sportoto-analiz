@@ -582,14 +582,15 @@ class DashboardEmpty extends StatelessWidget {
   // ignore: prefer_const_constructors_in_immutables
   DashboardEmpty({
     super.key,
-    this.icon = '📊',
+    this.icon = Icons.bar_chart,
     required this.title,
     this.message,
     this.actionLabel,
     this.onAction,
   });
 
-  final String icon;
+  /// VEKTÖR ikon, emoji DEĞİL (kullanıcı isteği, 2026-08-12).
+  final IconData icon;
   final String title;
   final String? message;
   final String? actionLabel;
@@ -603,7 +604,7 @@ class DashboardEmpty extends StatelessWidget {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(icon, style: const TextStyle(fontSize: 46)),
+        Icon(icon, size: 48, color: AppColors.textSoft),
         Padding(
           padding: const EdgeInsets.only(top: 12),
           child: Text(
