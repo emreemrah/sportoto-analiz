@@ -16,7 +16,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:masteranaliz/core/theme/gorunum.dart';
 import 'package:masteranaliz/core/theme/takim_paleti.dart';
 import 'package:masteranaliz/core/theme/takim_renkleri.dart';
-import 'package:masteranaliz/core/theme/takim_temasi.dart';
 import 'package:masteranaliz/core/theme/tokens.dart';
 
 /// Yüzey ayrımı için makul alt sınır. WCAG'ın "arayüz bileşeni" eşiği 3.0
