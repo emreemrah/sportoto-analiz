@@ -105,7 +105,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
               Text(
                 'Bağlı Cihazlar',
                 style: TextStyle(
-                  color: AppColors.text,
+                  color: AppColors.onBackground,
                   fontSize: 22,
                   fontWeight: AppFont.heavy,
                 ),

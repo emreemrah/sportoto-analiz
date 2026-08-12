@@ -225,13 +225,13 @@ class _Submit extends StatelessWidget {
                 height: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: AppColors.bg,
+                  color: AppColors.onPrimary,
                 ),
               )
             : Text(
                 text,
                 style: TextStyle(
-                  color: AppColors.bg,
+                  color: AppColors.onPrimary,
                   fontSize: 16,
                   fontWeight: AppFont.heavy,
                 ),

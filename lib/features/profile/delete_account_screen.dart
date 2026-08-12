@@ -139,7 +139,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
           Text(
             'Hesabımı Sil',
             style: TextStyle(
-              color: AppColors.text,
+              color: AppColors.onBackground,
               fontSize: 22,
               fontWeight: AppFont.black,
             ),
