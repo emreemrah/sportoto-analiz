@@ -270,7 +270,9 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         children: [
           const SizedBox(height: 20),
           EmptyState(
-            icon: durum == RadarEkranDurumu.error ? '⚠️' : '⏳',
+            icon: durum == RadarEkranDurumu.error
+                ? Icons.error_outline
+                : Icons.hourglass_empty,
             title: durum == RadarEkranDurumu.error
                 ? 'Radar verisi alınamadı'
                 : durum == RadarEkranDurumu.pastUnarchived
@@ -322,19 +324,22 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
+              // NOKTA VEKTÖR (kullanıcı isteği, 2026-08-12): emoji nokta
+              // rengini emoji fontundan alıyordu; artık çipin anlamsal
+              // tokenıyla boyanır ve rozetlerdeki renkle birebir tutar.
               for (final t in const [
-                (k: 'red', label: 'Sürprize açık', icon: '🔴'),
-                (k: 'yellow', label: 'Dikkat', icon: '🟡'),
-                (k: 'green', label: 'Güçlü Aday', icon: '🟢'),
+                (k: 'red', label: 'Sürprize açık', renk: AppColors.danger),
+                (k: 'yellow', label: 'Dikkat', renk: AppColors.warning),
+                (k: 'green', label: 'Güçlü Aday', renk: AppColors.success),
               ])
                 _cip(
-                  '${t.icon} '
                   '${switch (t.k) {
                     'red' => sayac.red,
                     'yellow' => sayac.yellow,
                     _ => sayac.green,
                   }} '
                   '${t.label}',
+                  nokta: t.renk,
                   acik: _legacyFilter == t.k,
                   // Açık süzgece tekrar dokunmak süzgeci KALDIRIR.
                   onTap: () => setState(
@@ -645,6 +650,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
             for (final f in kMasterFilters)
               _cip(
                 '${f.label}${f.k == 'all' ? '' : ' (${sayiOf(f.k)})'}',
+                nokta: _filtreNoktasi(f.k),
                 acik: _filter == f.k,
                 onTap: () => setState(() => _filter = f.k),
               ),
@@ -990,10 +996,24 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
     ),
   );
 
+  /// Filtre çipinin solundaki nokta rengi. ANLAMSAL tokenlar kullanılır:
+  /// temadan bağımsızdırlar, "sürpriz" her görünümde aynı kırmızıdır.
+  /// Nokta istemeyen filtreler (Tümü / X / 2) için null.
+  static Color? _filtreNoktasi(String k) => switch (k) {
+    'strong' => AppColors.success,
+    'medium' => AppColors.warning,
+    'surprise' => AppColors.danger,
+    'insufficient' => AppColors.muted,
+    _ => null,
+  };
+
+  /// [nokta] verilirse etiketin soluna o renkte küçük bir daire çizilir —
+  /// eskiden 🔴/🟡/🟢 emojisiydi, rengi emoji fontundan geliyordu.
   Widget _cip(
     String etiket, {
     required bool acik,
     required VoidCallback onTap,
+    Color? nokta,
   }) => GestureDetector(
     onTap: onTap,
     behavior: HitTestBehavior.opaque,
@@ -1004,14 +1024,23 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         borderRadius: AppRadius.smR,
         border: Border.all(color: acik ? AppColors.primary : AppColors.border),
       ),
-      child: Text(
-        etiket,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: acik ? AppColors.onPrimary : AppColors.textSoft,
-          fontSize: 11,
-          fontWeight: AppFont.heavy,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (nokta != null) ...[
+            Icon(Icons.circle, size: 9, color: nokta),
+            const SizedBox(width: 5),
+          ],
+          Text(
+            etiket,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: acik ? AppColors.onPrimary : AppColors.textSoft,
+              fontSize: 11,
+              fontWeight: AppFont.heavy,
+            ),
+          ),
+        ],
       ),
     ),
   );

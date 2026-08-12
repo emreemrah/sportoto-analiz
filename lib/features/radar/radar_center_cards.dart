@@ -9,7 +9,11 @@ import 'package:flutter/material.dart';
 import '../../core/theme/tokens.dart';
 import 'radar_screen_data.dart';
 
-typedef ClassMeta = ({String label, Color color, Color soft, String icon});
+/// Rozet noktası VEKTÖR (kullanıcı isteği, 2026-08-12): eskiden 🔴/🟡/⚪
+/// emojisiydi ve rengi emoji fontundan geliyordu — rozetin kendi `color`
+/// tonuyla asla birebir tutmuyordu. Artık aynı ANLAMSAL tokenla boyanır;
+/// anlamsal renkler temadan bağımsızdır, "risk" her temada aynı kırmızıdır.
+typedef ClassMeta = ({String label, Color color, Color soft, IconData icon});
 
 /// Kullanıcı dili sadeleştirmesi: "Orta Risk"→"Temkinli", "Sürpriz Adayı"→
 /// "Sürpriz Sinyali", "Yetersiz Veri"→"Analiz Hazır Değil" (anahtarlar aynı).
@@ -20,25 +24,25 @@ Map<String, ClassMeta> get kClassMeta => {
     label: 'Güçlü Aday',
     color: AppColors.success,
     soft: AppColors.successSoft,
-    icon: '🟢',
+    icon: Icons.circle,
   ),
   'medium_risk': (
     label: 'Karışık Sinyal',
     color: AppColors.warning,
     soft: AppColors.warningSoft,
-    icon: '🟡',
+    icon: Icons.circle,
   ),
   'surprise_candidate': (
     label: 'Sürpriz Sinyali',
     color: AppColors.danger,
     soft: AppColors.dangerSoft,
-    icon: '🔴',
+    icon: Icons.circle,
   ),
   'insufficient_data': (
     label: 'Analiz Hazır Değil',
     color: AppColors.muted,
     soft: AppColors.surfaceSoft,
-    icon: '⚪',
+    icon: Icons.circle_outlined,
   ),
 };
 
@@ -106,13 +110,20 @@ class ClassPill extends StatelessWidget {
         borderRadius: AppRadius.pillR,
         border: Border.all(color: meta.color),
       ),
-      child: Text(
-        '${meta.icon} ${meta.label}',
-        style: TextStyle(
-          color: meta.color,
-          fontSize: 9.5,
-          fontWeight: AppFont.black,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(meta.icon, size: 8, color: meta.color),
+          const SizedBox(width: 4),
+          Text(
+            meta.label,
+            style: TextStyle(
+              color: meta.color,
+              fontSize: 9.5,
+              fontWeight: AppFont.black,
+            ),
+          ),
+        ],
       ),
     );
   }

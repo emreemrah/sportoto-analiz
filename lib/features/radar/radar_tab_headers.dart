@@ -234,7 +234,8 @@ class RadarGunlukUstPanel extends StatelessWidget {
         children: [
           // MOBİL SADELİK (2026-08-06): açıklamalar ⓘ arkasında — yer kaplamaz.
           InfoIpucu(
-            ozet: '💹 Oran Takibi · Günlük 1/X/2 Oranları',
+            ozet: 'Oran Takibi · Günlük 1/X/2 Oranları',
+            ikon: Icons.show_chart,
             detay:
                 'Gerçek 1/X/2 maç oranlarının gün gün hareketi. Bir gün seçin; '
                 '15 maçın o güne ait mühürlü oranı kendi satırında görünür '
@@ -267,7 +268,8 @@ class RadarGunlukUstPanel extends StatelessWidget {
         // MOBİL SADELİK (2026-08-06): açıklamalar ⓘ arkasında. VERİ YOKLUĞU
         // notu ⓘ DIŞINDA görünür kalır — dürüstlük kuralı gizlenmez.
         InfoIpucu(
-          ozet: '📊 Oynanma DNA · Günlük 1/X/2 Yüzdeleri',
+          ozet: 'Oynanma DNA · Günlük 1/X/2 Yüzdeleri',
+          ikon: Icons.bar_chart,
           detay:
               'Kullanıcıların 1/X/2 OYNAMA YÜZDESİNİN gün gün değişimi. Bir '
               'gün seçin; 15 maçın o güne ait mühürlü yüzdesi kendi satırında '
@@ -321,7 +323,8 @@ class RadarSekmePaneli extends StatelessWidget {
     if (tab == 'performance' && anyData) {
       // MOBİL SADELİK (2026-08-06): açıklama ⓘ arkasında.
       return InfoIpucu(
-        ozet: '🛡 Rakip Gücü & Saha Performansı',
+        ozet: 'Rakip Gücü & Saha Performansı',
+        ikon: Icons.shield_outlined,
         detay:
             'Form, rakibin MAÇ TARİHİNDEKİ ligdeki yerine göre tartılır '
             '(bugünkü tablo geçmişe uygulanmaz). Ev sahibi yalnız İÇ SAHA, '

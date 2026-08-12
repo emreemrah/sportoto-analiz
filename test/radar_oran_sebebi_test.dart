@@ -136,15 +136,25 @@ void main() {
 
     test('sayaç Radar 4 başlığında çizilir, Radar 3 başlığında ÇİZİLMEZ', () {
       // Sınırlar KOD içindeki ⓘ özet dizgeleri: yorum temizleyicisinden
-      // etkilenmezler ve iki dalı kesin ayırırlar.
+      // etkilenmezler ve iki dalı kesin ayırırlar. Dizgelerin başındaki
+      // emojiler 2026-08-12'de ayrı vektör ikona taşındı (ikonlar tema
+      // rengini alsın diye); çıpalar metnin kalanına bakar.
       final b = kaynaklar['basliklar']!;
-      final radar4 = blokAl(b, "'💹 Oran Takibi", "'📊 Oynanma DNA");
+      final radar4 = blokAl(
+        b,
+        "'Oran Takibi · Günlük",
+        "'Oynanma DNA · Günlük",
+      );
       expect(
         radar4,
         contains('OddsCounter('),
         reason: 'sayaç başlığa eklenmemiş',
       );
-      final radar3 = blokAl(b, "'📊 Oynanma DNA", 'class RadarSekmePaneli');
+      final radar3 = blokAl(
+        b,
+        "'Oynanma DNA · Günlük",
+        'class RadarSekmePaneli',
+      );
       expect(
         radar3.contains('OddsCounter('),
         isFalse,

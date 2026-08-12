@@ -136,7 +136,7 @@ class HaftaSecici extends StatelessWidget {
                       metin: w.ad,
                       // Sağdaki işaret: güncel mi, mühürlü mü. Mühür "sonradan
                       // değişmez" güvencesidir, gizlenmez.
-                      meta: w.guncel ? 'Güncel' : (w.kilitli ? '🔏' : ''),
+                      meta: w.guncel ? 'Güncel' : (w.kilitli ? 'Kilitli' : ''),
                       secili:
                           selectedId != null &&
                           w.roundId == num.tryParse('$selectedId'),

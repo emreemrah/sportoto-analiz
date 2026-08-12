@@ -216,12 +216,17 @@ class MasterFilter {
   final String label;
 }
 
+/// Etiketlerde RENKLİ NOKTA EMOJİSİ YOK (kullanıcı isteği, 2026-08-12):
+/// 🟢/🟡/🔴/⚪ emojisinin rengi emoji fontundan geliyordu ve rozetlerdeki
+/// anlamsal tonla tutmuyordu. Nokta artık ekranda vektör olarak çizilir
+/// (bkz. radar_screen.dart → `_filtreNoktasi`). Bu dosya WIDGET BİLMEZ, o
+/// yüzden renk burada DEĞİL orada durur.
 const List<MasterFilter> kMasterFilters = [
   MasterFilter('all', 'Tümü'),
-  MasterFilter('strong', '🟢 Güçlü Aday'),
-  MasterFilter('medium', '🟡 Karışık Sinyal'),
-  MasterFilter('surprise', '🔴 Sürpriz Sinyali'),
-  MasterFilter('insufficient', '⚪ Analiz Hazır Değil'),
+  MasterFilter('strong', 'Güçlü Aday'),
+  MasterFilter('medium', 'Karışık Sinyal'),
+  MasterFilter('surprise', 'Sürpriz Sinyali'),
+  MasterFilter('insufficient', 'Analiz Hazır Değil'),
   MasterFilter('drawRisk', 'X Beraberlik Riski'),
   MasterFilter('awaySurprise', '2 Dep. Sürprizi'),
 ];
