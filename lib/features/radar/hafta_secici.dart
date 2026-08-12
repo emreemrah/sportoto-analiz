@@ -165,7 +165,10 @@ class HaftaSecici extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
         color: acikMi ? AppColors.primarySoft : AppColors.surfaceSoft,
-        borderRadius: AppRadius.pillR,
+        // PANELLERLE AYNI YARIÇAP (kullanıcı isteği, 2026-08-12): kapsül
+        // (`pillR`) "aşırı oval" duruyordu; başlık paneli, seçim alanı ve
+        // sekme paneli artık tek bir yarıçapı paylaşıyor.
+        borderRadius: AppRadius.lgR,
         border: Border.all(
           color: acikMi ? AppColors.primary : AppColors.border,
         ),

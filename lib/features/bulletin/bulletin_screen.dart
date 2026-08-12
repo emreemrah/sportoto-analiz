@@ -390,9 +390,9 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
             renk: AppColors.surfaceSoft,
             // İÇ BOŞLUK: seçili günün altındaki kalın accent çizgi kartın
             // KENARINA değiyor ve yuvarlatılmış köşede kırpılıyordu. Alttan
-            // birkaç piksel boşluk bırakılınca çizgi kartın içinde kalıyor.
+            // ve yanlardan boşluk bırakılınca çizgi kartın içinde kalıyor.
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 5),
+              padding: const EdgeInsets.fromLTRB(Spacing.sm, 0, Spacing.sm, 6),
               child: BultenTarihSeridi(
                 gunler: gunler,
                 secili: _seciliGun,
@@ -678,10 +678,10 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
         vertical: Spacing.md,
         horizontal: Spacing.md,
       ),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
+      // ZEMİN VE ALT ÇİZGİ YOK: başlık kendi `UstPanel` kartının içinde;
+      // zemini, kenarlığı ve yuvarlaklığı panel veriyor. Burada ikinci bir
+      // dolgu çizmek kenarlığı KAVİSTE örtüyor ve köşeyi "çapraz kesilmiş"
+      // gösteriyordu (8× büyütmeyle doğrulandı).
       child: Column(
         children: [
           Row(
