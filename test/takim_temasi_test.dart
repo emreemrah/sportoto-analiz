@@ -26,7 +26,11 @@ void main() {
       final p = takimPaletiBul('Galatasaray');
       expect(p, isNotNull);
       expect(p!.takim, 'Galatasaray');
-      expect(p.ana, const Color(0xFFA90432));
+      // SIRA SARI-KIRMIZI (2026-08-12): iki renkli temada birinci değer
+      // ZEMİN rolündedir ve kullanıcı Galatasaray icin "ana arka plan sarı"
+      // dedi. İki hex de doğrulanmış hâliyle duruyor, rolleri değişti.
+      expect(p.ana, const Color(0xFFFDB912));
+      expect(p.ikincil, const Color(0xFFA90432));
     });
 
     test('Türkçe küçük harf normalizasyonu — büyük/küçük fark etmez', () {

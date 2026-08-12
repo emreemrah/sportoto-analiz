@@ -132,7 +132,7 @@ void main() {
     test('doğrulanan her takımın değeri kaynaktakiyle aynı', () {
       // Değer kazara değişirse kaynak yorumu YALAN olur; test bunu yakalar.
       const beklenen = <String, TakimRenkCifti>{
-        'Galatasaray': (0xFFA90432, 0xFFFDB912),
+        'Galatasaray': (0xFFFDB912, 0xFFA90432),
         'Trabzonspor': (0xFF902F2F, 0xFF4FBFF0),
         'Fenerbahçe': (0xFF00417F, 0xFFFFED00),
         'Beşiktaş': (0xFF000000, 0xFFFFFFFF),

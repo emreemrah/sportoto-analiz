@@ -131,6 +131,17 @@ const Set<String> kResmiKaynakliTakimlar = {
 
 /// Katalog adı → renk çifti. Anahtarlar `kucukTr` ile normalize edilerek
 /// aranır; buradaki yazım katalogdaki `name` alanıyla birebir aynıdır.
+///
+/// ═══════ ÇİFTİN SIRASI BİR ROLDÜR (2026-08-12) ═══════════════════════════
+/// İki renkli ters kontrast temasında:
+///   $1 = ANA    → uygulamanın ana ARKA PLANI
+///   $2 = İKİNCİL → KARTLARIN rengi (ve zemindeki yazının rengi)
+/// Kullanıcının verdiği dört örnek bu sırayla tutar: Fenerbahçe lacivert
+/// zemin + sarı kart, Beşiktaş siyah + beyaz, Trabzonspor bordo + mavi,
+/// Galatasaray sarı zemin + kırmızı kart.
+///
+/// Bir takımın teması TERS görünüyorsa çözüm buradaki sırayı çevirmektir —
+/// hesaplama tarafında takım adına bakan bir istisna YOKTUR.
 const Map<String, TakimRenkCifti> kTakimRenkleri = {
   // ───────────────────────── Türkiye · Süper Lig ─────────────────────────
   // AİLE DOĞRULANDI (2026-08-12): turuncu-yeşil (1982 tüzük değişikliğiyle
@@ -157,7 +168,13 @@ const Map<String, TakimRenkCifti> kTakimRenkleri = {
   // taşıyan tok bir sarı". Sayısal karşılık teamcolorcodes.com'dan: kırmızı
   // PANTONE 187 (#A90432), sarı PANTONE 123 C (#FDB912). Kırmızının bordoya
   // yakın durması TÜZÜĞÜN KENDİ TARİFİDİR, hata değil.
-  'Galatasaray': (0xFFA90432, 0xFFFDB912),
+  //
+  // SIRA SARI-KIRMIZI (2026-08-12 akşamı): iki renkli temada BİRİNCİ değer
+  // artık ZEMİN rolünü taşıyor ve kullanıcı Galatasaray için beklenen sonucu
+  // açıkça yazdı — "ana arka plan sarı, kartlar kırmızı". Kulübün kendi
+  // adlandırması da sarı-kırmızıdır. İki HEX de doğrulanmış hâliyle aynı;
+  // yalnız rolleri yer değiştirdi.
+  'Galatasaray': (0xFFFDB912, 0xFFA90432),
   'Gaziantep FK': (0xFFD3122E, 0xFF000000),
   'Gençlerbirliği': (0xFFE30613, 0xFF000000),
   'Göztepe': (0xFFFFD500, 0xFFE2001A),
