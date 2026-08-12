@@ -22,6 +22,10 @@ import 'package:go_router/go_router.dart';
 import 'package:masteranaliz/app.dart';
 import 'package:masteranaliz/core/auth.dart' as auth;
 import 'package:masteranaliz/core/network/api_client.dart';
+import 'package:masteranaliz/core/theme/gorunum.dart';
+import 'package:masteranaliz/core/theme/takim_paleti.dart';
+import 'package:masteranaliz/core/theme/takim_renkleri.dart';
+import 'package:masteranaliz/core/theme/tokens.dart';
 import 'package:masteranaliz/features/profile/kullanici_paneli.dart';
 import 'package:masteranaliz/widgets/tab_icons.dart';
 import 'package:masteranaliz/widgets/avatar.dart';
@@ -317,6 +321,59 @@ void main() {
               'dokunulunca hiçbir şey olmaz',
         );
       }
+    });
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PANEL OKUNURLUĞU — TÜM TAKIM TEMALARI (kullanıcı isteği, 2026-08-12 gece)
+  //
+  // Panelin yazısı bir dönem `onDark` idi ve iki renkli takım temasında o,
+  // TAKIM RENGİNİN tonu oluyordu; beyaz panelde her satır ince kırmızı-pembe
+  // çıkıyordu (emülatörde ölçüldü, AFC Ajax teması).
+  //
+  // Kural: satır metni/ikonu/oku NÖTRDÜR ve panel yüzeyinde AA'yı geçer.
+  // Ekran görüntüsüyle tek tek bakmak 150 takımı kapsamaz — burada hepsi
+  // hesapla taranır.
+  // ══════════════════════════════════════════════════════════════════════════
+  group('Panel okunurluğu — 150 takım', () {
+    test('satır yazısı kendi yüzeyinde AA geçer — 150 takım', () {
+      // PANEL DÜZENİ (kullanıcı isteği, 2026-08-12 gece):
+      //   zemin  = background (takımın BİRİNCİ rengi)
+      //   satır  = surface    (İKİNCİL renk / erişilebilir yüzey)
+      //   yazı   = text       (satırın üstünde → birinci rengin tonu)
+      // Ekran görüntüsü 150 takımı kapsamaz; hesap burada taranır.
+      final dusenler = <String>[];
+      for (final ad in kTakimRenkleri.keys) {
+        gorunumuKur(GorunumModu.takim, Brightness.light, takimPaletiBul(ad));
+        for (final (etiket, renk) in [
+          ('text', AppColors.text),
+          ('textSoft', AppColors.textSoft),
+        ]) {
+          final o = kontrastOrani(renk, AppColors.surface);
+          if (o < kAaEsigi) {
+            dusenler.add('$ad $etiket=${o.toStringAsFixed(2)}');
+          }
+        }
+        // Satır kutusu ZEMİNDEN ayrışmalı, yoksa "kutucuk" görünmez.
+        final ayrim = kontrastOrani(AppColors.surface, AppColors.background);
+        if (ayrim < 1.12) {
+          dusenler.add('$ad satır/zemin=${ayrim.toStringAsFixed(3)}');
+        }
+      }
+      expect(dusenler, isEmpty, reason: dusenler.take(12).join(' · '));
+    });
+
+    test('panelde FİLİGRAN çizilmez', () {
+      final panel = File(
+        'lib/features/profile/kullanici_paneli.dart',
+      ).readAsStringSync();
+      expect(
+        panel.contains('TakimLogoZemin('),
+        isFalse,
+        reason:
+            'filigran menü satırlarının arkasından geçip yazıyı bozuyordu — '
+            'panele geri eklenmemeli',
+      );
     });
   });
 }
