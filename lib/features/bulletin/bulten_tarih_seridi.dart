@@ -33,42 +33,39 @@ class BultenTarihSeridi extends StatelessWidget {
     // Tek gün varsa şerit bir şey seçtirmez — süzgeç anlamsızdır.
     if (gunler.length < 2) return const SizedBox.shrink();
 
-    return Container(
-      // ALT ÇİZGİ YOK: bu şerit üst panelin EN ALTIDIR ve panelin kendi
-      // kenarlığı sınırı çiziyor. Bırakılsaydı yuvarlatılmış köşenin
-      // üstünden düz bir çizgi geçerdi.
-      decoration: BoxDecoration(color: AppColors.surface),
-      child: Row(
-        children: [
-          // TÜMÜ — solda sabit durur, şeritle birlikte kaymaz.
-          _Cip(
-            anahtar: const Key('bulten-gun-tumu'),
-            ustSatir: 'Tümü',
-            altSatir: '${_toplam()} maç',
-            secili: secili == null,
-            onTap: () => onSec(null),
-          ),
-          Container(width: 1, height: 30, color: AppColors.border),
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (final g in gunler)
-                    _Cip(
-                      anahtar: Key('bulten-gun-${g.tarih}'),
-                      ustSatir: g.gunAdi,
-                      altSatir: g.kisaTarih,
-                      secili: secili == g.tarih,
-                      vurgulu: g.bugun,
-                      onTap: () => onSec(g.tarih),
-                    ),
-                ],
-              ),
+    // ZEMİN YOK: şerit kendi `UstPanel` kartının içinde duruyor; zemini,
+    // kenarlığı ve yuvarlaklığı panel veriyor. İkinci bir dolgu köşeleri
+    // kareye döndürürdü.
+    return Row(
+      children: [
+        // TÜMÜ — solda sabit durur, şeritle birlikte kaymaz.
+        _Cip(
+          anahtar: const Key('bulten-gun-tumu'),
+          ustSatir: 'Tümü',
+          altSatir: '${_toplam()} maç',
+          secili: secili == null,
+          onTap: () => onSec(null),
+        ),
+        Container(width: 1, height: 30, color: AppColors.border),
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final g in gunler)
+                  _Cip(
+                    anahtar: Key('bulten-gun-${g.tarih}'),
+                    ustSatir: g.gunAdi,
+                    altSatir: g.kisaTarih,
+                    secili: secili == g.tarih,
+                    vurgulu: g.bugun,
+                    onTap: () => onSec(g.tarih),
+                  ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

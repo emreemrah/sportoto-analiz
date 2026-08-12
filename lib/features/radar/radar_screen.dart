@@ -223,19 +223,25 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
           bottom: false,
           child: Column(
             children: [
-              // ÜST PANEL — başlık, sezon/hafta seçimi ve sekme şeridi TEK
-              // kutu (kullanıcı isteği, 2026-08-12): üçü ayrı ayrı keskin
-              // blok gibi duruyordu. Alt köşeler oval; üst kenar ekranın
-              // doğal sınırında kalır.
+              // İKİ AYRI PANEL (kullanıcı isteği, 2026-08-12 son tur):
+              // başlık + sezon/hafta seçimi bir kart, SEKMELER ayrı bir kart.
+              // Tek kutuda toplandıklarında "birbirine yapışık" görünüyordu.
+              // Aradaki boşluk `UstPanel`in kendi dikey marjından gelir.
               UstPanel(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _ekranBasligi(meta),
                     _haftaSecici(normalized.weeks, curId, gosterilen),
-                    _sekmeCubugu(legacyMode),
                   ],
                 ),
+              ),
+              // SEKME PANELİ — kendi kartı. Zemini `surfaceSoft`: başlık
+              // kartından TON FARKIYLA da ayrışsın (ikisi de kenarlıklı ve
+              // yuvarlak olduğu için yalnız boşluk yetmiyordu).
+              UstPanel(
+                renk: AppColors.surfaceSoft,
+                child: _sekmeCubugu(legacyMode),
               ),
               Expanded(
                 child: RefreshIndicator(
@@ -876,10 +882,8 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         horizontal: Spacing.md,
         vertical: Spacing.sm,
       ),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
+      // ZEMİN VE ALT ÇİZGİ YOK: başlık paneli kendi yüzeyini ve kenarlığını
+      // veriyor; bu blok onun İÇİNDE, en altında duruyor.
       child: HaftaSecici(
         weeks: weeks,
         curId: curId,
@@ -917,8 +921,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         (k: 'r1', label: 'Radar 1', sub: 'Karar destek'),
         (k: 'r2', label: 'Radar 2', sub: 'xG görünümü'),
       ];
-      return Container(
-        decoration: BoxDecoration(color: AppColors.bgAlt),
+      return Padding(
         padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
         child: Row(
           children: [
@@ -936,30 +939,27 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
       );
     }
 
-    return Container(
-      // ALT ÇİZGİ YOK: bu blok üst panelin EN ALTIDIR ve panelin kendi
-      // kenarlığı zaten sınırı çiziyor. Bırakılsaydı yuvarlatılmış köşenin
-      // üstünden düz bir çizgi geçerdi.
-      decoration: BoxDecoration(color: AppColors.bgAlt),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
-        child: Row(
-          children: [
-            for (final t in kRadarTabDefs)
-              _sekme(
-                label: t.label,
-                sub: t.sub,
-                secili: _tab == t.k,
-                // Sekme değişince açık kart kapanır (kaynakta
-                // `setExpandedNo(null)`).
-                onTap: () => setState(() {
-                  _tab = t.k;
-                  _expandedNo = null;
-                }),
-              ),
-          ],
-        ),
+    // ZEMİN YOK: sekme paneli (`UstPanel`) kendi zeminini, kenarlığını ve
+    // yuvarlaklığını veriyor. Burada ikinci bir dolgu çizilseydi köşeler
+    // kareye dönerdi.
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+      child: Row(
+        children: [
+          for (final t in kRadarTabDefs)
+            _sekme(
+              label: t.label,
+              sub: t.sub,
+              secili: _tab == t.k,
+              // Sekme değişince açık kart kapanır (kaynakta
+              // `setExpandedNo(null)`).
+              onTap: () => setState(() {
+                _tab = t.k;
+                _expandedNo = null;
+              }),
+            ),
+        ],
       ),
     );
   }

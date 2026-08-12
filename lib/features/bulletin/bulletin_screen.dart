@@ -375,22 +375,32 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
     final gosterilenMaclar = filtreleGune(currentMatches, _seciliGun);
 
     return LiveBulletinView(
-      // ÜST PANEL — başlık, hafta seçimi, durum ve tarih süzgeci TEK kutu
-      // (kullanıcı isteği, 2026-08-12). Alt köşeler oval; üst kenar ekranın
-      // doğal sınırında kalır.
-      header: UstPanel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            header,
-            BultenTarihSeridi(
-              gunler: gunler,
-              secili: _seciliGun,
-              onSec: (g) => setState(() => _seciliGun = g),
+      // İKİ AYRI PANEL (kullanıcı isteği, 2026-08-12 son tur): başlık,
+      // hafta seçimi ve durum bir kart; TARİH SÜZGECİ ayrı bir kart.
+      // Tek kutuda toplandıklarında "birbirine yapışık" görünüyorlardı.
+      header: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          UstPanel(child: header),
+          // SÜZGEÇ PANELİ — zemini `surfaceSoft`: başlık kartından TON
+          // FARKIYLA da ayrışsın (ikisi de kenarlıklı ve yuvarlak olduğu
+          // için yalnız boşluk yetmiyordu).
+          UstPanel(
+            renk: AppColors.surfaceSoft,
+            // İÇ BOŞLUK: seçili günün altındaki kalın accent çizgi kartın
+            // KENARINA değiyor ve yuvarlatılmış köşede kırpılıyordu. Alttan
+            // birkaç piksel boşluk bırakılınca çizgi kartın içinde kalıyor.
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 5),
+              child: BultenTarihSeridi(
+                gunler: gunler,
+                secili: _seciliGun,
+                onSec: (g) => setState(() => _seciliGun = g),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
       matches: gosterilenMaclar,
       subtitle: subtitle,

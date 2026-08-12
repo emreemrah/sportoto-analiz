@@ -103,82 +103,74 @@ class MacDetaySekmeCubugu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      // ALT ÇİZGİ YOK: bu çubuk üst panelin EN ALTIDIR ve panelin kendi
-      // kenarlığı sınırı çiziyor; bırakılsaydı yuvarlatılmış köşenin üstünden
-      // düz bir çizgi geçerdi.
-      decoration: BoxDecoration(color: AppColors.bgAlt),
-      child: Row(
-        children: [
-          // AYAR DİŞLİSİ — solda SABİT: sekmelerle birlikte kaymaz, hangi
-          // sekmede olunursa olunsun aynı yerde durur (Screenshot_6).
-          Semantics(
-            button: true,
-            label: 'Maç detay sekme ayarları',
-            child: GestureDetector(
-              key: const Key('mac-detay-sekme-ayar-dugmesi'),
-              onTap: onAyarlar,
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  Spacing.md,
-                  Spacing.md,
-                  Spacing.sm,
-                  Spacing.md,
-                ),
-                child: Icon(
-                  Icons.settings,
-                  size: 20,
-                  color: AppColors.textSoft,
-                ),
+    // ZEMİN YOK: çubuk kendi `UstPanel` kartının içinde; zemini, kenarlığı ve
+    // yuvarlaklığı panel veriyor.
+    return Row(
+      children: [
+        // AYAR DİŞLİSİ — solda SABİT: sekmelerle birlikte kaymaz, hangi
+        // sekmede olunursa olunsun aynı yerde durur (Screenshot_6).
+        Semantics(
+          button: true,
+          label: 'Maç detay sekme ayarları',
+          child: GestureDetector(
+            key: const Key('mac-detay-sekme-ayar-dugmesi'),
+            onTap: onAyarlar,
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                Spacing.md,
+                Spacing.md,
+                Spacing.sm,
+                Spacing.md,
               ),
+              child: Icon(Icons.settings, size: 20, color: AppColors.textSoft),
             ),
           ),
-          Container(width: 1, height: 26, color: AppColors.border),
-          Expanded(
-            child: TabBar(
-              controller: controller,
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              padding: const EdgeInsets.only(left: Spacing.sm),
-              labelPadding: const EdgeInsets.symmetric(horizontal: 14),
-              labelColor: AppColors.text,
-              unselectedLabelColor: AppColors.textMuted,
-              labelStyle: const TextStyle(
-                fontSize: 13,
-                fontWeight: AppFont.black,
-              ),
-              unselectedLabelStyle: const TextStyle(
-                fontSize: 13,
-                fontWeight: AppFont.bold,
-              ),
-              indicatorSize: TabBarIndicatorSize.label,
-              indicator: UnderlineTabIndicator(
-                borderSide: BorderSide(color: AppColors.accent, width: 3),
-                insets: EdgeInsets.only(bottom: 6),
-              ),
-              // Kendi alt kenarlığımız var; TabBar'ın kendi ayıracı çift çizgi
-              // yapardı.
-              dividerColor: Colors.transparent,
-              overlayColor: WidgetStateProperty.all(Colors.transparent),
-              tabs: [
-                for (final s in sekmeler)
-                  Tab(
-                    height: 54,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _Ikon(controller: controller, sekmeler: sekmeler, s: s),
-                        const SizedBox(height: 2),
-                        Text(s.ad),
-                      ],
-                    ),
+        ),
+        Container(width: 1, height: 26, color: AppColors.border),
+        Expanded(
+          child: TabBar(
+            controller: controller,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            padding: const EdgeInsets.only(left: Spacing.sm),
+            labelPadding: const EdgeInsets.symmetric(horizontal: 14),
+            labelColor: AppColors.text,
+            unselectedLabelColor: AppColors.textMuted,
+            labelStyle: const TextStyle(
+              fontSize: 13,
+              fontWeight: AppFont.black,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontSize: 13,
+              fontWeight: AppFont.bold,
+            ),
+            indicatorSize: TabBarIndicatorSize.label,
+            indicator: UnderlineTabIndicator(
+              borderSide: BorderSide(color: AppColors.accent, width: 3),
+              insets: EdgeInsets.only(bottom: 6),
+            ),
+            // Kendi alt kenarlığımız var; TabBar'ın kendi ayıracı çift çizgi
+            // yapardı.
+            dividerColor: Colors.transparent,
+            overlayColor: WidgetStateProperty.all(Colors.transparent),
+            tabs: [
+              for (final s in sekmeler)
+                Tab(
+                  height: 54,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _Ikon(controller: controller, sekmeler: sekmeler, s: s),
+                      const SizedBox(height: 2),
+                      Text(s.ad),
+                    ],
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
