@@ -44,6 +44,36 @@ Future<dynamic> _katalog() {
   });
 }
 
+/// Takım adı → ARMA ADRESİ. Bulunamazsa `null`.
+///
+/// EŞLEŞME YOKSA NULL DÖNER; "benzeri" bir arma ASLA seçilmez — başka
+/// kulübün armasını göstermek, olmayan bir armayı göstermemekten kötüdür.
+///
+/// TEK KAYNAK (2026-08-12): filigran, yan panel ve profil ekranı bu aynı
+/// işlevi çağırır. Katalog isteği modül içinde TEK KEZ yapılır
+/// (`_katalogSoz`), bu yüzden ikinci ve sonraki çağrılar AĞA ÇIKMAZ —
+/// panelin armayı göstermesinin ek bir isteği yoktur.
+Future<String?> takimArmasiBul(String ad) async {
+  if (ad.isEmpty) return null;
+  try {
+    final d = await _katalog();
+    final kucuk = kucukTr(ad);
+    for (final lig in ((d as Map)['leagues'] as List?) ?? const []) {
+      for (final t in ((lig as Map)['teams'] as List?) ?? const []) {
+        final tm = t as Map;
+        if (kucukTr('${tm['name']}') == kucuk ||
+            kucukTr('${tm['cleanName'] ?? ''}') == kucuk) {
+          final img = tm['image'];
+          return (img is String && img.isNotEmpty) ? img : null;
+        }
+      }
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
 class TakimLogoZemin extends StatefulWidget {
   // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
   // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
@@ -69,31 +99,8 @@ class _TakimLogoZeminState extends State<TakimLogoZemin> {
   String? _sonAd;
 
   Future<void> _bul(String ad) async {
-    if (ad.isEmpty) {
-      if (mounted) setState(() => _logo = null);
-      return;
-    }
-    try {
-      final d = await _katalog();
-      if (!mounted) return;
-      final kucuk = kucukTr(ad);
-      for (final lig in ((d as Map)['leagues'] as List?) ?? const []) {
-        for (final t in ((lig as Map)['teams'] as List?) ?? const []) {
-          final tm = t as Map;
-          if (kucukTr('${tm['name']}') == kucuk ||
-              kucukTr('${tm['cleanName'] ?? ''}') == kucuk) {
-            final img = tm['image'];
-            if (img is String && img.isNotEmpty) {
-              setState(() => _logo = img);
-              return;
-            }
-          }
-        }
-      }
-      setState(() => _logo = null);
-    } catch (_) {
-      if (mounted) setState(() => _logo = null);
-    }
+    final img = await takimArmasiBul(ad);
+    if (mounted) setState(() => _logo = img);
   }
 
   @override

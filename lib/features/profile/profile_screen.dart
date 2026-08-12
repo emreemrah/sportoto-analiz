@@ -73,37 +73,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// Takım adı → arma (katalogdan; büyük/küçük harf duyarsız).
+  /// Takım adı → arma. Arama TEK YERDE durur (`takimArmasiBul`,
+  /// widgets/takim_logo_zemin.dart): filigran, yan panel ve bu ekran aynı
+  /// işlevi çağırır ve katalog uygulama ömrü boyunca BİR KEZ çekilir.
   /// Bulunamazsa null — eşleşme yoksa arma konmaz, benzeri görsel yasak.
   Future<void> _armaBul(String favAd) async {
-    if (favAd.isEmpty) {
-      if (mounted) setState(() => _favLogo = null);
-      return;
-    }
-    try {
-      final d = await api.favoriteTeams();
-      if (!mounted) return;
-      final kucuk = _kucukTr(favAd);
-      for (final lig in ((d as Map)['leagues'] as List?) ?? const []) {
-        for (final t in ((lig as Map)['teams'] as List?) ?? const []) {
-          final tm = t as Map;
-          if (_kucukTr('${tm['name']}') == kucuk ||
-              _kucukTr('${tm['cleanName'] ?? ''}') == kucuk) {
-            setState(() => _favLogo = tm['image'] as String?);
-            return;
-          }
-        }
-      }
-      setState(() => _favLogo = null);
-    } catch (_) {
-      if (mounted) setState(() => _favLogo = null);
-    }
+    final img = await takimArmasiBul(favAd);
+    if (mounted && img != _favLogo) setState(() => _favLogo = img);
   }
-
-  /// Türkçe küçük harf: Dart'ın toLowerCase()'i 'I' → 'i' yapar, Türkçe'de
-  /// 'ı' olmalıdır. Kaynak `toLocaleLowerCase('tr-TR')` kullanıyordu.
-  static String _kucukTr(String s) =>
-      s.replaceAll('I', 'ı').replaceAll('İ', 'i').toLowerCase();
 
   @override
   Widget build(BuildContext context) {
@@ -266,12 +243,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           runSpacing: 6,
                           alignment: WrapAlignment.center,
                           children: [
-                            _sayac('💬 ${user['total_comments'] ?? 0} yorum'),
                             _sayac(
-                              '♥ ${user['total_likes_received'] ?? 0} beğeni',
+                              Icons.chat_bubble_outline,
+                              '${user['total_comments'] ?? 0} yorum',
                             ),
                             _sayac(
-                              '🎯 ${user['total_predictions'] ?? 0} tahmin',
+                              Icons.favorite_border,
+                              '${user['total_likes_received'] ?? 0} beğeni',
+                            ),
+                            _sayac(
+                              Icons.my_location,
+                              '${user['total_predictions'] ?? 0} tahmin',
                             ),
                           ],
                         ),
@@ -284,8 +266,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Logo(uri: _favLogo, name: favAd, size: 18),
                               const SizedBox(width: 6),
                             ],
+                            if (_favLogo == null) ...[
+                              Icon(
+                                Icons.sports_soccer,
+                                size: 15,
+                                color: AppColors.textMuted,
+                              ),
+                              const SizedBox(width: 5),
+                            ],
                             Text(
-                              _favLogo != null ? 'Takımım:' : '⚽ Takımım:',
+                              'Takımım:',
                               style: TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 12.5,
@@ -462,13 +452,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _sayac(String metin) => Text(
-    metin,
-    style: TextStyle(
-      color: AppColors.textSoft,
-      fontSize: 12,
-      fontWeight: AppFont.bold,
-    ),
+  /// Profil sayacı — ikon AYRI, metne gömülü emoji DEĞİL (kullanıcı isteği,
+  /// 2026-08-12): emoji `textSoft` rengini almıyordu.
+  Widget _sayac(IconData ikon, String metin) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(ikon, size: 14, color: AppColors.textSoft),
+      const SizedBox(width: 4),
+      Text(
+        metin,
+        style: TextStyle(
+          color: AppColors.textSoft,
+          fontSize: 12,
+          fontWeight: AppFont.bold,
+        ),
+      ),
+    ],
   );
 
   Future<void> _adKaydet() async {
