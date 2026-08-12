@@ -173,12 +173,20 @@ class HaftaSecici extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            metin,
-            style: TextStyle(
-              color: AppColors.text,
-              fontSize: 13.5,
-              fontWeight: AppFont.heavy,
+          // ESNEK: üst panel kart gibi kenar boşluğu aldığında (2026-08-12)
+          // kullanılabilir genişlik daraldı ve 320px'lik ekranda bu satır
+          // 9 piksel taşıyordu. Etiket artık sığmazsa kısalır; düzen aynı
+          // kalır, yalnız taşma olmaz.
+          Flexible(
+            child: Text(
+              metin,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: AppColors.text,
+                fontSize: 13.5,
+                fontWeight: AppFont.heavy,
+              ),
             ),
           ),
           const SizedBox(width: 8),
