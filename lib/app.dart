@@ -514,33 +514,33 @@ class _AnaKabukState extends State<_AnaKabuk> {
               ),
               child: Row(
                 children: [
+                  // İKONLARIN HEPSİ VEKTÖR (kullanıcı isteği, 2026-08-12):
+                  // Ana Sayfa ve Bülten PNG'ydi, rengi değişmediği için
+                  // açık/koyu/takım temasında menünün yarısı temadan kopuk
+                  // kalıyordu. Dördü de aynı accent ↔ muted kuralını izler.
                   _sekme(
                     0,
                     aktif,
                     'Ana Sayfa',
-                    _pngIkon('assets/tab-home.png', aktif == 0),
+                    HomeIcon(color: _sekmeRengi(aktif == 0)),
                   ),
                   _sekme(
                     1,
                     aktif,
                     'Bülten',
-                    _pngIkon('assets/tab-bulletin.png', aktif == 1),
+                    BulletinIcon(color: _sekmeRengi(aktif == 1)),
                   ),
                   _sekme(
                     2,
                     aktif,
                     'Radar',
-                    RadarIcon(
-                      color: aktif == 2 ? AppColors.accent : AppColors.muted,
-                    ),
+                    RadarIcon(color: _sekmeRengi(aktif == 2)),
                   ),
                   _sekme(
                     3,
                     aktif,
                     'Kuponlarım',
-                    TicketIcon(
-                      color: aktif == 3 ? AppColors.accent : AppColors.muted,
-                    ),
+                    TicketIcon(color: _sekmeRengi(aktif == 3)),
                   ),
                   // PROFİL SEKMESİ — giriş yapmış kullanıcıda Profil dalına
                   // ATLAMAZ, sağdaki paneli açar (kullanıcı kararı). Profil
@@ -558,7 +558,7 @@ class _AnaKabukState extends State<_AnaKabuk> {
                     'Profil',
                     girisli
                         ? _avatarIkon(aktif == 4)
-                        : _pngIkon('assets/tab-profile.png', aktif == 4),
+                        : ProfileIcon(color: _sekmeRengi(aktif == 4)),
                     onTap: girisli ? _paneliAc : null,
                   ),
                 ],
@@ -570,11 +570,13 @@ class _AnaKabukState extends State<_AnaKabuk> {
     );
   }
 
-  /// Kaynaktaki `TabIcon`: 28×28, odakta tam, odak dışında %50 opaklık.
-  Widget _pngIkon(String yol, bool odakta) => Opacity(
-    opacity: odakta ? 1 : 0.5,
-    child: Image.asset(yol, width: 28, height: 28, fit: BoxFit.contain),
-  );
+  /// Sekme ikonunun rengi — SEÇİLİ vurgu, PASİF nötr.
+  ///
+  /// Tek yerde durur ki beş sekme birbirinden ayrışmasın. Kaynaktaki `TabIcon`
+  /// pasifi %50 OPAKLIKLA veriyordu; opaklık raster görselin çözümüydü.
+  /// Vektörde doğru karşılık nötr `muted` tokenıdır: koyu temada yarı saydam
+  /// bir ikon zeminle karışıp kaybolurken `muted` okunur kalıyor.
+  Color _sekmeRengi(bool odakta) => odakta ? AppColors.accent : AppColors.muted;
 
   /// Profil sekmesinin ikonu olarak kullanıcının kendi avatarı.
   ///

@@ -23,6 +23,7 @@ import 'package:masteranaliz/app.dart';
 import 'package:masteranaliz/core/auth.dart' as auth;
 import 'package:masteranaliz/core/network/api_client.dart';
 import 'package:masteranaliz/features/profile/kullanici_paneli.dart';
+import 'package:masteranaliz/widgets/tab_icons.dart';
 import 'package:masteranaliz/widgets/avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -191,13 +192,13 @@ void main() {
       t,
     ) async {
       await uygulamayiAc(t);
-      // Nötr silüet (assets/tab-profile.png) değil, avatar çizilir.
+      // Nötr silüet (ProfileIcon) değil, avatar çizilir.
       expect(
         find.descendant(of: profilAlani, matching: find.byType(ProfileAvatar)),
         findsOne,
       );
       expect(
-        find.descendant(of: profilAlani, matching: find.byType(Image)),
+        find.descendant(of: profilAlani, matching: find.byType(ProfileIcon)),
         findsNothing,
       );
     });
@@ -209,8 +210,10 @@ void main() {
         find.descendant(of: profilAlani, matching: find.byType(ProfileAvatar)),
         findsNothing,
       );
+      // SİLÜET ARTIK VEKTÖR (2026-08-12): `assets/tab-profile.png` yerine
+      // `ProfileIcon` çizilir — raster ikon tema rengini alamıyordu.
       expect(
-        find.descendant(of: profilAlani, matching: find.byType(Image)),
+        find.descendant(of: profilAlani, matching: find.byType(ProfileIcon)),
         findsOne,
       );
     });
@@ -291,11 +294,14 @@ void main() {
         'lib/features/profile/profile_screen.dart',
       ).readAsStringSync();
 
-      final yollar = RegExp(r"_Giris\('[^']*',\s*'[^']*',\s*'([^']*)'\)")
-          .allMatches(panel)
-          .map((m) => m.group(1)!)
-          .where((y) => y.isNotEmpty)
-          .toSet();
+      // İlk parametre artık EMOJİ METNİ DEĞİL, `Icons.x` sabiti
+      // (2026-08-12) — desen ona göre okur.
+      final yollar =
+          RegExp(r"_Giris\(\s*Icons\.\w+,\s*'[^']*',\s*'([^']*)',?\s*\)")
+              .allMatches(panel)
+              .map((m) => m.group(1)!)
+              .where((y) => y.isNotEmpty)
+              .toSet();
 
       expect(
         yollar.length,
