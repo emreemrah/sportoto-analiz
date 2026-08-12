@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 import 'core/auth.dart';
 import 'core/coupon/coupon_store.dart';
+import 'core/dev_oturum.dart';
 import 'core/prefs.dart';
 import 'core/security/biometric_lock.dart';
 import 'core/services/push_service.dart';
@@ -86,6 +87,13 @@ void main() async {
   // `authState` üzerinden olağan yolla akar. Yalnız KESİN sunucu reddi
   // (401) oturumu düşürür — geçici ağ hatası oturuma dokunmaz.
   unawaited(initAuthUzak());
+
+  // GELİŞTİRME KOLAYLIĞI: emülatörde her yeni derlemede tekrar giriş yapmamak
+  // için, YALNIZ debug derlemesinde ve YALNIZ `--dart-define` ile kimlik
+  // verilmişse otomatik giriş denenir. Yayın derlemesinde bu çağrı hiçbir şey
+  // yapmaz (bkz. core/dev_oturum.dart). Açılışı BEKLETMEZ: giriş ekranı
+  // görünür, oturum kurulunca ekran kendiliğinden güncellenir.
+  unawaited(devOtomatikGiris());
 
   runApp(ProviderScope(child: MasterAnalizApp(baslangictaKilitli: kilitli)));
 }
