@@ -34,14 +34,14 @@ const String kStudioFontFamily = 'BarlowSemiCondensed';
 /// Yalnız 400/500/600/700 gömülüdür; başka bir ağırlık istenirse Flutter en
 /// yakınına düşer (kaynakta da aynı dört kesim vardı).
 TextStyle studioFont(int agirlik) => TextStyle(
-      fontFamily: kStudioFontFamily,
-      fontWeight: switch (agirlik) {
-        400 => FontWeight.w400,
-        500 => FontWeight.w500,
-        600 => FontWeight.w600,
-        _ => FontWeight.w700,
-      },
-    );
+  fontFamily: kStudioFontFamily,
+  fontWeight: switch (agirlik) {
+    400 => FontWeight.w400,
+    500 => FontWeight.w500,
+    600 => FontWeight.w600,
+    _ => FontWeight.w700,
+  },
+);
 
 /// Kaynaktaki `TABULAR` — eşit genişlikli rakamlar.
 ///

@@ -92,8 +92,7 @@ String? weekRecordLabel(Map? week) {
 }
 
 /// Demo dashboard gösterilebilir mi? Yalnız açık demo modunda (varsayılan: hayır).
-bool demoAllowed({bool demoMode = false, bool dev = false}) =>
-    demoMode || dev;
+bool demoAllowed({bool demoMode = false, bool dev = false}) => demoMode || dev;
 
 /// Eski uç yanıtı resmî gibi mi görünüyor? (kriter karnesi geri düşüş koruması)
 /// Yeni alanlar yoksa (çok eski backend) default-deny: resmî sayma.

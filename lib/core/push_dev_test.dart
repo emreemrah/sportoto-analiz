@@ -65,9 +65,7 @@ bool gelistirmeKipi() => kDebugMode;
   for (final raw in maclar) {
     final m = raw as Map?;
     // Başlamış / canlı / resmî sonucu gelmiş maç testte de kullanılmaz.
-    if (m?['status'] == 'finished' ||
-        m?['status'] == 'live' ||
-        isOfficial(m)) {
+    if (m?['status'] == 'finished' || m?['status'] == 'live' || isOfficial(m)) {
       continue;
     }
 

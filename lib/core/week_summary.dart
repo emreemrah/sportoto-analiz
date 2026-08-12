@@ -72,14 +72,12 @@ WeekSummary buildWeekSummary(
     final a = m['analysis'] as Map;
     final fav = a['favorite'];
     return a['label'] == _strongKey && fav is Map && fav['percent'] != null;
-  }).toList()
-    ..sort((a, b) => _yuzde(b).compareTo(_yuzde(a)));
+  }).toList()..sort((a, b) => _yuzde(b).compareTo(_yuzde(a)));
 
   final surprises = open.where((m) {
     final a = m['analysis'] as Map;
     return a['label'] == _surpriseKey && a['surpriseScore'] != null;
-  }).toList()
-    ..sort((a, b) => _surpriz(b).compareTo(_surpriz(a)));
+  }).toList()..sort((a, b) => _surpriz(b).compareTo(_surpriz(a)));
 
   // Denk güç: ihtimallerin en yükseği eşiğin altındaysa net bir taraf yok
   // demektir. Sayı ve listenin AYNI süzgeçten doğması şart; ikisi ayrılırsa
