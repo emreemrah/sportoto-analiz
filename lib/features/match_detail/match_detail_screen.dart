@@ -38,6 +38,7 @@ import '../../core/network/api_client.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils.dart';
 import '../../widgets/app_ui.dart';
+import '../../widgets/ust_panel.dart';
 import '../../widgets/form_strip.dart';
 import '../../widgets/match_header.dart';
 // AppTabs artık kullanılmıyor (maç detayının kendi çubuğu var) ama Özet
@@ -192,45 +193,56 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
 
     return Column(
       children: [
-        MatchHeader(
-          home: homeName,
-          away: awayName,
-          homeLogo: (s['home'] as Map?)?['logo'] as String?,
-          awayLogo: (s['away'] as Map?)?['logo'] as String?,
-          league: m['league'] as String?,
-          dateLabel: dayLabel,
-          time: headerCenter,
-          stadium: '${m['stadium'] ?? m['stadiumName'] ?? ''}',
-          onBack: () => Navigator.of(context).maybePop(),
-          onShare: () {},
-          // Takım kartı İSTATİSTİK değil FİKSTÜR açar (kullanıcı kararı):
-          // takımın oynadığı ve oynayacağı maçlar. Sezon istatistikleri
-          // "İstatistik" sekmesinde zaten duruyor.
-          onHomePress: fiksturHome
-              ? () => takimFiksturuAc(
-                  context,
-                  teamId: m['footyHomeId'],
-                  seasonId: m['footySeasonId'],
-                  name: homeName,
-                  logo: (s['home'] as Map?)?['logo'] as String?,
-                  league: m['league'] as String?,
-                )
-              : null,
-          onAwayPress: fiksturAway
-              ? () => takimFiksturuAc(
-                  context,
-                  teamId: m['footyAwayId'],
-                  seasonId: m['footySeasonId'],
-                  name: awayName,
-                  logo: (s['away'] as Map?)?['logo'] as String?,
-                  league: m['league'] as String?,
-                )
-              : null,
-        ),
-        MacDetaySekmeCubugu(
-          controller: _tc,
-          sekmeler: _sekmeler,
-          onAyarlar: _ayarlariAc,
+        // ÜST PANEL — maç bilgi alanı ve sekme şeridi TEK kutu (kullanıcı
+        // isteği, 2026-08-12). Alt köşeler oval; ikisi ayrı ayrı
+        // yuvarlatılsaydı ekranın ortasında iki kavisli blok görünürdü.
+        UstPanel(
+          renk: AppColors.bgAlt,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              MatchHeader(
+                home: homeName,
+                away: awayName,
+                homeLogo: (s['home'] as Map?)?['logo'] as String?,
+                awayLogo: (s['away'] as Map?)?['logo'] as String?,
+                league: m['league'] as String?,
+                dateLabel: dayLabel,
+                time: headerCenter,
+                stadium: '${m['stadium'] ?? m['stadiumName'] ?? ''}',
+                onBack: () => Navigator.of(context).maybePop(),
+                onShare: () {},
+                // Takım kartı İSTATİSTİK değil FİKSTÜR açar (kullanıcı kararı):
+                // takımın oynadığı ve oynayacağı maçlar. Sezon istatistikleri
+                // "İstatistik" sekmesinde zaten duruyor.
+                onHomePress: fiksturHome
+                    ? () => takimFiksturuAc(
+                        context,
+                        teamId: m['footyHomeId'],
+                        seasonId: m['footySeasonId'],
+                        name: homeName,
+                        logo: (s['home'] as Map?)?['logo'] as String?,
+                        league: m['league'] as String?,
+                      )
+                    : null,
+                onAwayPress: fiksturAway
+                    ? () => takimFiksturuAc(
+                        context,
+                        teamId: m['footyAwayId'],
+                        seasonId: m['footySeasonId'],
+                        name: awayName,
+                        logo: (s['away'] as Map?)?['logo'] as String?,
+                        league: m['league'] as String?,
+                      )
+                    : null,
+              ),
+              MacDetaySekmeCubugu(
+                controller: _tc,
+                sekmeler: _sekmeler,
+                onAyarlar: _ayarlariAc,
+              ),
+            ],
+          ),
         ),
         // KUPONA İŞLE — Yorumlar sekmesi DIŞINDA her sekmede görünür
         // (kaynakta da `tab !== 'Yorumlar'`).
