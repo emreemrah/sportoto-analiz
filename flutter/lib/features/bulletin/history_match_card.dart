@@ -11,6 +11,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/live_logic.dart';
+import '../../core/theme/takim_paleti.dart' show okunurMetin;
 import '../../core/theme/tokens.dart';
 import '../../core/utils.dart';
 import '../../widgets/app_ui.dart';
@@ -302,10 +303,10 @@ class HistoryMatchCard extends StatelessWidget {
                             borderRadius: AppRadius.smR,
                             border: Border.all(color: AppColors.warning),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Düzeltme',
                             style: TextStyle(
-                              color: Color(0xFF7A4A00),
+                              color: okunurMetin(AppColors.warningSoft),
                               fontSize: 10.5,
                               fontWeight: AppFont.black,
                             ),

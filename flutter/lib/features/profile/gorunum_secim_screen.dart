@@ -58,7 +58,8 @@ class _GorunumSecimScreenState extends State<GorunumSecimScreen> {
         Text(
           'Uygulamanın Görünümü',
           style: TextStyle(
-            color: AppColors.text,
+            // SAYFA ZEMİNİ üstünde duran başlık.
+            color: AppColors.onBackground,
             fontSize: AppFont.xl,
             fontWeight: AppFont.black,
           ),
@@ -70,7 +71,7 @@ class _GorunumSecimScreenState extends State<GorunumSecimScreen> {
             've filigranı yerinde kalır. "Takım teması"nda ise favori takımın '
             'renkleri uygulamanın geneline uygulanır.',
             style: TextStyle(
-              color: AppColors.textSoft,
+              color: AppColors.onBackgroundSoft,
               fontSize: AppFont.md,
               height: 20 / 14,
             ),
@@ -104,9 +105,14 @@ class _GorunumSecimScreenState extends State<GorunumSecimScreen> {
           child: Container(
             padding: const EdgeInsets.all(Spacing.md),
             decoration: BoxDecoration(
+              // SEÇİLİ KART, KARTIN KENDİ AİLESİNDEN bir komşu ton olur.
+              // Eskiden `primarySoft` yazılıydı: o, üstünde `primary` YAZI
+              // taşıyan bir rozet zeminidir ve kart dolgusu olarak
+              // kullanılınca takım renginin soluk (pembemsi/kremsi) bir
+              // tonuna düşüyordu — kullanıcının yasakladığı görüntü.
               color: kapali
                   ? AppColors.surfaceSoft
-                  : (secili ? AppColors.primarySoft : AppColors.surface),
+                  : (secili ? AppColors.surfaceSoft : AppColors.surface),
               borderRadius: AppRadius.lgR,
               border: Border.all(
                 color: secili ? AppColors.primary : AppColors.border,

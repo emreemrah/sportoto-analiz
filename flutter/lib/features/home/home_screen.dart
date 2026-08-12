@@ -23,6 +23,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/brand.dart';
 import '../../core/network/api_client.dart';
+import '../../core/theme/takim_paleti.dart' show okunurMetin;
 import '../../core/theme/tokens.dart';
 import '../../core/utils.dart';
 import '../../core/yaklasan_maclar.dart';
@@ -1136,8 +1137,8 @@ class _KickoffCard extends StatelessWidget {
                   '${match['haftaAdi']}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF7A4A00),
+                  style: TextStyle(
+                    color: okunurMetin(AppColors.warningSoft),
                     fontSize: 9,
                     fontWeight: AppFont.black,
                   ),

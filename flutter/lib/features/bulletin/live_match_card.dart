@@ -10,6 +10,7 @@ import '../../core/favorite_team.dart';
 import '../../core/live_logic.dart';
 import 'mac_takip_ui.dart';
 import '../../core/services/muhurlu_sistem.dart';
+import '../../core/theme/takim_paleti.dart' show okunurMetin;
 import '../../core/theme/tokens.dart';
 import '../../core/utils.dart';
 import '../../widgets/app_ui.dart';
@@ -476,8 +477,8 @@ class _LiveMatchCardState extends State<LiveMatchCard>
                       '⚠ ${coverage['reason'] ?? 'Analiz verisi hazır değil'}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF7A4A00),
+                      style: TextStyle(
+                        color: okunurMetin(AppColors.warningSoft),
                         fontSize: 10.5,
                         fontWeight: AppFont.heavy,
                         height: 14 / 10.5,

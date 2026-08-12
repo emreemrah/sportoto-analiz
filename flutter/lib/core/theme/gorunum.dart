@@ -17,6 +17,7 @@
 // Ekranlar değişmez — hepsi zaten `AppColors.x` okuyor.
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 
 import '../prefs.dart';
 import 'takim_gorunumu.dart';
@@ -150,6 +151,11 @@ void gorunumuUygula(Brightness p) {
     // takım temasına aittir, bu iki modda hiçbir şey değişmemeli.
     AppColors.onBackground = KoyuRenkler.text;
     AppColors.onBackgroundAccent = KoyuRenkler.accent;
+    // ANLAMSAL YUMUŞAK YÜZEYLER — marka değerleri, birebir.
+    AppColors.successSoft = const Color(0xFFE8F7EE);
+    AppColors.warningSoft = const Color(0xFFFFF4DD);
+    AppColors.dangerSoft = const Color(0xFFFEE2E2);
+    AppColors.infoSoft = const Color(0xFFEAF1FF);
     AppColors.onBackgroundSoft = KoyuRenkler.textSoft;
     AppColors.onBackgroundMuted = KoyuRenkler.muted;
     AppColors.border = KoyuRenkler.border;
@@ -190,6 +196,10 @@ void gorunumuUygula(Brightness p) {
   // takım temasına aittir, bu iki modda hiçbir şey değişmemeli.
   AppColors.onBackground = VarsayilanRenkler.text;
   AppColors.onBackgroundAccent = VarsayilanRenkler.accent;
+  AppColors.successSoft = const Color(0xFFE8F7EE);
+  AppColors.warningSoft = const Color(0xFFFFF4DD);
+  AppColors.dangerSoft = const Color(0xFFFEE2E2);
+  AppColors.infoSoft = const Color(0xFFEAF1FF);
   AppColors.onBackgroundSoft = VarsayilanRenkler.textSoft;
   AppColors.onBackgroundMuted = VarsayilanRenkler.muted;
   AppColors.border = VarsayilanRenkler.border;

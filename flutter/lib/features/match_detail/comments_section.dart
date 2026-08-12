@@ -19,6 +19,7 @@ import 'package:flutter/services.dart';
 import '../../core/auth.dart';
 import '../../core/moderation_reasons.dart';
 import '../../core/network/api_client.dart';
+import '../../core/theme/takim_paleti.dart' show okunurMetin;
 import '../../core/theme/tokens.dart';
 import '../../widgets/avatar.dart';
 
@@ -656,8 +657,8 @@ class _CommentCardState extends State<_CommentCard> {
                     ),
                     child: Text(
                       '${c['hiddenNote'] ?? 'Bu yorum gizlendi. Şu an yalnız sen görüyorsun.'}',
-                      style: const TextStyle(
-                        color: Color(0xFF7A4A00),
+                      style: TextStyle(
+                        color: okunurMetin(AppColors.warningSoft),
                         fontSize: 11.5,
                         fontWeight: AppFont.bold,
                       ),

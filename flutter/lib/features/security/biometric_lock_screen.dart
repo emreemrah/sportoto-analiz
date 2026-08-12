@@ -292,13 +292,13 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: AppColors.bg,
+                                color: AppColors.onPrimary,
                               ),
                             )
                           : Text(
                               '🫆  Kilidi Aç',
                               style: TextStyle(
-                                color: AppColors.bg,
+                                color: AppColors.onPrimary,
                                 fontSize: 15.5,
                                 fontWeight: AppFont.heavy,
                               ),

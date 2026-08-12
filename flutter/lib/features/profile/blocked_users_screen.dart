@@ -79,7 +79,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
               Text(
                 'Engellenen Kullanıcılar',
                 style: TextStyle(
-                  color: AppColors.text,
+                  color: AppColors.onBackground,
                   fontSize: 22,
                   fontWeight: AppFont.heavy,
                 ),

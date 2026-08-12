@@ -109,7 +109,7 @@ class _TeamPickerScreenState extends State<TeamPickerScreen> {
         Text(
           'Takımını Seç',
           style: TextStyle(
-            color: AppColors.text,
+            color: AppColors.onBackground,
             fontSize: 20,
             fontWeight: AppFont.black,
           ),

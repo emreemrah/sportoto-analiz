@@ -208,7 +208,14 @@ class ErrorState extends StatelessWidget {
               ),
               child: Text(
                 'Tekrar Dene',
-                style: TextStyle(color: AppColors.bg, fontWeight: AppFont.bold),
+                // `onPrimary`: butonun KENDİ zemininden hesaplanan yazı
+                // rengi. Eskiden sayfa zemini (`bg`) yazılıyordu; ters
+                // kontrast düzeninde zemin ile buton aynı aileden olduğu
+                // için yazı kayboldu (ölçüldü: Trabzonspor teması).
+                style: TextStyle(
+                  color: AppColors.onPrimary,
+                  fontWeight: AppFont.bold,
+                ),
               ),
             ),
           ),

@@ -23,6 +23,7 @@ import '../../core/live_logic.dart';
 import '../../core/network/api_client.dart';
 import '../../core/prefs.dart';
 import '../../core/services/muhurlu_sistem.dart';
+import '../../core/theme/takim_paleti.dart' show okunurMetin;
 import '../../core/theme/tokens.dart';
 import '../../core/utils.dart';
 import '../../widgets/score_legend.dart';
@@ -832,10 +833,10 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             '⭐ ANA DERECE · Dereceli Kupon',
             style: TextStyle(
-              color: Color(0xFF7A4A00),
+              color: okunurMetin(AppColors.warningSoft),
               fontSize: 10.5,
               fontWeight: AppFont.black,
               letterSpacing: 0.5,

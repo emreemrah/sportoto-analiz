@@ -115,6 +115,34 @@ void takimGorunumunuUygula(TakimPaleti p) {
   AppColors.onDark = p.metin;
   AppColors.onDarkSoft = AppColors.textSoft;
   AppColors.darkBorder = p.kenarlik;
+
+  // ── ANLAMSAL YUMUŞAK YÜZEYLER ────────────────────────────────────────────
+  // Rozet/uyarı kartlarının zemini. HUE anlamsal renkten, PARLAKLIK karttan:
+  // yüzey "uyarı sarısı ailesinden" kalır ama temanın içine oturur. Sabit
+  // krem/pembe değerler takım temasının ortasında tema dışı kart bırakıyordu.
+  AppColors.successSoft = _anlamsalYuzey(AppColors.success, p.yuzey);
+  AppColors.warningSoft = _anlamsalYuzey(AppColors.warning, p.yuzey);
+  AppColors.dangerSoft = _anlamsalYuzey(AppColors.danger, p.yuzey);
+  AppColors.infoSoft = _anlamsalYuzey(AppColors.info, p.yuzey);
+}
+
+/// Anlamsal yumuşak yüzey: [anlamsal] rengin HUE'su, [kart]ın parlaklık
+/// ailesi.
+///
+/// Açık kartta bir tık koyu, koyu kartta bir tık açık durur — böylece
+/// karttan AYRIŞIR ama aynı uçta kalır. Doygunluk düşürülür ki zemin
+/// bağırmasın; hue korunduğu için "uyarı", "hata", "başarı" ailesi belli
+/// olmaya devam eder.
+Color _anlamsalYuzey(Color anlamsal, Color kart) {
+  final kartL = HSLColor.fromColor(kart).lightness;
+  final h = HSLColor.fromColor(anlamsal);
+  final hedefL = kartL > 0.5
+      ? (kartL - 0.10).clamp(0.0, 1.0)
+      : (kartL + 0.12).clamp(0.0, 1.0);
+  return h
+      .withLightness(hedefL)
+      .withSaturation((h.saturation * 0.55).clamp(0.0, 1.0))
+      .toColor();
 }
 
 /// [renk]in KOMŞU tonu — aynı hue, bir tık farklı parlaklık.

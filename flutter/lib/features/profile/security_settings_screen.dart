@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import '../../core/auth.dart' as auth;
 import '../../core/network/api_client.dart';
 import '../../core/security/biometric_lock.dart';
+import '../../core/theme/takim_paleti.dart' show kimlikTonu;
 import '../../core/theme/tokens.dart';
 import '../../widgets/screen_backdrop.dart';
 import 'auth_screens.dart' show PasswordField;
@@ -181,7 +182,8 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
             Text(
               'Güvenlik Ayarları',
               style: TextStyle(
-                color: AppColors.text,
+                // SAYFA ZEMİNİ üstünde duran başlık.
+                color: AppColors.onBackground,
                 fontSize: 22,
                 fontWeight: AppFont.heavy,
               ),
@@ -606,13 +608,17 @@ class _Dugme extends StatelessWidget {
                 height: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: uyari ? AppColors.red : AppColors.bg,
+                  color: uyari
+                      ? kimlikTonu(AppColors.red, AppColors.surface)
+                      : AppColors.onPrimary,
                 ),
               )
             : Text(
                 metin,
                 style: TextStyle(
-                  color: uyari ? AppColors.red : AppColors.bg,
+                  color: uyari
+                      ? kimlikTonu(AppColors.red, AppColors.surface)
+                      : AppColors.onPrimary,
                   fontSize: 14.5,
                   fontWeight: AppFont.heavy,
                 ),
