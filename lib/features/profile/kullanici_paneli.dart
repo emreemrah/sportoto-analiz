@@ -173,12 +173,12 @@ class _KullaniciPaneliState extends State<KullaniciPaneli> {
       backgroundColor: _zemin,
       width: genislik,
       shape: const RoundedRectangleBorder(),
-      // FİLİGRAN: panel KENDİ koyu zeminini çizdiği için silüet açıkça
-      // "açık renk" istenir — temanın zeminine bakmak, açık temada koyu bir
-      // armayı koyu panele koymak olurdu.
+      // FİLİGRAN: panel KENDİ koyu zeminini çizdiği için "koyu zemin" açıkça
+      // bildirilir — temanın zeminine bakmak, açık temada panelin opaklığını
+      // yanlış seçmek olurdu.
       child: Stack(
         children: [
-          TakimLogoZemin(acikSiluet: true),
+          TakimLogoZemin(koyuZemin: true),
           ValueListenableBuilder<auth.AuthState>(
             valueListenable: auth.authState,
             builder: (context, s, _) {
