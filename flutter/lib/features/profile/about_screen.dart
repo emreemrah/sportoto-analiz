@@ -52,7 +52,6 @@ class AboutScreen extends StatelessWidget {
     final links = legalUrls(apiBase);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
       appBar: AppBar(title: const Text('Hakkında')),
       body: ScreenBackdrop(
         child: ListView(
@@ -63,7 +62,7 @@ class AboutScreen extends StatelessWidget {
             Spacing.xl * 2,
           ),
           children: [
-            const Text(
+            Text(
               kAppName,
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -73,13 +72,13 @@ class AboutScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Sürüm $kAppVersion',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textMuted, fontSize: 12.5),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               kAppTagline,
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -128,15 +127,17 @@ class AboutScreen extends StatelessWidget {
               baslik: 'Yasal',
               children: [
                 _Baglanti(
-                  '🔒  Gizlilik Politikası',
+                  'Gizlilik Politikası',
                   () => _ac(context, links.privacy, 'Gizlilik Politikası'),
+                  ikon: Icons.lock_outline,
                 ),
                 // Topluluk Kuralları: yorum yazan herkesi bağlar. Bildirme ve
                 // engelleme yolları uygulamanın içinde; kuralların kendisi ise
                 // uygulama kurulmadan da açılabilen bir sayfada durur.
                 _Baglanti(
-                  '📋  Topluluk Kuralları',
+                  'Topluluk Kuralları',
                   () => _ac(context, links.rules, 'Topluluk Kuralları'),
+                  ikon: Icons.rule_outlined,
                 ),
                 // Sorumlu Oyun sayfası: kazanç garantisi olmadığı beyanı. Mağaza
                 // incelemesi için uygulama dışından da açılabilir bir sayfadır
@@ -144,18 +145,20 @@ class AboutScreen extends StatelessWidget {
                 // Destek hattı numarası bağlantı METNİNDEN kaldırıldı (kullanıcı
                 // kararı, 2 Ağustos 2026); sayfanın kendisi yerinde duruyor.
                 _Baglanti(
-                  '🛟  Sorumlu Oyun',
+                  'Sorumlu Oyun',
                   () => _ac(context, links.responsibleGaming, 'Sorumlu Oyun'),
+                  ikon: Icons.health_and_safety_outlined,
                 ),
                 _Baglanti(
-                  '🗑️  Hesabımı Sil',
+                  'Hesabımı Sil',
                   () => context.go('/profil/hesap-sil'),
+                  ikon: Icons.delete_outline,
                 ),
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     'Hesabını uygulamayı kurmadan da silebilirsin: ${links.deleteAccount}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 11.5,
                       height: 17 / 11.5,
@@ -165,7 +168,7 @@ class AboutScreen extends StatelessWidget {
               ],
             ),
 
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: Spacing.lg, bottom: Spacing.md),
               child: Text(
                 kCopyright,
@@ -201,7 +204,7 @@ class _Kart extends StatelessWidget {
         if (baslik != null) ...[
           Text(
             baslik!,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 15,
               fontWeight: AppFont.heavy,
@@ -225,7 +228,7 @@ class _Govde extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: 8),
     child: Text(
       metin,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textMuted,
         fontSize: 13.5,
         height: 20 / 13.5,
@@ -235,10 +238,15 @@ class _Govde extends StatelessWidget {
 }
 
 class _Baglanti extends StatelessWidget {
-  const _Baglanti(this.metin, this.onTap);
+  const _Baglanti(this.metin, this.onTap, {this.ikon});
 
   final String metin;
   final VoidCallback onTap;
+
+  /// VEKTÖR ikon, metne gömülü emoji DEĞİL (kullanıcı isteği, 2026-08-12):
+  /// emoji `TextStyle.color`ı dinlemediği için tema değişince yazı dönerken
+  /// ikon sabit kalıyordu.
+  final IconData? ikon;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -253,13 +261,23 @@ class _Baglanti extends StatelessWidget {
           color: AppColors.cardAlt,
           borderRadius: BorderRadius.circular(AppRadius.sm),
         ),
-        child: Text(
-          metin,
-          style: const TextStyle(
-            color: AppColors.text,
-            fontSize: 14,
-            fontWeight: AppFont.bold,
-          ),
+        child: Row(
+          children: [
+            if (ikon != null) ...[
+              Icon(ikon, size: 18, color: AppColors.text),
+              const SizedBox(width: 10),
+            ],
+            Expanded(
+              child: Text(
+                metin,
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 14,
+                  fontWeight: AppFont.bold,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     ),

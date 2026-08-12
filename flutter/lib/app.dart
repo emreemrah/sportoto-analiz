@@ -24,8 +24,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/auth.dart' as auth;
 import 'core/brand.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/gorunum.dart';
+import 'core/theme/takim_temasi.dart';
 import 'core/theme/tokens.dart';
 import 'features/bulletin/bulletin_screen.dart';
 import 'features/bulletin_history/bulletin_detail_screen.dart';
@@ -49,10 +52,13 @@ import 'features/profile/avatar_picker_screen.dart';
 import 'features/profile/blocked_users_screen.dart';
 import 'features/profile/delete_account_screen.dart';
 import 'features/profile/devices_screen.dart';
+import 'features/profile/gorunum_secim_screen.dart';
+import 'features/profile/kullanici_paneli.dart';
 import 'features/profile/premium_code_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/profile/security_settings_screen.dart';
 import 'features/profile/team_picker_screen.dart';
+import 'widgets/avatar.dart';
 import 'features/radar/radar_screen.dart';
 import 'features/security/biometric_lock_screen.dart';
 import 'features/week/week_recap_screen.dart';
@@ -253,6 +259,10 @@ final _router = GoRouter(
                   builder: (_, _) => const TeamPickerScreen(),
                 ),
                 GoRoute(
+                  path: 'gorunum',
+                  builder: (_, _) => const GorunumSecimScreen(),
+                ),
+                GoRoute(
                   path: 'basari-panelim',
                   builder: (_, _) => const UserDashboardScreen(),
                 ),
@@ -323,50 +333,174 @@ class MasterAnalizApp extends StatefulWidget {
   State<MasterAnalizApp> createState() => _MasterAnalizAppState();
 }
 
-class _MasterAnalizAppState extends State<MasterAnalizApp> {
+class _MasterAnalizAppState extends State<MasterAnalizApp>
+    with WidgetsBindingObserver {
   late bool _kilitli = widget.baslangictaKilitli;
 
   @override
-  Widget build(BuildContext context) {
+  void initState() {
+    super.initState();
+    // Cihazın açık/koyu ayarı DEĞİŞİNCE haber alınır. `MediaQuery` bu
+    // widget'ın ÜSTÜNDE yoktur (onu MaterialApp kurar), bu yüzden parlaklık
+    // `PlatformDispatcher`tan okunur ve değişimi gözlemciyle dinlenir.
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    // Yalnız 'sistem' tercihinde bir şey değişir; yine de koşulsuz yeniden
+    // çizmek en ucuzu ve idempotent.
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<GorunumModu>(
+    valueListenable: gorunumNotifier,
+    builder: (context, modu, _) => _govde(modu),
+  );
+
+  Brightness get _cihazParlakligi =>
+      WidgetsBinding.instance.platformDispatcher.platformBrightness;
+
+  Widget _govde(GorunumModu modu) {
     if (_kilitli) {
-      // Router YOK: yalnız kilit ekranı. Tema aynı kalır ki kilit kalkınca
-      // renk sıçraması olmasın.
+      // Router YOK: yalnız kilit ekranı. Burada favori takım paleti KULLANILMAZ
+      // — kilit, oturum açılmadan da görünebilir; takım modu da olsa kilit
+      // ekranı görünüm tercihinin açık/koyu karşılığını kullanır.
+      final etkin = etkinParlaklik(_cihazParlakligi, modu);
+      gorunumuUygula(etkin);
       return MaterialApp(
         title: kAppName,
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
+        theme: AppTheme.gecerli(etkin),
         home: BiometricLockScreen(
           onUnlock: () => setState(() => _kilitli = false),
         ),
       );
     }
 
-    return MaterialApp.router(
-      // Kaynakta `documentTitle` merkezî marka kaynağından besleniyordu;
-      // aynı sabit kullanılır — ekran adları başlığa SIZMAZ.
-      title: kAppName,
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      routerConfig: _router,
+    // GÖRÜNÜM BURADA KURULUR — palet gerektiği için auth'un İÇİNDE.
+    //
+    // 'takim' modunda tema favori takımın paletinden gelir, o palet de
+    // `auth.authState`ten okunur. Kullanıcı takımını değiştirdiğinde bu
+    // dinleyici zaten yeniden çalışır, yani TEMA DA KENDİLİĞİNDEN yeni
+    // takıma geçer (kullanıcı isteği).
+    //
+    // Diğer üç modda palet yalnız ağaca verilir; onu okuyan yerler kimlik
+    // alanlarıdır (profil, arma, filigran) — yapısal renklere karışmaz.
+    return ValueListenableBuilder<auth.AuthState>(
+      valueListenable: auth.authState,
+      builder: (context, s, _) {
+        final palet = favoriTakimPaleti(s);
+        // `AppTheme` ve bütün ekranlar renkleri `AppColors`tan okur; tema
+        // kurulmadan ÖNCE doğru paletin yazılmış olması gerekir.
+        // İdempotenttir ve `setState` tetiklemez.
+        final etkin = gorunumuKur(modu, _cihazParlakligi, palet);
+
+        return MaterialApp.router(
+          // Kaynakta `documentTitle` merkezî marka kaynağından besleniyordu;
+          // aynı sabit kullanılır — ekran adları başlığa SIZMAZ.
+          title: kAppName,
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.gecerli(etkin),
+          routerConfig: _router,
+          // Rotalar, modallar ve alt sayfalar Navigator'ın altındadır; kabuk
+          // buraya takılınca hepsi aynı paleti görür.
+          builder: (context, child) => TakimTemasi(
+            palet: palet,
+            // GÖRÜNÜM DEĞİŞİNCE AĞAÇ YENİDEN KURULUR (2026-08-12, emülatörde
+            // görüldü ve düzeltildi).
+            //
+            // BELİRTİ (takım teması döneminde ölçüldü): tema değişince
+            // sayfanın gövdesi yeni renge döndü ama maç detayının başlığı,
+            // sekme çubuğu ve "Kupona İşle" bloğu ESKİ renkte kaldı.
+            //
+            // SEBEP: uygulamanın neredeyse tamamı renkleri `AppColors`
+            // KÜRESELLERİNDEN okuyor, yani hiçbir InheritedWidget'a BAĞIMLI
+            // değil. Üstelik `child` widget örneği değişmediği için Flutter o
+            // alt ağacı hiç yeniden kurmuyor — eski renklerle çizilmiş hâli
+            // olduğu gibi kalıyor.
+            //
+            // ÇÖZÜM: etkin görünümü anahtara koymak. Anahtar değişince
+            // Flutter alt ağacın elemanlarını atar ve HER widget'ın `build`i
+            // yeniden çalışır; hepsi `AppColors`ın yeni değerlerini okur.
+            //
+            // TAKIM ADI DA ANAHTARDA: takım artık yapısal renkleri
+            // değiştirmiyor ama filigran ve kimlik vurguları onu okuyor;
+            // favori değişince o yüzeyler de yenilenmeli.
+            //
+            // BEDELİ: görünüm/takım değiştiğinde ekran içi durum (kaydırma
+            // konumu, açılmış paneller) sıfırlanır. Rota GoRouter'da
+            // tutulduğu için hangi ekranda olunduğu KORUNUR. İkisi de nadir
+            // ve bilinçli eylemdir; yarısı eski temada kalan bir ekrandansa
+            // sıfırlanan bir kaydırma tercih edilir.
+            child: KeyedSubtree(
+              // MOD DA ANAHTARDA: 'açık' ile açık temalı bir takımın 'takım'
+              // modu AYNI parlaklığı verir; mod anahtarda olmasaydı ikisi
+              // arasında geçişte ağaç yeniden kurulmaz ve renkler eski
+              // kalırdı.
+              key: ValueKey(
+                '${modu.anahtar}|${etkin.name}|'
+                '${palet?.takim ?? '_varsayilan'}',
+              ),
+              child: child ?? const SizedBox.shrink(),
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
-class _AnaKabuk extends StatelessWidget {
+class _AnaKabuk extends StatefulWidget {
   const _AnaKabuk({required this.shell});
 
   final StatefulNavigationShell shell;
 
   @override
+  State<_AnaKabuk> createState() => _AnaKabukState();
+}
+
+class _AnaKabukState extends State<_AnaKabuk> {
+  /// Paneli açmak Scaffold'un kendi işidir; ona ulaşmak için anahtar gerekir.
+  final _kabukAnahtari = GlobalKey<ScaffoldState>();
+
+  StatefulNavigationShell get shell => widget.shell;
+
+  void _paneliAc() => _kabukAnahtari.currentState?.openEndDrawer();
+
+  @override
   Widget build(BuildContext context) {
     final aktif = shell.currentIndex;
 
+    return ValueListenableBuilder<auth.AuthState>(
+      valueListenable: auth.authState,
+      builder: (context, s, _) => _kabuk(aktif, s.girisli && s.user != null),
+    );
+  }
+
+  Widget _kabuk(int aktif, bool girisli) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      key: _kabukAnahtari,
       body: shell,
+      // KULLANICI PANELİ — ekranın SAĞINDAN açılır. Arkasının kararması, panel
+      // dışına dokununca ve geri hareketiyle kapanması Scaffold'un kendi
+      // davranışıdır; elle kurulmuş bir kapatma mantığı yoktur.
+      endDrawer: const KullaniciPaneli(),
+      // YÜZEN ROZET KALDIRILDI (2026-08-11, kullanıcı: "profil resmi sağ
+      // alttaki mavi adamın oraya gelsin"): avatar artık alt çubuktaki Profil
+      // sekmesinin kendi ikonu. Aynı köşede aynı resmi iki kez göstermek
+      // tekrardı; panelin girişi tek ve beklenen yerde.
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.bgAlt,
+        // ALT MENÜ — yapısal yüzey; takım teması varsa onun yüzey rengi.
+        decoration: BoxDecoration(
+          color: AppColors.surface,
           border: Border(top: BorderSide(color: AppColors.border)),
         ),
         child: SafeArea(
@@ -380,39 +514,52 @@ class _AnaKabuk extends StatelessWidget {
               ),
               child: Row(
                 children: [
+                  // İKONLARIN HEPSİ VEKTÖR (kullanıcı isteği, 2026-08-12):
+                  // Ana Sayfa ve Bülten PNG'ydi, rengi değişmediği için
+                  // açık/koyu/takım temasında menünün yarısı temadan kopuk
+                  // kalıyordu. Dördü de aynı accent ↔ muted kuralını izler.
                   _sekme(
                     0,
                     aktif,
                     'Ana Sayfa',
-                    _pngIkon('assets/tab-home.png', aktif == 0),
+                    HomeIcon(color: _sekmeRengi(aktif == 0)),
                   ),
                   _sekme(
                     1,
                     aktif,
                     'Bülten',
-                    _pngIkon('assets/tab-bulletin.png', aktif == 1),
+                    BulletinIcon(color: _sekmeRengi(aktif == 1)),
                   ),
                   _sekme(
                     2,
                     aktif,
                     'Radar',
-                    RadarIcon(
-                      color: aktif == 2 ? AppColors.accent : AppColors.muted,
-                    ),
+                    RadarIcon(color: _sekmeRengi(aktif == 2)),
                   ),
                   _sekme(
                     3,
                     aktif,
                     'Kuponlarım',
-                    TicketIcon(
-                      color: aktif == 3 ? AppColors.accent : AppColors.muted,
-                    ),
+                    TicketIcon(color: _sekmeRengi(aktif == 3)),
                   ),
+                  // PROFİL SEKMESİ — giriş yapmış kullanıcıda Profil dalına
+                  // ATLAMAZ, sağdaki paneli açar (kullanıcı kararı). Profil
+                  // sayfasının tamamına panelin üstündeki kullanıcı kartından
+                  // geçilir. Girişsizken eski davranış korunur: dokunmak giriş
+                  // ekranını açar.
+                  //
+                  // İKON — giriş yapmışsa KULLANICININ KENDİ RESMİ (kullanıcı
+                  // isteği, 2026-08-11): sağ alttaki nötr silüetin yerini
+                  // avatar alır. Girişsizken silüet kalır; olmayan bir hesabın
+                  // resmi gösterilmez.
                   _sekme(
                     4,
                     aktif,
                     'Profil',
-                    _pngIkon('assets/tab-profile.png', aktif == 4),
+                    girisli
+                        ? _avatarIkon(aktif == 4)
+                        : ProfileIcon(color: _sekmeRengi(aktif == 4)),
+                    onTap: girisli ? _paneliAc : null,
                   ),
                 ],
               ),
@@ -423,26 +570,55 @@ class _AnaKabuk extends StatelessWidget {
     );
   }
 
-  /// Kaynaktaki `TabIcon`: 28×28, odakta tam, odak dışında %50 opaklık.
-  Widget _pngIkon(String yol, bool odakta) => Opacity(
-    opacity: odakta ? 1 : 0.5,
-    child: Image.asset(yol, width: 28, height: 28, fit: BoxFit.contain),
+  /// Sekme ikonunun rengi — SEÇİLİ vurgu, PASİF nötr.
+  ///
+  /// Tek yerde durur ki beş sekme birbirinden ayrışmasın. Kaynaktaki `TabIcon`
+  /// pasifi %50 OPAKLIKLA veriyordu; opaklık raster görselin çözümüydü.
+  /// Vektörde doğru karşılık nötr `muted` tokenıdır: koyu temada yarı saydam
+  /// bir ikon zeminle karışıp kaybolurken `muted` okunur kalıyor.
+  Color _sekmeRengi(bool odakta) => odakta ? AppColors.accent : AppColors.muted;
+
+  /// Profil sekmesinin ikonu olarak kullanıcının kendi avatarı.
+  ///
+  /// Diğer sekmelerdeki %50 opaklık BURAYA UYGULANMAZ: kullanıcının resmini
+  /// soluklaştırmak onu "pasif" göstermek olurdu. Odak, ikonun etrafındaki
+  /// halkayla belirtilir — diğer sekmelerdeki accent vurgusunun karşılığı.
+  Widget _avatarIkon(bool odakta) => Container(
+    width: 28,
+    height: 28,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      border: Border.all(
+        color: odakta ? AppColors.accent : Colors.transparent,
+        width: 2,
+      ),
+    ),
+    child: const ProfileAvatar(size: 24),
   );
 
-  Widget _sekme(int index, int aktif, String etiket, Widget ikon) {
+  Widget _sekme(
+    int index,
+    int aktif,
+    String etiket,
+    Widget ikon, {
+    VoidCallback? onTap,
+  }) {
     final odakta = index == aktif;
     return Expanded(
+      key: Key('alt-sekme-$etiket'),
       child: Semantics(
         button: true,
         selected: odakta,
         label: etiket,
         child: InkWell(
-          onTap: () => shell.goBranch(
-            index,
-            // popToTopOnBlur karşılığı: zaten açık sekmeye tekrar dokunmak
-            // o dalı köküne döndürür.
-            initialLocation: index == aktif,
-          ),
+          onTap:
+              onTap ??
+              () => shell.goBranch(
+                index,
+                // popToTopOnBlur karşılığı: zaten açık sekmeye tekrar dokunmak
+                // o dalı köküne döndürür.
+                initialLocation: index == aktif,
+              ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -455,6 +631,7 @@ class _AnaKabuk extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 10.5,
                   fontWeight: AppFont.heavy,
+                  // SEÇİLİ SEKME — takım vurgusu.
                   color: odakta ? AppColors.accent : AppColors.textMuted,
                 ),
               ),

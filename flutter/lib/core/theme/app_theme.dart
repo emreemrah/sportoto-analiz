@@ -17,21 +17,29 @@ import 'package:flutter/services.dart';
 import 'tokens.dart';
 
 abstract final class AppTheme {
-  /// Açık tema. Kaynakta `userInterfaceStyle: "light"` (app.json) sabittir;
-  /// koyu tema yoktur, bu yüzden burada da tanımlanmaz.
-  static ThemeData get light {
+  /// GEÇERLİ görünümün teması (kullanıcı isteği, 2026-08-12).
+  ///
+  /// Değerleri `AppColors`tan ÇALIŞMA ZAMANINDA okur; hangi paletin yazılı
+  /// olduğuna `gorunumuUygula` karar verir. Bu yüzden ayrı bir `darkTheme`
+  /// YOKTUR ve `themeMode` kullanılmaz: iki ThemeData'yı aynı anda kurmak,
+  /// tek bir küresel `AppColors` varken ikisinden birinin yanlış paletle
+  /// dolması demekti. Tek tema, doğru palet.
+  ///
+  /// [p] yalnız Material'in kendi varsayılanlarını (ripple tonu, seed
+  /// üretimi, durum çubuğu simgeleri) doğru uca çekmek için gerekir.
+  static ThemeData gecerli(Brightness p) {
     final scheme =
         ColorScheme.fromSeed(
           seedColor: AppColors.primary,
-          brightness: Brightness.light,
+          brightness: p,
         ).copyWith(
           surface: AppColors.surface,
           primary: AppColors.primary,
           secondary: AppColors.accent,
           error: AppColors.danger,
           onSurface: AppColors.text,
-          onPrimary: AppColors.white,
-          onSecondary: AppColors.white,
+          onPrimary: AppColors.onPrimary,
+          onSecondary: AppColors.onAccent,
           outline: AppColors.border,
         );
 
@@ -48,7 +56,7 @@ abstract final class AppTheme {
 
       splashFactory: InkRipple.splashFactory,
 
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.card,
         foregroundColor: AppColors.text,
         surfaceTintColor: Colors.transparent,
@@ -60,14 +68,14 @@ abstract final class AppTheme {
           fontSize: 17,
           fontWeight: AppFont.heavy,
         ),
-        systemOverlayStyle: SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.dark,
-          statusBarBrightness: Brightness.light,
-        ),
+        // Simgeler ÜST ÇUBUĞUN parlaklığından seçilir: koyu görünümde siyah
+        // simge okunmaz.
+        systemOverlayStyle: p == Brightness.dark
+            ? darkScreenOverlay
+            : lightScreenOverlay,
       ),
 
-      dividerTheme: const DividerThemeData(
+      dividerTheme: DividerThemeData(
         color: AppColors.border,
         thickness: 1,
         space: 1,
@@ -75,29 +83,33 @@ abstract final class AppTheme {
 
       // Kaynakta gölge ve kenarlık kartın kendi stilindedir; Card teması
       // araya kendi yüzeyini/gölgesini koymasın diye nötrlenir.
-      cardTheme: const CardThemeData(
+      cardTheme: CardThemeData(
         color: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         margin: EdgeInsets.zero,
       ),
 
-      textSelectionTheme: const TextSelectionThemeData(
+      textSelectionTheme: TextSelectionThemeData(
         cursorColor: AppColors.accent,
         selectionHandleColor: AppColors.accent,
       ),
 
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
+      progressIndicatorTheme: ProgressIndicatorThemeData(
         color: AppColors.accent,
         linearTrackColor: AppColors.track,
       ),
 
       // Aşağı çekip yenileme göstergesi: kaynakta RefreshControl vurgu
       // rengiyle çizilir.
-      textTheme: Typography.blackMountainView.apply(
-        bodyColor: AppColors.text,
-        displayColor: AppColors.text,
-      ),
+      // Taban tipografi uca göre seçilir; renkler zaten aşağıda eziliyor ama
+      // `blackMountainView` koyu görünümde ikon/imleç gibi türev renkleri de
+      // koyu üretiyordu.
+      textTheme:
+          (p == Brightness.dark
+                  ? Typography.whiteMountainView
+                  : Typography.blackMountainView)
+              .apply(bodyColor: AppColors.text, displayColor: AppColors.text),
     );
   }
 

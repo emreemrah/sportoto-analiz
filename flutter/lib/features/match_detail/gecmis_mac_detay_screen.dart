@@ -84,7 +84,6 @@ class GecmisMacDetayScreen extends ConsumerWidget {
     final veriYok = (master?['missingData'] as List?) ?? const [];
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -109,7 +108,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
                           child: Text(
                             skor,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.text,
                               fontSize: 30,
                               fontWeight: AppFont.black,
@@ -123,7 +122,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
                                 ? 'Maç sonucu: ${yon(resmiSonuc)}'
                                 : 'Sonuç harfi bilinmiyor',
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.textSoft,
                               fontSize: 12,
                             ),
@@ -139,7 +138,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
                     baslik: 'Maç Öncesi Tahminimiz',
                     children: [
                       if (async.isLoading)
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.symmetric(vertical: 6),
                           child: Row(
                             children: [
@@ -183,7 +182,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Sistem dedi',
                                     style: TextStyle(
                                       color: AppColors.textMuted,
@@ -193,7 +192,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
                                   ),
                                   Text(
                                     '${yon(tahmin)}',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: AppColors.text,
                                       fontSize: 16,
                                       fontWeight: AppFont.black,
@@ -222,7 +221,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
                                     : isabet
                                     ? '✓ tuttu'
                                     : '✗ tutmadı',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 11.5,
                                   fontWeight: AppFont.heavy,
                                   color: AppColors.text,
@@ -236,7 +235,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
                             padding: const EdgeInsets.only(top: 6),
                             child: Text(
                               'Güven: ${master!['confidence']}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.textSoft,
                                 fontSize: 11.5,
                               ),
@@ -247,7 +246,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
                             padding: const EdgeInsets.only(top: 6),
                             child: Text(
                               '${master!['summary']}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.text,
                                 fontSize: 12.5,
                                 height: 17 / 12.5,
@@ -258,7 +257,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
                         Container(
                           margin: const EdgeInsets.only(top: Spacing.sm),
                           padding: const EdgeInsets.only(top: Spacing.sm),
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             border: Border(
                               top: BorderSide(color: AppColors.border),
                             ),
@@ -271,7 +270,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
                                 : 'Bu hafta mühürlenmemiş; gösterilen değerler '
                                       'maç öncesi dondurulmuş kayıttan '
                                       'gelmiyor olabilir.',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.textMuted,
                               fontSize: 10.5,
                               height: 15 / 10.5,
@@ -308,7 +307,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
                         for (final v in veriYok.cast<Map>())
                           Container(
                             padding: const EdgeInsets.symmetric(vertical: 6),
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
                               border: Border(
                                 top: BorderSide(color: AppColors.border),
                               ),
@@ -318,7 +317,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
                               children: [
                                 Text(
                                   '${v['label']}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppColors.text,
                                     fontSize: 12,
                                     fontWeight: AppFont.bold,
@@ -326,7 +325,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
                                 ),
                                 Text(
                                   '${v['reason'] ?? 'Veri yok'}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppColors.textMuted,
                                     fontSize: 10.5,
                                     height: 14 / 10.5,
@@ -338,7 +337,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
                       ],
                     ),
 
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: 4),
                     child: Text(
                       'Bu ekran geçmişe bakar; kesin sonuç veya kazanç vaadi '
@@ -364,7 +363,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
       horizontal: Spacing.md,
       vertical: Spacing.sm,
     ),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       color: AppColors.surface,
       border: Border(bottom: BorderSide(color: AppColors.border)),
     ),
@@ -376,7 +375,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () => Navigator.of(context).maybePop(),
-            child: const SizedBox(
+            child: SizedBox(
               width: 34,
               height: 34,
               child: Center(
@@ -400,7 +399,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
             children: [
               Text(
                 '#$no',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 10,
                   fontWeight: AppFont.heavy,
@@ -411,7 +410,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
                 '${(mac?['away'] as Map?)?['name'] ?? 'Deplasman'}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.text,
                   fontSize: 14,
                   fontWeight: AppFont.heavy,
@@ -428,7 +427,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
     final bool? dogru = resmiSonuc != null ? k['signal'] == resmiSonuc : null;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 7),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: Row(
@@ -441,7 +440,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
                   '${k['label']}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 12.5,
                     fontWeight: AppFont.bold,
@@ -452,10 +451,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
                     '${k['familyLabel']}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 10,
-                    ),
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 10),
                   ),
               ],
             ),
@@ -466,7 +462,7 @@ class GecmisMacDetayScreen extends ConsumerWidget {
             child: Text(
               '${k['signal'] ?? ''}',
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 13,
                 fontWeight: AppFont.black,
@@ -519,7 +515,7 @@ class _Kart extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 4),
           child: Text(
             baslik,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 13,
               fontWeight: AppFont.black,
@@ -531,7 +527,7 @@ class _Kart extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: Spacing.sm),
             child: Text(
               alt!,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 11,
                 height: 15 / 11,
@@ -552,10 +548,6 @@ class _Bos extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     metin,
-    style: const TextStyle(
-      color: AppColors.textMuted,
-      fontSize: 12,
-      height: 17 / 12,
-    ),
+    style: TextStyle(color: AppColors.textMuted, fontSize: 12, height: 17 / 12),
   );
 }

@@ -132,18 +132,21 @@ void main() {
       expect(varsayilanGun(const [], _maclar), isNull);
     });
 
-    test('hücre okuyucu özelleştirilebiliyor (Radar 4 farklı yerde tutabilir)', () {
-      final maclar = [
-        {
-          'ozel': {
-            '2026-08-02': {'a': 1},
+    test(
+      'hücre okuyucu özelleştirilebiliyor (Radar 4 farklı yerde tutabilir)',
+      () {
+        final maclar = [
+          {
+            'ozel': {
+              '2026-08-02': {'a': 1},
+            },
           },
-        },
-      ];
-      expect(
-        varsayilanGun(_gunler, maclar, (m, t) => (m['ozel'] as Map?)?[t]),
-        '2026-08-02',
-      );
-    });
+        ];
+        expect(
+          varsayilanGun(_gunler, maclar, (m, t) => (m['ozel'] as Map?)?[t]),
+          '2026-08-02',
+        );
+      },
+    );
   });
 }

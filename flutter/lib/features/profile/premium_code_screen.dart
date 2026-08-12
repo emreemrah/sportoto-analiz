@@ -118,7 +118,6 @@ class _PremiumCodeScreenState extends State<PremiumCodeScreen> {
         : 'Elinde bir kod varsa aşağıya yazarak erişimini açabilirsin.';
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
       appBar: AppBar(title: const Text('Premium Kodu')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
@@ -143,15 +142,15 @@ class _PremiumCodeScreenState extends State<PremiumCodeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  premium ? '⭐ Premium erişimin açık' : 'Premium erişimin yok',
-                  style: const TextStyle(
+                  premium ? 'Premium erişimin açık' : 'Premium erişimin yok',
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 15,
                     fontWeight: AppFont.black,
                   ),
                 ),
                 if (_yukleniyor)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: 8),
                     child: SizedBox(
                       width: 20,
@@ -167,7 +166,7 @@ class _PremiumCodeScreenState extends State<PremiumCodeScreen> {
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
                       aciklama,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textSoft,
                         fontSize: 13,
                         height: 18 / 13,
@@ -188,7 +187,7 @@ class _PremiumCodeScreenState extends State<PremiumCodeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Kodum var',
                   style: TextStyle(
                     color: AppColors.text,
@@ -205,7 +204,7 @@ class _PremiumCodeScreenState extends State<PremiumCodeScreen> {
                     textCapitalization: TextCapitalization.characters,
                     autocorrect: false,
                     maxLength: 24,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.text,
                       fontSize: 16,
                       fontWeight: AppFont.black,
@@ -214,7 +213,7 @@ class _PremiumCodeScreenState extends State<PremiumCodeScreen> {
                     decoration: InputDecoration(
                       counterText: '',
                       hintText: 'ÖRNEK: A7K2M9P4XR',
-                      hintStyle: const TextStyle(color: AppColors.textMuted),
+                      hintStyle: TextStyle(color: AppColors.textMuted),
                       filled: true,
                       fillColor: AppColors.surfaceSoft,
                       isDense: true,
@@ -224,15 +223,15 @@ class _PremiumCodeScreenState extends State<PremiumCodeScreen> {
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadius.sm),
-                        borderSide: const BorderSide(color: AppColors.border),
+                        borderSide: BorderSide(color: AppColors.border),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadius.sm),
-                        borderSide: const BorderSide(color: AppColors.border),
+                        borderSide: BorderSide(color: AppColors.border),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadius.sm),
-                        borderSide: const BorderSide(color: AppColors.border),
+                        borderSide: BorderSide(color: AppColors.border),
                       ),
                     ),
                   ),
@@ -274,7 +273,7 @@ class _PremiumCodeScreenState extends State<PremiumCodeScreen> {
                       ),
                     ),
                   ),
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: 10),
                   child: Text(
                     'Kodlar büyük/küçük harf ve tire farkına takılmaz; “a7k2-m9p4” ile “A7K2M9P4” aynıdır. '

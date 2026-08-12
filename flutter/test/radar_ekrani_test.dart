@@ -187,8 +187,15 @@ Future<void> ipucuAc(WidgetTester t, String ozetParcasi) async {
 /// Render ağacındaki tüm metinleri SIRASIYLA toplar (altın kopya + marka
 /// taramaları için). Her Text bir RichText üretir; saf RichText'ler de
 /// böylece tek listede, ağaç sırasıyla toplanır.
+///
+/// İKON GLİFLERİ ELENİR (2026-08-12): `Icon` da bir RichText çizer, ama
+/// içeriği MaterialIcons fontundaki özel-kullanım kod noktasıdır — okunur bir
+/// metin değildir. Emojiler vektör ikona çevrilince (kullanıcı isteği: ikonlar
+/// tema rengini alsın) bu glifler listeye boş dizge olarak düşmeye başladı.
+/// Altın kopya EKRAN METİNLERİNİN kopyasıdır; ikon onun parçası değildir.
 List<String> ekranMetinleri(WidgetTester t) => t
     .widgetList<RichText>(find.byType(RichText))
+    .where((w) => w.text.style?.fontFamily != 'MaterialIcons')
     .map((w) => w.text.toPlainText())
     .toList();
 
@@ -1690,7 +1697,10 @@ void main() {
       expect(metin('53. Hafta'), findsOneWidget);
       expect(metin('52. Hafta'), findsOneWidget);
       expect(metin('49. Hafta'), findsOneWidget);
-      expect(metin('🔏').evaluate().length, 3);
+      // Mühür işareti 2026-08-12'de 🔏 emojisinden 'Kilitli' YAZISINA döndü:
+      // emojinin rengi tema ile değişmiyordu ve ekran okuyucuya da bir şey
+      // söylemiyordu. Beklenen sayı aynı — üç hafta kilitli.
+      expect(metin('Kilitli').evaluate().length, 3);
       expect(metin('Güncel'), findsOneWidget);
       expect(okMetni(t, 'hafta-ok'), '▲');
     });
@@ -2469,10 +2479,10 @@ const List<String> kAltinKopya = <String>[
   'Radar 5',
   'Bülten DNA',
   'Tümü',
-  '🟢 Güçlü Aday (3)',
-  '🟡 Karışık Sinyal (0)',
-  '🔴 Sürpriz Sinyali (0)',
-  '⚪ Analiz Hazır Değil (0)',
+  'Güçlü Aday (3)',
+  'Karışık Sinyal (0)',
+  'Sürpriz Sinyali (0)',
+  'Analiz Hazır Değil (0)',
   // (0)'lar GERÇEK sayıdır: altın fikstürde draw≥30 ya da dep-sürprizi koşulu
   // sağlayan maç yok. Eski sayaç bu çiplere körlemesine toplam maç sayısını
   // (3) yazıyordu — 2026-08-10 Master gözden geçirmesinde düzeltildi.
@@ -2485,7 +2495,7 @@ const List<String> kAltinKopya = <String>[
   'Ev Takımı – Dep Takımı',
   '02.08 20:00 · Test Ligi',
   '28',
-  '🟢 Güçlü Aday',
+  'Güçlü Aday',
   'Ana: 1',
   'Favori 1 · %55',
   'Veri',
@@ -2500,7 +2510,7 @@ const List<String> kAltinKopya = <String>[
   'Ev Takımı – Dep Takımı',
   '02.08 20:00 · Test Ligi',
   '28',
-  '🟢 Güçlü Aday',
+  'Güçlü Aday',
   'Ana: 1',
   'Favori 1 · %55',
   'Veri',
@@ -2515,7 +2525,7 @@ const List<String> kAltinKopya = <String>[
   'Ev Takımı – Dep Takımı',
   '02.08 20:00 · Test Ligi',
   '28',
-  '🟢 Güçlü Aday',
+  'Güçlü Aday',
   'Ana: 1',
   'Favori 1 · %55',
   'Veri',

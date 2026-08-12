@@ -206,9 +206,13 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 14),
-                  child: Text('🔒', style: TextStyle(fontSize: 52)),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: Icon(
+                    Icons.lock_outline,
+                    size: 54,
+                    color: AppColors.text,
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),
@@ -218,12 +222,12 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                         TextSpan(text: '$kBrandLine1 '),
                         TextSpan(
                           text: kBrandLine2,
-                          style: const TextStyle(color: AppColors.accent),
+                          style: TextStyle(color: AppColors.accent),
                         ),
                       ],
                     ),
-                    style: const TextStyle(
-                      color: AppColors.white,
+                    style: TextStyle(
+                      color: AppColors.onPrimary,
                       fontSize: 20,
                       fontWeight: AppFont.black,
                     ),
@@ -231,14 +235,14 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                 ),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 320),
-                  child: const Padding(
+                  child: Padding(
                     padding: EdgeInsets.only(bottom: Spacing.lg),
                     child: Text(
                       'Devam etmek için kimliğini doğrula. Parmak izi ya da '
                       'yüz tanıma verilerin cihazından asla çıkmaz.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Color(0xFFC9D4EA),
+                        color: AppColors.onDarkSoft,
                         fontSize: 13.5,
                         height: 20 / 13.5,
                       ),
@@ -283,7 +287,7 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                         borderRadius: AppRadius.mdR,
                       ),
                       child: _busy
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
@@ -291,7 +295,7 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                                 color: AppColors.bg,
                               ),
                             )
-                          : const Text(
+                          : Text(
                               '🫆  Kilidi Aç',
                               style: TextStyle(
                                 color: AppColors.bg,
@@ -326,7 +330,7 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                       style: TextStyle(
                         color: policy.emphasizePasswordFallback
                             ? AppColors.accent
-                            : const Color(0xFFC9D4EA),
+                            : AppColors.onDarkSoft,
                         fontSize: 13.5,
                         fontWeight: AppFont.bold,
                       ),

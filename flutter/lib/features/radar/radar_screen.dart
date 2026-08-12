@@ -40,6 +40,7 @@ import 'radar_day_rows.dart';
 import 'radar_screen_data.dart';
 import 'radar_screen_logic.dart';
 import 'radar_tab_headers.dart';
+import '../../widgets/takim_logo_zemin.dart';
 
 /// `/api/radar/weeks` — hafta listesi.
 final _weeksProvider = FutureProvider.autoDispose<Map<String, dynamic>>(
@@ -212,34 +213,35 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
             (legacyRadar != null && legacyRadar.isNotEmpty));
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
       // ARKA PLAN DESENİ YOK — kaynakta `ScreenBackdrop` bu ekrandan KULLANICI
       // İSTEĞİYLE kaldırıldı (2026-08-04). Dosyadaki tek "ScreenBackdrop"
       // geçişi o kaldırmayı anlatan yorumdur; sarmalayıcının kendisi yok.
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _ekranBasligi(meta),
-            _haftaSecici(normalized.weeks, curId, gosterilen),
-            _sekmeCubugu(legacyMode),
-            Expanded(
-              child: RefreshIndicator(
-                color: AppColors.accent,
-                onRefresh: () async {
-                  ref.invalidate(_weeksProvider);
-                  ref.invalidate(_currentProvider);
-                  if (gosterilen != null && gosterilen != curId) {
-                    ref.invalidate(_roundProvider(gosterilen));
-                  }
-                  await ref.read(_currentProvider.future);
-                },
-                child: legacyMode
-                    ? _legacyListesi(legacyRadar)
-                    : _govde(durum, d, meta, hasData, gosterilen),
+      body: filigranli(
+        SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _ekranBasligi(meta),
+              _haftaSecici(normalized.weeks, curId, gosterilen),
+              _sekmeCubugu(legacyMode),
+              Expanded(
+                child: RefreshIndicator(
+                  color: AppColors.accent,
+                  onRefresh: () async {
+                    ref.invalidate(_weeksProvider);
+                    ref.invalidate(_currentProvider);
+                    if (gosterilen != null && gosterilen != curId) {
+                      ref.invalidate(_roundProvider(gosterilen));
+                    }
+                    await ref.read(_currentProvider.future);
+                  },
+                  child: legacyMode
+                      ? _legacyListesi(legacyRadar)
+                      : _govde(durum, d, meta, hasData, gosterilen),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -254,7 +256,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
   ) {
     if (durum == RadarEkranDurumu.loading) {
       return ListView(
-        children: const [
+        children: [
           SizedBox(height: 40),
           Center(child: CircularProgressIndicator(color: AppColors.primary)),
         ],
@@ -268,7 +270,9 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         children: [
           const SizedBox(height: 20),
           EmptyState(
-            icon: durum == RadarEkranDurumu.error ? '⚠️' : '⏳',
+            icon: durum == RadarEkranDurumu.error
+                ? Icons.error_outline
+                : Icons.hourglass_empty,
             title: durum == RadarEkranDurumu.error
                 ? 'Radar verisi alınamadı'
                 : durum == RadarEkranDurumu.pastUnarchived
@@ -320,19 +324,22 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
+              // NOKTA VEKTÖR (kullanıcı isteği, 2026-08-12): emoji nokta
+              // rengini emoji fontundan alıyordu; artık çipin anlamsal
+              // tokenıyla boyanır ve rozetlerdeki renkle birebir tutar.
               for (final t in const [
-                (k: 'red', label: 'Sürprize açık', icon: '🔴'),
-                (k: 'yellow', label: 'Dikkat', icon: '🟡'),
-                (k: 'green', label: 'Güçlü Aday', icon: '🟢'),
+                (k: 'red', label: 'Sürprize açık', renk: AppColors.danger),
+                (k: 'yellow', label: 'Dikkat', renk: AppColors.warning),
+                (k: 'green', label: 'Güçlü Aday', renk: AppColors.success),
               ])
                 _cip(
-                  '${t.icon} '
                   '${switch (t.k) {
                     'red' => sayac.red,
                     'yellow' => sayac.yellow,
                     _ => sayac.green,
                   }} '
                   '${t.label}',
+                  nokta: t.renk,
                   acik: _legacyFilter == t.k,
                   // Açık süzgece tekrar dokunmak süzgeci KALDIRIR.
                   onTap: () => setState(
@@ -643,6 +650,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
             for (final f in kMasterFilters)
               _cip(
                 '${f.label}${f.k == 'all' ? '' : ' (${sayiOf(f.k)})'}',
+                nokta: _filtreNoktasi(f.k),
                 acik: _filter == f.k,
                 onTap: () => setState(() => _filter = f.k),
               ),
@@ -653,7 +661,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         // Sıralama
         Row(
           children: [
-            const Text(
+            Text(
               'Sıralama',
               style: TextStyle(
                 color: AppColors.textMuted,
@@ -678,7 +686,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         const SizedBox(height: 10),
 
         if (suzulmus.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 20),
             child: Text(
               'Bu süzgeçle maç yok.',
@@ -738,9 +746,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
             onGunSec: gunSec,
           ),
           const SizedBox(height: 24),
-          const Center(
-            child: CircularProgressIndicator(color: AppColors.primary),
-          ),
+          Center(child: CircularProgressIndicator(color: AppColors.primary)),
         ],
       ),
       error: (e, _) => ListView(
@@ -748,7 +754,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         children: [
           Text(
             '${oynanma ? 'Oynanma' : 'Oran'} verisi okunamadı: $e',
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 11.5),
+            style: TextStyle(color: AppColors.textMuted, fontSize: 11.5),
           ),
         ],
       ),
@@ -814,7 +820,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
           meta['round'] != null
               ? '${meta['round']} · Radar Merkezi'
               : 'Radar Merkezi',
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 17,
             fontWeight: AppFont.black,
@@ -834,7 +840,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
               '${fmtClock(meta['sealedAt'] ?? meta['frozenAt'])} itibarıyla '
               'kilitlendi — sonuçlar gelse de bu görüntü değişmez'
               '${meta['shortHash'] != null ? ' · Doğrulama #${meta['shortHash']}' : ''}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 10.5,
                 fontWeight: AppFont.bold,
@@ -856,7 +862,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         horizontal: Spacing.md,
         vertical: Spacing.sm,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
@@ -898,7 +904,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         (k: 'r2', label: 'Radar 2', sub: 'xG görünümü'),
       ];
       return Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.bgAlt,
           border: Border(bottom: BorderSide(color: AppColors.border)),
         ),
@@ -920,7 +926,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
     }
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.bgAlt,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
@@ -990,10 +996,24 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
     ),
   );
 
+  /// Filtre çipinin solundaki nokta rengi. ANLAMSAL tokenlar kullanılır:
+  /// temadan bağımsızdırlar, "sürpriz" her görünümde aynı kırmızıdır.
+  /// Nokta istemeyen filtreler (Tümü / X / 2) için null.
+  static Color? _filtreNoktasi(String k) => switch (k) {
+    'strong' => AppColors.success,
+    'medium' => AppColors.warning,
+    'surprise' => AppColors.danger,
+    'insufficient' => AppColors.muted,
+    _ => null,
+  };
+
+  /// [nokta] verilirse etiketin soluna o renkte küçük bir daire çizilir —
+  /// eskiden 🔴/🟡/🟢 emojisiydi, rengi emoji fontundan geliyordu.
   Widget _cip(
     String etiket, {
     required bool acik,
     required VoidCallback onTap,
+    Color? nokta,
   }) => GestureDetector(
     onTap: onTap,
     behavior: HitTestBehavior.opaque,
@@ -1004,14 +1024,23 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         borderRadius: AppRadius.smR,
         border: Border.all(color: acik ? AppColors.primary : AppColors.border),
       ),
-      child: Text(
-        etiket,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: acik ? AppColors.white : AppColors.textSoft,
-          fontSize: 11,
-          fontWeight: AppFont.heavy,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (nokta != null) ...[
+            Icon(Icons.circle, size: 9, color: nokta),
+            const SizedBox(width: 5),
+          ],
+          Text(
+            etiket,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: acik ? AppColors.onPrimary : AppColors.textSoft,
+              fontSize: 11,
+              fontWeight: AppFont.heavy,
+            ),
+          ),
+        ],
       ),
     ),
   );

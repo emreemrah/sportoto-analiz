@@ -85,24 +85,27 @@ void main() {
       expect(manifest, contains('android:screenOrientation="portrait"'));
     });
 
-    test('uyarlanabilir ikon (adaptive icon) kurulu ve tek renkli sürümü var', () {
-      final xml = _oku(
-        'android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml',
-      );
-      expect(xml, contains('ic_launcher_background'));
-      expect(xml, contains('ic_launcher_foreground'));
-      // Android 13+ tema ikonu — kaynakta `adaptiveIcon.monochromeImage`.
-      expect(xml, contains('ic_launcher_monochrome'));
-      for (final d in ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) {
-        expect(
-          File(
-            'android/app/src/main/res/drawable-$d/ic_launcher_foreground.png',
-          ).existsSync(),
-          isTrue,
-          reason: '$d ikonu eksik',
+    test(
+      'uyarlanabilir ikon (adaptive icon) kurulu ve tek renkli sürümü var',
+      () {
+        final xml = _oku(
+          'android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml',
         );
-      }
-    });
+        expect(xml, contains('ic_launcher_background'));
+        expect(xml, contains('ic_launcher_foreground'));
+        // Android 13+ tema ikonu — kaynakta `adaptiveIcon.monochromeImage`.
+        expect(xml, contains('ic_launcher_monochrome'));
+        for (final d in ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) {
+          expect(
+            File(
+              'android/app/src/main/res/drawable-$d/ic_launcher_foreground.png',
+            ).existsSync(),
+            isTrue,
+            reason: '$d ikonu eksik',
+          );
+        }
+      },
+    );
 
     test('bildirim ikonu AYRI ve tek renkli', () {
       // Android bildirim ikonunu siluete çevirir; renkli launcher ikonu
@@ -117,7 +120,10 @@ void main() {
         );
       }
       final push = _oku('lib/core/services/push_service.dart');
-      expect(push, contains("AndroidInitializationSettings('ic_notification')"));
+      expect(
+        push,
+        contains("AndroidInitializationSettings('ic_notification')"),
+      );
       expect(
         push.contains('@mipmap/ic_launcher'),
         isFalse,
@@ -215,13 +221,8 @@ void main() {
     });
 
     test('uygulama ikonu üretilmiş', () {
-      final dir = Directory(
-        'ios/Runner/Assets.xcassets/AppIcon.appiconset',
-      );
-      final png = dir
-          .listSync()
-          .where((e) => e.path.endsWith('.png'))
-          .length;
+      final dir = Directory('ios/Runner/Assets.xcassets/AppIcon.appiconset');
+      final png = dir.listSync().where((e) => e.path.endsWith('.png')).length;
       expect(png, greaterThanOrEqualTo(15), reason: 'iOS ikon kümesi eksik');
     });
   });

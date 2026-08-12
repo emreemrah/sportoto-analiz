@@ -55,7 +55,7 @@ class GunCekimBilgisi extends StatelessWidget {
       child: Text(
         '${d['label']} · '
         '${d['lastObservedLabel'] != null ? 'kaynaktan son çekim ${d['lastObservedLabel']}' : 'bu gün için kayıt alınamadı'}',
-        style: const TextStyle(
+        style: TextStyle(
           // Verinin yaşı — uyarı değil, olgu. Bu yüzden uyarı sarısı değil
           // sönük ton.
           color: AppColors.textMuted,
@@ -137,7 +137,7 @@ class DayChipsRow extends StatelessWidget {
               Text(
                 '${day['weekday']}${day['isMatchDay'] == true ? ' ⚽' : ''}',
                 style: TextStyle(
-                  color: on ? const Color(0xFFFFFFFF) : AppColors.textSoft,
+                  color: on ? AppColors.onPrimary : AppColors.textSoft,
                   fontSize: 12,
                   fontWeight: AppFont.heavy,
                 ),
@@ -145,7 +145,7 @@ class DayChipsRow extends StatelessWidget {
               Text(
                 alt,
                 style: TextStyle(
-                  color: on ? const Color(0xFFFFFFFF) : AppColors.textMuted,
+                  color: on ? AppColors.onPrimary : AppColors.textMuted,
                   fontSize: 9.5,
                   fontWeight: AppFont.bold,
                 ),
@@ -183,7 +183,7 @@ class OddsCounter extends StatelessWidget {
       child: Text(
         "${d['label']}: $toplam maçın $varOlan'inde oran var"
         '${varOlan < toplam ? ' · ${toplam - varOlan} maçta yok (sebebi satırında yazıyor)' : ''}',
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.textMuted,
           fontSize: 11.5,
           fontWeight: AppFont.bold,
@@ -197,7 +197,7 @@ Widget _not(String metin) => Padding(
   padding: const EdgeInsets.only(top: 8),
   child: Text(
     metin,
-    style: const TextStyle(
+    style: TextStyle(
       color: AppColors.textMuted,
       fontSize: 11.5,
       height: 16 / 11.5,
@@ -233,8 +233,9 @@ class RadarGunlukUstPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // MOBİL SADELİK (2026-08-06): açıklamalar ⓘ arkasında — yer kaplamaz.
-          const InfoIpucu(
-            ozet: '💹 Oran Takibi · Günlük 1/X/2 Oranları',
+          InfoIpucu(
+            ozet: 'Oran Takibi · Günlük 1/X/2 Oranları',
+            ikon: Icons.show_chart,
             detay:
                 'Gerçek 1/X/2 maç oranlarının gün gün hareketi. Bir gün seçin; '
                 '15 maçın o güne ait mühürlü oranı kendi satırında görünür '
@@ -266,8 +267,9 @@ class RadarGunlukUstPanel extends StatelessWidget {
       children: [
         // MOBİL SADELİK (2026-08-06): açıklamalar ⓘ arkasında. VERİ YOKLUĞU
         // notu ⓘ DIŞINDA görünür kalır — dürüstlük kuralı gizlenmez.
-        const InfoIpucu(
-          ozet: '📊 Oynanma DNA · Günlük 1/X/2 Yüzdeleri',
+        InfoIpucu(
+          ozet: 'Oynanma DNA · Günlük 1/X/2 Yüzdeleri',
+          ikon: Icons.bar_chart,
           detay:
               'Kullanıcıların 1/X/2 OYNAMA YÜZDESİNİN gün gün değişimi. Bir '
               'gün seçin; 15 maçın o güne ait mühürlü yüzdesi kendi satırında '
@@ -320,8 +322,9 @@ class RadarSekmePaneli extends StatelessWidget {
 
     if (tab == 'performance' && anyData) {
       // MOBİL SADELİK (2026-08-06): açıklama ⓘ arkasında.
-      return const InfoIpucu(
-        ozet: '🛡 Rakip Gücü & Saha Performansı',
+      return InfoIpucu(
+        ozet: 'Rakip Gücü & Saha Performansı',
+        ikon: Icons.shield_outlined,
         detay:
             'Form, rakibin MAÇ TARİHİNDEKİ ligdeki yerine göre tartılır '
             '(bugünkü tablo geçmişe uygulanmaz). Ev sahibi yalnız İÇ SAHA, '
@@ -344,7 +347,7 @@ class RadarSekmePaneli extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               '— Bu radar bu hafta devre dışı',
               style: TextStyle(
                 color: AppColors.text,
@@ -356,7 +359,7 @@ class RadarSekmePaneli extends StatelessWidget {
               padding: const EdgeInsets.only(top: 4),
               child: Text(
                 '${items.firstOrNull?['note'] ?? 'Gerekli veri bulunamadı; skora katkısı yok.'}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textSoft,
                   fontSize: 11.5,
                   height: 16 / 11.5,

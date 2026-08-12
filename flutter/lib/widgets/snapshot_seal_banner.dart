@@ -29,7 +29,13 @@ String? _remainingText(int ms) {
 }
 
 class SnapshotSealBanner extends StatefulWidget {
-  const SnapshotSealBanner({super.key, required this.archive});
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  SnapshotSealBanner({super.key, required this.archive});
 
   final Map? archive;
 
@@ -126,7 +132,7 @@ class _SnapshotSealBannerState extends State<SnapshotSealBanner> {
               'Bu bültenin tahmin ve analizleri kilitlendi; hiçbir şekilde '
               'değiştirilemez.'
               '${snapshot?['late'] == true ? ' (Mühür, sunucu yeniden açıldığında alındı — veri anı kayıtlıdır.)' : ''}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 11.5,
                 height: 15 / 11.5,
@@ -136,7 +142,7 @@ class _SnapshotSealBannerState extends State<SnapshotSealBanner> {
             Text(
               'Doğrulama: #${snapshot?['shortHash'] ?? '—'}'
               '${archive['status'] == 'completed' && doneD != null ? ' · Tamamlandı: ${doneD.day}' : ''}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 10.5,
                 fontWeight: AppFont.bold,
@@ -160,8 +166,9 @@ class _SnapshotSealBannerState extends State<SnapshotSealBanner> {
         children: [
           InfoIpucu(
             renk: AppColors.warning,
+            ikon: Icons.lock_outline,
             ozet:
-                '🔒 Kilit: ${d.day} ${d.time}'
+                'Kilit: ${d.day} ${d.time}'
                 '${left != null ? ' · kalan $left' : ' · mühürleniyor…'}',
             detay:
                 'Kilitten sonra tahmin/analiz değişmez, arşive mühürlenir. '

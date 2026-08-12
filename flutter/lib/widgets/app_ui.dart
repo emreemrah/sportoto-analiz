@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 
 import '../core/crest_url.dart';
 import '../core/network/api_config.dart';
+import '../core/theme/takim_paleti.dart' show okunurMetin;
 import '../core/theme/tokens.dart';
 import '../core/utils.dart';
 
@@ -25,7 +26,13 @@ import '../core/utils.dart';
 /// gizlilik: doğrudan dış adrese giden her görsel isteği kullanıcının IP'sini
 /// ve hangi ekranı açtığını üçüncü tarafa bildirir.
 class Logo extends StatelessWidget {
-  const Logo({super.key, this.uri, this.name, this.size = 40});
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  Logo({super.key, this.uri, this.name, this.size = 40});
 
   final String? uri;
   final String? name;
@@ -60,11 +67,10 @@ class Logo extends StatelessWidget {
     width: size,
     height: size,
     alignment: Alignment.center,
-    decoration: const BoxDecoration(
-      color: AppColors.cardAlt,
-      shape: BoxShape.circle,
-    ),
-    child: Text('⚽', style: TextStyle(fontSize: size * 0.5)),
+    decoration: BoxDecoration(color: AppColors.cardAlt, shape: BoxShape.circle),
+    // ARMA YOKKEN ÇİZİLEN YEDEK — kulübün arması DEĞİL, uygulamanın kendi
+    // yer tutucusudur; bu yüzden temaya uyar (kullanıcı isteği, 2026-08-12).
+    child: Icon(Icons.sports_soccer, size: size * 0.55, color: AppColors.muted),
   );
 }
 
@@ -73,7 +79,13 @@ class Logo extends StatelessWidget {
 /// Sezon başı: hiç maç yoksa sıfır dolu rozet dizmek bilgi vermez, "bozuk"
 /// görünür — hiç veri yoksa rozetler tümüyle gizlenir (uydurma sayı yok).
 class RecordBadges extends StatelessWidget {
-  const RecordBadges({
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  RecordBadges({
     super.key,
     this.wins = 0,
     this.draws = 0,
@@ -113,26 +125,41 @@ class RecordBadges extends StatelessWidget {
       ),
       child: Text(
         '$n$letter',
-        style: const TextStyle(
-          color: Color(0xFFFFFFFF),
+        // Yazı ZEMİNDEN hesaplanır. Sabit beyazken sarı "B" kutusunda
+        // (AppColors.yellow) kontrast 2.1'e düşüyordu — okunmuyordu.
+        style: TextStyle(
+          color: okunurMetin(c),
           fontSize: 12,
           fontWeight: AppFont.heavy,
         ),
       ),
     );
 
-    // Sağda ⚽ rozetlerden önce (⚽ 10 ...), solda rozetlerden sonra (... 10 ⚽).
+    // Sağda top rozetlerden önce (⚽ 10 ...), solda sonra (... 10 ⚽).
+    // TOP VEKTÖR (kullanıcı isteği, 2026-08-12): emojiyken yanındaki sayı
+    // `textMuted` alırken top sabit renkte kalıyordu.
+    final topIkonu = Icon(
+      Icons.sports_soccer,
+      size: 12,
+      color: AppColors.textMuted,
+    );
+    final sayi = Text(
+      '$played',
+      style: TextStyle(
+        color: AppColors.textMuted,
+        fontSize: 12,
+        fontWeight: AppFont.bold,
+      ),
+    );
     final playedTag = played == null
         ? null
         : Padding(
             padding: const EdgeInsets.only(right: 2),
-            child: Text(
-              alignRight ? '⚽ $played' : '$played ⚽',
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 12,
-                fontWeight: AppFont.bold,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: alignRight
+                  ? [topIkonu, const SizedBox(width: 3), sayi]
+                  : [sayi, const SizedBox(width: 3), topIkonu],
             ),
           );
 
@@ -154,7 +181,13 @@ class RecordBadges extends StatelessWidget {
 
 /// `ui.js` → `Skeleton`
 class Skeleton extends StatelessWidget {
-  const Skeleton({super.key, this.height = 14, this.width});
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  Skeleton({super.key, this.height = 14, this.width});
 
   final double height;
   final double? width;
@@ -172,7 +205,13 @@ class Skeleton extends StatelessWidget {
 
 /// `ui.js` → `SkeletonCard`
 class SkeletonCard extends StatelessWidget {
-  const SkeletonCard({super.key});
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  SkeletonCard({super.key});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -193,7 +232,7 @@ class SkeletonCard extends StatelessWidget {
           const SizedBox(height: 10),
           Skeleton(height: 12, width: c.maxWidth * 0.70),
           const SizedBox(height: 16),
-          const Skeleton(height: 36),
+          Skeleton(height: 36),
         ],
       ),
     ),
@@ -202,14 +241,24 @@ class SkeletonCard extends StatelessWidget {
 
 /// `ui.js` → `EmptyState`
 class EmptyState extends StatelessWidget {
-  const EmptyState({
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  EmptyState({
     super.key,
-    this.icon = '📭',
+    this.icon = Icons.inbox_outlined,
     required this.title,
     this.message,
   });
 
-  final String icon;
+  /// VEKTÖR ikon, emoji DEĞİL (kullanıcı isteği, 2026-08-12). Boş durum
+  /// kartının ikonu emojiydi; rengi emoji fontundan geldiği için tema
+  /// değişince olduğu gibi kalıyordu. Tip `IconData` olduğundan emoji metni
+  /// buraya artık DERLENMEZ.
+  final IconData icon;
   final String title;
   final String? message;
 
@@ -232,12 +281,14 @@ class EmptyState extends StatelessWidget {
       // yazılır.
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(icon, style: const TextStyle(fontSize: 34)),
+        // Boş durumun ikonu SESSİZ olmalı: başlık okunmadan önce göz onu
+        // "hata" sanmasın diye vurgu değil soluk metin rengini alır.
+        Icon(icon, size: 38, color: AppColors.textSoft),
         const SizedBox(height: Spacing.md),
         Text(
           title,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: AppFont.lg,
             fontWeight: AppFont.heavy,
@@ -248,10 +299,7 @@ class EmptyState extends StatelessWidget {
           Text(
             message!,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppColors.textSoft,
-              fontSize: AppFont.sm,
-            ),
+            style: TextStyle(color: AppColors.textSoft, fontSize: AppFont.sm),
           ),
         ],
       ],
@@ -261,7 +309,13 @@ class EmptyState extends StatelessWidget {
 
 /// `ui.js` → `MatchCard` (bülten maç kartı)
 class MatchCard extends StatelessWidget {
-  const MatchCard({super.key, required this.match, this.onTap});
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  MatchCard({super.key, required this.match, this.onTap});
 
   final Map<String, dynamic> match;
   final VoidCallback? onTap;
@@ -322,7 +376,7 @@ class MatchCard extends StatelessWidget {
                   children: [
                     Text(
                       '#${match['no']}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.accent,
                         fontSize: 12,
                         fontWeight: AppFont.black,
@@ -335,7 +389,7 @@ class MatchCard extends StatelessWidget {
                           league,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textMuted,
                             fontSize: 11,
                             fontWeight: AppFont.bold,
@@ -352,7 +406,7 @@ class MatchCard extends StatelessWidget {
                     else
                       Text(
                         '${d.day} · ${d.time}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 11.5,
                           fontWeight: AppFont.bold,
@@ -379,7 +433,7 @@ class MatchCard extends StatelessWidget {
                               homeName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.text,
                                 fontSize: 14.5,
                                 fontWeight: AppFont.bold,
@@ -405,7 +459,7 @@ class MatchCard extends StatelessWidget {
                               maxLines: 1,
                               textAlign: TextAlign.right,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.text,
                                 fontSize: 14.5,
                                 fontWeight: AppFont.bold,
@@ -429,7 +483,7 @@ class MatchCard extends StatelessWidget {
                   const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.only(top: 10),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       border: Border(top: BorderSide(color: AppColors.border)),
                     ),
                     child: Row(
@@ -479,7 +533,7 @@ class MatchCard extends StatelessWidget {
       color: AppColors.bgAlt,
       borderRadius: BorderRadius.circular(6),
     ),
-    child: const Text(
+    child: Text(
       'VS',
       style: TextStyle(
         color: AppColors.textMuted,
@@ -494,14 +548,15 @@ class MatchCard extends StatelessWidget {
     constraints: const BoxConstraints(minWidth: 46),
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
     decoration: BoxDecoration(
-      color: live ? AppColors.accent : AppColors.bgAlt,
+      // CANLI anlamsaldır — takım accent'i DEĞİL (bkz. AppColors.live).
+      color: live ? AppColors.live : AppColors.bgAlt,
       borderRadius: BorderRadius.circular(6),
     ),
     child: Text(
       text,
       textAlign: TextAlign.center,
       style: TextStyle(
-        color: live ? const Color(0xFFFFFFFF) : AppColors.text,
+        color: live ? AppColors.onLive : AppColors.text,
         fontSize: 16,
         fontWeight: AppFont.black,
         letterSpacing: 1,
@@ -512,7 +567,8 @@ class MatchCard extends StatelessWidget {
   Widget _liveTag(Object? minute) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
     decoration: BoxDecoration(
-      color: AppColors.accent,
+      // CANLI rozeti anlamsaldır: her takımda kırmızı kalır.
+      color: AppColors.live,
       borderRadius: BorderRadius.circular(999),
     ),
     child: Row(
@@ -521,16 +577,16 @@ class MatchCard extends StatelessWidget {
         Container(
           width: 6,
           height: 6,
-          decoration: const BoxDecoration(
-            color: Color(0xFFFFFFFF),
+          decoration: BoxDecoration(
+            color: AppColors.onLive,
             shape: BoxShape.circle,
           ),
         ),
         const SizedBox(width: 5),
         Text(
           "CANLI${minute != null ? " $minute'" : ''}",
-          style: const TextStyle(
-            color: Color(0xFFFFFFFF),
+          style: TextStyle(
+            color: AppColors.onLive,
             fontSize: 10,
             fontWeight: AppFont.black,
             letterSpacing: 0.5,
@@ -541,15 +597,17 @@ class MatchCard extends StatelessWidget {
   );
 
   Widget _msTag(String res, Color c) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
     decoration: BoxDecoration(
       color: c,
       borderRadius: BorderRadius.circular(999),
     ),
     child: Text(
       'MS $res',
-      style: const TextStyle(
-        color: Color(0xFFFFFFFF),
+      // Zemin `resColor` — '1' takım `primary`si olabilir. Sabit beyaz,
+      // sarı temalı bir takımda okunmuyordu.
+      style: TextStyle(
+        color: okunurMetin(c),
         fontSize: 10.5,
         fontWeight: AppFont.black,
         letterSpacing: 0.5,
@@ -563,12 +621,20 @@ class MatchCard extends StatelessWidget {
 /// Ton adları kaynaktakiyle aynı; bilinmeyen ton `default`a düşer (kaynakta
 /// `pillTone[tone] || pillTone.default`).
 class Pill extends StatelessWidget {
-  const Pill({super.key, required this.label, this.tone = 'default'});
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  Pill({super.key, required this.label, this.tone = 'default'});
 
   final String label;
   final String tone;
 
-  static const Map<String, (Color, Color)> _tones = {
+  // GETTER, `static final` DEĞİL: takım teması `AppColors`ı çalışma zamanında
+  // değiştirir; `final` harita ilk okunduğu renklerde donardı.
+  static Map<String, (Color, Color)> get _tones => {
     'default': (AppColors.primarySoft, AppColors.primary),
     'primary': (AppColors.primarySoft, AppColors.primary),
     'accent': (AppColors.accentSoft, AppColors.accent),
@@ -576,7 +642,7 @@ class Pill extends StatelessWidget {
     'warning': (AppColors.warningSoft, AppColors.warning),
     'danger': (AppColors.dangerSoft, AppColors.danger),
     'info': (AppColors.infoSoft, AppColors.info),
-    'dark': (AppColors.darkCardSoft, AppColors.white),
+    'dark': (AppColors.darkCardSoft, AppColors.onDark),
   };
 
   @override
@@ -587,10 +653,7 @@ class Pill extends StatelessWidget {
         horizontal: Spacing.md,
         vertical: Spacing.xs,
       ),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: AppRadius.pillR,
-      ),
+      decoration: BoxDecoration(color: bg, borderRadius: AppRadius.pillR),
       child: Text(
         label,
         style: TextStyle(
@@ -606,12 +669,20 @@ class Pill extends StatelessWidget {
 /// `ui.js` → `ProgressBar`. Değer 0–100 arasına KIRPILIR: sunucudan gelen
 /// bozuk bir yüzde çubuğu taşırmaz.
 class ProgressBar extends StatelessWidget {
-  const ProgressBar({super.key, this.value = 0, this.tone = 'primary'});
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  ProgressBar({super.key, this.value = 0, this.tone = 'primary'});
 
   final num value;
   final String tone;
 
-  static const Map<String, Color> _tones = {
+  // GETTER, `static final` DEĞİL: takım teması `AppColors`ı çalışma zamanında
+  // değiştirir; `final` harita ilk okunduğu renklerde donardı.
+  static Map<String, Color> get _tones => {
     'primary': AppColors.primary,
     'accent': AppColors.accent,
     'success': AppColors.success,
@@ -650,17 +721,20 @@ class ProgressBar extends StatelessWidget {
 /// gösterilmez; bu bant her mock-beslemeli ekranın en üstünde büyük ve net
 /// durur.
 class DemoDataBanner extends StatelessWidget {
-  const DemoDataBanner({super.key, this.note});
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  DemoDataBanner({super.key, this.note});
 
   final String? note;
 
   @override
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, 0),
-    padding: const EdgeInsets.symmetric(
-      vertical: 10,
-      horizontal: Spacing.md,
-    ),
+    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: Spacing.md),
     decoration: BoxDecoration(
       color: AppColors.warningSoft,
       border: Border.all(color: AppColors.warning, width: 1.5),
@@ -674,10 +748,10 @@ class DemoDataBanner extends StatelessWidget {
             color: AppColors.warning,
             borderRadius: BorderRadius.circular(6),
           ),
-          child: const Text(
+          child: Text(
             '🧪 DEMO VERİ',
             style: TextStyle(
-              color: AppColors.white,
+              color: okunurMetin(AppColors.warning),
               fontSize: 12,
               fontWeight: AppFont.black,
               letterSpacing: 0.4,
@@ -689,7 +763,7 @@ class DemoDataBanner extends StatelessWidget {
           child: Text(
             note ??
                 'Bu ekrandaki bülten/sonuç/kupon örnektir — gerçek Spor Toto verisi değildir.',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 12,
               height: 17 / 12,

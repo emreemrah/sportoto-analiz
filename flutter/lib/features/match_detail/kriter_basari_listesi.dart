@@ -56,7 +56,7 @@ class _KriterBasariListesiState extends ConsumerState<KriterBasariListesi> {
 
     return async.when(
       loading: () => _kart(
-        children: const [
+        children: [
           Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Center(
@@ -123,7 +123,7 @@ class _KriterBasariListesiState extends ConsumerState<KriterBasariListesi> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: _donem == k
-                                    ? AppColors.white
+                                    ? AppColors.onPrimary
                                     : AppColors.textSoft,
                                 fontSize: 10.5,
                                 fontWeight: AppFont.heavy,
@@ -153,7 +153,7 @@ class _KriterBasariListesiState extends ConsumerState<KriterBasariListesi> {
 
             for (final c in liste) _satir(c),
 
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text(
                 '"X maçta Y başarı" = kriterin yön gösterdiği maç sayısı ve '
@@ -184,7 +184,7 @@ class _KriterBasariListesiState extends ConsumerState<KriterBasariListesi> {
         behavior: HitTestBehavior.opaque,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 7),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: AppColors.border)),
           ),
           child: Row(
@@ -195,7 +195,7 @@ class _KriterBasariListesiState extends ConsumerState<KriterBasariListesi> {
                   '${c['label']}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 12.5,
                     fontWeight: AppFont.bold,
@@ -214,7 +214,7 @@ class _KriterBasariListesiState extends ConsumerState<KriterBasariListesi> {
                 ),
               ),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 '›',
                 style: TextStyle(
                   color: AppColors.textMuted,
@@ -240,7 +240,7 @@ class _KriterBasariListesiState extends ConsumerState<KriterBasariListesi> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(bottom: 8),
           child: Text(
             'Kriter Başarıları',
@@ -257,14 +257,12 @@ class _KriterBasariListesiState extends ConsumerState<KriterBasariListesi> {
   );
 }
 
-const TextStyle _bos = TextStyle(
-  color: AppColors.textMuted,
-  fontSize: 12,
-  height: 17 / 12,
-);
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _bos =>
+    TextStyle(color: AppColors.textMuted, fontSize: 12, height: 17 / 12);
 
-const TextStyle _not = TextStyle(
-  color: AppColors.textMuted,
-  fontSize: 10.5,
-  height: 14 / 10.5,
-);
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _not =>
+    TextStyle(color: AppColors.textMuted, fontSize: 10.5, height: 14 / 10.5);

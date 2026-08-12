@@ -65,19 +65,32 @@ class MatchInfoCard extends StatelessWidget {
     final stadium = info['stadium'] as String?;
     final city = info['city'] as String?;
 
-    final rows = <({String icon, String text, bool strong})>[
+    // İKON TİPİ BİLEREK `Object` (kullanıcı isteği, 2026-08-12):
+    // - `IconData` → UYGULAMANIN KENDİ arayüz ikonu, temaya göre boyanır.
+    // - `String`   → VERİDEN gelen görsel: ülke bayrağı ve hava durumu
+    //   emojisi. Bunlar kendi gerçek renklerinde kalmalı ("ülke bayrakları ve
+    //   maç verisine ait görseller bu değişikliğe dahil edilmesin"), o yüzden
+    //   metin olarak çizilirler.
+    final rows = <({Object icon, String text, bool strong})>[
       if (leagueText.isNotEmpty)
-        (icon: flag.isNotEmpty ? flag : '🏆', text: leagueText, strong: true),
-      if (dateText.isNotEmpty) (icon: '🕐', text: dateText, strong: false),
+        (
+          icon: flag.isNotEmpty ? flag : Icons.emoji_events_outlined,
+          text: leagueText,
+          strong: true,
+        ),
+      if (dateText.isNotEmpty)
+        (icon: Icons.schedule, text: dateText, strong: false),
       if (weather != null)
         (
-          icon: '${weather['emoji'] ?? '🌡️'}',
+          icon: weather['emoji'] is String && '${weather['emoji']}'.isNotEmpty
+              ? '${weather['emoji']}'
+              : Icons.thermostat,
           text: '${weather['label']} · ${weather['tempC']}°C',
           strong: false,
         ),
       if (stadium != null && stadium.isNotEmpty)
         (
-          icon: '🏟️',
+          icon: Icons.stadium_outlined,
           text: (city != null && city.isNotEmpty) ? '$stadium, $city' : stadium,
           strong: false,
         ),
@@ -100,7 +113,7 @@ class MatchInfoCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: i > 0
-                  ? const BoxDecoration(
+                  ? BoxDecoration(
                       border: Border(top: BorderSide(color: AppColors.border)),
                     )
                   : null,
@@ -108,11 +121,19 @@ class MatchInfoCard extends StatelessWidget {
                 children: [
                   SizedBox(
                     width: 22,
-                    child: Text(
-                      rows[i].icon,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 15),
-                    ),
+                    child: switch (rows[i].icon) {
+                      final IconData d => Icon(
+                        d,
+                        size: 17,
+                        color: AppColors.textSoft,
+                      ),
+                      // Bayrak / hava durumu — veriden gelir, kendi rengiyle.
+                      final Object o => Text(
+                        '$o',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 15),
+                      ),
+                    },
                   ),
                   const SizedBox(width: 10),
                   Expanded(

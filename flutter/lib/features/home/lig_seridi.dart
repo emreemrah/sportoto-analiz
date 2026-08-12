@@ -82,7 +82,7 @@ class _UlkeRozeti extends StatelessWidget {
           LigSeridi._buyukTr(ulke.name),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 11.5,
             fontWeight: AppFont.black,
@@ -99,7 +99,7 @@ class _UlkeRozeti extends StatelessWidget {
           ),
           child: Text(
             '${ulke.count}',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textSoft,
               fontSize: 10.5,
               fontWeight: AppFont.black,

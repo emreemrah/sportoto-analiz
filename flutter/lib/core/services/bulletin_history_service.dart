@@ -129,8 +129,9 @@ Future<Map<String, dynamic>?> getSnapshot(Object bulletinId) async {
   var resultsByMatchId = <String, dynamic>{};
   var evalByMatchId = <String, dynamic>{};
   try {
-    resultsByMatchId =
-        indexResults(await archiveGet('/api/bulletins/$bulletinId/results'));
+    resultsByMatchId = indexResults(
+      await archiveGet('/api/bulletins/$bulletinId/results'),
+    );
   } catch (_) {
     resultsByMatchId = {};
   }

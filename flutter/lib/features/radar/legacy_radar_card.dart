@@ -130,7 +130,7 @@ class LegacyRadarCard extends StatelessWidget {
                   child: Text(
                     '${index + 1}',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 16,
                       fontWeight: AppFont.heavy,
@@ -147,7 +147,7 @@ class LegacyRadarCard extends StatelessWidget {
                           const VenueMark(side: 'home', size: 14),
                           const SizedBox(width: 4),
                           Flexible(child: _takim('${item['home'] ?? ''}')),
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.symmetric(horizontal: 5),
                             child: Text(
                               '–',
@@ -220,18 +220,17 @@ class LegacyRadarCard extends StatelessWidget {
                             const TextSpan(text: 'Sonuç: '),
                             TextSpan(
                               text: '${item['result']}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.text,
                                 fontWeight: AppFont.black,
                               ),
                             ),
                             TextSpan(
-                              text:
-                                  ' · ${score['home']}-${score['away']}',
+                              text: ' · ${score['home']}-${score['away']}',
                             ),
                           ],
                         ),
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textSoft,
                           fontSize: 12,
                           fontWeight: AppFont.bold,
@@ -292,7 +291,7 @@ class LegacyRadarCard extends StatelessWidget {
                             // sanılır.
                             'Favori ${favorite['symbol']} · %${favorite['percent']}'
                             '${item['estimated'] == true ? ' ≈' : ''}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.text,
                               fontSize: 11.5,
                               fontWeight: AppFont.black,
@@ -302,7 +301,7 @@ class LegacyRadarCard extends StatelessWidget {
                       if (p != null)
                         Text(
                           '1 %${p['1']} · X %${p['X']} · 2 %${p['2']}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textSoft,
                             fontSize: 11.5,
                             fontWeight: AppFont.bold,
@@ -311,7 +310,8 @@ class LegacyRadarCard extends StatelessWidget {
                     ],
                   ),
                 ),
-              if (bits.isNotEmpty) _sinyaller(bits.join('   ·   '), expanded ? 2 : 1),
+              if (bits.isNotEmpty)
+                _sinyaller(bits.join('   ·   '), expanded ? 2 : 1),
               if (form != null &&
                   ((form['home'] as List?)?.isNotEmpty == true ||
                       (form['away'] as List?)?.isNotEmpty == true))
@@ -319,7 +319,7 @@ class LegacyRadarCard extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 7),
                   child: Row(
                     children: [
-                      const Text(
+                      Text(
                         'Form',
                         style: TextStyle(
                           color: AppColors.textMuted,
@@ -330,7 +330,7 @@ class LegacyRadarCard extends StatelessWidget {
                       const SizedBox(width: 6),
                       FormStrip(form: form['home'] as List?, size: 16),
                       const SizedBox(width: 6),
-                      const Text(
+                      Text(
                         '—',
                         style: TextStyle(
                           color: AppColors.textMuted,
@@ -349,9 +349,8 @@ class LegacyRadarCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       for (final f
-                          in (expanded
-                              ? factors
-                              : factors.take(3).toList()).cast<Map>())
+                          in (expanded ? factors : factors.take(3).toList())
+                              .cast<Map>())
                         Padding(
                           padding: const EdgeInsets.only(bottom: 2),
                           child: Text.rich(
@@ -369,7 +368,7 @@ class LegacyRadarCard extends StatelessWidget {
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.textSoft,
                               fontSize: 11.5,
                               fontWeight: AppFont.semibold,
@@ -387,7 +386,7 @@ class LegacyRadarCard extends StatelessWidget {
                     '${item['comment']}',
                     maxLines: expanded ? null : 2,
                     overflow: expanded ? null : TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 11,
                       fontStyle: FontStyle.italic,
@@ -407,7 +406,7 @@ class LegacyRadarCard extends StatelessWidget {
             Container(
               margin: const EdgeInsets.only(top: 10),
               padding: const EdgeInsets.only(top: 8),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.border)),
               ),
               child: Row(
@@ -425,7 +424,7 @@ class LegacyRadarCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(AppRadius.sm),
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Analiz ›',
                         style: TextStyle(
                           color: AppColors.textSoft,
@@ -448,7 +447,7 @@ class LegacyRadarCard extends StatelessWidget {
     ad,
     maxLines: 1,
     overflow: TextOverflow.ellipsis,
-    style: const TextStyle(
+    style: TextStyle(
       color: AppColors.text,
       fontSize: 14,
       fontWeight: AppFont.bold,
@@ -461,7 +460,7 @@ class LegacyRadarCard extends StatelessWidget {
       t,
       maxLines: satir,
       overflow: TextOverflow.ellipsis,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textMuted,
         fontSize: 11,
         fontWeight: AppFont.bold,

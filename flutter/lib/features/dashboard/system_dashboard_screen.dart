@@ -39,15 +39,14 @@ class SystemDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.bg,
     appBar: AppBar(title: const Text('Analiz Detayı (Demo)')),
     body: ListView(
       padding: const EdgeInsets.all(Spacing.lg),
-      children: const [
+      children: [
         // DEMO KAPALI (üretim): mock başarı ASLA gerçek karne yerine
         // gösterilmez.
         EmptyState(
-          icon: '🧪',
+          icon: Icons.science_outlined,
           title: 'Demo karne kapalı',
           message:
               'Bu ekran yalnız demo/geliştirme verisi gösterir ve üretimde kapalıdır. '

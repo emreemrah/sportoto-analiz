@@ -56,89 +56,83 @@ void main() {
     );
   });
 
-  test(
-    'buildSmartCoupon: kesin maç tekli kalır, belirsiz maç genişler; '
-    'açıklama insanca',
-    () {
-      final matches = [
-        // net favori
-        _m(
-          1,
-          probs: {'1': 70, 'X': 20, '2': 10},
-          sys: '1',
-          radar: '1',
-          surprise: 10,
-        ),
-        // tam belirsiz + çatışma
-        _m(
-          2,
-          probs: {'1': 36, 'X': 34, '2': 30},
-          sys: '1',
-          radar: '2',
-          surprise: 70,
-        ),
-      ];
-      final res = buildSmartCoupon(
-        matches: matches,
-        budgetColumns: 6,
-        target: 14,
-      );
-      final s1 = res.selections.firstWhere((s) => s.no == 1);
-      final s2 = res.selections.firstWhere((s) => s.no == 2);
-      expect(
-        s1.selectedOutcomes.length,
-        1,
-        reason: 'net favori tekli kalmalı',
-      );
-      expect(
-        s2.selectedOutcomes.length >= 2,
-        isTrue,
-        reason: 'belirsiz + Master/Radar çatışmalı maç genişlemeli',
-      );
-      final e2 = res.explanations.firstWhere((e) => e.no == 2);
-      expect(
-        RegExp('farklı yönde|yakın|sürpriz').hasMatch(e2.text),
-        isTrue,
-        reason: 'açıklama insanca gerekçe içermeli',
-      );
-      expect(
-        RegExp(
-          r'formül|sigma|Σ|logaritma',
-          caseSensitive: false,
-        ).hasMatch([for (final e in res.explanations) e.text].join(' ')),
-        isFalse,
-        reason: 'teknik formül ana metne sızmaz',
-      );
-      expect(
-        res.coverageNote,
-        contains('DEĞİLDİR'),
-        reason: 'kapsama kesin kazanma ihtimali gibi sunulmaz',
-      );
-    },
-  );
-
-  test('buildSmartCoupon: verisiz maç UYDURULMAZ — boş bırakılır ve bildirilir', () {
-    // 2. maçta hiç sinyal yok
+  test('buildSmartCoupon: kesin maç tekli kalır, belirsiz maç genişler; '
+      'açıklama insanca', () {
     final matches = [
-      _m(1, probs: {'1': 50, 'X': 30, '2': 20}),
-      _m(2),
+      // net favori
+      _m(
+        1,
+        probs: {'1': 70, 'X': 20, '2': 10},
+        sys: '1',
+        radar: '1',
+        surprise: 10,
+      ),
+      // tam belirsiz + çatışma
+      _m(
+        2,
+        probs: {'1': 36, 'X': 34, '2': 30},
+        sys: '1',
+        radar: '2',
+        surprise: 70,
+      ),
     ];
     final res = buildSmartCoupon(
       matches: matches,
-      budgetColumns: 100,
-      target: 13,
+      budgetColumns: 6,
+      target: 14,
+    );
+    final s1 = res.selections.firstWhere((s) => s.no == 1);
+    final s2 = res.selections.firstWhere((s) => s.no == 2);
+    expect(s1.selectedOutcomes.length, 1, reason: 'net favori tekli kalmalı');
+    expect(
+      s2.selectedOutcomes.length >= 2,
+      isTrue,
+      reason: 'belirsiz + Master/Radar çatışmalı maç genişlemeli',
+    );
+    final e2 = res.explanations.firstWhere((e) => e.no == 2);
+    expect(
+      RegExp('farklı yönde|yakın|sürpriz').hasMatch(e2.text),
+      isTrue,
+      reason: 'açıklama insanca gerekçe içermeli',
     );
     expect(
-      res.insufficient,
-      [2],
-      reason: 'sinyalsiz maç "veri yetersiz" listesinde',
+      RegExp(
+        r'formül|sigma|Σ|logaritma',
+        caseSensitive: false,
+      ).hasMatch([for (final e in res.explanations) e.text].join(' ')),
+      isFalse,
+      reason: 'teknik formül ana metne sızmaz',
     );
     expect(
-      res.selections.where((s) => s.no == 2),
-      isEmpty,
-      reason: 'sinyalsiz maça seçim üretilmez',
+      res.coverageNote,
+      contains('DEĞİLDİR'),
+      reason: 'kapsama kesin kazanma ihtimali gibi sunulmaz',
     );
   });
+
+  test(
+    'buildSmartCoupon: verisiz maç UYDURULMAZ — boş bırakılır ve bildirilir',
+    () {
+      // 2. maçta hiç sinyal yok
+      final matches = [
+        _m(1, probs: {'1': 50, 'X': 30, '2': 20}),
+        _m(2),
+      ];
+      final res = buildSmartCoupon(
+        matches: matches,
+        budgetColumns: 100,
+        target: 13,
+      );
+      expect(res.insufficient, [
+        2,
+      ], reason: 'sinyalsiz maç "veri yetersiz" listesinde');
+      expect(
+        res.selections.where((s) => s.no == 2),
+        isEmpty,
+        reason: 'sinyalsiz maça seçim üretilmez',
+      );
+    },
+  );
 
   test('buildSmartCoupon: hedef düştükçe kupon daralır (12 ≤ 15)', () {
     final matches = [
@@ -162,31 +156,34 @@ void main() {
     );
   });
 
-  test('diffSelections: mevcut seçim SESSİZCE ezilmez — her fark raporlanır', () {
-    final cur = {
-      1: ['1'],
-      2: ['X'],
-    };
-    final prop = {
-      1: ['1'],
-      2: ['1', 'X'],
-      3: ['2'],
-    };
-    final d = diffSelections(cur, prop);
-    expect(d.length, 2, reason: 'aynı kalan 1. maç fark listesine girmez');
-    expect(d.firstWhere((x) => x.no == 2), (
-      no: 2,
-      from: 'X',
-      to: '1-X',
-      kind: 'change',
-    ));
-    expect(d.firstWhere((x) => x.no == 3), (
-      no: 3,
-      from: '(boş)',
-      to: '2',
-      kind: 'fill',
-    ));
-  });
+  test(
+    'diffSelections: mevcut seçim SESSİZCE ezilmez — her fark raporlanır',
+    () {
+      final cur = {
+        1: ['1'],
+        2: ['X'],
+      };
+      final prop = {
+        1: ['1'],
+        2: ['1', 'X'],
+        3: ['2'],
+      };
+      final d = diffSelections(cur, prop);
+      expect(d.length, 2, reason: 'aynı kalan 1. maç fark listesine girmez');
+      expect(d.firstWhere((x) => x.no == 2), (
+        no: 2,
+        from: 'X',
+        to: '1-X',
+        kind: 'change',
+      ));
+      expect(d.firstWhere((x) => x.no == 3), (
+        no: 3,
+        from: '(boş)',
+        to: '2',
+        kind: 'fill',
+      ));
+    },
+  );
 
   test('proposalFrom: kayıt yoksa öneri üretilmez (uydurma aktarım yok)', () {
     final matches = [
@@ -194,17 +191,38 @@ void main() {
       _m(2),
       _m(3, radar: '2', probs: {'1': 30, 'X': 33, '2': 37}),
     ];
+    // GENİŞLİK EKLENDİ (kullanıcı isteği, 2026-08-11): aktarım artık tekli /
+    // çifte / kapalı yapılır ve VARSAYILAN TEKLİDİR. Eskiden sistem sembolü
+    // ne diyorsa o aktarılıyordu; '10' gibi çift bir sembol kupona iki işaret
+    // koyuyordu. Kullanıcının tarifi net: "tekli demek her maç için tek
+    // seçim". Çift işaret artık AÇIKÇA çifte seçilerek alınır.
     final sys = proposalFrom(matches, 'system');
-    expect(sys[1], ['1', 'X'], reason: "resmi '10' → 1-X");
+    expect(sys[1], ['1'], reason: "tekli: '10' sembolünden tek işaret");
     expect(sys[2], isNull, reason: 'sistem kaydı olmayan maça öneri yok');
     expect(sys[3], isNull);
+
+    final sysCifte = proposalFrom(
+      matches,
+      'system',
+      genislik: AktarimGenisligi.cifte,
+    );
+    expect(sysCifte[1], ['1', 'X'], reason: "çifte: '10' → 1-X");
+    expect(sysCifte[2], isNull, reason: 'genişlik veri UYDURMAZ');
+
+    final sysKapali = proposalFrom(
+      matches,
+      'system',
+      genislik: AktarimGenisligi.kapali,
+    );
+    expect(sysKapali[1], ['1', 'X', '2'], reason: 'kapalı: üç yön');
+    expect(
+      sysKapali[2],
+      isNull,
+      reason: 'tahmini olmayan maça kapalı modda da öneri yok',
+    );
     final radar = proposalFrom(matches, 'radar');
     expect(radar[1], isNull, reason: 'radar kaydı olmayan maça öneri yok');
     expect(radar[2], isNull);
-    expect(
-      radar[3],
-      contains('2'),
-      reason: 'radar favorisi önerinin içinde',
-    );
+    expect(radar[3], contains('2'), reason: 'radar favorisi önerinin içinde');
   });
 }

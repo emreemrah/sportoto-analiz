@@ -261,10 +261,7 @@ class _PlayedDnaPanelState extends State<PlayedDnaPanel> {
                 child: Text(
                   '${_dnaTol == 0 ? 'Birebir aynı' : 'Yakınlık ±$_dnaTol'}'
                   '${d['settledMatches'] != null ? ' · arşivde ${d['settledMatches']} sonuçlanmış maç' : ''}',
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 9.5,
-                  ),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 9.5),
                 ),
               ),
             ),
@@ -297,7 +294,7 @@ class _PlayedDnaPanelState extends State<PlayedDnaPanel> {
           padding: const EdgeInsets.only(bottom: 1),
           child: Text(
             '• ${(s as Map)['text'] ?? ''}',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textSoft,
               fontSize: 10.5,
               height: 15 / 10.5,
@@ -330,7 +327,7 @@ class _PlayedDnaPanelState extends State<PlayedDnaPanel> {
               child: Text(
                 o.etiket,
                 style: TextStyle(
-                  color: o.secili ? AppColors.white : AppColors.textSoft,
+                  color: o.secili ? AppColors.onPrimary : AppColors.textSoft,
                   fontSize: 10.5,
                   fontWeight: AppFont.heavy,
                 ),
@@ -345,7 +342,7 @@ class _PlayedDnaPanelState extends State<PlayedDnaPanel> {
     padding: const EdgeInsets.only(top: 8, bottom: 3),
     child: Text(
       t,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textMuted,
         fontSize: 10,
         fontWeight: AppFont.black,
@@ -357,7 +354,7 @@ class _PlayedDnaPanelState extends State<PlayedDnaPanel> {
     padding: const EdgeInsets.only(top: 6, bottom: 2),
     child: Text(
       t,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textMuted,
         fontSize: 9.5,
         fontWeight: AppFont.black,
@@ -369,7 +366,7 @@ class _PlayedDnaPanelState extends State<PlayedDnaPanel> {
     padding: const EdgeInsets.only(bottom: 2),
     child: Text(
       t,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.text,
         fontSize: 13,
         fontWeight: AppFont.black,
@@ -379,7 +376,7 @@ class _PlayedDnaPanelState extends State<PlayedDnaPanel> {
 
   static Widget _etiket(String t) => Text(
     t,
-    style: const TextStyle(
+    style: TextStyle(
       color: AppColors.textMuted,
       fontSize: 10.5,
       fontWeight: AppFont.heavy,
@@ -388,7 +385,7 @@ class _PlayedDnaPanelState extends State<PlayedDnaPanel> {
 
   static Widget _deger(String t) => Text(
     t,
-    style: const TextStyle(
+    style: TextStyle(
       color: AppColors.text,
       fontSize: 12,
       fontWeight: AppFont.bold,
@@ -398,7 +395,7 @@ class _PlayedDnaPanelState extends State<PlayedDnaPanel> {
 
   static Widget _soluk(String t) => Text(
     t,
-    style: const TextStyle(
+    style: TextStyle(
       color: AppColors.textMuted,
       fontSize: 11.5,
       fontStyle: FontStyle.italic,

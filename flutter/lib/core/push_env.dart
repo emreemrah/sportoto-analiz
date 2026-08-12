@@ -112,28 +112,27 @@ String ortamAciklamasi({
   String durum = '',
   String platform = '',
   String teknik = '',
-}) =>
-    switch (durum) {
-      PushDurum.web =>
-        'Tarayıcıda telefon bildirimi kurulamaz. Bu özellik yalnız Android/iOS '
-            'uygulamasında çalışır; buradaki bildirim listesi çalışmaya devam eder.',
-      PushDurum.hazir => '',
-      PushDurum.modulYok =>
-        'Bildirim modülü bu derlemede bulunamadı, bu yüzden telefon hatırlatması '
-            'kurulamıyor. Uygulamanın güncel sürümünü açtığında bu bölüm kendiliğinden '
-            'çalışır hâle gelir.',
-      PushDurum.modulHata =>
-        'Bildirim modülü bu cihazda yüklenemedi, bu yüzden telefon hatırlatması '
-            'kurulamıyor (platform: ${platform.isEmpty ? 'bilinmiyor' : platform}). '
-            'Bu bir tarayıcı sınırı değil; cihazdaki teknik durum: '
-            '${teknik.isEmpty ? 'ayrıntı alınamadı' : teknik}',
-      PushDurum.apiEksik =>
-        'Bildirim modülü yüklendi ancak yerel bildirim işlevleri eksik olduğu için '
-            'hatırlatma kurulamıyor. Teknik durum: '
-            '${teknik.isEmpty ? 'ayrıntı alınamadı' : teknik}',
-      _ =>
-        'Bildirim ortamı okunamadı; hatırlatma kurulup kurulamayacağı doğrulanamıyor.',
-    };
+}) => switch (durum) {
+  PushDurum.web =>
+    'Tarayıcıda telefon bildirimi kurulamaz. Bu özellik yalnız Android/iOS '
+        'uygulamasında çalışır; buradaki bildirim listesi çalışmaya devam eder.',
+  PushDurum.hazir => '',
+  PushDurum.modulYok =>
+    'Bildirim modülü bu derlemede bulunamadı, bu yüzden telefon hatırlatması '
+        'kurulamıyor. Uygulamanın güncel sürümünü açtığında bu bölüm kendiliğinden '
+        'çalışır hâle gelir.',
+  PushDurum.modulHata =>
+    'Bildirim modülü bu cihazda yüklenemedi, bu yüzden telefon hatırlatması '
+        'kurulamıyor (platform: ${platform.isEmpty ? 'bilinmiyor' : platform}). '
+        'Bu bir tarayıcı sınırı değil; cihazdaki teknik durum: '
+        '${teknik.isEmpty ? 'ayrıntı alınamadı' : teknik}',
+  PushDurum.apiEksik =>
+    'Bildirim modülü yüklendi ancak yerel bildirim işlevleri eksik olduğu için '
+        'hatırlatma kurulamıyor. Teknik durum: '
+        '${teknik.isEmpty ? 'ayrıntı alınamadı' : teknik}',
+  _ =>
+    'Bildirim ortamı okunamadı; hatırlatma kurulup kurulamayacağı doğrulanamıyor.',
+};
 
 /// Kısa tanı satırı (tanı amaçlı; kişisel veri içermez).
 String ortamOzeti(PushOrtam? o) {
@@ -141,7 +140,9 @@ String ortamOzeti(PushOrtam? o) {
   final p = o.platform.isEmpty ? 'bilinmiyor' : o.platform;
   final k = o.kaynak.isNotEmpty ? ' · kaynak: ${o.kaynak}' : '';
   final t = o.teknik.isNotEmpty ? ' · ${o.teknik}' : '';
-  final u = o.teknik.isEmpty && o.uyari.isNotEmpty ? ' · uyarı: ${o.uyari}' : '';
+  final u = o.teknik.isEmpty && o.uyari.isNotEmpty
+      ? ' · uyarı: ${o.uyari}'
+      : '';
   final d = o.durum.isEmpty ? 'bilinmiyor' : o.durum;
   return 'durum: $d · platform: $p$k$t$u';
 }

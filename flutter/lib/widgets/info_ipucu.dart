@@ -13,16 +13,28 @@ import 'package:flutter/material.dart';
 import '../core/theme/tokens.dart';
 
 class InfoIpucu extends StatefulWidget {
-  const InfoIpucu({
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  InfoIpucu({
     super.key,
     required this.ozet,
     required this.detay,
     this.renk,
+    this.ikon,
   });
 
   final String ozet;
   final String detay;
   final Color? renk;
+
+  /// Özetin başındaki ikon — VEKTÖR, metne gömülü emoji DEĞİL (kullanıcı
+  /// isteği, 2026-08-12): emoji `TextStyle.color`ı dinlemediği için özet
+  /// yazısı temaya uyarken baştaki simge sabit renkte kalıyordu.
+  final IconData? ikon;
 
   @override
   State<InfoIpucu> createState() => _InfoIpucuState();
@@ -52,12 +64,20 @@ class _InfoIpucuState extends State<InfoIpucu> {
               behavior: HitTestBehavior.opaque,
               child: Row(
                 children: [
+                  if (widget.ikon != null) ...[
+                    Icon(
+                      widget.ikon,
+                      size: 14,
+                      color: widget.renk ?? AppColors.textSoft,
+                    ),
+                    const SizedBox(width: 6),
+                  ],
                   Expanded(
                     child: Text(
                       widget.ozet,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.text,
                         fontSize: 11,
                         fontWeight: AppFont.heavy,
@@ -92,12 +112,12 @@ class _InfoIpucuState extends State<InfoIpucu> {
             Container(
               margin: const EdgeInsets.only(top: 5),
               padding: const EdgeInsets.only(top: 5),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.border)),
               ),
               child: Text(
                 widget.detay,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textSoft,
                   fontSize: 11,
                   height: 15 / 11,

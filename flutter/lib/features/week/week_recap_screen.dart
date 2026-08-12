@@ -16,6 +16,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/coupon/coupon_store.dart';
 import '../../core/network/api_client.dart';
 import '../../core/services/muhurlu_sistem.dart';
+import '../../core/theme/takim_paleti.dart' show okunurMetin;
 import '../../core/theme/tokens.dart';
 import '../../core/week_recap.dart';
 import '../../widgets/states.dart';
@@ -260,9 +261,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading && _rounds == null) {
-      return _kabuk(
-        const LoadingState(message: 'Hafta kapanışı hazırlanıyor…'),
-      );
+      return _kabuk(LoadingState(message: 'Hafta kapanışı hazırlanıyor…'));
     }
     if (_error != null) {
       return _kabuk(
@@ -316,7 +315,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
           _haftaGezme(navRounds, selIdx, selMeta, canPrev, canNext),
           _studyoKarti(recap),
           if (_hist == null && _roundId != null)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 30),
               child: Column(
                 children: [
@@ -331,7 +330,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
             )
           else if (!recap.hasData)
             _bosKart(
-              icon: '🕐',
+              icon: Icons.schedule,
               baslik: 'Bu hafta için resmî sonuç yok',
               metin:
                   'Resmî Spor Toto sonuçları açıklandıkça karne burada oluşur. Geçici/canlı skorla karne yazılmaz.',
@@ -364,7 +363,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
             const _BolumBasligi('Tüm Resmî Sonuçlar'),
             _tablo(recap),
           ],
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: Spacing.sm),
             child: Text(
               'Karne yalnız resmî Spor Toto sonuçlarıyla hesaplanır. Geçmiş ölçümdür, '
@@ -383,7 +382,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
               alignment: Alignment.centerLeft,
               child: GestureDetector(
                 onTap: () => context.go('/kuponlarim'),
-                child: const Text(
+                child: Text(
                   'Kuponlarıma Git ›',
                   style: TextStyle(
                     color: AppColors.primary,
@@ -400,7 +399,6 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
   }
 
   Widget _kabuk(Widget govde) => Scaffold(
-    backgroundColor: AppColors.bg,
     appBar: AppBar(title: const Text('Hafta Kapanışı')),
     body: govde,
   );
@@ -424,7 +422,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
             children: [
               Text(
                 '${selMeta?['name'] ?? '—'}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.text,
                   fontSize: 16,
                   fontWeight: AppFont.black,
@@ -432,7 +430,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
               ),
               Text(
                 '${selMeta?['year'] ?? ''} Sezonu',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 11,
                   fontWeight: AppFont.bold,
@@ -468,7 +466,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
               ),
               child: Text(
                 isaret,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.text,
                   fontSize: 20,
                   fontWeight: AppFont.black,
@@ -516,7 +514,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
       margin: const EdgeInsets.only(bottom: Spacing.md),
       padding: const EdgeInsets.all(Spacing.md),
       decoration: BoxDecoration(
-        color: const Color(0xFF132244),
+        color: AppColors.darkCard,
         borderRadius: AppRadius.lgR,
         boxShadow: AppShadow.soft,
       ),
@@ -536,8 +534,8 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
             padding: const EdgeInsets.only(top: 6),
             child: Text(
               _baslikCumlesi(recap),
-              style: const TextStyle(
-                color: AppColors.white,
+              style: TextStyle(
+                color: okunurMetin(AppColors.warning),
                 fontSize: 15,
                 fontWeight: AppFont.heavy,
                 height: 22 / 15,
@@ -563,8 +561,8 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
             padding: const EdgeInsets.only(top: 5),
             child: Text(
               '${o.resolved}/${o.total} resmî sonuç',
-              style: const TextStyle(
-                color: Color(0xFFB9C6DC),
+              style: TextStyle(
+                color: AppColors.onDarkSoft,
                 fontSize: 10.5,
                 fontWeight: AppFont.heavy,
               ),
@@ -610,7 +608,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
                       Expanded(
                         child: Text(
                           '#${a.no} · Sistem tahmini neden değişti?',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.text,
                             fontSize: 12.5,
                             fontWeight: AppFont.black,
@@ -619,7 +617,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
                       ),
                       Text(
                         acik ? '▲' : '▼',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 11,
                         ),
@@ -638,7 +636,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
                   Spacing.md,
                 ),
                 child: iz == null
-                    ? const Text(
+                    ? Text(
                         'Kayıt okunuyor…',
                         style: TextStyle(
                           color: AppColors.textMuted,
@@ -702,7 +700,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
         Text(
           'Kayıtlarda bu maçta sistem tahmini değişmemiş '
           '(${iz.gozlemSayisi} gözlem); fark kupon seçiminden geliyor.',
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textSoft,
             fontSize: 11.5,
             height: 1.35,
@@ -714,7 +712,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
       satirlar.add(
         Text(
           'Kayıtlı değişiklikler (${iz.gozlemSayisi} gözlem):',
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 11.5,
             fontWeight: AppFont.black,
@@ -731,7 +729,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
                 Text(
                   '${tahminYazisi(d.eski)} → ${tahminYazisi(d.yeni)}'
                   ' · ${_kisaZaman(d.zaman)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 12,
                     fontWeight: AppFont.heavy,
@@ -741,19 +739,13 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
                   Text(
                     'olasılık 1/X/2: ${_uclu(d.eskiOlasilik!)}'
                     ' → ${_uclu(d.yeniOlasilik!)}',
-                    style: const TextStyle(
-                      color: AppColors.textSoft,
-                      fontSize: 11,
-                    ),
+                    style: TextStyle(color: AppColors.textSoft, fontSize: 11),
                   ),
                 if (d.eskiOran != null && d.yeniOran != null)
                   Text(
                     'oran ev/ber/dep: ${_ucluOran(d.eskiOran!)}'
                     ' → ${_ucluOran(d.yeniOran!)}',
-                    style: const TextStyle(
-                      color: AppColors.textSoft,
-                      fontSize: 11,
-                    ),
+                    style: TextStyle(color: AppColors.textSoft, fontSize: 11),
                   ),
               ],
             ),
@@ -782,7 +774,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
       );
       satirlar.add(const SizedBox(height: 6));
       satirlar.add(
-        const Text(
+        Text(
           'Kriter bazlı öncesi/sonrası kayıtta tutulmuyor; bu yüzden '
           'gösterilmiyor. Yukarıdakiler sunucunun zaman damgalı gözlem '
           'kaydından okundu.',
@@ -805,15 +797,12 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
     padding: const EdgeInsets.only(top: 3),
     child: RichText(
       text: TextSpan(
-        style: const TextStyle(color: AppColors.textMuted, fontSize: 11.5),
+        style: TextStyle(color: AppColors.textMuted, fontSize: 11.5),
         children: [
           TextSpan(text: '$baslik: '),
           TextSpan(
             text: deger,
-            style: const TextStyle(
-              color: AppColors.text,
-              fontWeight: AppFont.bold,
-            ),
+            style: TextStyle(color: AppColors.text, fontWeight: AppFont.bold),
           ),
         ],
       ),
@@ -872,7 +861,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Sistem tahmin kaydı doğrulanamadı',
               style: TextStyle(
                 color: AppColors.text,
@@ -886,7 +875,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
                 '$neden ${muhursuz.length} maç (No $noSuz) '
                 'karşılaştırmaya katılmadı; bu maçlarda sistem için eşleşme '
                 'iddia edilmez.',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textSoft,
                   fontSize: 11.5,
                   height: 1.35,
@@ -940,7 +929,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
                 ton: AppColors.success,
               ),
             ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(horizontal: 4),
               child: Center(
                 child: Text(
@@ -974,11 +963,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
     child: Text(
       'Her iki tarafın da doğrulanmış seçimi bulunan ${h.matches} ortak maç '
       'üzerinden; sistem tarafı haftanın mühürlü çoklu seçimidir.',
-      style: const TextStyle(
-        color: AppColors.textMuted,
-        fontSize: 11,
-        height: 1.35,
-      ),
+      style: TextStyle(color: AppColors.textMuted, fontSize: 11, height: 1.35),
     ),
   );
 
@@ -1002,7 +987,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
         ),
         child: Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
                 'Sistem ana tahmini · eşleşen maç',
                 style: TextStyle(
@@ -1016,7 +1001,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
               deg > 0
                   ? '${kw!['correct']}/$deg · %$acc'
                   : (kw == null ? 'karne kaydı yok' : 'sonuç bekleniyor'),
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 12.5,
                 fontWeight: AppFont.black,
@@ -1049,7 +1034,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
       children: [
         Text(
           baslik,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textMuted,
             fontSize: 10.5,
             fontWeight: AppFont.black,
@@ -1072,7 +1057,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
           child: Text(
             alt,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textMuted,
               fontSize: 11.5,
               fontWeight: AppFont.bold,
@@ -1176,7 +1161,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
         borderRadius: AppRadius.mdR,
         child: Container(
           padding: const EdgeInsets.all(Spacing.md),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.card,
             border: Border(
               top: BorderSide(color: AppColors.border),
@@ -1193,7 +1178,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
                   Expanded(
                     child: Text(
                       _anBasligi(h),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.text,
                         fontSize: 12.5,
                         fontWeight: AppFont.black,
@@ -1202,7 +1187,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
                   ),
                   Text(
                     '#${r.no}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 11,
                       fontWeight: AppFont.black,
@@ -1216,7 +1201,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
                   '${r.home} — ${r.away}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 14,
                     fontWeight: AppFont.heavy,
@@ -1252,7 +1237,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
 
   Widget _cip(String on, String kalin, String son) => RichText(
     text: TextSpan(
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textMuted,
         fontSize: 11.5,
         fontWeight: AppFont.bold,
@@ -1261,10 +1246,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
         TextSpan(text: on),
         TextSpan(
           text: kalin,
-          style: const TextStyle(
-            color: AppColors.text,
-            fontWeight: AppFont.black,
-          ),
+          style: TextStyle(color: AppColors.text, fontWeight: AppFont.black),
         ),
         TextSpan(text: son),
       ],
@@ -1324,7 +1306,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
     bool baslik = false,
   }) => Container(
     padding: const EdgeInsets.symmetric(vertical: 8),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       border: Border(bottom: BorderSide(color: AppColors.border)),
     ),
     child: Row(
@@ -1361,7 +1343,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
   );
 
   Widget _bosKart({
-    String? icon,
+    IconData? icon,
     required String baslik,
     required String metin,
   }) => Container(
@@ -1374,13 +1356,15 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
     ),
     child: Column(
       children: [
-        if (icon != null) Text(icon, style: const TextStyle(fontSize: 30)),
+        // VEKTÖR (kullanıcı isteği, 2026-08-12): emojiyken kartın yazısı
+        // temaya uyarken ikon sabit renkte kalıyordu.
+        if (icon != null) Icon(icon, size: 34, color: AppColors.textSoft),
         Padding(
           padding: const EdgeInsets.only(top: 6),
           child: Text(
             baslik,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 14.5,
               fontWeight: AppFont.black,
@@ -1392,7 +1376,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
           child: Text(
             metin,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textMuted,
               fontSize: 12,
               fontWeight: AppFont.semibold,
@@ -1415,7 +1399,7 @@ class _BolumBasligi extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
     child: Text(
       metin,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.text,
         fontSize: 15,
         fontWeight: AppFont.black,

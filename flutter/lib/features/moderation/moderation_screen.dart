@@ -68,7 +68,8 @@ class _ModerationScreenState extends State<ModerationScreen> {
   Future<void> _yukle() async {
     if (mounted) setState(() => _hata = null);
     try {
-      final erisim = (await api.moderationAccess() as Map).cast<String, dynamic>();
+      final erisim = (await api.moderationAccess() as Map)
+          .cast<String, dynamic>();
       if (!mounted) return;
       setState(() => _yetki = erisim);
       // Yetki yoksa liste ucu HİÇ çağrılmaz: reddedilecek bir isteği yollamak,
@@ -117,7 +118,6 @@ class _ModerationScreenState extends State<ModerationScreen> {
     final operator = _yetki?['operator'] == true;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
       appBar: AppBar(title: const Text('İnceleme')),
       body: ScreenBackdrop(
         child: RefreshIndicator(
@@ -131,7 +131,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
               Spacing.xl * 2,
             ),
             children: [
-              const Text(
+              Text(
                 'İnceleme',
                 style: TextStyle(
                   color: AppColors.text,
@@ -140,7 +140,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Bildirilen yorumlar burada elle incelenir. Kararın herkesi etkiler: gizlenen yorumu '
                 'yazarı dışında kimse göremez. Bildirimi yapan kişinin kimliği bu ekranda gösterilmez.',
                 style: TextStyle(
@@ -165,7 +165,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
                 ),
 
               if (_yetki == null && _hata == null)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: Spacing.lg),
                   child: Center(
                     child: CircularProgressIndicator(color: AppColors.primary),
@@ -175,7 +175,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
               if (_yetki != null && !operator) _yetkisizKutu(),
 
               if (operator && _veri == null && _hata == null)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: Spacing.lg),
                   child: Center(
                     child: CircularProgressIndicator(color: AppColors.primary),
@@ -187,7 +187,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
               for (final raw in items) _kart(raw as Map),
 
               if (operator && _veri != null && items.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: Spacing.lg),
                   child: Text(
                     'Şu an incelenmeyi bekleyen yorum yok. Yeni bir bildirim geldiğinde burada görünür.',
@@ -217,7 +217,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Bu ekran inceleme yetkisi ister.',
           style: TextStyle(
             color: AppColors.text,
@@ -230,7 +230,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
           _yetki?['sebep'] == 'eposta-dogrulanmamis'
               ? 'Hesabın listede görünüyor ama e-posta adresin henüz doğrulanmamış. Doğruladıktan sonra bu ekran açılır.'
               : 'Hesabında inceleme yetkisi yok. Yorumları bildirme ve kullanıcı engelleme yolları herkese açıktır.',
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textMuted,
             fontSize: 13,
             height: 19 / 13,
@@ -253,7 +253,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
         for (final s in ozetSatirlari(_veri))
           Text(
             s,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 12.5,
               height: 18 / 12.5,
@@ -288,7 +288,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
               const SizedBox(width: 8),
               Text(
                 bildirimOzeti(item),
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 11.5,
                   fontWeight: AppFont.bold,
@@ -302,7 +302,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
               '${(item['author'] as Map?)?['username'] ?? ''}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 14.5,
                 fontWeight: AppFont.heavy,
@@ -314,10 +314,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
             child: Text(
               'Yorum: ${tarihKisa(item['createdAt'])}'
               '${item['matchId'] != null ? '  ·  Maç: ${item['matchId']}' : ''}',
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 11.5,
-              ),
+              style: TextStyle(color: AppColors.textMuted, fontSize: 11.5),
             ),
           ),
 
@@ -333,7 +330,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
             ),
             child: Text(
               '${item['text'] ?? ''}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 13.5,
                 height: 20 / 13.5,
@@ -359,8 +356,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
           for (final raw in reports) _bildirimSatiri(raw as Map),
 
           // Yok sayma geri alınamaz; onay bu yüzden istenir.
-          if (_onay != null &&
-              reports.any((r) => (r as Map)['id'] == _onay))
+          if (_onay != null && reports.any((r) => (r as Map)['id'] == _onay))
             const Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text(
@@ -391,7 +387,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
               padding: const EdgeInsets.only(top: 6),
               child: Text(
                 '${e.label}: ${e.aciklama}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 11.5,
                   height: 17 / 11.5,
@@ -415,11 +411,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
         durum.etiket,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: renk,
-          fontSize: 11,
-          fontWeight: AppFont.heavy,
-        ),
+        style: TextStyle(color: renk, fontSize: 11, fontWeight: AppFont.heavy),
       ),
     );
   }
@@ -432,7 +424,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
     return Container(
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.only(top: 8),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: Row(
@@ -444,7 +436,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
               children: [
                 Text(
                   '${sebepEtiketi(r['reason'])}  ·  ${tarihKisa(r['createdAt'])}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 12.5,
                     fontWeight: AppFont.bold,
@@ -455,7 +447,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
                     padding: const EdgeInsets.only(top: 3),
                     child: Text(
                       '“${r['note']}”',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 12,
                         height: 17 / 12,
@@ -495,44 +487,41 @@ class _ModerationScreenState extends State<ModerationScreen> {
     VoidCallback? onTap, {
     bool tehlike = false,
     bool mesgul = false,
-  }) =>
-      GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            border: Border.all(
-              color: tehlike ? AppColors.red : AppColors.border,
+  }) => GestureDetector(
+    onTap: onTap,
+    behavior: HitTestBehavior.opaque,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(color: tehlike ? AppColors.red : AppColors.border),
+      ),
+      child: mesgul
+          ? SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            )
+          : Text(
+              metin,
+              style: TextStyle(
+                color: tehlike ? AppColors.red : AppColors.textSoft,
+                fontSize: 11.5,
+                fontWeight: AppFont.heavy,
+              ),
             ),
-          ),
-          child: mesgul
-              ? const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.primary,
-                  ),
-                )
-              : Text(
-                  metin,
-                  style: TextStyle(
-                    color: tehlike ? AppColors.red : AppColors.textSoft,
-                    fontSize: 11.5,
-                    fontWeight: AppFont.heavy,
-                  ),
-                ),
-        ),
-      );
+    ),
+  );
 
   Widget _eylemDugmesi(ModEylem e, bool mesgul, Map item) => GestureDetector(
     onTap: mesgul
         ? null
         : () => e.key == 'hide'
-            ? _gizle(item['commentId'] as Object)
-            : _geriAl(item['commentId'] as Object),
+              ? _gizle(item['commentId'] as Object)
+              : _geriAl(item['commentId'] as Object),
     behavior: HitTestBehavior.opaque,
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
@@ -544,7 +533,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
         ),
       ),
       child: mesgul
-          ? const SizedBox(
+          ? SizedBox(
               width: 14,
               height: 14,
               child: CircularProgressIndicator(

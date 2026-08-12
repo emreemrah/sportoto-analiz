@@ -6,11 +6,8 @@
 
 import '../network/api_client.dart';
 
-typedef ArchiveFetcher = Future<dynamic> Function(
-  String path, {
-  String? method,
-  Object? body,
-});
+typedef ArchiveFetcher =
+    Future<dynamic> Function(String path, {String? method, Object? body});
 
 ArchiveFetcher? _customFetcher;
 

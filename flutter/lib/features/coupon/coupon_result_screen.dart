@@ -123,7 +123,7 @@ class _CouponResultScreenState extends State<CouponResultScreen> {
     final o = kuponOlcek(context);
 
     if (_loading && _hist == null) {
-      return _kabuk(const LoadingState(message: 'Kupon sonucu yükleniyor…'));
+      return _kabuk(LoadingState(message: 'Kupon sonucu yükleniyor…'));
     }
     if (_error != null) {
       return _kabuk(
@@ -139,10 +139,10 @@ class _CouponResultScreenState extends State<CouponResultScreen> {
         : getRankedCoupon(widget.roundId);
     if (coupon == null) {
       return _kabuk(
-        const SingleChildScrollView(
+        SingleChildScrollView(
           padding: EdgeInsets.all(12),
           child: EmptyState(
-            icon: '🎟️',
+            icon: Icons.confirmation_number_outlined,
             title: 'Kupon yok',
             message: 'Bu bülten için kaydedilmiş bir kuponun yok.',
           ),
@@ -164,10 +164,10 @@ class _CouponResultScreenState extends State<CouponResultScreen> {
     final ev = evalCoupon(coupon, resultMap);
     if (ev == null) {
       return _kabuk(
-        const SingleChildScrollView(
+        SingleChildScrollView(
           padding: EdgeInsets.all(12),
           child: EmptyState(
-            icon: '🎟️',
+            icon: Icons.confirmation_number_outlined,
             title: 'Kupon boş',
             message: 'Bu kuponun kayıtlı seçimi bulunamadı.',
           ),
@@ -178,8 +178,8 @@ class _CouponResultScreenState extends State<CouponResultScreen> {
     // 15/14/13/12 satırı — yalnız tüm resmî sonuçlar gelince kesin konuşulur.
     final tierLine = ev.allResolved
         ? (ev.tier != null
-            ? '🎯 ${ev.tier} bildin — 12+ barajının üstünde'
-            : '12 barajının altında (${ev.correct} doğru)')
+              ? '🎯 ${ev.tier} bildin — 12+ barajının üstünde'
+              : '12 barajının altında (${ev.correct} doğru)')
         : '${ev.resolved}/${ev.total} resmî sonuç geldi — kalan maçlar ⏳';
 
     final sagGenislik = o.dar ? 66.0 : 80.0;
@@ -249,17 +249,17 @@ class _CouponResultScreenState extends State<CouponResultScreen> {
   }
 
   Widget _kabuk(Widget govde) => Scaffold(
-        // STÜDYO PALETİ — genel uygulama teması (tokens.dart) burada
-        // KULLANILMAZ; iki palet karışırsa aynı ekranda iki farklı gri, iki
-        // farklı köşe yarıçapı çıkıyor.
-        backgroundColor: S.bg,
-        appBar: AppBar(
-          title: const Text('Kupon Sonucu'),
-          backgroundColor: S.panel,
-          foregroundColor: S.ink,
-        ),
-        body: govde,
-      );
+    // STÜDYO PALETİ — genel uygulama teması (tokens.dart) burada
+    // KULLANILMAZ; iki palet karışırsa aynı ekranda iki farklı gri, iki
+    // farklı köşe yarıçapı çıkıyor.
+    backgroundColor: S.bg,
+    appBar: AppBar(
+      title: const Text('Kupon Sonucu'),
+      backgroundColor: S.panel,
+      foregroundColor: S.ink,
+    ),
+    body: govde,
+  );
 
   String? _scoreOf(Map? m) {
     final s = m?['score'];
@@ -272,88 +272,83 @@ class _CouponResultScreenState extends State<CouponResultScreen> {
     Map coupon,
     EvalResult ev,
     String tierLine,
-  ) =>
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          horizontal: SP.md,
-          vertical: SP.sm,
+  ) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: SP.md, vertical: SP.sm),
+    decoration: const BoxDecoration(
+      color: S.panel,
+      border: Border(
+        bottom: BorderSide(color: S.line, width: TABLE.hair),
+      ),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Kupon ${coupon['couponNo']} Sonucu',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: studioFont(700).copyWith(color: S.ink, fontSize: o.t.baslik),
         ),
-        decoration: const BoxDecoration(
-          color: S.panel,
-          border: Border(
-            bottom: BorderSide(color: S.line, width: TABLE.hair),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Kupon ${coupon['couponNo']} Sonucu',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: studioFont(700)
-                  .copyWith(color: S.ink, fontSize: o.t.baslik),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              [
+        const SizedBox(height: 2),
+        Text(
+          [
                 if (widget.roundName != null) widget.roundName!,
                 if (widget.season != null) '${widget.season} Sezonu',
               ].join(' · ').isEmpty
-                  ? 'Hafta bilgisi yok'
-                  : [
-                      if (widget.roundName != null) widget.roundName!,
-                      if (widget.season != null) '${widget.season} Sezonu',
-                    ].join(' · '),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: studioFont(500)
-                  .copyWith(color: S.inkDim, fontSize: o.t.kucuk),
-            ),
-            const SizedBox(height: SP.sm),
-            Wrap(
-              spacing: SP.lg,
-              runSpacing: SP.sm,
-              children: [
-                SayiKutu(
-                  k: o.k,
-                  etiket: 'DOĞRU',
-                  deger: '${ev.correct}/${ev.resolved}',
-                  tone: S.good,
-                  alt: '${ev.total} maçta',
-                ),
-                SayiKutu(
-                  k: o.k,
-                  etiket: 'YANLIŞ',
-                  deger: '${ev.wrong}',
-                  tone: ev.wrong > 0 ? S.bad : S.inkDim,
-                ),
-                SayiKutu(
-                  k: o.k,
-                  etiket: 'BEKLEYEN',
-                  deger: '${ev.pending}',
-                  tone: ev.pending > 0 ? S.warn : S.inkDim,
-                  alt: ev.pending > 0 ? 'resmî sonuç yok' : null,
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: SP.xs),
-              child: Text(
-                tierLine,
-                style: studioFont(700)
-                    .copyWith(color: S.accent, fontSize: o.t.metin),
-              ),
-            ),
-            Not(
+              ? 'Hafta bilgisi yok'
+              : [
+                  if (widget.roundName != null) widget.roundName!,
+                  if (widget.season != null) '${widget.season} Sezonu',
+                ].join(' · '),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: studioFont(500).copyWith(color: S.inkDim, fontSize: o.t.kucuk),
+        ),
+        const SizedBox(height: SP.sm),
+        Wrap(
+          spacing: SP.lg,
+          runSpacing: SP.sm,
+          children: [
+            SayiKutu(
               k: o.k,
-              text:
-                  'Değerlendirme: kilitli final versiyon (V${ev.versionNo}) · yalnız resmî 90 dakika sonucu',
+              etiket: 'DOĞRU',
+              deger: '${ev.correct}/${ev.resolved}',
+              tone: S.good,
+              alt: '${ev.total} maçta',
+            ),
+            SayiKutu(
+              k: o.k,
+              etiket: 'YANLIŞ',
+              deger: '${ev.wrong}',
+              tone: ev.wrong > 0 ? S.bad : S.inkDim,
+            ),
+            SayiKutu(
+              k: o.k,
+              etiket: 'BEKLEYEN',
+              deger: '${ev.pending}',
+              tone: ev.pending > 0 ? S.warn : S.inkDim,
+              alt: ev.pending > 0 ? 'resmî sonuç yok' : null,
             ),
           ],
         ),
-      );
+        Padding(
+          padding: const EdgeInsets.only(top: SP.xs),
+          child: Text(
+            tierLine,
+            style: studioFont(
+              700,
+            ).copyWith(color: S.accent, fontSize: o.t.metin),
+          ),
+        ),
+        Not(
+          k: o.k,
+          text:
+              'Değerlendirme: kilitli final versiyon (V${ev.versionNo}) · yalnız resmî 90 dakika sonucu',
+        ),
+      ],
+    ),
+  );
 
   /// "Nereden yattım?" — hata hangi karar noktasından? Kilit anındaki KAYITLI
   /// sinyallerle kıyaslanır; kayıt yoksa "kaydı yok" denir, uydurulmaz.
@@ -372,8 +367,9 @@ class _CouponResultScreenState extends State<CouponResultScreen> {
           children: [
             Text(
               'Nereden yattım? (${ev.misses.length} maç)',
-              style:
-                  studioFont(700).copyWith(color: S.bad, fontSize: o.t.metin),
+              style: studioFont(
+                700,
+              ).copyWith(color: S.bad, fontSize: o.t.metin),
             ),
             for (final r in ev.misses) _yatanSatir(o, r, byNo),
           ],
@@ -424,11 +420,9 @@ class _CouponResultScreenState extends State<CouponResultScreen> {
       child: Text(
         '${r.no}. $ad: Sen ${_resmi(r.outcomes.join())} seçmiştin, sonuç $actual geldi'
         '${skor != null ? ' ($skor)' : ''}. $ctx.',
-        style: studioFont(500).copyWith(
-          color: S.ink,
-          fontSize: o.t.kucuk,
-          height: 17 / o.t.kucuk,
-        ),
+        style: studioFont(
+          500,
+        ).copyWith(color: S.ink, fontSize: o.t.kucuk, height: 17 / o.t.kucuk),
       ),
     );
   }
@@ -454,16 +448,23 @@ class _CouponResultScreenState extends State<CouponResultScreen> {
       k: o.k,
       zebra: i % 2 == 1,
       sira: item.no ?? '',
-      home: (m?['home'] as Map?)?['mediumName'] as String? ??
+      home:
+          (m?['home'] as Map?)?['mediumName'] as String? ??
           (m?['home'] as Map?)?['name'] as String?,
-      away: (m?['away'] as Map?)?['mediumName'] as String? ??
+      away:
+          (m?['away'] as Map?)?['mediumName'] as String? ??
           (m?['away'] as Map?)?['name'] as String?,
       homeLogo: (m?['home'] as Map?)?['logo'] as String?,
       awayLogo: (m?['away'] as Map?)?['logo'] as String?,
       alt: Wrap(
         spacing: SP.sm,
         children: [
-          AltBilgi(k: o.k, text: 'Sen ${sen ?? '—'}', color: senRenk, sayi: true),
+          AltBilgi(
+            k: o.k,
+            text: 'Sen ${sen ?? '—'}',
+            color: senRenk,
+            sayi: true,
+          ),
           AltBilgi(k: o.k, text: 'Sistem ${sys ?? '—'}', sayi: true),
           AltBilgi(k: o.k, text: 'Radar ${radar ?? '—'}', sayi: true),
           if (o.dar && skor != null)

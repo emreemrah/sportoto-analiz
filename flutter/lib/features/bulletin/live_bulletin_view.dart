@@ -114,19 +114,19 @@ class LiveBulletinView extends StatelessWidget {
                     subtitle!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 11.5,
                       fontWeight: AppFont.bold,
                     ),
                   ),
                 ),
-              const ScoreLegend(),
+              ScoreLegend(),
             ],
           ),
         ),
         if (liste.isEmpty)
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.only(top: 30),
               child: Text(

@@ -72,9 +72,17 @@ class _CouponPickBlockState extends State<CouponPickBlock> {
         children: [
           Row(
             children: [
-              const Expanded(
+              // BAŞLIK İKONU VEKTÖR (kullanıcı isteği, 2026-08-12): emojiyken
+              // yazı `primary` alırken bilet sabit renkte kalıyordu.
+              Icon(
+                Icons.confirmation_number_outlined,
+                size: 13,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 5),
+              Expanded(
                 child: Text(
-                  '🎟️ KUPONA İŞLE',
+                  'KUPONA İŞLE',
                   style: TextStyle(
                     color: AppColors.primary,
                     fontSize: 11,
@@ -97,10 +105,10 @@ class _CouponPickBlockState extends State<CouponPickBlock> {
                       color: AppColors.primary,
                       borderRadius: AppRadius.smR,
                     ),
-                    child: const Text(
+                    child: Text(
                       'Kupon Oluştur ›',
                       style: TextStyle(
-                        color: AppColors.white,
+                        color: AppColors.onPrimary,
                         fontSize: 10.5,
                         fontWeight: AppFont.black,
                       ),
@@ -144,15 +152,28 @@ class _CouponPickBlockState extends State<CouponPickBlock> {
                           borderRadius: AppRadius.smR,
                           border: Border.all(color: AppColors.border),
                         ),
-                        child: const Text(
-                          '⚙ Sistemden al',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 10.5,
-                            fontWeight: AppFont.black,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.settings_suggest_outlined,
+                              size: 13,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                'Sistemden al',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 10.5,
+                                  fontWeight: AppFont.black,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -190,10 +211,10 @@ class _CouponPickBlockState extends State<CouponPickBlock> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (on) ...[
-                const Text(
+                Text(
                   '✓',
                   style: TextStyle(
-                    color: AppColors.white,
+                    color: AppColors.onPrimary,
                     fontSize: 11,
                     fontWeight: AppFont.black,
                   ),
@@ -203,7 +224,7 @@ class _CouponPickBlockState extends State<CouponPickBlock> {
               Text(
                 o,
                 style: TextStyle(
-                  color: on ? AppColors.white : AppColors.textSoft,
+                  color: on ? AppColors.onPrimary : AppColors.textSoft,
                   fontSize: 14,
                   fontWeight: AppFont.black,
                 ),

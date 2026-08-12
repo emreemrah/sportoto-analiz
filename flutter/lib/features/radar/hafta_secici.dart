@@ -136,7 +136,7 @@ class HaftaSecici extends StatelessWidget {
                       metin: w.ad,
                       // Sağdaki işaret: güncel mi, mühürlü mü. Mühür "sonradan
                       // değişmez" güvencesidir, gizlenmez.
-                      meta: w.guncel ? 'Güncel' : (w.kilitli ? '🔏' : ''),
+                      meta: w.guncel ? 'Güncel' : (w.kilitli ? 'Kilitli' : ''),
                       secili:
                           selectedId != null &&
                           w.roundId == num.tryParse('$selectedId'),
@@ -175,7 +175,7 @@ class HaftaSecici extends StatelessWidget {
         children: [
           Text(
             metin,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 13.5,
               fontWeight: AppFont.heavy,
@@ -188,7 +188,7 @@ class HaftaSecici extends StatelessWidget {
           Text(
             acikMi ? '▲' : '▼',
             key: okKey,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.primary,
               fontSize: 11,
               fontWeight: AppFont.black,
@@ -229,7 +229,7 @@ class HaftaSecici extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 16),
       decoration: BoxDecoration(
         color: secili ? AppColors.primarySoft : Colors.transparent,
-        border: const Border(bottom: BorderSide(color: AppColors.border)),
+        border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -245,7 +245,7 @@ class HaftaSecici extends StatelessWidget {
           const SizedBox(width: 12),
           Text(
             meta,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textMuted,
               fontSize: 11,
               fontWeight: AppFont.bold,

@@ -68,7 +68,6 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
     final list = (_data?['blocks'] as List?) ?? const [];
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
       appBar: AppBar(title: const Text('Engellenen Kullanıcılar')),
       body: ScreenBackdrop(
         child: RefreshIndicator(
@@ -77,7 +76,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
           child: ListView(
             padding: const EdgeInsets.all(Spacing.lg),
             children: [
-              const Text(
+              Text(
                 'Engellenen Kullanıcılar',
                 style: TextStyle(
                   color: AppColors.text,
@@ -86,7 +85,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Engellediğin kişilerin yorumlarını görmezsin, onlar da seninkileri göremez. '
                 'Engellediğin kişiye bildirim gitmez. İstediğin zaman engeli kaldırabilirsin.',
                 style: TextStyle(
@@ -109,7 +108,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
                   ),
                 ),
               if (_data == null && _err == null)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: Spacing.lg),
                   child: Center(
                     child: CircularProgressIndicator(color: AppColors.primary),
@@ -117,7 +116,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
                 ),
               for (final b in list) _satir((b as Map).cast<String, dynamic>()),
               if (_data != null && list.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: Spacing.md),
                   child: Text(
                     'Engellediğin kimse yok. Bir kullanıcıyı, yorumunun altındaki “Engelle” '
@@ -167,7 +166,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
                   '${b['username']}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 14.5,
                     fontWeight: AppFont.heavy,
@@ -177,7 +176,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
                   padding: const EdgeInsets.only(top: 3),
                   child: Text(
                     'Engellendi: ${trTarih(b['createdAt'])}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 11.5,
                     ),
@@ -196,7 +195,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
                 border: Border.all(color: AppColors.primary),
               ),
               child: _busyId == id
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 14,
                       height: 14,
                       child: CircularProgressIndicator(
@@ -204,7 +203,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
                         color: AppColors.primary,
                       ),
                     )
-                  : const Text(
+                  : Text(
                       'Engeli Kaldır',
                       style: TextStyle(
                         color: AppColors.primary,

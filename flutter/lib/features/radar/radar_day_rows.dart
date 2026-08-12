@@ -53,7 +53,7 @@ class _SatirBasi extends StatelessWidget {
         child: Text(
           '${item['no']}',
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textMuted,
             fontSize: 15,
             fontWeight: AppFont.heavy,
@@ -66,7 +66,7 @@ class _SatirBasi extends StatelessWidget {
           '${item['home']} – ${item['away']}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 14,
             fontWeight: AppFont.heavy,
@@ -112,7 +112,7 @@ class OddsTriple extends StatelessWidget {
       children: [
         Text(
           lbl,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textMuted,
             fontSize: 11,
             fontWeight: AppFont.black,
@@ -121,7 +121,7 @@ class OddsTriple extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           _fmtOdd(v),
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 14,
             fontWeight: AppFont.black,
@@ -193,7 +193,7 @@ class MarketRow extends StatelessWidget {
                     prev != null
                         ? 'Bir önceki güne göre değişim'
                         : 'İlk kayıtlı gün (kıyas yok)',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 10,
                       fontWeight: AppFont.bold,
@@ -216,10 +216,7 @@ class MarketRow extends StatelessWidget {
                 opacity: 0.85,
                 child: Text(
                   '${why!['detail']}',
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 11,
-                  ),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 11),
                 ),
               ),
             ),
@@ -335,13 +332,15 @@ class PublicRow extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: providerColor(pv),
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0x2E000000)),
+                      border: Border.all(
+                        color: AppColors.text.withValues(alpha: 0.18),
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 if (c == null)
-                  const Text(
+                  Text(
                     'bu gün kayıt yok',
                     style: TextStyle(
                       color: AppColors.textMuted,
@@ -367,7 +366,7 @@ class PublicRow extends StatelessWidget {
                           ),
                         Text(
                           acik ? '▾' : '›',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textMuted,
                             fontSize: 13,
                             fontWeight: AppFont.black,
@@ -387,7 +386,7 @@ class PublicRow extends StatelessWidget {
 
   Widget _yuzde(String k, Object? v, Yon? a) => RichText(
     text: TextSpan(
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textSoft,
         fontSize: 13,
         fontWeight: AppFont.heavy,
@@ -432,7 +431,7 @@ class _Yok extends StatelessWidget {
     padding: const EdgeInsets.only(top: 6, left: 34),
     child: Text(
       metin,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textMuted,
         fontSize: 12,
         fontStyle: FontStyle.italic,

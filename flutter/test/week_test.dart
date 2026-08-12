@@ -50,9 +50,7 @@ void main() {
     });
 
     test('güçlü aday yoksa liste BOŞ — zorla doldurulmaz', () {
-      final s = buildWeekSummary([
-        _mac(no: 1, label: 'DENK', favPercent: 40),
-      ]);
+      final s = buildWeekSummary([_mac(no: 1, label: 'DENK', favPercent: 40)]);
       expect(s.strong, isEmpty);
       expect(s.surprises, isEmpty);
     });
@@ -86,10 +84,14 @@ void main() {
     });
 
     test('geçmiş tarihli maç started bayrağı olmasa da başlamış sayılır', () {
-      final s = buildWeekSummary(
-        [_mac(no: 1, label: 'BANKO', favPercent: 90, date: '2020-01-01T12:00:00')],
-        now: DateTime(2026, 8, 9).millisecondsSinceEpoch,
-      );
+      final s = buildWeekSummary([
+        _mac(
+          no: 1,
+          label: 'BANKO',
+          favPercent: 90,
+          date: '2020-01-01T12:00:00',
+        ),
+      ], now: DateTime(2026, 8, 9).millisecondsSinceEpoch);
       expect(s.strong, isEmpty);
       expect(s.startedCount, 1);
     });
@@ -132,7 +134,10 @@ void main() {
 
   group('Takım adı', () {
     test('uzundan kısaya düşer', () {
-      expect(takimAdi({'mediumName': 'Galatasaray', 'name': 'GS'}), 'Galatasaray');
+      expect(
+        takimAdi({'mediumName': 'Galatasaray', 'name': 'GS'}),
+        'Galatasaray',
+      );
       expect(takimAdi({'shortName': 'GS', 'name': 'Galatasaray SK'}), 'GS');
       expect(takimAdi({'name': 'Galatasaray SK'}), 'Galatasaray SK');
     });
@@ -147,7 +152,12 @@ void main() {
   group('Hafta Kapanışı — resmî sonuç şartı', () {
     test('yalnız result VARSA yetmez, score da şart', () {
       expect(isOfficiallyResolved({'result': '1'}), isFalse);
-      expect(isOfficiallyResolved({'score': {'home': 1, 'away': 0}}), isFalse);
+      expect(
+        isOfficiallyResolved({
+          'score': {'home': 1, 'away': 0},
+        }),
+        isFalse,
+      );
       expect(
         isOfficiallyResolved({
           'result': '1',
@@ -196,9 +206,14 @@ void main() {
     ];
 
     test('sonuç yoksa karne ÜRETİLMEZ', () {
-      final r = buildWeekRecap(matches: [
-        {'no': 1, 'prediction': {'symbol': '1'}},
-      ]);
+      final r = buildWeekRecap(
+        matches: [
+          {
+            'no': 1,
+            'prediction': {'symbol': '1'},
+          },
+        ],
+      );
       expect(r.hasData, isFalse);
       expect(r.system, isNull);
       expect(r.user, isNull);
@@ -207,7 +222,10 @@ void main() {
 
     test('kupon yoksa kullanıcı karnesi UYDURULMAZ, sistem yine ölçülür', () {
       final r = buildWeekRecap(
-        matches: mac([(no: 1, result: '1', sys: '1'), (no: 2, result: '2', sys: '1')]),
+        matches: mac([
+          (no: 1, result: '1', sys: '1'),
+          (no: 2, result: '2', sys: '1'),
+        ]),
       );
       expect(r.user, isNull);
       expect(r.system!.made, 2);
@@ -226,8 +244,14 @@ void main() {
           (no: 3, result: 'X', sys: '-'), // sistem tahmini YOK
         ]),
         selections: [
-          {'no': 1, 'selectedOutcomes': ['1']},
-          {'no': 3, 'selectedOutcomes': ['X']},
+          {
+            'no': 1,
+            'selectedOutcomes': ['1'],
+          },
+          {
+            'no': 3,
+            'selectedOutcomes': ['X'],
+          },
         ],
       );
       // Kullanıcı 2 maçta tahmin yaptı ama ortak olan yalnız 1 numara.
@@ -242,7 +266,10 @@ void main() {
       final r = buildWeekRecap(
         matches: mac([(no: 1, result: 'X', sys: '2')]),
         selections: [
-          {'no': 1, 'selectedOutcomes': ['1', '0']}, // '0' → 'X'
+          {
+            'no': 1,
+            'selectedOutcomes': ['1', '0'],
+          }, // '0' → 'X'
         ],
       );
       expect(r.user!.correct, 1);
@@ -260,26 +287,45 @@ void main() {
           (no: 4, result: '1', sys: '1'), // sistem bilir → system-win
         ]),
         selections: [
-          {'no': 1, 'selectedOutcomes': ['1']},
-          {'no': 2, 'selectedOutcomes': ['1']},
-          {'no': 3, 'selectedOutcomes': ['X']},
-          {'no': 4, 'selectedOutcomes': ['2']},
+          {
+            'no': 1,
+            'selectedOutcomes': ['1'],
+          },
+          {
+            'no': 2,
+            'selectedOutcomes': ['1'],
+          },
+          {
+            'no': 3,
+            'selectedOutcomes': ['X'],
+          },
+          {
+            'no': 4,
+            'selectedOutcomes': ['2'],
+          },
         ],
       );
-      expect(
-        r.highlights.map((h) => h.kind).toList(),
-        ['user-win', 'both-missed', 'system-win'],
-      );
+      expect(r.highlights.map((h) => h.kind).toList(), [
+        'user-win',
+        'both-missed',
+        'system-win',
+      ]);
     });
 
     test('başlık: tamamlanmamış haftada kaç sonuç geldiği yazılır', () {
       final r = buildWeekRecap(
         matches: [
           ...mac([(no: 1, result: '1', sys: '1')]),
-          {'no': 2, 'prediction': {'symbol': '1'}},
+          {
+            'no': 2,
+            'prediction': {'symbol': '1'},
+          },
         ],
         selections: [
-          {'no': 1, 'selectedOutcomes': ['1']},
+          {
+            'no': 1,
+            'selectedOutcomes': ['1'],
+          },
         ],
       );
       expect(r.official.complete, isFalse);
@@ -291,7 +337,10 @@ void main() {
       final r = buildWeekRecap(
         matches: mac([(no: 1, result: '1', sys: '1')]),
         selections: [
-          {'no': 1, 'selectedOutcomes': ['2']},
+          {
+            'no': 1,
+            'selectedOutcomes': ['2'],
+          },
         ],
       );
       expect(r.official.complete, isTrue);

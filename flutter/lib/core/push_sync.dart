@@ -39,8 +39,10 @@ const String kTestId = 'test:bildirim';
 const int kTestOnceSn = 60;
 
 typedef PushTercih = ({bool enabled, int onceDk});
-const PushTercih kVarsayilanTercih =
-    (enabled: false, onceDk: kVarsayilanOnceDk);
+const PushTercih kVarsayilanTercih = (
+  enabled: false,
+  onceDk: kVarsayilanOnceDk,
+);
 
 /// Cihaz katmanı sözleşmesi — testte sahte bir uygulama takılabilir.
 abstract class PushNative {
@@ -79,15 +81,15 @@ abstract class PushStore {
 /// Metin tek bir şeyi söyler: bildirim kurulumu çalıştı. Maç, tahmin, skor,
 /// puan, e-posta ya da kullanıcı adı GEÇMEZ.
 PlanItem testIcerigi({int now = 0}) => (
-      id: kTestId,
-      fireAt: now + kTestOnceSn * 1000,
-      title: 'Bildirim testi',
-      body: 'Test bildirimi başarıyla çalıştı.',
-      // Dokunulunca Bildirimler ekranı açılır. Hedefi `kind` belirler;
-      // `tab`/`screen` yalnız insan okusun diye durur, gezinmeyi serbest
-      // metin SÜRÜKLEYEMEZ.
-      data: {'tab': 'HomeTab', 'screen': 'Notifications', 'kind': kTestKind},
-    );
+  id: kTestId,
+  fireAt: now + kTestOnceSn * 1000,
+  title: 'Bildirim testi',
+  body: 'Test bildirimi başarıyla çalıştı.',
+  // Dokunulunca Bildirimler ekranı açılır. Hedefi `kind` belirler;
+  // `tab`/`screen` yalnız insan okusun diye durur, gezinmeyi serbest
+  // metin SÜRÜKLEYEMEZ.
+  data: {'tab': 'HomeTab', 'screen': 'Notifications', 'kind': kTestKind},
+);
 
 /// Yalnız BİZİM kurduğumuz maç hatırlatmaları.
 bool bizimMac(({String id, int fireAt, String kind}) r) =>
@@ -106,10 +108,10 @@ bool bizimTestMac(({String id, int fireAt, String kind}) r) =>
 /// Cihazdan okunan kayıtlardan maç hatırlatmalarını çıkarır.
 List<({String id, int fireAt})> ayikla(
   List<({String id, int fireAt, String kind})>? list,
-) =>
-    [
-      for (final r in list ?? const []) if (bizimMac(r)) (id: r.id, fireAt: r.fireAt),
-    ];
+) => [
+  for (final r in list ?? const [])
+    if (bizimMac(r)) (id: r.id, fireAt: r.fireAt),
+];
 
 /// Cihazdaki test kaydı (yoksa null).
 ({String id, int fireAt})? testKaydi(
@@ -304,7 +306,8 @@ Future<PushDurumOzet> durumOku({
     await hepsiniIptal(nat);
   }
 
-  final hepsi = u.degisti ? const <({String id, int fireAt, String kind})>[]
+  final hepsi = u.degisti
+      ? const <({String id, int fireAt, String kind})>[]
       : await _guvenliKurulular(nat!);
   return (
     destek: true,
@@ -349,14 +352,14 @@ Future<SenkronSonuc> macSenkron({
   List? coupons,
 }) async {
   SenkronSonuc bos(String durum, {int iptal = 0}) => (
-        durum: durum,
-        kuruldu: 0,
-        iptal: iptal,
-        denenen: 0,
-        dogrulanan: 0,
-        plan: 0,
-        atlanan: null,
-      );
+    durum: durum,
+    kuruldu: 0,
+    iptal: iptal,
+    denenen: 0,
+    dogrulanan: 0,
+    plan: 0,
+    atlanan: null,
+  );
 
   if (nat == null || !nat.destek) return bos('unsupported');
 
@@ -414,7 +417,7 @@ Future<SenkronSonuc> macSenkron({
 /// Ayardan aç/kapat. Açarken sistem izni SORULUR; izin verilmezse tercih
 /// AÇILMAZ.
 Future<({bool enabled, String izin, SenkronSonuc? senkron, int iptal})>
-    ayariDegistir({
+ayariDegistir({
   required PushNative? nat,
   required PushStore store,
   bool ac = false,
@@ -541,13 +544,13 @@ Future<TestMacSonuc> testMacKur({
   Map? bulletin,
 }) async {
   TestMacSonuc bos(String izin, String neden) => (
-        ok: false,
-        izin: izin,
-        saniye: kTestMacOnceSn,
-        fireAt: 0,
-        mac: null,
-        neden: neden,
-      );
+    ok: false,
+    izin: izin,
+    saniye: kTestMacOnceSn,
+    fireAt: 0,
+    mac: null,
+    neden: neden,
+  );
 
   if (nat == null || !nat.destek) return bos('unsupported', 'destek-yok');
 

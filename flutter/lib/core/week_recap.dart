@@ -135,8 +135,7 @@ WeekRecap buildWeekRecap({List? matches, List? selections}) {
       : null;
 
   // ADİL KARŞILAŞTIRMA — yalnız ikisinin de tahmin yaptığı maçlar.
-  final common =
-      rows.where((r) => r.system != null && r.user != null).toList();
+  final common = rows.where((r) => r.system != null && r.user != null).toList();
   Head2Head? head2head;
   if (common.isNotEmpty) {
     final u = common.where((r) => r.user!.hit).length;
@@ -175,8 +174,9 @@ WeekRecap buildWeekRecap({List? matches, List? selections}) {
   highlights.sort((a, b) {
     final k = (order[a.kind] ?? 9).compareTo(order[b.kind] ?? 9);
     if (k != 0) return k;
-    return (int.tryParse('${a.row.no}') ?? 0)
-        .compareTo(int.tryParse('${b.row.no}') ?? 0);
+    return (int.tryParse('${a.row.no}') ?? 0).compareTo(
+      int.tryParse('${b.row.no}') ?? 0,
+    );
   });
 
   final total = all.length;

@@ -49,8 +49,11 @@ void main() {
       // `--dart-define=API_BASE` üstlendiği için mesaj o ada göre değişti.
       // Kuralın kendisi ve testin amacı AYNI.
       throwsA(
-        isA<ApiBaseConfigError>()
-            .having((e) => e.message, 'mesaj', contains('API_BASE')),
+        isA<ApiBaseConfigError>().having(
+          (e) => e.message,
+          'mesaj',
+          contains('API_BASE'),
+        ),
       ),
     );
 
@@ -61,17 +64,19 @@ void main() {
     );
   });
 
-  test('yayın: geçerli HTTPS adresi kabul edilir, sondaki eğik çizgi temizlenir',
-      () {
-    expect(
-      resolveApiBase(
-        envBase: 'https://api.ornek.com/',
-        isDev: false,
-        platform: ApiPlatform.android,
-      ),
-      'https://api.ornek.com',
-    );
-  });
+  test(
+    'yayın: geçerli HTTPS adresi kabul edilir, sondaki eğik çizgi temizlenir',
+    () {
+      expect(
+        resolveApiBase(
+          envBase: 'https://api.ornek.com/',
+          isDev: false,
+          platform: ApiPlatform.android,
+        ),
+        'https://api.ornek.com',
+      );
+    },
+  );
 
   test('geliştirme: yerel davranış korunur', () {
     expect(

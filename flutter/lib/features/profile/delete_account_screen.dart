@@ -126,7 +126,6 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.bg,
     appBar: AppBar(title: const Text('Hesabımı Sil')),
     body: ScreenBackdrop(
       child: ListView(
@@ -137,7 +136,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
           Spacing.xl * 2,
         ),
         children: [
-          const Text(
+          Text(
             'Hesabımı Sil',
             style: TextStyle(
               color: AppColors.text,
@@ -146,7 +145,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Bu işlem geri alınamaz. Hesabın pasife alınmaz, kalıcı olarak silinir.',
             style: TextStyle(
               color: AppColors.textMuted,
@@ -178,7 +177,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
               // Onay ifadesi metnin İÇİNDE vurgulu geçer — kullanıcı ne
               // yazacağını ayrı bir yerden aramak zorunda kalmaz.
               RichText(
-                text: const TextSpan(
+                text: TextSpan(
                   style: TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 13,
@@ -265,7 +264,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                 borderRadius: BorderRadius.circular(AppRadius.md),
                 border: Border.all(color: AppColors.border),
               ),
-              child: const Text(
+              child: Text(
                 'Vazgeç',
                 style: TextStyle(
                   color: AppColors.textMuted,
@@ -327,7 +326,7 @@ class _Madde extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     '•  $metin',
-    style: const TextStyle(
+    style: TextStyle(
       color: AppColors.textMuted,
       fontSize: 13.5,
       height: 21 / 13.5,
@@ -345,7 +344,7 @@ class _Not extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: 8),
     child: Text(
       metin,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textMuted,
         fontSize: 13,
         height: 19 / 13,
@@ -384,7 +383,7 @@ class _Girdi extends StatelessWidget {
       // bozulmasın diye akıllı tırnak/nokta da kapatılır.
       smartDashesType: SmartDashesType.disabled,
       smartQuotesType: SmartQuotesType.disabled,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.text,
         fontSize: 15,
         fontWeight: AppFont.heavy,
@@ -393,7 +392,7 @@ class _Girdi extends StatelessWidget {
       onChanged: onChanged,
       decoration: InputDecoration(
         hintText: placeholder,
-        hintStyle: const TextStyle(
+        hintStyle: TextStyle(
           color: AppColors.textMuted,
           fontWeight: AppFont.heavy,
         ),
@@ -404,19 +403,19 @@ class _Girdi extends StatelessWidget {
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.sm),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.sm),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.sm),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.sm),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.border),
         ),
       ),
     ),

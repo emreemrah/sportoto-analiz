@@ -76,7 +76,6 @@ class _KriterKirilimScreenState extends ConsumerState<KriterKirilimScreen> {
     final toplam = tumMaclar.length;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -85,7 +84,7 @@ class _KriterKirilimScreenState extends ConsumerState<KriterKirilimScreen> {
             _araclar(),
             Expanded(
               child: async.when(
-                loading: () => const Center(
+                loading: () => Center(
                   child: CircularProgressIndicator(color: AppColors.primary),
                 ),
                 error: (e, _) => Padding(
@@ -113,7 +112,7 @@ class _KriterKirilimScreenState extends ConsumerState<KriterKirilimScreen> {
       horizontal: Spacing.md,
       vertical: Spacing.sm,
     ),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       color: AppColors.surface,
       border: Border(bottom: BorderSide(color: AppColors.border)),
     ),
@@ -125,7 +124,7 @@ class _KriterKirilimScreenState extends ConsumerState<KriterKirilimScreen> {
           child: GestureDetector(
             onTap: () => Navigator.of(context).maybePop(),
             behavior: HitTestBehavior.opaque,
-            child: const SizedBox(
+            child: SizedBox(
               width: 34,
               height: 34,
               child: Center(
@@ -151,7 +150,7 @@ class _KriterKirilimScreenState extends ConsumerState<KriterKirilimScreen> {
                 '${veri?['ad'] ?? widget.ad ?? widget.kriterKey}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.text,
                   fontSize: 15,
                   fontWeight: AppFont.black,
@@ -159,7 +158,7 @@ class _KriterKirilimScreenState extends ConsumerState<KriterKirilimScreen> {
               ),
               Text(
                 toplam > 0 ? '$toplam maçta $tuttu' : 'ölçülebilir maç yok',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 11.5,
                   fontWeight: AppFont.bold,
@@ -178,7 +177,7 @@ class _KriterKirilimScreenState extends ConsumerState<KriterKirilimScreen> {
       right: Spacing.md,
       bottom: 8,
     ),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       color: AppColors.surface,
       border: Border(bottom: BorderSide(color: AppColors.border)),
     ),
@@ -244,7 +243,7 @@ class _KriterKirilimScreenState extends ConsumerState<KriterKirilimScreen> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: acik ? AppColors.white : AppColors.textSoft,
+            color: acik ? AppColors.onPrimary : AppColors.textSoft,
             fontSize: buyuk ? 12.5 : 11,
             fontWeight: buyuk ? AppFont.heavy : AppFont.bold,
           ),
@@ -268,7 +267,7 @@ class _KriterKirilimScreenState extends ConsumerState<KriterKirilimScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (maclar.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text(
                 'Bu süzgeçle maç yok.',
@@ -282,10 +281,7 @@ class _KriterKirilimScreenState extends ConsumerState<KriterKirilimScreen> {
               padding: const EdgeInsets.only(top: 8),
               child: Text(
                 '$kesildi eski maç listeye sığmadı.',
-                style: const TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
               ),
             ),
         ],
@@ -358,12 +354,12 @@ class _KriterKirilimScreenState extends ConsumerState<KriterKirilimScreen> {
 
   Widget _satir(Map m) {
     final dogru = m['dogru'] == true;
-    const etiket = TextStyle(
+    final etiket = TextStyle(
       color: AppColors.textMuted,
       fontSize: 10.5,
       fontWeight: AppFont.semibold,
     );
-    const bilgi = TextStyle(
+    final bilgi = TextStyle(
       color: AppColors.text,
       fontSize: 11.5,
       fontWeight: AppFont.bold,
@@ -388,7 +384,7 @@ class _KriterKirilimScreenState extends ConsumerState<KriterKirilimScreen> {
                   width: 18,
                   child: Text(
                     _d(m['no']),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 11,
                       fontWeight: AppFont.black,
@@ -401,7 +397,7 @@ class _KriterKirilimScreenState extends ConsumerState<KriterKirilimScreen> {
                     '${m['ev'] ?? '—'} – ${m['deplasman'] ?? '—'}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.text,
                       fontSize: 12.5,
                       fontWeight: AppFont.heavy,
@@ -430,7 +426,7 @@ class _KriterKirilimScreenState extends ConsumerState<KriterKirilimScreen> {
             text: TextSpan(
               style: bilgi,
               children: [
-                const TextSpan(text: 'Oran ', style: etiket),
+                TextSpan(text: 'Oran ', style: etiket),
                 TextSpan(
                   text: _uclu(m['oran'] as Map?, const [
                     'home',
@@ -438,7 +434,7 @@ class _KriterKirilimScreenState extends ConsumerState<KriterKirilimScreen> {
                     'away',
                   ]),
                 ),
-                const TextSpan(text: '   Oynanma ', style: etiket),
+                TextSpan(text: '   Oynanma ', style: etiket),
                 TextSpan(
                   text: _uclu(m['oynanma'] as Map?, const ['1', 'X', '2']),
                 ),
@@ -451,9 +447,9 @@ class _KriterKirilimScreenState extends ConsumerState<KriterKirilimScreen> {
             text: TextSpan(
               style: bilgi,
               children: [
-                const TextSpan(text: 'Kriter ', style: etiket),
+                TextSpan(text: 'Kriter ', style: etiket),
                 TextSpan(text: _d(m['sinyal'])),
-                const TextSpan(text: '   Sonuç ', style: etiket),
+                TextSpan(text: '   Sonuç ', style: etiket),
                 TextSpan(text: _d(m['sonuc'])),
                 if (m['skor'] != null)
                   TextSpan(text: '  ${m['skor']}', style: etiket),

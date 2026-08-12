@@ -91,7 +91,8 @@ Future<LoadedNotifications> loadNotifications({int? now}) async {
     }
   }
 
-  final gRound = bulletin?['roundId'] ??
+  final gRound =
+      bulletin?['roundId'] ??
       (bulletin?['round'] is Map ? (bulletin!['round'] as Map)['id'] : null) ??
       guncelId;
   List coupons = const [];
@@ -102,8 +103,7 @@ Future<LoadedNotifications> loadNotifications({int? now}) async {
   }
 
   // İlk kurulum: geçmişe dönük bildirim yağmuru olmasın diye durum tohumlanır.
-  final ilkKez =
-      state['lastPoints'] == null && state['knownRoundIds'] is! List;
+  final ilkKez = state['lastPoints'] == null && state['knownRoundIds'] is! List;
   if (ilkKez) {
     await writeState(seedState(now: simdi, bulletin: bulletin));
     return (
@@ -136,7 +136,8 @@ Future<LoadedNotifications> loadNotifications({int? now}) async {
 /// null döner ve hiçbir hatırlatma kurulmaz — uydurma yapılmaz.
 Future<({Map? bulletin, List coupons})> loadPushInputs() async {
   final bulletin = await _safe(api.bulletin()) as Map?;
-  final gRound = bulletin?['roundId'] ??
+  final gRound =
+      bulletin?['roundId'] ??
       (bulletin?['round'] is Map ? (bulletin!['round'] as Map)['id'] : null);
   List coupons = const [];
   try {

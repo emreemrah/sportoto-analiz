@@ -85,7 +85,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
     final b = _bulletin;
 
     if (_loading && b == null) {
-      return _kabuk(const LoadingState(message: 'Bülten detayı yükleniyor…'));
+      return _kabuk(LoadingState(message: 'Bülten detayı yükleniyor…'));
     }
     if (_error != null) {
       return _kabuk(
@@ -119,7 +119,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(Spacing.lg),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.card,
               border: Border(bottom: BorderSide(color: AppColors.border)),
             ),
@@ -128,7 +128,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
               children: [
                 Text(
                   'Bülten ${b['bulletinNo']}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 18,
                     fontWeight: AppFont.heavy,
@@ -137,10 +137,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
                 const SizedBox(height: 2),
                 Text(
                   altSatir.toString(),
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 12.5,
-                  ),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 12.5),
                 ),
                 if (sealed)
                   Padding(
@@ -173,7 +170,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
             ),
           ),
           if (b['_demo'] == true)
-            const DemoDataBanner(
+            DemoDataBanner(
               note:
                   'Arşiv sunucusuna ulaşılamadı — bu bülten detayı ÖRNEK veridir, gerçek Spor Toto bülteni/sonucu değildir.',
             ),
@@ -189,10 +186,9 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
   }
 
   Widget _kabuk(Widget govde) => Scaffold(
-        backgroundColor: AppColors.bg,
-        appBar: AppBar(title: const Text('Bülten Detayı')),
-        body: govde,
-      );
+    appBar: AppBar(title: const Text('Bülten Detayı')),
+    body: govde,
+  );
 
   Widget _icerik(Map<String, dynamic> b, Map<String, dynamic>? snap) =>
       switch (_tab) {
@@ -230,7 +226,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
       return SingleChildScrollView(
         padding: _listPad,
         child: EmptyState(
-          icon: '🔒',
+          icon: Icons.lock_outline,
           title: 'Analiz henüz mühürlenmedi',
           message: f != null
               ? 'Analizler ${f.day} ${f.time} itibarıyla (ilk maçtan 5 dk önce) kilitlenecek ve arşive mühürlenecek.'
@@ -247,9 +243,9 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
 
     final not = snap['isLocked'] == true
         ? '🔏 Mühürlü Analiz${lockD != null ? ' · ${lockD.day} ${lockD.time}' : ''} '
-            '— maçlar başlamadan önce donduruldu; bu bültenin tahmin ve analizleri '
-            'değiştirilemez. Sonradan gelen skor/istatistik bu kayda işlemez.'
-            '${shortHash != null ? ' Doğrulama: #$shortHash' : ''}'
+              '— maçlar başlamadan önce donduruldu; bu bültenin tahmin ve analizleri '
+              'değiştirilemez. Sonradan gelen skor/istatistik bu kayda işlemez.'
+              '${shortHash != null ? ' Doğrulama: #$shortHash' : ''}'
         : '🔓 Analiz henüz düzenlenebilir (ilk maç başlamadı).';
 
     return ListView.builder(
@@ -261,7 +257,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
             padding: const EdgeInsets.only(bottom: Spacing.sm),
             child: Text(
               not,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 12,
                 fontStyle: FontStyle.italic,
@@ -285,25 +281,22 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
 
   /// ESKİ demo kupon akışı KALDIRILDI. Kuponlar artık tek yerden, GERÇEK
   /// veriyle çalışan Kupon Merkezi'nden yönetilir (alt bar → Kuponlarım).
-  Widget _kuponSekmesi() => const SingleChildScrollView(
-        padding: _listPad,
-        child: EmptyState(
-          icon: '🎟️',
-          title: "Kuponlar Kupon Merkezi'nde",
-          message:
-              'Kupon oluşturma, sonuç ve paylaşım artık alt bardaki Kuponlarım (Kupon Merkezi) bölümünde — gerçek veriyle çalışır, demo kupon üretilmez.',
-        ),
-      );
+  Widget _kuponSekmesi() => SingleChildScrollView(
+    padding: _listPad,
+    child: EmptyState(
+      icon: Icons.confirmation_number_outlined,
+      title: "Kuponlar Kupon Merkezi'nde",
+      message:
+          'Kupon oluşturma, sonuç ve paylaşım artık alt bardaki Kuponlarım (Kupon Merkezi) bölümünde — gerçek veriyle çalışır, demo kupon üretilmez.',
+    ),
+  );
 
-  Widget _sonuclarSekmesi(
-    Map<String, dynamic> b,
-    Map<String, dynamic>? snap,
-  ) {
+  Widget _sonuclarSekmesi(Map<String, dynamic> b, Map<String, dynamic>? snap) {
     if (snap == null) {
-      return const SingleChildScrollView(
+      return SingleChildScrollView(
         padding: _listPad,
         child: EmptyState(
-          icon: '📭',
+          icon: Icons.inbox_outlined,
           title: 'Sonuç yok',
           message: 'Bu hafta için analiz/sonuç kaydı yok.',
         ),
@@ -318,10 +311,10 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
     ];
 
     if (rows.isEmpty) {
-      return const SingleChildScrollView(
+      return SingleChildScrollView(
         padding: _listPad,
         child: EmptyState(
-          icon: '⏳',
+          icon: Icons.hourglass_empty,
           title: 'Resmî sonuçlar henüz açıklanmadı',
           message:
               'Resmî 90 dakika sonuçları (1/X/2) geldikçe burada görünecek.',
@@ -345,7 +338,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
               'verisiyle MÜHÜRLENMİŞ hali; sağdaki sonuçlar resmî Spor Toto 90 dk '
               'sonucudur. İkisi ayrı kayıtlarda tutulur — sonuç, analizi geriye '
               'dönük değiştirmez.',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 12,
                 fontStyle: FontStyle.italic,
@@ -371,8 +364,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
           homeTeam: (match?['homeTeam'] as Map?)?['name'] as String?,
           awayTeam: (match?['awayTeam'] as Map?)?['name'] as String?,
           userPick: null,
-          systemPick:
-              (item['anaTahmin'] ?? item['prediction']) as String?,
+          systemPick: (item['anaTahmin'] ?? item['prediction']) as String?,
           actualResult: ri['actualResult'] as String?,
           isCorrect: ri['anaTahminCorrect'] as bool?,
         );
@@ -382,10 +374,10 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
 
   Widget _sistemKarnesiSekmesi(Map<String, dynamic>? snap) {
     if (snap == null) {
-      return const SingleChildScrollView(
+      return SingleChildScrollView(
         padding: _listPad,
         child: EmptyState(
-          icon: '📊',
+          icon: Icons.bar_chart,
           title: 'Veri yok',
           message: 'Bu bülten için sistem karnesi oluşmadı.',
         ),
@@ -405,10 +397,10 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
     ];
 
     if (resolved.isEmpty) {
-      return const SingleChildScrollView(
+      return SingleChildScrollView(
         padding: _listPad,
         child: EmptyState(
-          icon: '⏳',
+          icon: Icons.hourglass_empty,
           title: 'Henüz sonuç yok',
           message: 'Maçlar sonuçlandıkça sistem karnesi burada oluşacak.',
         ),

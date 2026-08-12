@@ -32,6 +32,7 @@ import '../../widgets/kayan_serit.dart';
 import '../../widgets/ulke_etiketi.dart';
 import '../bulletin/bulletin_providers.dart';
 import 'lig_seridi.dart';
+import '../../widgets/takim_logo_zemin.dart';
 
 // SÜRPRİZ SKORU EŞİKLERİ — TEK KAYNAK. Hem filtreyi hem etiketi bunlar besler.
 // Ayrı yazılırlarsa biri değişip diğeri kalır ve ekran yalan söyler: "Öne Çıkan
@@ -138,130 +139,134 @@ class HomeScreen extends ConsumerWidget {
     }, onceki);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
-          color: AppColors.accent,
-          onRefresh: () async {
-            ref.invalidate(bulletinProvider);
-            ref.invalidate(_oncekiHaftaProvider);
-            await ref.read(bulletinProvider.future);
-          },
-          child: ListView(
-            padding: const EdgeInsets.only(bottom: Spacing.xl + 12),
-            children: [
-              _Header(data: data),
-              _HeroCard(
-                data: data,
-                loading: data == null && error == null,
-                onBulteniAc: () => GoRouter.of(context).go('/bulten'),
-                onOzet: () => context.push('/ana-sayfa/hafta-ozeti'),
-                onKapanis: () => context.push('/ana-sayfa/hafta-kapanisi'),
-              ),
+      body: filigranli(
+        SafeArea(
+          bottom: false,
+          child: RefreshIndicator(
+            color: AppColors.accent,
+            onRefresh: () async {
+              ref.invalidate(bulletinProvider);
+              ref.invalidate(_oncekiHaftaProvider);
+              await ref.read(bulletinProvider.future);
+            },
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: Spacing.xl + 12),
+              children: [
+                _Header(data: data),
+                _HeroCard(
+                  data: data,
+                  loading: data == null && error == null,
+                  onBulteniAc: () => GoRouter.of(context).go('/bulten'),
+                  onOzet: () => context.push('/ana-sayfa/hafta-ozeti'),
+                  onKapanis: () => context.push('/ana-sayfa/hafta-kapanisi'),
+                ),
 
-              // Bu haftanın ülkeleri: bayrak + ad, kayan tek satır. Bülten
-              // yokken bileşen hiç çizilmez (boş çubuk bırakmaz).
-              LigSeridi(matches: data?['matches'] as List?),
+                // Bu haftanın ülkeleri: bayrak + ad, kayan tek satır. Bülten
+                // yokken bileşen hiç çizilmez (boş çubuk bırakmaz).
+                LigSeridi(matches: data?['matches'] as List?),
 
-              // YAKLAŞAN MAÇLAR — konum kullanıcı isteğiyle "Öne Çıkan
-              // Analizler"in ÜSTÜNDE: önce "ne zaman ne oynanıyor", sonra
-              // "hangisi ilginç".
-              if (upcoming.isNotEmpty) ...[
+                // YAKLAŞAN MAÇLAR — konum kullanıcı isteğiyle "Öne Çıkan
+                // Analizler"in ÜSTÜNDE: önce "ne zaman ne oynanıyor", sonra
+                // "hangisi ilginç".
+                if (upcoming.isNotEmpty) ...[
+                  _SectionHead(
+                    title: 'Yaklaşan Maçlar',
+                    right: 'Tümünü Gör ›',
+                    onTap: () => GoRouter.of(context).go('/bulten'),
+                  ),
+                  KayanSerit(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Spacing.md,
+                      vertical: 4,
+                    ),
+                    semanticsLabel:
+                        'Yaklaşan maçlar: ${upcoming.length} karşılaşma',
+                    children: [
+                      for (final m in upcoming) _KickoffCard(match: m),
+                    ],
+                  ),
+                ],
+
                 _SectionHead(
-                  title: 'Yaklaşan Maçlar',
+                  title: 'Öne Çıkan Analizler',
+                  right: 'Tümünü Gör ›',
+                  onTap: () => GoRouter.of(context).go('/radar'),
+                ),
+
+                if (data == null && error == null)
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: Spacing.md),
+                    child: SkeletonCard(),
+                  )
+                else if (error != null || matches.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+                    child: EmptyState(
+                      icon: Icons.bar_chart,
+                      title: error != null
+                          ? 'Bülten alınamadı'
+                          : 'Dashboard hazırlanıyor',
+                      message:
+                          error ??
+                          'Güncel bülten yayınlanınca analiz kartları burada '
+                              'görünecek.',
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final m in displayAnalysis) ...[
+                          Expanded(
+                            child: _AnalysisCard(match: m, dar: darEkran),
+                          ),
+                          if (m != displayAnalysis.last)
+                            const SizedBox(width: 8),
+                        ],
+                      ],
+                    ),
+                  ),
+
+                _SectionHead(
+                  title: 'Sürpriz İhtimali Yüksek',
                   right: 'Tümünü Gör ›',
                   onTap: () => GoRouter.of(context).go('/bulten'),
                 ),
-                KayanSerit(
+
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(
                     horizontal: Spacing.md,
                     vertical: 4,
                   ),
-                  semanticsLabel:
-                      'Yaklaşan maçlar: ${upcoming.length} karşılaşma',
-                  children: [for (final m in upcoming) _KickoffCard(match: m)],
-                ),
-              ],
-
-              _SectionHead(
-                title: 'Öne Çıkan Analizler',
-                right: 'Tümünü Gör ›',
-                onTap: () => GoRouter.of(context).go('/radar'),
-              ),
-
-              if (data == null && error == null)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: Spacing.md),
-                  child: SkeletonCard(),
-                )
-              else if (error != null || matches.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
-                  child: EmptyState(
-                    icon: '📊',
-                    title: error != null
-                        ? 'Bülten alınamadı'
-                        : 'Dashboard hazırlanıyor',
-                    message:
-                        error ??
-                        'Güncel bülten yayınlanınca analiz kartları burada '
-                            'görünecek.',
-                  ),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (final m in displayAnalysis) ...[
-                        Expanded(
-                          child: _AnalysisCard(match: m, dar: darEkran),
-                        ),
-                        if (m != displayAnalysis.last) const SizedBox(width: 8),
-                      ],
-                    ],
-                  ),
-                ),
-
-              _SectionHead(
-                title: 'Sürpriz İhtimali Yüksek',
-                right: 'Tümünü Gör ›',
-                onTap: () => GoRouter.of(context).go('/bulten'),
-              ),
-
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: Spacing.md,
-                  vertical: 4,
-                ),
-                child: Row(
-                  children: displaySurprise.isEmpty
-                      ? [
-                          Container(
-                            padding: const EdgeInsets.all(Spacing.md),
-                            decoration: BoxDecoration(
-                              color: AppColors.card,
-                              borderRadius: AppRadius.mdR,
-                            ),
-                            child: const Text(
-                              'Sürpriz analizi için veri bekleniyor.',
-                              style: TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 12,
+                    children: displaySurprise.isEmpty
+                        ? [
+                            Container(
+                              padding: const EdgeInsets.all(Spacing.md),
+                              decoration: BoxDecoration(
+                                color: AppColors.card,
+                                borderRadius: AppRadius.mdR,
+                              ),
+                              child: Text(
+                                'Sürpriz analizi için veri bekleniyor.',
+                                style: TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
-                          ),
-                        ]
-                      : [
-                          for (final m in displaySurprise)
-                            _SurpriseCard(match: m),
-                        ],
+                          ]
+                        : [
+                            for (final m in displaySurprise)
+                              _SurpriseCard(match: m),
+                          ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -291,7 +296,7 @@ class _Header extends StatelessWidget {
         Expanded(
           child: RichText(
             text: TextSpan(
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 19,
                 fontWeight: AppFont.black,
@@ -301,7 +306,7 @@ class _Header extends StatelessWidget {
                 TextSpan(text: '$kBrandLine1 '),
                 TextSpan(
                   text: kBrandLine2,
-                  style: const TextStyle(color: AppColors.accent),
+                  style: TextStyle(color: AppColors.accent),
                 ),
               ],
             ),
@@ -316,9 +321,15 @@ class _Header extends StatelessWidget {
           child: GestureDetector(
             onTap: () => context.push('/ana-sayfa/bildirimler'),
             behavior: HitTestBehavior.opaque,
-            child: const Padding(
-              padding: EdgeInsets.all(6),
-              child: Text('🔔', style: TextStyle(fontSize: 20)),
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              // ZİL VEKTÖR: emojiyken üst çubuk koyu temada koyulaşırken zil
+              // sabit renkte kalıyordu.
+              child: Icon(
+                Icons.notifications_none,
+                size: 22,
+                color: AppColors.text,
+              ),
             ),
           ),
         ),
@@ -397,7 +408,7 @@ class _HeroCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: Spacing.md),
       padding: const EdgeInsets.all(Spacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.primary,
+        color: AppColors.heroZemin,
         borderRadius: AppRadius.xlR,
         boxShadow: AppShadow.card,
       ),
@@ -412,15 +423,15 @@ class _HeroCard extends StatelessWidget {
               Container(
                 width: 8,
                 height: 8,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: AppColors.accent,
                   shape: BoxShape.circle,
                 ),
               ),
               Text(
                 '${data?['round'] ?? '—'}',
-                style: const TextStyle(
-                  color: AppColors.white,
+                style: TextStyle(
+                  color: AppColors.onHero,
                   fontSize: 12,
                   fontWeight: AppFont.heavy,
                   letterSpacing: 0.5,
@@ -449,8 +460,8 @@ class _HeroCard extends StatelessWidget {
                 Text(
                   'İlk maç: ${_kisaGunler[ilk.weekday % 7]} '
                   '${_matchTime(ilk.toIso8601String())}',
-                  style: const TextStyle(
-                    color: Color(0xB3FFFFFF),
+                  style: TextStyle(
+                    color: AppColors.onHero.withValues(alpha: 0.70),
                     fontSize: 10.5,
                     fontWeight: AppFont.bold,
                   ),
@@ -458,10 +469,10 @@ class _HeroCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'Bu Haftanın Bülteni',
             style: TextStyle(
-              color: AppColors.white,
+              color: AppColors.onHero,
               fontSize: 20,
               fontWeight: AppFont.black,
             ),
@@ -494,11 +505,22 @@ class _HeroCard extends StatelessWidget {
                 child: _dugme('Bülteni Aç', onBulteniAc, dolu: true, ok: true),
               ),
               const SizedBox(width: 8),
-              Expanded(child: _dugme('📺 Haftanın Özeti', onOzet)),
+              Expanded(
+                child: _dugme(
+                  'Haftanın Özeti',
+                  onOzet,
+                  ikon: Icons.live_tv_outlined,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
-          _dugme('🏁 Geçen Haftanın Kapanışı', onKapanis, ok: true),
+          _dugme(
+            'Geçen Haftanın Kapanışı',
+            onKapanis,
+            ok: true,
+            ikon: Icons.sports_score_outlined,
+          ),
         ],
       ),
     );
@@ -510,8 +532,8 @@ class _HeroCard extends StatelessWidget {
         RichText(
           maxLines: 1,
           text: TextSpan(
-            style: const TextStyle(
-              color: AppColors.white,
+            style: TextStyle(
+              color: AppColors.onHero,
               fontSize: 22,
               fontWeight: AppFont.black,
             ),
@@ -529,8 +551,8 @@ class _HeroCard extends StatelessWidget {
           etiket,
           maxLines: 2,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Color(0xB3FFFFFF),
+          style: TextStyle(
+            color: AppColors.onHero.withValues(alpha: 0.70),
             fontSize: 10,
             fontWeight: AppFont.bold,
           ),
@@ -539,46 +561,65 @@ class _HeroCard extends StatelessWidget {
     ),
   );
 
-  Widget _ayrac() =>
-      Container(width: 1, height: 28, color: const Color(0x33FFFFFF));
+  Widget _ayrac() => Container(
+    width: 1,
+    height: 28,
+    color: AppColors.onHero.withValues(alpha: 0.20),
+  );
 
+  /// [ikon] AYRI PARAMETRE, metne gömülü emoji DEĞİL (kullanıcı isteği,
+  /// 2026-08-12): düğmenin yazısı hero zeminine göre `onHero`/`onAccent`
+  /// alırken emoji sabit renkte kalıyordu.
   Widget _dugme(
     String etiket,
     VoidCallback onTap, {
     bool dolu = false,
     bool ok = false,
+    IconData? ikon,
   }) => GestureDetector(
     onTap: onTap,
     behavior: HitTestBehavior.opaque,
     child: Container(
       padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
       decoration: BoxDecoration(
-        color: dolu ? AppColors.accent : const Color(0x1AFFFFFF),
+        color: dolu
+            ? AppColors.accent
+            : AppColors.onHero.withValues(alpha: 0.10),
         borderRadius: AppRadius.mdR,
-        border: dolu ? null : Border.all(color: const Color(0x33FFFFFF)),
+        border: dolu
+            ? null
+            : Border.all(color: AppColors.onHero.withValues(alpha: 0.20)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          if (ikon != null) ...[
+            Icon(
+              ikon,
+              size: 15,
+              color: dolu ? AppColors.onAccent : AppColors.onHero,
+            ),
+            const SizedBox(width: 6),
+          ],
           Flexible(
             child: Text(
               etiket,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.white,
+              style: TextStyle(
+                color: dolu ? AppColors.onAccent : AppColors.onHero,
                 fontSize: 12.5,
                 fontWeight: AppFont.black,
               ),
             ),
           ),
           if (ok)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(left: 6),
               child: Text(
                 '›',
                 style: TextStyle(
-                  color: AppColors.white,
+                  color: dolu ? AppColors.onAccent : AppColors.onHero,
                   fontSize: 15,
                   fontWeight: AppFont.black,
                 ),
@@ -610,7 +651,7 @@ class _SectionHead extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 16,
             fontWeight: AppFont.black,
@@ -622,7 +663,7 @@ class _SectionHead extends StatelessWidget {
             behavior: HitTestBehavior.opaque,
             child: Text(
               right!,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.accent,
                 fontSize: 12,
                 fontWeight: AppFont.heavy,
@@ -727,11 +768,11 @@ class _AnalysisCard extends StatelessWidget {
                       width: dar ? 26 : 32,
                       height: dar ? 26 : 32,
                       alignment: Alignment.center,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: AppColors.bgAlt,
                         shape: BoxShape.circle,
                       ),
-                      child: const Text(
+                      child: Text(
                         'VS',
                         style: TextStyle(
                           color: AppColors.textMuted,
@@ -749,7 +790,7 @@ class _AnalysisCard extends StatelessWidget {
                           '${_matchTime(match['date'])}',
                           maxLines: dar ? 2 : 1,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textMuted,
                             fontSize: 9.5,
                             fontWeight: AppFont.bold,
@@ -806,7 +847,7 @@ class _AnalysisCard extends StatelessWidget {
               child: Text(
                 'Analiz Detayı ›',
                 style: TextStyle(
-                  color: AppColors.white,
+                  color: AppColors.onPrimary,
                   fontSize: dar ? 11 : 12.5,
                   fontWeight: AppFont.black,
                 ),
@@ -941,7 +982,7 @@ class _SurpriseCard extends StatelessWidget {
                   name: (match['home'] as Map?)?['name'] as String?,
                   size: 30,
                 ),
-                const Text(
+                Text(
                   'VS',
                   style: TextStyle(
                     color: AppColors.textMuted,
@@ -1005,7 +1046,7 @@ class _SurpriseCard extends StatelessWidget {
                     score > 0 ? 'İhtimal: %$score' : 'Veri bekleniyor',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 10.5,
                       fontWeight: AppFont.bold,
@@ -1020,7 +1061,12 @@ class _SurpriseCard extends StatelessWidget {
     );
   }
 
-  static const TextStyle _adStil = TextStyle(
+  // GETTER, `static final` DEĞİL (2026-08-12): `AppColors.text` takım
+  // temasıyla değişir. Statik alan — final olsun olmasın — İLK OKUNDUĞUNDA
+  // bir kez hesaplanır ve o renkte donardı; takım değiştirildiğinde bu yazı
+  // eski temada kalırdı. Analizcinin `prefer_final_fields` önerisi burada
+  // yanlıştır, o yüzden alan tümden getter'a çevrildi.
+  static TextStyle get _adStil => TextStyle(
     color: AppColors.text,
     fontSize: 11.5,
     fontWeight: AppFont.heavy,
@@ -1100,7 +1146,7 @@ class _KickoffCard extends StatelessWidget {
                     day,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 10,
                       fontWeight: AppFont.bold,
@@ -1109,7 +1155,7 @@ class _KickoffCard extends StatelessWidget {
                 ),
                 Text(
                   d != null ? _matchTime(match['date']) : '—',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.text,
                     fontSize: 12,
                     fontWeight: AppFont.black,
@@ -1142,7 +1188,7 @@ class _KickoffCard extends StatelessWidget {
           _shortTeam((m[taraf] as Map?)?['name']),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 11.5,
             fontWeight: AppFont.bold,

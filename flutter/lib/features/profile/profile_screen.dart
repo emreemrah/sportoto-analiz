@@ -26,6 +26,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth.dart' as auth;
 import '../../core/brand.dart';
 import '../../core/network/api_client.dart';
+import '../../core/theme/takim_paleti.dart';
+import '../../core/theme/takim_renkleri.dart';
 import '../../core/theme/tokens.dart';
 import '../../widgets/app_ui.dart';
 import '../../widgets/avatar.dart';
@@ -123,8 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
 
         if (!s.ready) {
-          return const Scaffold(
-            backgroundColor: AppColors.bg,
+          return Scaffold(
             body: Center(
               child: CircularProgressIndicator(color: AppColors.primary),
             ),
@@ -142,15 +143,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final nameChanged =
         _nameCtl.text.trim() != username && _nameCtl.text.trim().isNotEmpty;
     final favAd = '${user['favorite_team'] ?? ''}';
+    // KİMLİK ÇİFTİ — takımın iki rengi karşılıklı. Takım yoksa ya da
+    // katalogda eşleşmiyorsa null: uydurma renk üretilmez, nötr yüzeye
+    // düşülür (bkz. takim_paleti.kimlikCifti).
+    final takimPaletiKimlik = takimPaletiBul(favAd);
+    final kimlik = takimPaletiKimlik == null
+        ? null
+        : kimlikCifti(takimPaletiKimlik);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
       // ARKA PLAN: hareketli desen (`ScreenBackdrop`) bu ekrandan KULLANICI
       // İSTEĞİYLE kaldırıldı (2026-08-04); zeminde yalnız favori takımın
       // arması filigran olarak kalır.
       body: Stack(
         children: [
-          const TakimLogoZemin(),
+          TakimLogoZemin(),
           SafeArea(
             bottom: false,
             child: SingleChildScrollView(
@@ -158,7 +165,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('Profil', style: _titleStil),
+                  Text('Profil', style: _titleStil),
                   const SizedBox(height: Spacing.lg),
 
                   // ── AVATAR + AD + E-POSTA + SAYAÇLAR ──
@@ -189,7 +196,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       required isFocused,
                                       maxLength,
                                     }) => null,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.text,
                                   fontSize: 18,
                                   fontWeight: AppFont.heavy,
@@ -214,8 +221,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                   child: Text(
                                     _savingName ? '…' : 'Kaydet',
-                                    style: const TextStyle(
-                                      color: AppColors.white,
+                                    style: TextStyle(
+                                      color: AppColors.onPrimary,
                                       fontSize: 12,
                                       fontWeight: AppFont.heavy,
                                     ),
@@ -232,7 +239,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 '${user['email'] ?? ''}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.textMuted,
                                   fontSize: 12.5,
                                 ),
@@ -279,7 +286,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ],
                             Text(
                               _favLogo != null ? 'Takımım:' : '⚽ Takımım:',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 12.5,
                                 fontWeight: AppFont.bold,
@@ -295,10 +302,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     horizontal: 10,
                                     vertical: 7,
                                   ),
+                                  // KİMLİK YÜZEYİ — takımın İKİ RENGİ
+                                  // karşılıklı (kullanıcı isteği, 2026-08-12):
+                                  // zemin takımın ana rengi, yazı ikincil
+                                  // rengi. Uygulamanın geri kalanı bundan
+                                  // etkilenmez; burası takımın görünmesi
+                                  // GEREKEN yerlerden biri.
+                                  //
+                                  // Takım yoksa nötr yüzeye düşer.
                                   decoration: BoxDecoration(
-                                    color: AppColors.bgAlt,
+                                    color: kimlik?.zemin ?? AppColors.bgAlt,
                                     borderRadius: AppRadius.smR,
-                                    border: Border.all(color: AppColors.border),
+                                    border: Border.all(
+                                      color: kimlik == null
+                                          ? AppColors.border
+                                          : kimlik.yazi.withValues(alpha: 0.45),
+                                    ),
                                   ),
                                   child: Row(
                                     children: [
@@ -317,16 +336,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               : 'Takımını seç',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
+                                          // Karşılıklı renk: zemin ana renkse
+                                          // yazı ikincil renktir. Eşiği
+                                          // (3:1) geçmeyen takımlarda
+                                          // `kimlikCifti` okunur metne düşer.
                                           style: TextStyle(
-                                            color: favAd.isNotEmpty
-                                                ? AppColors.text
-                                                : AppColors.textMuted,
+                                            color:
+                                                kimlik?.yazi ??
+                                                (favAd.isNotEmpty
+                                                    ? AppColors.text
+                                                    : AppColors.textMuted),
                                             fontSize: 13,
                                             fontWeight: AppFont.bold,
                                           ),
                                         ),
                                       ),
-                                      const Text(
+                                      Text(
                                         '›',
                                         style: TextStyle(
                                           color: AppColors.textMuted,
@@ -347,29 +372,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   const SizedBox(height: Spacing.md),
 
-                  _dugme('⚽  Hazır Avatar Seç', () => _git('avatar')),
+                  _dugme(
+                    'Görünüm (açık / koyu)',
+                    () => _git('gorunum'),
+                    ikon: Icons.brightness_6_outlined,
+                  ),
+                  _dugme(
+                    'Hazır Avatar Seç',
+                    () => _git('avatar'),
+                    ikon: Icons.sports_soccer,
+                  ),
                   if (user['avatar_type'] != 'default')
                     _dugme(
                       'Resmi Kaldır (varsayılana dön)',
                       _avatarKaldir,
                       tur: _DugmeTuru.hayalet,
                     ),
-                  _dugme('📊  Haftalık Başarı', () => _git('basari-panelim')),
+                  _dugme(
+                    'Haftalık Başarı',
+                    () => _git('basari-panelim'),
+                    ikon: Icons.insights,
+                  ),
                   // PREMIUM KODU — hak SUNUCUDA yazılır; uygulama kendi başına
                   // premium ilan edemez.
-                  _dugme('⭐  Premium Kodu', () => _git('premium-kod')),
-                  _dugme('🔐  Güvenlik Ayarları', () => _git('guvenlik')),
-                  _dugme('📱  Bağlı Cihazlar', () => _git('cihazlar')),
+                  _dugme(
+                    'Premium Kodu',
+                    () => _git('premium-kod'),
+                    ikon: Icons.star_outline,
+                  ),
+                  _dugme(
+                    'Güvenlik Ayarları',
+                    () => _git('guvenlik'),
+                    ikon: Icons.lock_outline,
+                  ),
+                  _dugme(
+                    'Bağlı Cihazlar',
+                    () => _git('cihazlar'),
+                    ikon: Icons.devices_outlined,
+                  ),
                   // Engellemek yorumun altından yapılır; GERİ ALMAK için de bir
                   // yol olmak zorunda.
                   _dugme(
-                    '🚫  Engellenen Kullanıcılar',
+                    'Engellenen Kullanıcılar',
                     () => _git('engellenenler'),
+                    ikon: Icons.block_outlined,
                   ),
                   if (_operator)
                     _dugme(
-                      '🛡️  İnceleme (bildirilen yorumlar)',
+                      'İnceleme (bildirilen yorumlar)',
                       () => _git('inceleme'),
+                      ikon: Icons.gavel_outlined,
                     ),
                   // SİSTEM KARNESİ — normal kullanıcıya GÖSTERİLMEZ: uygulamadaki
                   // "Sistem" sütunu kupon kapsamasıdır (çoklu tercih dahil), bu
@@ -377,10 +429,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // verir. Kapı: operatör YA DA geliştirme derlemesi.
                   if (_operator || _kIsDevBuild)
                     _dugme(
-                      '📊  Sistem Karnesi (Master analiz)',
+                      'Sistem Karnesi (Master analiz)',
                       () => _git('sistem-karnesi'),
+                      ikon: Icons.assessment_outlined,
                     ),
-                  _dugme('ℹ️  Hakkında ve Gizlilik', () => _git('hakkinda')),
+                  _dugme(
+                    'Hakkında ve Gizlilik',
+                    () => _git('hakkinda'),
+                    ikon: Icons.info_outline,
+                  ),
                   _dugme('Çıkış Yap', auth.logout, tur: _DugmeTuru.cikis),
                   // HESAP SİLME — Google Play, hesap açan uygulamalarda uygulama
                   // içinden erişilebilen bir silme yolu ister. Silme gerçek ve
@@ -392,9 +449,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
 
                   const SizedBox(height: Spacing.md),
-                  const Text(kIndependenceNotice, style: _legalStil),
+                  Text(kIndependenceNotice, style: _legalStil),
                   const SizedBox(height: 6),
-                  const Text(kCopyright, style: _copyrightStil),
+                  Text(kCopyright, style: _copyrightStil),
                   const SizedBox(height: Spacing.xl),
                 ],
               ),
@@ -407,7 +464,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _sayac(String metin) => Text(
     metin,
-    style: const TextStyle(
+    style: TextStyle(
       color: AppColors.textSoft,
       fontSize: 12,
       fontWeight: AppFont.bold,
@@ -451,6 +508,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // devreye girer ve sorunu görünür kılar.
     const hazir = <String>{
       'takim-sec',
+      'gorunum',
       'avatar',
       'premium-kod',
       'guvenlik',
@@ -478,10 +536,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// Profil alt ekranlarına götüren satır butonu.
+  ///
+  /// [ikon] AYRI PARAMETRE, etiketin içine gömülü emoji DEĞİL (kullanıcı
+  /// isteği, 2026-08-12): emoji rengini emoji fontundan alır, `fg` ile
+  /// boyanmaz — açık/koyu/takım temasında yazı rengi dönerken ikon sabit
+  /// kalıyordu. Vektör ikon butonun kendi ön plan rengini izler.
   Widget _dugme(
     String etiket,
     VoidCallback onTap, {
     _DugmeTuru tur = _DugmeTuru.alt,
+    IconData? ikon,
   }) {
     final (bg, fg, border) = switch (tur) {
       _DugmeTuru.alt => (AppColors.card, AppColors.text, AppColors.border),
@@ -514,13 +579,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: AppRadius.mdR,
             border: Border.all(color: border),
           ),
-          child: Text(
-            etiket,
-            style: TextStyle(
-              color: fg,
-              fontSize: 14,
-              fontWeight: AppFont.heavy,
-            ),
+          child: Row(
+            children: [
+              if (ikon != null) ...[
+                Icon(ikon, size: 18, color: fg),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child: Text(
+                  etiket,
+                  style: TextStyle(
+                    color: fg,
+                    fontSize: 14,
+                    fontWeight: AppFont.heavy,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -535,7 +610,6 @@ class _LoggedOut extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.bg,
     body: SafeArea(
       bottom: false,
       child: SingleChildScrollView(
@@ -550,13 +624,9 @@ class _LoggedOut extends StatelessWidget {
               style: TextStyle(fontSize: 46),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Profil',
-              textAlign: TextAlign.center,
-              style: _titleStil,
-            ),
+            Text('Profil', textAlign: TextAlign.center, style: _titleStil),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Maçlara yorum yapmak, beğenmek ve avatarını seçmek için '
               'giriş yap.',
               textAlign: TextAlign.center,
@@ -577,9 +647,9 @@ class _LoggedOut extends StatelessWidget {
               hakkinda: true,
             ),
             const SizedBox(height: Spacing.md),
-            const Text(kIndependenceNotice, style: _legalStil),
+            Text(kIndependenceNotice, style: _legalStil),
             const SizedBox(height: 6),
-            const Text(kCopyright, style: _copyrightStil),
+            Text(kCopyright, style: _copyrightStil),
           ],
         ),
       ),
@@ -624,20 +694,23 @@ class _LoggedOut extends StatelessWidget {
   );
 }
 
-const TextStyle _titleStil = TextStyle(
-  color: AppColors.text,
-  fontSize: 24,
-  fontWeight: AppFont.heavy,
-);
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _titleStil =>
+    TextStyle(color: AppColors.text, fontSize: 24, fontWeight: AppFont.heavy);
 
-const TextStyle _legalStil = TextStyle(
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _legalStil => TextStyle(
   color: AppColors.textMuted,
   fontSize: 10.5,
   height: 15 / 10.5,
   textBaseline: TextBaseline.alphabetic,
 );
 
-const TextStyle _copyrightStil = TextStyle(
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _copyrightStil => TextStyle(
   color: AppColors.textMuted,
   fontSize: 10.5,
   fontWeight: AppFont.semibold,

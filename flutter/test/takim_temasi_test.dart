@@ -1,0 +1,248 @@
+// TAKIM TEMASI (kullanıcı isteği, 2026-08-11)
+//
+// NE SABİTLENİYOR:
+//  1. Palet çözümleme: katalog adıyla ve Türkçe küçük harf normalizasyonuyla.
+//  2. EŞLEŞME YOKSA VARSAYILAN: bilinmeyen/boş takımda palet null döner ve
+//     uygulama bugünkü temasını korur — renk uydurulmaz.
+//  3. ERİŞİLEBİLİRLİK: 150 takımın HEPSİNDE metin kontrastı WCAG AA (4.5:1)
+//     eşiğini geçer. Bu tarama tek tek göz kontrolünün yerine geçer.
+//  4. Kart zeminden AYIRT EDİLİR (aksi hâlde arayüz düz bir renk lekesi olur).
+//  5. ANLAMSAL RENKLER DEĞİŞMEZ: hata/başarı/uyarı renkleri takım temasından
+//     etkilenmez. Kırmızı takımda kırmızı "mağlubiyet" anlamını korur.
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:masteranaliz/core/auth.dart' as auth;
+import 'package:masteranaliz/core/theme/app_theme.dart';
+import 'package:masteranaliz/core/theme/gorunum.dart';
+import 'package:masteranaliz/core/theme/takim_paleti.dart';
+import 'package:masteranaliz/core/theme/takim_renkleri.dart';
+import 'package:masteranaliz/core/theme/takim_temasi.dart';
+import 'package:masteranaliz/core/theme/tokens.dart';
+
+void main() {
+  group('Palet çözümleme', () {
+    test('katalog adıyla bulunur', () {
+      final p = takimPaletiBul('Galatasaray');
+      expect(p, isNotNull);
+      expect(p!.takim, 'Galatasaray');
+      expect(p.ana, const Color(0xFFA90432));
+    });
+
+    test('Türkçe küçük harf normalizasyonu — büyük/küçük fark etmez', () {
+      for (final ad in const [
+        'GALATASARAY',
+        'galatasaray',
+        'GaLaTaSaRaY',
+        '  Galatasaray  ',
+      ]) {
+        expect(takimPaletiBul(ad)?.takim, 'Galatasaray', reason: ad);
+      }
+      // Türkçe 'İ' tuzağı: 'İstanbul Başakşehir FK'
+      expect(
+        takimPaletiBul('istanbul başakşehir fk')?.takim,
+        'İstanbul Başakşehir FK',
+      );
+    });
+
+    test('bilinmeyen/boş takımda VARSAYILAN (null) — renk uydurulmaz', () {
+      expect(takimPaletiBul('Olmayan Takım FC'), isNull);
+      expect(takimPaletiBul(''), isNull);
+      expect(takimPaletiBul(null), isNull);
+      expect(takimPaletiBul('   '), isNull);
+    });
+
+    test('tabloda 150 takım var (8 ligin tamamı)', () {
+      expect(kTakimRenkleri.length, 150);
+    });
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ERİŞİLEBİLİRLİK TARAMASI — 150 takımın HEPSİ
+  // ══════════════════════════════════════════════════════════════════════════
+  group('Kontrast — 150 takım', () {
+    final paletler = tumTakimPaletleri();
+
+    test('zemin üzerindeki metin AA eşiğini geçer', () {
+      final dusuk = <String>[];
+      for (final p in paletler) {
+        final k = kontrastOrani(p.zemin, p.zeminUstuMetin);
+        if (k < kAaEsigi) {
+          dusuk.add('${p.takim}: ${k.toStringAsFixed(2)}');
+        }
+      }
+      expect(
+        dusuk,
+        isEmpty,
+        reason: 'zeminde okunmayan metin:\n${dusuk.join('\n')}',
+      );
+    });
+
+    test('kart üzerindeki metin AA eşiğini geçer', () {
+      final dusuk = <String>[];
+      for (final p in paletler) {
+        final k = kontrastOrani(p.yuzey, p.yuzeyUstuMetin);
+        if (k < kAaEsigi) {
+          dusuk.add('${p.takim}: ${k.toStringAsFixed(2)}');
+        }
+      }
+      expect(
+        dusuk,
+        isEmpty,
+        reason: 'kartta okunmayan metin:\n${dusuk.join('\n')}',
+      );
+    });
+
+    test('buton yazısı AA eşiğini geçer', () {
+      final dusuk = <String>[];
+      for (final p in paletler) {
+        final k = kontrastOrani(p.vurgu, p.vurguUstuMetin);
+        if (k < kAaEsigi) {
+          dusuk.add('${p.takim}: ${k.toStringAsFixed(2)}');
+        }
+      }
+      expect(
+        dusuk,
+        isEmpty,
+        reason: 'butonda okunmayan yazı:\n${dusuk.join('\n')}',
+      );
+    });
+
+    test('kart zeminden AYIRT EDİLİR', () {
+      final ayrisamayan = <String>[];
+      for (final p in paletler) {
+        final k = kontrastOrani(p.zemin, p.yuzey);
+        if (k < 1.12) ayrisamayan.add('${p.takim}: ${k.toStringAsFixed(3)}');
+      }
+      expect(
+        ayrisamayan,
+        isEmpty,
+        reason: 'kart zeminden ayrılmıyor:\n${ayrisamayan.join('\n')}',
+      );
+    });
+
+    test('vurgu zeminden AYIRT EDİLİR (buton kaybolmaz)', () {
+      final ayrisamayan = <String>[];
+      for (final p in paletler) {
+        final k = kontrastOrani(p.zemin, p.vurgu);
+        if (k < 1.5) ayrisamayan.add('${p.takim}: ${k.toStringAsFixed(2)}');
+      }
+      expect(
+        ayrisamayan,
+        isEmpty,
+        reason: 'vurgu zeminde kayboluyor:\n${ayrisamayan.join('\n')}',
+      );
+    });
+  });
+
+  group('Uç örnekler — beklenen metin rengi', () {
+    test('Dortmund sarısında SİYAH metin', () {
+      final p = takimPaletiBul('BVB 09 Borussia Dortmund')!;
+      expect(p.zeminUstuMetin, const Color(0xFF101828));
+      expect(kontrastOrani(p.zemin, p.zeminUstuMetin), greaterThan(10));
+    });
+
+    test('Beşiktaş siyahında BEYAZ metin', () {
+      final p = takimPaletiBul('Beşiktaş')!;
+      expect(p.zeminUstuMetin, const Color(0xFFFFFFFF));
+    });
+
+    test('beyaz ağırlıklı takımda kimlik ikincil renkten gelir', () {
+      // Real Madrid beyaz: zemin beyaza yakın kalır ama vurgu altın olmalı,
+      // yoksa tema varsayılandan ayırt edilemez.
+      final p = takimPaletiBul('Real Madrid CF')!;
+      expect(
+        kontrastOrani(p.zemin, p.vurgu),
+        greaterThan(1.5),
+        reason: 'beyaz takımda vurgu görünmeli',
+      );
+    });
+  });
+  // ══════════════════════════════════════════════════════════════════════════
+  // ANLAMSAL RENKLER — ne takım ne görünüm bunlara DOKUNABİLİR
+  // ══════════════════════════════════════════════════════════════════════════
+  group('Anlamsal renkler korunur', () {
+    test('hata rengi her iki görünümde de AYNI', () {
+      gorunumuUygula(Brightness.light);
+      final acik = AppTheme.gecerli(Brightness.light).colorScheme.error;
+      gorunumuUygula(Brightness.dark);
+      final koyu = AppTheme.gecerli(Brightness.dark).colorScheme.error;
+      expect(koyu, acik);
+      gorunumuUygula(Brightness.light);
+    });
+
+    test('AppColors anlamsal sabitleri hâlâ sabit', () {
+      expect(AppColors.success, const Color(0xFF16A34A));
+      expect(AppColors.danger, const Color(0xFFDC2626));
+      expect(AppColors.warning, const Color(0xFFF59E0B));
+      expect(AppColors.info, const Color(0xFF2563EB));
+      expect(AppColors.live, const Color(0xFFE21B2D));
+    });
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // YENİ SÖZLEŞME (kullanıcı isteği, 2026-08-12): favori takım YAPISAL
+  // renklere karışmaz. Burada eskiden "takım değişince zemin ve yüzey yeni
+  // palete geçer" testleri vardı; kural tersine döndüğü için beklenti de
+  // tersine çevrildi — kapsam düşürülmedi.
+  // ══════════════════════════════════════════════════════════════════════════
+  group('Takım yapısal temayı DEĞİŞTİRMEZ', () {
+    tearDown(() {
+      auth.authState.value = const auth.AuthState();
+      gorunumuUygula(Brightness.light);
+    });
+
+    testWidgets('favori takım değişince zemin ve yüzey AYNI kalır', (t) async {
+      gorunumuUygula(Brightness.light);
+      final zeminOnce = AppColors.background;
+      final yuzeyOnce = AppColors.surface;
+
+      auth.authState.value = const auth.AuthState(
+        user: {'favorite_team': 'Fenerbahçe'},
+      );
+      await t.pump();
+
+      expect(AppColors.background, zeminOnce);
+      expect(AppColors.surface, yuzeyOnce);
+    });
+
+    testWidgets('takım paleti ağaca ULAŞIR — kimlik alanları için', (t) async {
+      TakimPaleti? gorulen;
+      await t.pumpWidget(
+        TakimTemasi(
+          palet: takimPaletiBul('Galatasaray'),
+          child: Builder(
+            builder: (c) {
+              gorulen = c.takimPaleti;
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      expect(gorulen, isNotNull);
+      expect(gorulen!.takim, 'Galatasaray');
+    });
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ThemeData artık GÖRÜNÜMDEN gelir
+  // ══════════════════════════════════════════════════════════════════════════
+  group('ThemeData görünümü izler', () {
+    tearDown(() => gorunumuUygula(Brightness.light));
+
+    test('koyu görünümde zemin ve üst çubuk KOYU', () {
+      gorunumuUygula(Brightness.light);
+      final a = AppTheme.gecerli(Brightness.light);
+      gorunumuUygula(Brightness.dark);
+      final k = AppTheme.gecerli(Brightness.dark);
+
+      expect(k.scaffoldBackgroundColor, isNot(a.scaffoldBackgroundColor));
+      expect(
+        gorecelParlaklik(k.scaffoldBackgroundColor),
+        lessThan(gorecelParlaklik(a.scaffoldBackgroundColor)),
+      );
+      expect(k.appBarTheme.backgroundColor, AppColors.card);
+      expect(k.dividerColor, AppColors.border);
+    });
+  });
+}

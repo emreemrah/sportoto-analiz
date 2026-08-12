@@ -92,7 +92,11 @@ List<LiveEvent> normalizeEvents(List? events) {
 const Set<String> _stripKinds = {'goal', 'red'};
 
 /// Dakikayı 0..1 aralığına oturt. Uzatma dakikaları (90+) sona sıkıştırılır.
-double positionOf(Object? minute, [int extra = 0, int maxMinute = kRegMinutes]) {
+double positionOf(
+  Object? minute, [
+  int extra = 0,
+  int maxMinute = kRegMinutes,
+]) {
   final m = math.max(0.0, _sayi(minute) ?? 0);
   final cap = math.max(kRegMinutes, maxMinute).toDouble();
   final raw = extra > 0 ? math.min(m + extra, cap) : math.min(m, cap);
@@ -146,9 +150,7 @@ List<GoalStep> goalProgression(List? events) {
   var h = 0, a = 0;
   for (final e in normalizeEvents(events)) {
     if (e.kind != 'goal' || e.side == null) continue;
-    final scoring = e.ownGoal
-        ? (e.side == 'home' ? 'away' : 'home')
-        : e.side!;
+    final scoring = e.ownGoal ? (e.side == 'home' ? 'away' : 'home') : e.side!;
     if (scoring == 'home') {
       h += 1;
     } else {
@@ -268,11 +270,10 @@ List<Map> sortStats(List? stats) {
   final out = (stats ?? const []).cast<Map>().toList();
   // JS `Array.prototype.sort` kararlıdır; Dart'ın `sort`u değil — listede
   // öncelik dışı istatistiklerin geliş sırası korunsun diye kararlı sıralama.
-  final indeksli = [
-    for (var i = 0; i < out.length; i++) (i: i, m: out[i]),
-  ]..sort((a, b) {
-    final c = idx(a.m['type']).compareTo(idx(b.m['type']));
-    return c != 0 ? c : a.i.compareTo(b.i);
-  });
+  final indeksli = [for (var i = 0; i < out.length; i++) (i: i, m: out[i])]
+    ..sort((a, b) {
+      final c = idx(a.m['type']).compareTo(idx(b.m['type']));
+      return c != 0 ? c : a.i.compareTo(b.i);
+    });
   return [for (final x in indeksli) x.m];
 }

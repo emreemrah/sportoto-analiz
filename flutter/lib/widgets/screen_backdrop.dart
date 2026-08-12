@@ -17,13 +17,32 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/tokens.dart';
 
-const Color _kLine = Color(0x170B1B3A); // rgba(11,27,58,0.09)
-const Color _kLineSoft = Color(0x0F0B1B3A); // rgba(11,27,58,0.06)
-const Color _kX = Color(0x380B1B3A); // rgba(11,27,58,0.22)
-const Color _kO = Color(0x38E21B2D); // rgba(226,27,45,0.22)
+// DESEN ARTIK TEMAYI DİNLER (kullanıcı isteği, 2026-08-12).
+//
+// Kaynakta dördü de sabitti: saha çizgileri ve X marka laciverdi (11,27,58),
+// O marka kırmızısı (226,27,45). Opaklıklar KAYNAKTAKİ değerlerdir, değişmedi
+// — yalnız hangi rengin soluklaştığı değişti.
+//
+// ÇİZGİ VE X NEDEN `text`, `primary` DEĞİL: bu bir doku, vurgu değil. `text`
+// zeminin karşı ucundadır (açık temada koyu, koyu temada açık), yani desen
+// HER temada görünür kalır. `primary` kullansaydık Beşiktaş gibi koyu bir
+// temada koyu desen koyu zeminde kaybolurdu.
+//
+// O NEDEN `accent`: kaynakta da ikinci renkti. Kullanıcının "iki ana renk
+// dengeli kullanılsın" isteği burada da geçerli — desen tek renge inmemeli.
+Color get _kLine => AppColors.text.withValues(alpha: 0.09);
+Color get _kLineSoft => AppColors.text.withValues(alpha: 0.06);
+Color get _kX => AppColors.text.withValues(alpha: 0.22);
+Color get _kO => AppColors.accent.withValues(alpha: 0.22);
 
 class ScreenBackdrop extends StatefulWidget {
-  const ScreenBackdrop({super.key, required this.child, this.animated = true});
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  ScreenBackdrop({super.key, required this.child, this.animated = true});
 
   final Widget child;
   final bool animated;

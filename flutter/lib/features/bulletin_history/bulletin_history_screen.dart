@@ -94,21 +94,23 @@ class _BulletinHistoryScreenState extends State<BulletinHistoryScreen> {
     // Liste KALICI ARŞİVDEN gelir. Demo bandı yalnız backend'e ulaşılamayıp
     // örnek veriye düşüldüğünde görünür (_demo işaretli).
     final isDemo =
-        list != null && list.isNotEmpty && list.every((b) => b['_demo'] == true);
+        list != null &&
+        list.isNotEmpty &&
+        list.every((b) => b['_demo'] == true);
 
     Widget govde;
     if (_loading && list == null) {
-      govde = const LoadingState(message: 'Bülten geçmişi yükleniyor…');
+      govde = LoadingState(message: 'Bülten geçmişi yükleniyor…');
     } else if (_error != null) {
       govde = SingleChildScrollView(
         padding: const EdgeInsets.symmetric(vertical: Spacing.lg),
         child: ErrorState(message: _error, onRetry: _reload),
       );
     } else if (list == null || list.isEmpty) {
-      govde = const SingleChildScrollView(
+      govde = SingleChildScrollView(
         padding: EdgeInsets.all(Spacing.md),
         child: EmptyState(
-          icon: '📭',
+          icon: Icons.inbox_outlined,
           title: 'Henüz bülten yok',
           message: 'Geçmiş bülten bulunamadı.',
         ),
@@ -134,18 +136,17 @@ class _BulletinHistoryScreenState extends State<BulletinHistoryScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
       appBar: AppBar(title: const Text('Bülten Geçmişi')),
       body: Column(
         children: [
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(Spacing.lg),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.card,
               border: Border(bottom: BorderSide(color: AppColors.border)),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -159,16 +160,13 @@ class _BulletinHistoryScreenState extends State<BulletinHistoryScreen> {
                 SizedBox(height: 2),
                 Text(
                   'Her bültenin maç öncesi MÜHÜRLÜ analizi ve resmî sonuçları',
-                  style: TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 12.5,
-                  ),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 12.5),
                 ),
               ],
             ),
           ),
           if (isDemo)
-            const DemoDataBanner(
+            DemoDataBanner(
               note:
                   'Arşiv sunucusuna ulaşılamadı — aşağıdaki bültenler ÖRNEKTİR, gerçek arşiv verisi değildir.',
             ),
@@ -229,7 +227,7 @@ class BulletinCard extends StatelessWidget {
                     'Bülten ${bulletin['bulletinNo']}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.text,
                       fontSize: 15,
                       fontWeight: AppFont.heavy,
@@ -248,7 +246,7 @@ class BulletinCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               '${d.day}${d.time.isNotEmpty ? ' · ${d.time}' : ''}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 12,
                 fontWeight: AppFont.semibold,
@@ -258,7 +256,7 @@ class BulletinCard extends StatelessWidget {
             Text(
               '$finished/$total maç oynandı'
               '${lockedAt != null ? ' · Kilit: ${matchDate('$lockedAt').day}' : ''}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 11.5,
                 fontWeight: AppFont.semibold,
@@ -269,7 +267,7 @@ class BulletinCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Sistem ana tahmini',
                     style: TextStyle(
                       color: AppColors.textMuted,
@@ -279,7 +277,7 @@ class BulletinCard extends StatelessWidget {
                   ),
                   Text(
                     '%${kw['accuracy']} (${kw['correct']}/${kw['evaluated']})',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.text,
                       fontSize: 11.5,
                       fontWeight: AppFont.heavy,
@@ -293,7 +291,7 @@ class BulletinCard extends StatelessWidget {
                 tone: _ton((kw['accuracy'] as num?) ?? 0),
               ),
             ] else
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 10),
                 child: Text(
                   'Henüz sonuç yok',
@@ -317,7 +315,7 @@ class BulletinCard extends StatelessWidget {
                 ),
               )
             else if (myCoupon != null)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 8),
                 child: Text(
                   '🎟️ Kuponum kayıtlı · sonuç bekleniyor',

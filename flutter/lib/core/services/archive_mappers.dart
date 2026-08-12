@@ -63,7 +63,9 @@ String? buildStatsSummary(Map? m) {
   final market = m?['market'];
   if (market is Map && market['probabilities'] is Map) {
     final p = market['probabilities'] as Map;
-    final tahmini = market['probabilitiesEstimated'] == true ? ' (tahminî)' : '';
+    final tahmini = market['probabilitiesEstimated'] == true
+        ? ' (tahminî)'
+        : '';
     parts.add('İhtimal 1/X/2: %${p['1']}/%${p['X']}/%${p['2']}$tahmini');
   }
 
@@ -76,9 +78,10 @@ Map<String, dynamic> mapBulletinSummary(Map apiB) {
   final rs = apiB['resultSummary'];
   final snapshot = apiB['snapshot'];
 
-  final numara = [apiB['season'], apiB['week']]
-      .where((x) => x != null && '$x'.isNotEmpty)
-      .join(' · ');
+  final numara = [
+    apiB['season'],
+    apiB['week'],
+  ].where((x) => x != null && '$x'.isNotEmpty).join(' · ');
 
   final int adet = total is num ? total.toInt() : 0;
 
@@ -103,8 +106,7 @@ Map<String, dynamic> mapBulletinSummary(Map apiB) {
         ? (snapshot['id'] ?? 'snap-${apiB['id']}')
         : null,
     'immutable': apiB['immutable'] == true,
-    'verificationHash':
-        snapshot is Map ? snapshot['verificationHash'] : null,
+    'verificationHash': snapshot is Map ? snapshot['verificationHash'] : null,
     'shortHash': snapshot is Map ? snapshot['shortHash'] : null,
     'dataGaps': apiB['dataGaps'],
     'resultSummary': rs is Map
@@ -148,8 +150,9 @@ Map<String, dynamic> mapBulletinDetail(Map apiB) {
       'result1x2': official is Map ? official['result'] : null,
       'resultSource': official is Map ? official['source'] : null,
       'resultConfirmedAt': official is Map ? official['confirmedAt'] : null,
-      'correctionVersion':
-          official is Map ? official['correctionVersion'] : null,
+      'correctionVersion': official is Map
+          ? official['correctionVersion']
+          : null,
     });
   }
   return {
@@ -217,13 +220,14 @@ Map<String, dynamic>? mapSnapshot(
       'predictionLabel': sp is Map ? sp['label'] : null,
       'predictionReason': sp is Map ? sp['reason'] : null,
       // gerçek veriden (favori ihtimali); yoksa null
-      'confidenceScore':
-          confidence is Map ? confidence['favoritePercent'] : null,
-      'surpriseRisk': (confidence is Map ? confidence['surpriseScore'] : null) ??
+      'confidenceScore': confidence is Map
+          ? confidence['favoritePercent']
+          : null,
+      'surpriseRisk':
+          (confidence is Map ? confidence['surpriseScore'] : null) ??
           (radar is Map ? radar['surpriseScore'] : null),
       // 'Düşük' | 'Orta' (asla 'Yüksek' — veri eksikliği kuralı)
-      'dataConfidence':
-          confidence is Map ? confidence['dataConfidence'] : null,
+      'dataConfidence': confidence is Map ? confidence['dataConfidence'] : null,
       'analysisComment': m['aiComment'] ?? m['analysisComment'],
       'statsSummary': buildStatsSummary(m),
       'lineupComment': m['missingPlayersNote'] ?? 'Bu veri bulunamadı.',
@@ -232,7 +236,8 @@ Map<String, dynamic>? mapSnapshot(
       'radarLabel': radar is Map ? radar['label'] : null,
       'favorite': radar is Map ? radar['favorite'] : null,
       'dataQuality': m['dataQuality'],
-      'dataTimestamp': (payload['lock'] is Map
+      'dataTimestamp':
+          (payload['lock'] is Map
               ? (payload['lock'] as Map)['dataObservedAt']
               : null) ??
           apiSnap?['lockedAt'],

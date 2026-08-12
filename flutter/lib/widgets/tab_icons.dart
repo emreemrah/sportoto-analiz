@@ -1,13 +1,170 @@
-// KAYNAK: App.js içindeki `RadarIcon` ve `TicketIcon` (react-native-svg).
+// ALT MENÜ İKONLARI — hepsi VEKTÖR, rengi çalışma anında verilir.
 //
+// KAYNAK: App.js içindeki `RadarIcon` ve `TicketIcon` (react-native-svg).
 // İkisi de STATİK SVG'dir; koordinatlar kaynaktan birebir alındı ve 24×24
 // viewBox'tan çizim boyutuna ölçeklenir. Kaynakta `<Svg width={28} height={28}
 // viewBox="0 0 24 24">` yazıyordu — aynı oran burada `scale` ile kurulur.
 //
 // PNG'ye çevrilmediler: kaynakta renk `focused` durumuna göre değişiyor
 // (accent ↔ muted). Vektör kalınca renk çalışma anında verilebiliyor.
+//
+// ═══════════ HOME / BULLETIN / PROFILE SONRADAN EKLENDİ ═══════════════════
+// (kullanıcı isteği, 2026-08-12): bu üçü `assets/tab-home.png`,
+// `assets/tab-bulletin.png` ve `assets/tab-profile.png` idi. RASTER GÖRSELİN
+// RENGİ DEĞİŞTİRİLEMEZ — alt menüde Radar ve Kuponlarım tema rengini alırken
+// Ana Sayfa ile Bülten sabit renkli kalıyordu; açık/koyu/takım temasında
+// menünün yarısı temadan kopuk görünüyordu. Üçü de aynı 24×24 viewBox'ta,
+// aynı çizgi kalınlığında (1.6) yeniden çizildi; artık dördü de tek aile.
+//
+// ÇİZGİ KALINLIĞI 1.6 — TicketIcon ile aynı. Farklı kalınlık, yan yana duran
+// ikonlarda birinin "daha koyu" görünmesine yol açıyor.
 
 import 'package:flutter/material.dart';
+
+/// Ortak çizim kurulumu: 24×24 viewBox'a ölçekler, gövdeyi çağırır.
+void _viewBox24(Canvas canvas, Size size, void Function() ciz) {
+  canvas.save();
+  canvas.scale(size.width / 24);
+  ciz();
+  canvas.restore();
+}
+
+/// İkon çizgisi — dördünde de aynı kalınlık ve uç/köşe biçimi.
+Paint _cizgi(Color color, [double genislik = 1.6]) => Paint()
+  ..style = PaintingStyle.stroke
+  ..strokeWidth = genislik
+  ..strokeCap = StrokeCap.round
+  ..strokeJoin = StrokeJoin.round
+  ..color = color;
+
+/// Ana Sayfa sekmesi: EV ikonu (çatı + gövde + kapı).
+class HomeIcon extends StatelessWidget {
+  // ignore: prefer_const_constructors_in_immutables
+  HomeIcon({super.key, required this.color, this.size = 28});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(size: Size(size, size), painter: _HomeIconPainter(color));
+}
+
+class _HomeIconPainter extends CustomPainter {
+  const _HomeIconPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) => _viewBox24(canvas, size, () {
+    // Çatı: sol saçaktan tepeye, tepeden sağ saçağa.
+    canvas.drawPath(
+      Path()
+        ..moveTo(3.2, 10.4)
+        ..lineTo(12, 3.6)
+        ..lineTo(20.8, 10.4),
+      _cizgi(color),
+    );
+    // Gövde: iki yan duvar + taban.
+    canvas.drawPath(
+      Path()
+        ..moveTo(5.4, 9.2)
+        ..lineTo(5.4, 19.4)
+        ..lineTo(18.6, 19.4)
+        ..lineTo(18.6, 9.2),
+      _cizgi(color),
+    );
+    // Kapı — üstü yuvarlatılmış dikdörtgen, tabana oturur.
+    canvas.drawPath(
+      Path()
+        ..moveTo(9.6, 19.4)
+        ..lineTo(9.6, 14.6)
+        ..arcToPoint(
+          const Offset(14.4, 14.6),
+          radius: const Radius.circular(2.4),
+          clockwise: true,
+        )
+        ..lineTo(14.4, 19.4),
+      _cizgi(color),
+    );
+  });
+
+  @override
+  bool shouldRepaint(_HomeIconPainter old) => old.color != color;
+}
+
+/// Bülten sekmesi: PANO ikonu (klipsli pano + üç satır).
+class BulletinIcon extends StatelessWidget {
+  // ignore: prefer_const_constructors_in_immutables
+  BulletinIcon({super.key, required this.color, this.size = 28});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(size: Size(size, size), painter: _BulletinIconPainter(color));
+}
+
+class _BulletinIconPainter extends CustomPainter {
+  const _BulletinIconPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) => _viewBox24(canvas, size, () {
+    // Pano gövdesi — klipsin oturduğu üst kenar boşluğu bırakılır.
+    canvas.drawRRect(
+      RRect.fromLTRBR(4.4, 4.6, 19.6, 20.4, const Radius.circular(2.4)),
+      _cizgi(color),
+    );
+    // Klips.
+    canvas.drawRRect(
+      RRect.fromLTRBR(9.2, 2.6, 14.8, 6.4, const Radius.circular(1.4)),
+      _cizgi(color, 1.4),
+    );
+    // Satırlar — bülten sırası. Sonuncusu kısa: liste bitişini anlatır.
+    for (final (y, x2) in [(11.2, 16.2), (14.2, 16.2), (17.2, 13.0)]) {
+      canvas.drawLine(Offset(7.8, y), Offset(x2, y), _cizgi(color, 1.4));
+    }
+  });
+
+  @override
+  bool shouldRepaint(_BulletinIconPainter old) => old.color != color;
+}
+
+/// Profil sekmesi: SİLÜET ikonu — YALNIZ GİRİŞ YAPILMAMIŞKEN kullanılır.
+/// Giriş yapılmışsa yerini kullanıcının kendi avatarı alır (bkz. `app.dart`).
+class ProfileIcon extends StatelessWidget {
+  // ignore: prefer_const_constructors_in_immutables
+  ProfileIcon({super.key, required this.color, this.size = 28});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(size: Size(size, size), painter: _ProfileIconPainter(color));
+}
+
+class _ProfileIconPainter extends CustomPainter {
+  const _ProfileIconPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) => _viewBox24(canvas, size, () {
+    canvas.drawCircle(const Offset(12, 8.4), 3.9, _cizgi(color));
+    // Omuzlar — yarım elips; uçları gövdenin dışına taşmaz.
+    canvas.drawArc(
+      const Rect.fromLTRB(4.6, 13.4, 19.4, 24.2),
+      3.4557, // 198°
+      2.3562, // 135°
+      false,
+      _cizgi(color),
+    );
+  });
+
+  @override
+  bool shouldRepaint(_ProfileIconPainter old) => old.color != color;
+}
 
 /// Analiz sekmesi: RADAR ikonu (eş merkezli halkalar + tarama kolu + iz).
 class RadarIcon extends StatelessWidget {

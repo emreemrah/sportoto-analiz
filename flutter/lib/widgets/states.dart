@@ -13,7 +13,13 @@ import '../core/theme/tokens.dart';
 /// Kaynakta `react-native-svg` ile çizilmişti; Flutter'da aynı 48×48 viewBox
 /// koordinatları `CustomPainter` ile birebir çizilir. Süre 1200 ms, doğrusal.
 class BallLoader extends StatefulWidget {
-  const BallLoader({super.key, this.size = 44, this.color});
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  BallLoader({super.key, this.size = 44, this.color});
 
   final double size;
   final Color? color;
@@ -98,7 +104,13 @@ class _TopBoyaci extends CustomPainter {
 
 /// Ekran içine gömülen bekleme durumu (tam ekran değil).
 class LoadingState extends StatelessWidget {
-  const LoadingState({super.key, this.message = 'Yükleniyor…'});
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  LoadingState({super.key, this.message = 'Yükleniyor…'});
 
   final String message;
 
@@ -109,15 +121,12 @@ class LoadingState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const BallLoader(size: 44),
+          BallLoader(size: 44),
           const SizedBox(height: Spacing.lg),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: AppFont.md,
-              color: AppColors.textSoft,
-            ),
+            style: TextStyle(fontSize: AppFont.md, color: AppColors.textSoft),
           ),
         ],
       ),
@@ -127,17 +136,26 @@ class LoadingState extends StatelessWidget {
 
 /// Ortak hata durumu kartı.
 class ErrorState extends StatelessWidget {
-  const ErrorState({
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  ErrorState({
     super.key,
     this.message,
     this.onRetry,
-    this.icon = '⚠️',
+    this.icon = Icons.error_outline,
     this.title = 'Bir şeyler ters gitti',
   });
 
   final String? message;
   final VoidCallback? onRetry;
-  final String icon;
+
+  /// VEKTÖR ikon, emoji DEĞİL (kullanıcı isteği, 2026-08-12) — emojinin rengi
+  /// tema ile değişmiyordu.
+  final IconData icon;
   final String title;
 
   @override
@@ -155,11 +173,13 @@ class ErrorState extends StatelessWidget {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(icon, style: const TextStyle(fontSize: 34)),
+        // HATA İKONU ANLAMSAL RENKTE: `danger` takımdan bağımsızdır, koyu
+        // temada da kırmızıdır — hata her temada hata gibi görünür.
+        Icon(icon, size: 38, color: AppColors.danger),
         const SizedBox(height: Spacing.md),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: AppFont.lg,
             fontWeight: AppFont.heavy,
@@ -172,10 +192,7 @@ class ErrorState extends StatelessWidget {
             child: Text(
               message!,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.textSoft,
-                fontSize: AppFont.sm,
-              ),
+              style: TextStyle(color: AppColors.textSoft, fontSize: AppFont.sm),
             ),
           ),
         ],
@@ -189,7 +206,7 @@ class ErrorState extends StatelessWidget {
                 color: AppColors.primary,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Text(
+              child: Text(
                 'Tekrar Dene',
                 style: TextStyle(color: AppColors.bg, fontWeight: AppFont.bold),
               ),

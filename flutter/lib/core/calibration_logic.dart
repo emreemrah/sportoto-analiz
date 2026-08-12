@@ -84,8 +84,9 @@ CalibrationHeadline? calibrationHeadline(Map? rep) {
     n: (rep['model'] as Map)['n'],
     weeks: rep['roundsCounted'] ?? 0,
     vsMarket: skillText(vsMarketRaw is Map ? vsMarketRaw['logLoss'] : null),
-    vsBaseline:
-        skillText(vsBaselineRaw is Map ? vsBaselineRaw['logLoss'] : null),
+    vsBaseline: skillText(
+      vsBaselineRaw is Map ? vsBaselineRaw['logLoss'] : null,
+    ),
     // Piyasa referansı yoksa (hiç oran yoksa) dürüstçe söyle.
     marketMissing: rep['market'] == null,
   );
@@ -104,7 +105,8 @@ CalibrationHeadline? calibrationHeadline(Map? rep) {
     title: tam
         ? 'Olasılıkların tamamı orandan türüyor'
         : "Olasılıkların %$pay'i orandan türüyor",
-    body: 'Oranı olan maçlarda gösterdiğimiz olasılık, oranların marjdan '
+    body:
+        'Oranı olan maçlarda gösterdiğimiz olasılık, oranların marjdan '
         'arındırılmış hâlidir. Bu maçlarda "piyasayı yenmek" tanım gereği '
         'mümkün değildir; beceri sıfıra yakın çıkar ve bu bir başarısızlık '
         'değildir. Bağımsız ölçüm yalnız oranı bulunamayan maçlarda yapılır.',
@@ -114,8 +116,15 @@ CalibrationHeadline? calibrationHeadline(Map? rep) {
 /// GERÇEK SINAV: oranı bulunamayan maçlar. Piyasadan türemediği için modelin
 /// kendi katkısı yalnız burada ölçülebilir. Örneklem küçükse söylenir; küçük n
 /// ile "iyiyiz/kötüyüz" denmez.
-({Object n, Object? logLoss, Object? brier, bool reliable, String title, String body})?
-    independentTestText(Map? rep) {
+({
+  Object n,
+  Object? logLoss,
+  Object? brier,
+  bool reliable,
+  String title,
+  String body,
+})?
+independentTestText(Map? rep) {
   final e = rep?['estimatedOnly'];
   if (e is! Map) return null;
   final n = e['n'];
@@ -131,9 +140,9 @@ CalibrationHeadline? calibrationHeadline(Map? rep) {
     title: 'Bağımsız sınav — oranı olmayan maçlar',
     body: guvenli
         ? 'Bu $n maçta olasılık piyasadan türemedi; modelin kendi katkısı '
-            'yalnız burada görünür (log-loss ${e['logLoss']}, rastgele $rastgele).'
+              'yalnız burada görünür (log-loss ${e['logLoss']}, rastgele $rastgele).'
         : 'Yalnız $n maç var — bu sayıda hiçbir yön (iyi ya da kötü) '
-            'güvenilir değildir. Sayı büyüdükçe anlamlı olacak.',
+              'güvenilir değildir. Sayı büyüdükçe anlamlı olacak.',
   );
 }
 
@@ -164,18 +173,18 @@ List<ScoreRow> scoreRows(Map? rep) {
   final uniform = rep!['uniform'];
   return [
     ?satir('Model', rep['model']),
-    ?satir('Piyasa (oran)', rep['market'], rep['market'] != null ? null : 'oran yok'),
-    ?satir('Lig taban oranı', rep['baseline']),
     ?satir(
-      'Rastgele (1/3)',
-      {
-        'n': (rep['model'] as Map)['n'],
-        'logLoss': uniform is Map ? uniform['logLoss'] : null,
-        'brier': uniform is Map ? uniform['brier'] : null,
-        'rps': uniform is Map ? uniform['rps'] : null,
-      },
-      'referans',
+      'Piyasa (oran)',
+      rep['market'],
+      rep['market'] != null ? null : 'oran yok',
     ),
+    ?satir('Lig taban oranı', rep['baseline']),
+    ?satir('Rastgele (1/3)', {
+      'n': (rep['model'] as Map)['n'],
+      'logLoss': uniform is Map ? uniform['logLoss'] : null,
+      'brier': uniform is Map ? uniform['brier'] : null,
+      'rps': uniform is Map ? uniform['rps'] : null,
+    }, 'referans'),
   ];
 }
 
@@ -194,8 +203,9 @@ List<Map<String, dynamic>> curveRows(Map? rep) {
           // Kullanıcı cümlesi: "%60 dediğimiz X maçın %61'i oldu"
           'metin':
               "%${raw['saidPct']} dediğimiz ${raw['n']} durumun %${raw['actualPct']}'i gerçekleşti",
-          'durum':
-              raw['distinguishable'] == true ? 'sapma' : 'ayirt-edilemiyor',
+          'durum': raw['distinguishable'] == true
+              ? 'sapma'
+              : 'ayirt-edilemiyor',
           'durumMetni': raw['distinguishable'] == true
               ? 'Söylenen değerden ayrışıyor'
               : 'Söylenen değerden ayırt edilemiyor',

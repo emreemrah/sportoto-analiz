@@ -96,7 +96,7 @@ class HistoryMatchCard extends StatelessWidget {
                       child: Text(
                         '${item['no']}',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.muted,
                           fontSize: 11,
                           fontWeight: AppFont.black,
@@ -123,7 +123,7 @@ class HistoryMatchCard extends StatelessWidget {
                                   '${home?['name'] ?? ''}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppColors.text,
                                     fontSize: 13.5,
                                     fontWeight: AppFont.heavy,
@@ -158,7 +158,7 @@ class HistoryMatchCard extends StatelessWidget {
                                   maxLines: 1,
                                   textAlign: TextAlign.right,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppColors.text,
                                     fontSize: 13.5,
                                     fontWeight: AppFont.heavy,
@@ -199,7 +199,7 @@ class HistoryMatchCard extends StatelessWidget {
                         if (analysis['favorite'] is Map)
                           RichText(
                             text: TextSpan(
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 11.5,
                                 fontWeight: AppFont.bold,
@@ -210,7 +210,7 @@ class HistoryMatchCard extends StatelessWidget {
                                   text:
                                       '${(analysis['favorite'] as Map)['symbol']}'
                                           .replaceAll('0', 'X'),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppColors.text,
                                     fontWeight: AppFont.black,
                                   ),
@@ -227,7 +227,7 @@ class HistoryMatchCard extends StatelessWidget {
                         if (analysis['surpriseScore'] != null)
                           Text(
                             'Sürpriz ${analysis['surpriseScore']}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.textMuted,
                               fontSize: 11.5,
                               fontWeight: AppFont.bold,
@@ -249,7 +249,7 @@ class HistoryMatchCard extends StatelessWidget {
                             size: 15,
                           ),
                         ),
-                        const Text(
+                        Text(
                           'son maçlar',
                           style: TextStyle(
                             color: AppColors.textMuted,
@@ -314,7 +314,7 @@ class HistoryMatchCard extends StatelessWidget {
                       ),
                     ],
                     // Tıklanabilir olduğunu belli eden tek işaret.
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(left: 6),
                       child: Text(
                         '›',
@@ -362,7 +362,7 @@ class HistoryMatchCard extends StatelessWidget {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
+          Text(
             'CANLI',
             style: TextStyle(
               color: AppColors.accent,
@@ -375,7 +375,7 @@ class HistoryMatchCard extends StatelessWidget {
             padding: const EdgeInsets.only(top: 1),
             child: Text(
               prov['minute'] != null ? "${prov['minute']}'" : 'oynanıyor',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textSoft,
                 fontSize: 11,
                 fontWeight: AppFont.heavy,
@@ -474,7 +474,7 @@ class HistoryMatchCard extends StatelessWidget {
       children: [
         Text(
           d != null ? d.time : '—',
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 14,
             fontWeight: AppFont.heavy,
@@ -485,7 +485,7 @@ class HistoryMatchCard extends StatelessWidget {
           d != null ? d.day : '',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.muted,
             fontSize: 10,
             fontWeight: AppFont.bold,
@@ -520,7 +520,7 @@ class HistoryMatchCard extends StatelessWidget {
       );
     }
     if (notStarted) {
-      return const Text(
+      return Text(
         'Başlamadı',
         style: TextStyle(
           color: AppColors.muted,
@@ -532,7 +532,7 @@ class HistoryMatchCard extends StatelessWidget {
     if (prov != null && prov['live'] == true) {
       return Text(
         "🔴 CANLI${prov['minute'] != null ? " ${prov['minute']}'" : ''}",
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.accent,
           fontSize: 11,
           fontWeight: AppFont.black,
@@ -558,7 +558,7 @@ class HistoryMatchCard extends StatelessWidget {
         ? '—'
         : sysSym.split('').map((c) => c == '0' ? 'X' : c).join('-');
 
-    const label = TextStyle(
+    final label = TextStyle(
       color: AppColors.muted,
       fontSize: 11,
       fontWeight: AppFont.heavy,
@@ -568,27 +568,24 @@ class HistoryMatchCard extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       text: TextSpan(
-        style: const TextStyle(fontSize: 12, color: AppColors.text),
+        style: TextStyle(fontSize: 12, color: AppColors.text),
         children: [
-          const TextSpan(text: 'Sen ', style: label),
-          const TextSpan(
+          TextSpan(text: 'Sen ', style: label),
+          TextSpan(
             text: 'Kupon yok',
             style: TextStyle(
               color: AppColors.textSoft,
               fontWeight: AppFont.bold,
             ),
           ),
-          const TextSpan(
+          TextSpan(
             text: '    ·    ',
             style: TextStyle(color: AppColors.border),
           ),
-          const TextSpan(text: 'Sistem ', style: label),
+          TextSpan(text: 'Sistem ', style: label),
           TextSpan(
             text: gosterim,
-            style: const TextStyle(
-              color: AppColors.text,
-              fontWeight: AppFont.black,
-            ),
+            style: TextStyle(color: AppColors.text, fontWeight: AppFont.black),
           ),
           if (sysMark != Isaret.none)
             TextSpan(text: ' ${kIsaretMetni[sysMark]}'),

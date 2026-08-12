@@ -106,7 +106,9 @@ const String kSurpriseExplain =
 typedef PredMeta = ({String guven, String risk, Color color});
 
 /// Kupon tipine göre güven/risk seviyesi ve vurgu rengi (görsel sunum).
-const Map<String, PredMeta> kPredMeta = {
+/// GETTER, `final` DEĞİL: takım teması `AppColors`ı çalışma zamanında değiştirir
+/// (`primary`/`gray` yapısaldır); `final` harita donardı.
+Map<String, PredMeta> get kPredMeta => {
   'BANKO': (guven: 'Yüksek', risk: 'Kontrollü', color: AppColors.green),
   'NET': (guven: 'Yüksek', risk: 'Düşük', color: AppColors.primary),
   'TEMKİNLİ': (guven: 'Orta', risk: 'Orta', color: AppColors.yellow),
@@ -114,7 +116,7 @@ const Map<String, PredMeta> kPredMeta = {
   'AÇIK': (guven: 'Düşük', risk: 'Yüksek', color: AppColors.red),
 };
 
-const PredMeta kPredMetaBos = (guven: '—', risk: '—', color: AppColors.gray);
+PredMeta get kPredMetaBos => (guven: '—', risk: '—', color: AppColors.gray);
 
 const Map<String, String> kSymWho = {
   '1': 'Ev sahibi',

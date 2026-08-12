@@ -64,21 +64,21 @@ class TeamCrest extends StatelessWidget {
   }
 
   Widget _bos() => Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: S.panel3,
-          borderRadius: BorderRadius.circular(R.sm),
-        ),
-        child: Text(
-          '⚽',
-          style: TextStyle(
-            fontSize: (size * 0.62).roundToDouble(),
-            height: 0.95 / 0.62,
-          ),
-        ),
-      );
+    width: size,
+    height: size,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: S.panel3,
+      borderRadius: BorderRadius.circular(R.sm),
+    ),
+    child: Text(
+      '⚽',
+      style: TextStyle(
+        fontSize: (size * 0.62).roundToDouble(),
+        height: 0.95 / 0.62,
+      ),
+    ),
+  );
 }
 
 /* ————————————————————————— TABLO ————————————————————————— */
@@ -91,14 +91,14 @@ class Tablo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          color: S.panel,
-          border: Border.all(color: S.line, width: TABLE.hair),
-          borderRadius: BorderRadius.circular(R.md),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(children: children),
-      );
+    decoration: BoxDecoration(
+      color: S.panel,
+      border: Border.all(color: S.line, width: TABLE.hair),
+      borderRadius: BorderRadius.circular(R.md),
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: Column(children: children),
+  );
 }
 
 /// Koyu sütun başlığı şeridi.
@@ -110,10 +110,10 @@ class Thead extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        height: (TABLE.headH * k).roundToDouble(),
-        color: S.head,
-        child: Row(children: children),
-      );
+    height: (TABLE.headH * k).roundToDouble(),
+    color: S.head,
+    child: Row(children: children),
+  );
 }
 
 /// Tek sütun başlığı. [tam] dar ekranda kısaltılmış başlığın AÇIK hâlidir —
@@ -182,21 +182,21 @@ class Tr extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Opacity(
-        opacity: kilitli ? 0.78 : 1,
-        child: Container(
-          constraints: BoxConstraints(minHeight: (TABLE.rowH * k).roundToDouble()),
-          decoration: BoxDecoration(
-            color: secili ? S.accentSoft : (zebra ? S.panel2 : null),
-            border: const Border(
-              bottom: BorderSide(color: S.lineSoft, width: TABLE.hair),
-            ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: children,
-          ),
+    opacity: kilitli ? 0.78 : 1,
+    child: Container(
+      constraints: BoxConstraints(minHeight: (TABLE.rowH * k).roundToDouble()),
+      decoration: BoxDecoration(
+        color: secili ? S.accentSoft : (zebra ? S.panel2 : null),
+        border: const Border(
+          bottom: BorderSide(color: S.lineSoft, width: TABLE.hair),
         ),
-      );
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: children,
+      ),
+    ),
+  );
 }
 
 /// Hücre. [dar] sayı sütunları için (dolgu daralır, "20:00" kırpılmaz).
@@ -240,21 +240,18 @@ class Tfoot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        color: S.panel2,
-        padding: EdgeInsets.symmetric(
-          horizontal: TABLE.cellPadX,
-          vertical: SP.sm,
-        ),
-        child: Text(
-          text,
-          style: studioFont(400).copyWith(
-            color: S.inkDim,
-            fontSize: T(k).kucuk,
-            height: 16 / T(k).kucuk,
-          ),
-        ),
-      );
+    width: double.infinity,
+    color: S.panel2,
+    padding: EdgeInsets.symmetric(horizontal: TABLE.cellPadX, vertical: SP.sm),
+    child: Text(
+      text,
+      style: studioFont(400).copyWith(
+        color: S.inkDim,
+        fontSize: T(k).kucuk,
+        height: 16 / T(k).kucuk,
+      ),
+    ),
+  );
 }
 
 /* ————————————————————————— MAÇ SATIRI ————————————————————————— */
@@ -329,8 +326,9 @@ class MacSatiri extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 3),
               child: Text(
                 '-',
-                style:
-                    studioFont(400).copyWith(color: S.inkDim, fontSize: t.kucuk),
+                style: studioFont(
+                  400,
+                ).copyWith(color: S.inkDim, fontSize: t.kucuk),
               ),
             ),
             Flexible(
@@ -346,7 +344,9 @@ class MacSatiri extends StatelessWidget {
             if (kilitli)
               Padding(
                 padding: const EdgeInsets.only(left: 2),
-                child: Text('🔒', style: TextStyle(fontSize: t.kucuk)),
+                // STÜDYO KENDİ PALETİNİ KULLANIR: bu bir paylaşım GÖRSELİDİR,
+                // uygulama arayüzü değil — rengi uygulama temasıyla değişmez.
+                child: Icon(Icons.lock_outline, size: t.kucuk, color: S.inkDim),
               ),
           ],
         ),
@@ -501,11 +501,9 @@ class SayiKutu extends StatelessWidget {
           Text(
             deger,
             maxLines: 1,
-            style: studioFont(700).copyWith(
-              color: tone,
-              fontSize: t.buyuk,
-              fontFeatures: kTabular,
-            ),
+            style: studioFont(
+              700,
+            ).copyWith(color: tone, fontSize: t.buyuk, fontFeatures: kTabular),
           ),
           if (alt != null)
             Text(
@@ -620,10 +618,7 @@ class StudioBaslik extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = T(k);
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: SP.md,
-        vertical: SP.sm,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: SP.md, vertical: SP.sm),
       decoration: BoxDecoration(
         color: S.head,
         borderRadius: BorderRadius.circular(R.md),
@@ -726,7 +721,8 @@ class PickBoxes extends StatelessWidget {
       button: !salt,
       selected: on,
       enabled: !disabled,
-      label: '${_resmi(o)} işareti'
+      label:
+          '${_resmi(o)} işareti'
           '${on ? ', seçili' : ''}${disabled ? ', kilitli' : ''}',
       child: Opacity(
         opacity: disabled ? 0.42 : 1,

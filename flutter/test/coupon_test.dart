@@ -78,8 +78,10 @@ void main() {
 
     test('kilitten önce açık, kilitten sonra kapalı', () {
       final m = {'date': macBasi.toIso8601String()};
-      expect(isMatchLocked(m, now: kilit.subtract(const Duration(minutes: 1))),
-          isFalse);
+      expect(
+        isMatchLocked(m, now: kilit.subtract(const Duration(minutes: 1))),
+        isFalse,
+      );
       expect(isMatchLocked(m, now: kilit), isTrue);
       expect(isMatchLocked(m, now: macBasi), isTrue);
     });
@@ -165,26 +167,29 @@ void main() {
     });
 
     test('çifte tercih tutarsa isabet sayılır', () {
-      final e = evalSelections([
+      final e = evalSelections(
+        [
+          {
+            'no': 1,
+            'selectedOutcomes': ['1', 'X'],
+          },
+        ],
         {
-          'no': 1,
-          'selectedOutcomes': ['1', 'X'],
+          1: '0', // beraberlik
         },
-      ], {
-        1: '0', // beraberlik
-      });
+      );
       expect(e.rows.first.hit, isTrue);
       expect(e.correct, 1);
     });
 
     test('12+ derece YALNIZ tüm sonuçlar gelince kesinleşir', () {
       List<Map> sec(int n) => [
-            for (var i = 1; i <= n; i++)
-              {
-                'no': i,
-                'selectedOutcomes': ['1'],
-              },
-          ];
+        for (var i = 1; i <= n; i++)
+          {
+            'no': i,
+            'selectedOutcomes': ['1'],
+          },
+      ];
 
       // 15 maçın 14'ü doğru ama 1'i henüz sonuçlanmadı → tier YOK.
       final eksik = evalSelections(sec(15), {
@@ -202,15 +207,16 @@ void main() {
     });
 
     test('12 altı isabette derece yok', () {
-      final e = evalSelections([
-        for (var i = 1; i <= 15; i++)
-          {
-            'no': i,
-            'selectedOutcomes': ['1'],
-          },
-      ], {
-        for (var i = 1; i <= 15; i++) i: i <= 11 ? '1' : '2',
-      });
+      final e = evalSelections(
+        [
+          for (var i = 1; i <= 15; i++)
+            {
+              'no': i,
+              'selectedOutcomes': ['1'],
+            },
+        ],
+        {for (var i = 1; i <= 15; i++) i: i <= 11 ? '1' : '2'},
+      );
       expect(e.correct, 11);
       expect(e.allResolved, isTrue);
       expect(e.tier, isNull);
@@ -230,10 +236,7 @@ void main() {
                 'no': 1,
                 'selectedOutcomes': ['1', 'X'],
               },
-              {
-                'no': 2,
-                'selectedOutcomes': <String>[],
-              },
+              {'no': 2, 'selectedOutcomes': <String>[]},
             ],
           },
         ],

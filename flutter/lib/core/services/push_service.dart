@@ -242,6 +242,11 @@ class _Native implements PushNative {
           importance: Importance.high,
           priority: Priority.high,
           // KAYNAK: app.json → plugins["expo-notifications"].color
+          //
+          // TAKIM TEMASINA BAĞLANMADI (2026-08-12, bilinçli): bildirim
+          // ARKA PLAN İSOLATE'INDA da kurulur ve orada `temayiUygula`
+          // çalışmamıştır — renk bazen takımın, bazen markanın olurdu.
+          // Tutarsız bir bildirim rengi, tema bütünlüğünden daha kötü.
           color: Color(0xFF0B1B3A),
         ),
         iOS: DarwinNotificationDetails(),

@@ -15,7 +15,14 @@ import '../../core/theme/tokens.dart';
 const Color _homeC = Color(0xFF2F6FED);
 const Color _awayC = Color(0xFFE0762C);
 
-String _iconOf(LiveEvent e) => e.kind == 'red' ? '🟥' : '⚽';
+/// Olay ikonu VEKTÖR (kullanıcı isteği, 2026-08-12): 🟥/⚽ emojisiydi ve
+/// rengi emoji fontundan geliyordu. Kırmızı kart ANLAMSAL `danger` tonunu
+/// alır — temadan bağımsızdır, her görünümde kırmızıdır.
+IconData _iconOf(LiveEvent e) =>
+    e.kind == 'red' ? Icons.square : Icons.sports_soccer;
+
+Color _iconColorOf(LiveEvent e) =>
+    e.kind == 'red' ? AppColors.danger : AppColors.textSoft;
 
 class LiveTimeline extends StatelessWidget {
   const LiveTimeline({
@@ -41,9 +48,7 @@ class LiveTimeline extends StatelessWidget {
     for (final m in markers) {
       cap = math.max(cap, m.e.at);
     }
-    final nowPos = dk != null
-        ? math.max(0.0, math.min(1.0, dk / cap))
-        : null;
+    final nowPos = dk != null ? math.max(0.0, math.min(1.0, dk / cap)) : null;
     final halfPos = kHalfMinutes / cap;
     final home = markers.where((m) => m.e.side == 'home').toList();
     final away = markers.where((m) => m.e.side == 'away').toList();
@@ -70,7 +75,7 @@ class LiveTimeline extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(child: _yan(homeName, _homeC, TextAlign.start)),
-                const Text(
+                Text(
                   'Maç Şeridi',
                   style: TextStyle(
                     color: AppColors.textMuted,
@@ -147,7 +152,7 @@ class LiveTimeline extends StatelessWidget {
               child: Text(
                 '${noSide.length} olayın takımı eşleştirilemedi — şeritte '
                 'gösterilmiyor, listede duruyor.',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 9.5,
                   fontStyle: FontStyle.italic,
@@ -191,7 +196,7 @@ class LiveTimeline extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(_iconOf(m.e), style: const TextStyle(fontSize: 12)),
+                    Icon(_iconOf(m.e), size: 12, color: _iconColorOf(m.e)),
                     Text(
                       "${m.e.minute}${m.e.extra > 0 ? '+${m.e.extra}' : ''}'",
                       style: TextStyle(
@@ -218,7 +223,7 @@ class _Olcek extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     t,
-    style: const TextStyle(
+    style: TextStyle(
       color: AppColors.textMuted,
       fontSize: 8.5,
       fontWeight: AppFont.heavy,

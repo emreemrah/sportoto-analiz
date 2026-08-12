@@ -173,13 +173,12 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
   Widget build(BuildContext context) => ValueListenableBuilder<auth.AuthState>(
     valueListenable: auth.authState,
     builder: (context, s, _) => Scaffold(
-      backgroundColor: AppColors.bg,
       appBar: AppBar(title: const Text('Güvenlik Ayarları')),
       body: ScreenBackdrop(
         child: ListView(
           padding: const EdgeInsets.all(Spacing.lg),
           children: [
-            const Text(
+            Text(
               'Güvenlik Ayarları',
               style: TextStyle(
                 color: AppColors.text,
@@ -192,7 +191,8 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
             const _BiometricCard(),
 
             _Kart(
-              baslik: '🔑 Şifre Değiştir',
+              baslik: 'Şifre Değiştir',
+              ikon: Icons.key_outlined,
               children: [
                 const _Ipucu(
                   'Onaylandığında diğer cihazlardaki oturumların güvenlik için kapatılır.',
@@ -217,12 +217,13 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
             ),
 
             _Kart(
-              baslik: '📧 E-posta Değiştir',
+              baslik: 'E-posta Değiştir',
+              ikon: Icons.alternate_email,
               children: [
                 _Ipucu(
                   'Mevcut adres: ${s.user?['email'] ?? '—'}. Değişiklik, yeni adrese gelen doğrulama bağlantısıyla tamamlanır.',
                 ),
-                const Text(
+                Text(
                   'Yeni e-posta',
                   style: TextStyle(
                     color: AppColors.textMuted,
@@ -235,10 +236,10 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                   controller: _newEmail,
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
-                  style: const TextStyle(color: AppColors.text, fontSize: 15),
+                  style: TextStyle(color: AppColors.text, fontSize: 15),
                   decoration: InputDecoration(
                     hintText: 'yeni@ornek.com',
-                    hintStyle: const TextStyle(color: AppColors.textMuted),
+                    hintStyle: TextStyle(color: AppColors.textMuted),
                     filled: true,
                     fillColor: AppColors.cardAlt,
                     isDense: true,
@@ -248,15 +249,15 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
-                      borderSide: const BorderSide(color: AppColors.border),
+                      borderSide: BorderSide(color: AppColors.border),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
-                      borderSide: const BorderSide(color: AppColors.border),
+                      borderSide: BorderSide(color: AppColors.border),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
-                      borderSide: const BorderSide(color: AppColors.border),
+                      borderSide: BorderSide(color: AppColors.border),
                     ),
                   ),
                 ),
@@ -276,7 +277,8 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
             ),
 
             _Kart(
-              baslik: '🚪 Diğer Oturumları Kapat',
+              baslik: 'Diğer Oturumları Kapat',
+              ikon: Icons.logout,
               children: [
                 const _Ipucu(
                   'Şüpheli bir durum fark edersen bu cihaz dışındaki tüm oturumları tek dokunuşla kapatabilirsin.',
@@ -292,10 +294,11 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
             ),
 
             _Kart(
-              baslik: '🕓 Son Güvenlik Olayları',
+              baslik: 'Son Güvenlik Olayları',
+              ikon: Icons.history,
               children: [
                 if (_events == null)
-                  const Center(
+                  Center(
                     child: SizedBox(
                       width: 20,
                       height: 20,
@@ -322,7 +325,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
     final ipVar = ip != null && '$ip'.isNotEmpty;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       child: Column(
@@ -332,7 +335,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
             // Bilinmeyen olay TÜRÜ ham anahtarıyla gösterilir — sunucu yeni
             // bir olay eklediğinde satır KAYBOLMAZ (kaynak aynen).
             _eventLabels['${e['event']}'] ?? '${e['event']}',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 13,
               fontWeight: AppFont.bold,
@@ -342,10 +345,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
             padding: const EdgeInsets.only(top: 2),
             child: Text(
               '${_olayZamani(e['created_at'])}${ipVar ? ' · $ip' : ''}',
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 11.5,
-              ),
+              style: TextStyle(color: AppColors.textMuted, fontSize: 11.5),
             ),
           ),
         ],
@@ -422,7 +422,8 @@ class _BiometricCardState extends State<_BiometricCard> {
     // devam ediyor (güvenlik kararı); kullanıcı kapatma yolunu kaybetmemeli.
     if (!_supported && !_enabled) return const SizedBox.shrink();
     return _Kart(
-      baslik: '🫆 Biyometrik Kilit',
+      baslik: 'Biyometrik Kilit',
+      ikon: Icons.fingerprint,
       children: [
         const _Ipucu(
           'Açıkken uygulama her açılışta parmak izi / yüz tanıma ister. Biyometrik '
@@ -442,7 +443,7 @@ class _BiometricCardState extends State<_BiometricCard> {
           children: [
             Text(
               _enabled ? 'Açık' : 'Kapalı',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 14,
                 fontWeight: AppFont.heavy,
@@ -462,10 +463,14 @@ class _BiometricCardState extends State<_BiometricCard> {
 }
 
 class _Kart extends StatelessWidget {
-  const _Kart({required this.baslik, required this.children});
+  const _Kart({required this.baslik, required this.children, this.ikon});
 
   final String baslik;
   final List<Widget> children;
+
+  /// Başlığın solundaki ikon — VEKTÖR, başlığa gömülü emoji DEĞİL (kullanıcı
+  /// isteği, 2026-08-12).
+  final IconData? ikon;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -479,13 +484,23 @@ class _Kart extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          baslik,
-          style: const TextStyle(
-            color: AppColors.text,
-            fontSize: 15.5,
-            fontWeight: AppFont.heavy,
-          ),
+        Row(
+          children: [
+            if (ikon != null) ...[
+              Icon(ikon, size: 17, color: AppColors.textSoft),
+              const SizedBox(width: 8),
+            ],
+            Flexible(
+              child: Text(
+                baslik,
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 15.5,
+                  fontWeight: AppFont.heavy,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         ...children,
@@ -504,7 +519,7 @@ class _Ipucu extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: Spacing.md),
     child: Text(
       metin,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textMuted,
         fontSize: 12.5,
         height: 18 / 12.5,

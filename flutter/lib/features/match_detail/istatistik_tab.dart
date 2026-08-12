@@ -20,6 +20,7 @@ import '../../core/analysis/stats_from_log.dart';
 import '../../core/theme/tokens.dart';
 import '../../widgets/app_ui.dart';
 import '../../widgets/tabs.dart';
+import 'istatistik_gorsel.dart';
 import 'istatistik_parcalari.dart';
 import 'team_compare_radar.dart';
 
@@ -97,6 +98,18 @@ class _IstatistikTabState extends State<IstatistikTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // ── GÖRSEL ÖZET (kullanıcı isteği, 2026-08-11) ──
+        // Önce bir bakışta okunan kartlar ve çubuklar; sayı tabloları ve uzun
+        // listeler altta durmaya devam eder. İkisi de AYNI veriden beslenir —
+        // görsel özet ayrı bir hesap yapmaz, `statsFromLog` ve sezon
+        // ortalamaları neyse onu çizer.
+        FormKartlari(kesitler: _formKesitleri(home, away)),
+        KarsilastirmaCubuklari(
+          home: home,
+          away: away,
+          homeName: widget.homeName,
+          awayName: widget.awayName,
+        ),
         _karne(s, home, away),
         // Güç karşılaştırması — 3'ten az ortak eksen varsa KENDİSİ gizlenir.
         TeamCompareRadar(
@@ -114,33 +127,82 @@ class _IstatistikTabState extends State<IstatistikTab> {
     );
   }
 
+  /// Form kartlarının kesitleri: her takımın son 5 maçı ve kendi sahasındaki
+  /// son 5 maçı. Kesitin maçı yoksa kart HİÇ eklenmez — boş bir kart, veri
+  /// varmış gibi bir izlenim bırakırdı.
+  ///
+  /// Kaynak `statsFromLog`: karne bölümüyle AYNI fonksiyon. Kartlar için ikinci
+  /// bir hesap yazılmadı; iki yüzey aynı sayıyı farklı gösterirse hangisinin
+  /// doğru olduğu bilinemez.
+  List<FormKesiti> _formKesitleri(Map? home, Map? away) {
+    const son5 = StatFiltre(period: 'last5');
+    const son5Ic = StatFiltre(period: 'last5', venueScope: 'home');
+    const son5Dis = StatFiltre(period: 'last5', venueScope: 'away');
+
+    final hLogo = home?['logo'] as String?;
+    final aLogo = away?['logo'] as String?;
+    final liste = <FormKesiti>[];
+
+    void ekle(String baslik, LogStats? v, String? logo, Color renk) {
+      if (v == null || v.n == 0) return;
+      liste.add(FormKesiti(baslik: baslik, veri: v, logo: logo, renk: renk));
+    }
+
+    ekle(
+      '${widget.homeName} · Son 5 Maç',
+      statsFromLog(home, son5, 'home'),
+      hLogo,
+      kEvRengi,
+    );
+    ekle(
+      '${widget.awayName} · Son 5 Maç',
+      statsFromLog(away, son5, 'away'),
+      aLogo,
+      kDepRengi,
+    );
+    ekle(
+      '${widget.homeName} · Son 5 İç Saha',
+      statsFromLog(home, son5Ic, 'home'),
+      hLogo,
+      kEvRengi,
+    );
+    ekle(
+      '${widget.awayName} · Son 5 Deplasman',
+      statsFromLog(away, son5Dis, 'away'),
+      aLogo,
+      kDepRengi,
+    );
+    return liste;
+  }
+
   /// Karşılıklı maç geçmişi — veri yoksa bölüm HİÇ çizilmez.
   Widget _h2h(Map s) {
     final h2h = s['h2h'] as Map?;
     if (h2h == null) return const SizedBox.shrink();
     return SectionCard(
-      title: '⚔️  Karşılıklı Maç Geçmişi',
+      title: 'Karşılıklı Maç Geçmişi',
+      icon: Icons.compare_arrows,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           H2hCell(
             n: h2h['homeWins'],
             label: '${widget.homeName} galibiyeti',
-            icon: '🔵',
+            icon: Icons.emoji_events_outlined,
             color: AppColors.primary,
           ),
           const SizedBox(width: 8),
           H2hCell(
             n: h2h['draws'],
             label: 'Beraberlik',
-            icon: '🤝',
+            icon: Icons.handshake_outlined,
             color: AppColors.gray,
           ),
           const SizedBox(width: 8),
           H2hCell(
             n: h2h['awayWins'],
             label: '${widget.awayName} galibiyeti',
-            icon: '🟠',
+            icon: Icons.flag_outlined,
             color: AppColors.orange,
           ),
         ],
@@ -156,7 +218,7 @@ class _IstatistikTabState extends State<IstatistikTab> {
     if (!dolu) return const SizedBox.shrink();
     return Accordion(
       title: 'Lig Tablosu',
-      icon: '📋',
+      icon: Icons.assignment_outlined,
       child: LeagueTableFull(
         table: t,
         homeId: ((s['home'] as Map?)?['standing'] as Map?)?['teamId'],
@@ -176,7 +238,7 @@ class _IstatistikTabState extends State<IstatistikTab> {
     }
     return Accordion(
       title: 'Kadrolar',
-      icon: '👥',
+      icon: Icons.groups_outlined,
       child: Column(
         children: [
           SquadSection(
@@ -209,7 +271,7 @@ class _IstatistikTabState extends State<IstatistikTab> {
     }
     return Accordion(
       title: 'Eksikler',
-      icon: '🚑',
+      icon: Icons.medical_services_outlined,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -369,7 +431,7 @@ class _IstatistikTabState extends State<IstatistikTab> {
             _CmpRow(
               label: 'G-B-M',
               left: hstd == null
-                  ? const Text('—', style: _clVal)
+                  ? Text('—', style: _clVal)
                   : RecordBadges(
                       wins: _i(hstd['wins']),
                       draws: _i(hstd['draws']),
@@ -377,7 +439,7 @@ class _IstatistikTabState extends State<IstatistikTab> {
                       played: _i(hstd['played']),
                     ),
               right: astd == null
-                  ? const Text('—', style: _clVal)
+                  ? Text('—', style: _clVal)
                   : RecordBadges(
                       wins: _i(astd['wins']),
                       draws: _i(astd['draws']),
@@ -393,8 +455,8 @@ class _IstatistikTabState extends State<IstatistikTab> {
               last: true,
             ),
           ] else
-            const Text('Bu maç için karne verisi bulunamadı.', style: _muted),
-          const Padding(
+            Text('Bu maç için karne verisi bulunamadı.', style: _muted),
+          Padding(
             padding: EdgeInsets.only(top: 6),
             child: Text(
               'Filtreler bu maçta henüz kullanılamıyor — maç logu bir sonraki '
@@ -423,7 +485,7 @@ class _IstatistikTabState extends State<IstatistikTab> {
           width: 60,
           child: Text(
             etiket,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textMuted,
               fontSize: 11,
               fontWeight: AppFont.heavy,
@@ -463,7 +525,7 @@ class _IstatistikTabState extends State<IstatistikTab> {
       child: Text(
         etiket,
         style: TextStyle(
-          color: acik ? AppColors.white : AppColors.textSoft,
+          color: acik ? AppColors.onPrimary : AppColors.textSoft,
           fontSize: 11,
           fontWeight: AppFont.heavy,
         ),
@@ -505,7 +567,7 @@ class _IstatistikTabState extends State<IstatistikTab> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _CmpHead(s: s, homeName: widget.homeName, awayName: widget.awayName),
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 6, bottom: 2),
             child: Text(
               'Maç Başına Ortalamalar',
@@ -522,7 +584,7 @@ class _IstatistikTabState extends State<IstatistikTab> {
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: i == 0
                   ? null
-                  : const BoxDecoration(
+                  : BoxDecoration(
                       border: Border(top: BorderSide(color: AppColors.border)),
                     ),
               child: Row(
@@ -540,7 +602,7 @@ class _IstatistikTabState extends State<IstatistikTab> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textSoft,
                         fontSize: 12.5,
                         fontWeight: AppFont.semibold,
@@ -638,7 +700,7 @@ class _CmpTitle extends StatelessWidget {
     child: Text(
       text,
       textAlign: TextAlign.center,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.text,
         fontSize: 13.5,
         fontWeight: AppFont.heavy,
@@ -671,7 +733,7 @@ class _CmpRow extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 11),
     decoration: last
         ? null
-        : const BoxDecoration(
+        : BoxDecoration(
             border: Border(
               bottom: BorderSide(color: AppColors.border, width: 0.5),
             ),
@@ -690,7 +752,7 @@ class _CmpRow extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.textSoft, fontSize: 12),
+            style: TextStyle(color: AppColors.textSoft, fontSize: 12),
           ),
         ),
         Expanded(
@@ -706,28 +768,30 @@ class _CmpRow extends StatelessWidget {
   );
 }
 
-const TextStyle _chName = TextStyle(
-  color: AppColors.text,
-  fontSize: 13.5,
-  fontWeight: AppFont.heavy,
-);
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _chName =>
+    TextStyle(color: AppColors.text, fontSize: 13.5, fontWeight: AppFont.heavy);
 
-const TextStyle _clVal = TextStyle(
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _clVal => TextStyle(
   color: AppColors.text,
   fontSize: 14.5,
   fontWeight: AppFont.heavy,
   fontFeatures: [FontFeature.tabularFigures()],
 );
 
-const TextStyle _fltHint = TextStyle(
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _fltHint => TextStyle(
   color: AppColors.textMuted,
   fontSize: 10.5,
   height: 14 / 10.5,
   fontStyle: FontStyle.italic,
 );
 
-const TextStyle _muted = TextStyle(
-  color: AppColors.textMuted,
-  fontSize: 12,
-  height: 18 / 12,
-);
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _muted =>
+    TextStyle(color: AppColors.textMuted, fontSize: 12, height: 18 / 12);

@@ -32,8 +32,9 @@ Map _mac({
   'no': no,
   'date': dakikaSonra == null
       ? null
-      : DateTime.fromMillisecondsSinceEpoch(_now + dakikaSonra * _dk)
-            .toIso8601String(),
+      : DateTime.fromMillisecondsSinceEpoch(
+          _now + dakikaSonra * _dk,
+        ).toIso8601String(),
   'home': {'name': home},
   'away': {'name': away},
   'status': ?status,
@@ -47,7 +48,11 @@ Map _kupon(List<int> nolar) => {
     {
       'id': 'v1',
       'selections': [
-        for (final n in nolar) {'no': n, 'selectedOutcomes': ['1']},
+        for (final n in nolar)
+          {
+            'no': n,
+            'selectedOutcomes': ['1'],
+          },
       ],
     },
   ],
@@ -101,11 +106,7 @@ class _SahteNat implements PushNative {
   Future<void> zamanla(PlanItem p) async {
     if (!zamanlamaKabulEtsin) return;
     kayitlar.removeWhere((k) => k.id == p.id);
-    kayitlar.add((
-      id: p.id,
-      fireAt: p.fireAt,
-      kind: '${p.data['kind']}',
-    ));
+    kayitlar.add((id: p.id, fireAt: p.fireAt, kind: '${p.data['kind']}'));
   }
 
   @override
@@ -126,14 +127,17 @@ class _SahteStore implements PushStore {
 
 void main() {
   group('Bildirim merkezi', () {
-    test('bilinen hafta yoksa "yeni bülten" ÜRETİLMEZ (ilk açılış yağmuru)', () {
-      final r = buildNotifications(
-        now: _now,
-        bulletin: {'roundId': 1528, 'round': '1. Hafta', 'matches': []},
-        state: const {},
-      );
-      expect(r.items, isEmpty);
-    });
+    test(
+      'bilinen hafta yoksa "yeni bülten" ÜRETİLMEZ (ilk açılış yağmuru)',
+      () {
+        final r = buildNotifications(
+          now: _now,
+          bulletin: {'roundId': 1528, 'round': '1. Hafta', 'matches': []},
+          state: const {},
+        );
+        expect(r.items, isEmpty);
+      },
+    );
 
     test('yeni hafta kimliği gelince tek bildirim üretilir', () {
       final r = buildNotifications(
@@ -168,9 +172,14 @@ void main() {
         now: _now,
         bulletin: {
           'roundId': 1528,
-          'matches': [_mac(no: 1, dakikaSonra: 30), _mac(no: 2, dakikaSonra: 30)],
+          'matches': [
+            _mac(no: 1, dakikaSonra: 30),
+            _mac(no: 2, dakikaSonra: 30),
+          ],
         },
-        coupons: [_kupon([1])],
+        coupons: [
+          _kupon([1]),
+        ],
         state: const {
           'knownRoundIds': ['1528'],
         },
@@ -186,7 +195,9 @@ void main() {
           'roundId': 1528,
           'matches': [_mac(no: 1, dakikaSonra: 90)],
         },
-        coupons: [_kupon([1])],
+        coupons: [
+          _kupon([1]),
+        ],
         state: const {
           'knownRoundIds': ['1528'],
         },
@@ -201,7 +212,9 @@ void main() {
           'roundId': 1528,
           'matches': [_mac(no: 1)],
         },
-        coupons: [_kupon([1])],
+        coupons: [
+          _kupon([1]),
+        ],
         state: const {
           'knownRoundIds': ['1528'],
         },
@@ -249,7 +262,9 @@ void main() {
     test('okunmuş kimlikler 200 ile sınırlanır', () {
       final s = nextState(
         now: _now,
-        state: {'dismissed': [for (var i = 0; i < 250; i++) 'x$i']},
+        state: {
+          'dismissed': [for (var i = 0; i < 250; i++) 'x$i'],
+        },
       );
       expect((s['dismissed'] as List).length, 200);
       // En YENİLER korunur; en eskiler düşer.
@@ -276,7 +291,9 @@ void main() {
           'roundId': 1528,
           'matches': [_mac(no: 3, dakikaSonra: 120)],
         },
-        coupons: [_kupon([3])],
+        coupons: [
+          _kupon([3]),
+        ],
       );
       expect(p.items.single.id, 'mac:1528:3');
       expect(p.items.single.fireAt, _now + 60 * _dk);
@@ -291,7 +308,9 @@ void main() {
           // 30 dk sonra başlıyor → 60 dk öncesi GEÇMİŞTE kalıyor
           'matches': [_mac(no: 1, dakikaSonra: 30)],
         },
-        coupons: [_kupon([1])],
+        coupons: [
+          _kupon([1]),
+        ],
       );
       expect(p.items, isEmpty);
       expect(p.atlanan.gecmis, 1);
@@ -313,7 +332,9 @@ void main() {
             ),
           ],
         },
-        coupons: [_kupon([1, 2, 3])],
+        coupons: [
+          _kupon([1, 2, 3]),
+        ],
       );
       expect(p.items, isEmpty);
       expect(p.atlanan.basladi, 3);
@@ -326,7 +347,9 @@ void main() {
           'roundId': 1528,
           'matches': [_mac(no: 1)],
         },
-        coupons: [_kupon([1])],
+        coupons: [
+          _kupon([1]),
+        ],
       );
       expect(p.atlanan.saatYok, 1);
     });
@@ -338,7 +361,10 @@ void main() {
           'roundId': 1528,
           'matches': [_mac(no: 5, dakikaSonra: 120)],
         },
-        coupons: [_kupon([5]), _kupon([5])],
+        coupons: [
+          _kupon([5]),
+          _kupon([5]),
+        ],
       );
       expect(p.items.length, 1);
     });
@@ -350,7 +376,9 @@ void main() {
       final p = planMatchReminders(
         now: _now,
         bulletin: {'roundId': 1528, 'matches': maclar},
-        coupons: [_kupon([1, 2, 3, 4, 5])],
+        coupons: [
+          _kupon([1, 2, 3, 4, 5]),
+        ],
         enFazla: 3,
       );
       expect(p.items.length, 3);
@@ -364,7 +392,9 @@ void main() {
           'roundId': 1528,
           'matches': [_mac(no: 1, dakikaSonra: 120)],
         },
-        coupons: [_kupon([1])],
+        coupons: [
+          _kupon([1]),
+        ],
       );
       final d = diffSchedule(p.items, [(id: 'mac:1528:1', fireAt: 12345)]);
       expect(d.kurulacak.length, 1);
@@ -378,7 +408,9 @@ void main() {
           'roundId': 1528,
           'matches': [_mac(no: 1, dakikaSonra: 120)],
         },
-        coupons: [_kupon([1])],
+        coupons: [
+          _kupon([1]),
+        ],
       );
       final d = diffSchedule(p.items, [
         (id: 'mac:1528:1', fireAt: p.items.single.fireAt),
@@ -409,7 +441,9 @@ void main() {
           'roundId': 1528,
           'matches': [_mac(no: 1, dakikaSonra: 120)],
         },
-        coupons: [_kupon([1])],
+        coupons: [
+          _kupon([1]),
+        ],
       );
       expect(r.enabled, isTrue);
       expect(store.t.enabled, isTrue);
@@ -429,7 +463,9 @@ void main() {
           'roundId': 1528,
           'matches': [_mac(no: 1, dakikaSonra: 120)],
         },
-        coupons: [_kupon([1])],
+        coupons: [
+          _kupon([1]),
+        ],
       );
       expect(s.durum, 'eksik');
       expect(s.plan, 1);
@@ -467,20 +503,22 @@ void main() {
       expect(nat.kayitlar.where((k) => k.id == kTestId).length, 1);
     });
 
-    test('cihaz desteklemiyorsa hiçbir şey kurulmaz ve dürüstçe söylenir',
-        () async {
-      final nat = _SahteNat(destek: false);
-      final store = _SahteStore();
-      final d = await durumOku(nat: nat, store: store);
-      expect(d.destek, isFalse);
-      expect(d.izin, 'unsupported');
-      expect(d.acik, isFalse);
+    test(
+      'cihaz desteklemiyorsa hiçbir şey kurulmaz ve dürüstçe söylenir',
+      () async {
+        final nat = _SahteNat(destek: false);
+        final store = _SahteStore();
+        final d = await durumOku(nat: nat, store: store);
+        expect(d.destek, isFalse);
+        expect(d.izin, 'unsupported');
+        expect(d.acik, isFalse);
 
-      final t = await testKur(nat: nat, store: store);
-      expect(t.ok, isFalse);
-      expect(t.neden, 'destek-yok');
-      expect(nat.kayitlar, isEmpty);
-    });
+        final t = await testKur(nat: nat, store: store);
+        expect(t.ok, isFalse);
+        expect(t.neden, 'destek-yok');
+        expect(nat.kayitlar, isEmpty);
+      },
+    );
 
     test('test bildirimi kişisel veri TAŞIMAZ', () {
       final t = testIcerigi(now: _now);

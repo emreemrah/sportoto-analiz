@@ -35,10 +35,7 @@ void main() {
 
     test('üç koşul birden sağlanınca gösterilir', () {
       expect(
-        hasOfficialData({
-          'hasData': true,
-          'hasOfficialForwardData': true,
-        }),
+        hasOfficialData({'hasData': true, 'hasOfficialForwardData': true}),
         isTrue,
       );
     });
@@ -97,10 +94,7 @@ void main() {
     test('kanıt alanı olmayan kriter karnesi kullanılmaz', () {
       expect(criteriaBadgeUsable({'hasData': true}), isFalse);
       expect(
-        criteriaBadgeUsable({
-          'hasData': true,
-          'provenanceType': 'backfill',
-        }),
+        criteriaBadgeUsable({'hasData': true, 'provenanceType': 'backfill'}),
         isFalse,
       );
       expect(
@@ -179,22 +173,33 @@ void main() {
   group('Model=piyasa uyarısı', () {
     test('pay yoksa uyarı çıkmaz', () {
       expect(marketDerivedNotice(null), isNull);
-      expect(marketDerivedNotice({'marketDerived': {'share': 0}}), isNull);
+      expect(
+        marketDerivedNotice({
+          'marketDerived': {'share': 0},
+        }),
+        isNull,
+      );
     });
 
     test('tam pay "tamamı" der, kısmi pay yüzdeyi yazar', () {
       expect(
-        marketDerivedNotice({'marketDerived': {'share': 100}})!.title,
+        marketDerivedNotice({
+          'marketDerived': {'share': 100},
+        })!.title,
         'Olasılıkların tamamı orandan türüyor',
       );
       expect(
-        marketDerivedNotice({'marketDerived': {'share': 62}})!.title,
+        marketDerivedNotice({
+          'marketDerived': {'share': 62},
+        })!.title,
         contains('%62'),
       );
     });
 
     test('uyarı metni "başarısızlık değildir" der', () {
-      final n = marketDerivedNotice({'marketDerived': {'share': 80}})!;
+      final n = marketDerivedNotice({
+        'marketDerived': {'share': 80},
+      })!;
       expect(n.body, contains('başarısızlık'));
       expect(n.body, contains('tanım gereği'));
     });
@@ -221,7 +226,12 @@ void main() {
 
     test('veri yoksa bölüm hiç çizilmez', () {
       expect(independentTestText(null), isNull);
-      expect(independentTestText({'estimatedOnly': {'n': 0}}), isNull);
+      expect(
+        independentTestText({
+          'estimatedOnly': {'n': 0},
+        }),
+        isNull,
+      );
     });
   });
 
@@ -270,12 +280,7 @@ void main() {
       final rows = curveRows({
         'curve': {
           'bins': [
-            {
-              'saidPct': 60,
-              'actualPct': 61,
-              'n': 25,
-              'distinguishable': false,
-            },
+            {'saidPct': 60, 'actualPct': 61, 'n': 25, 'distinguishable': false},
           ],
         },
       });
@@ -307,7 +312,12 @@ void main() {
     });
 
     test('yetersiz gözlemde eğri çizilmez, sebep yazılır', () {
-      expect(curveRows({'curve': {'insufficient': true}}), isEmpty);
+      expect(
+        curveRows({
+          'curve': {'insufficient': true},
+        }),
+        isEmpty,
+      );
       expect(
         curveUnavailableText({
           'curve': {'insufficient': true, 'note': 'En az 100 gözlem gerekir.'},

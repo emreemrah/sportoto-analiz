@@ -72,11 +72,11 @@ abstract final class S {
 
 /// Seçim genişliğinin rengi (tek/çift/kapalı).
 Color toneOfKind(String? kind) => switch (kind) {
-      'tek' => S.good,
-      'cift' => S.info,
-      'kapali' => S.accent,
-      _ => S.inkDim,
-    };
+  'tek' => S.good,
+  'cift' => S.info,
+  'kapali' => S.accent,
+  _ => S.inkDim,
+};
 
 /* ————————————————— ÖLÇÜ ————————————————— */
 // Yuvarlaklık bilerek çok küçük: resmî tablo görünümü köşeli çizgilerden doğar.

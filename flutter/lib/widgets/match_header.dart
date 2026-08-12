@@ -11,7 +11,13 @@ import '../core/theme/tokens.dart';
 import 'app_ui.dart';
 
 class MatchHeader extends StatelessWidget {
-  const MatchHeader({
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  MatchHeader({
     super.key,
     required this.home,
     required this.away,
@@ -44,7 +50,7 @@ class MatchHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.only(bottom: Spacing.lg),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.bgAlt,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
@@ -68,32 +74,42 @@ class MatchHeader extends StatelessWidget {
                     onTap: onBack,
                     behavior: HitTestBehavior.opaque,
                     // Kaynaktaki hitSlop 10 → dokunma alanı büyütülür.
-                    child: const Padding(
+                    child: Padding(
                       padding: EdgeInsets.all(10),
-                      child: Text(
-                        '‹',
-                        style: TextStyle(
-                          color: AppColors.text,
-                          fontSize: 30,
-                          fontWeight: AppFont.black,
-                          height: 1,
-                        ),
+                      child: Icon(
+                        Icons.chevron_left,
+                        size: 30,
+                        color: AppColors.text,
                       ),
                     ),
                   ),
                 ),
                 Column(
                   children: [
-                    Text(
-                      '⚽ $kAppNameUpper',
-                      style: const TextStyle(
-                        color: AppColors.text,
-                        fontSize: 16,
-                        fontWeight: AppFont.black,
-                        letterSpacing: 1,
-                      ),
+                    // BAŞLIK İKONU AYRI WIDGET: emojiyken rengi metinden
+                    // bağımsızdı ve koyu/takım temasında başlık koyulaşırken
+                    // top olduğu gibi kalıyordu.
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.sports_soccer,
+                          size: 16,
+                          color: AppColors.text,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          kAppNameUpper,
+                          style: TextStyle(
+                            color: AppColors.text,
+                            fontSize: 16,
+                            fontWeight: AppFont.black,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
                     ),
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(top: 1),
                       child: Text(
                         'BAĞIMSIZ ANALİZ UYGULAMASI',
@@ -112,13 +128,10 @@ class MatchHeader extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   child: const Padding(
                     padding: EdgeInsets.all(10),
-                    child: Text(
-                      '☆',
-                      style: TextStyle(
-                        color: AppColors.gold,
-                        fontSize: 22,
-                        fontWeight: AppFont.black,
-                      ),
+                    child: Icon(
+                      Icons.star_border,
+                      size: 24,
+                      color: AppColors.gold,
                     ),
                   ),
                 ),
@@ -151,7 +164,7 @@ class MatchHeader extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 10.5,
                                 fontWeight: AppFont.bold,
@@ -168,7 +181,7 @@ class MatchHeader extends StatelessWidget {
                                 if (dateLabel != null && dateLabel!.isNotEmpty)
                                   Text(
                                     dateLabel!,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: AppColors.textMuted,
                                       fontSize: 11,
                                       fontWeight: AppFont.bold,
@@ -176,7 +189,7 @@ class MatchHeader extends StatelessWidget {
                                   ),
                                 Text(
                                   time,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppColors.text,
                                     fontSize: 21,
                                     fontWeight: AppFont.black,
@@ -197,7 +210,7 @@ class MatchHeader extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 10.5,
                                 fontWeight: AppFont.semibold,
@@ -227,7 +240,7 @@ class MatchHeader extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 14,
             fontWeight: AppFont.heavy,
@@ -236,7 +249,7 @@ class MatchHeader extends StatelessWidget {
         // Fikstür bağlantısı yalnız kaynak takım kimliği VARSA çizilir —
         // tıklanıp boş açılan bir kart olmaz.
         if (onTap != null)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 0),
             child: Text(
               'maçlar ›',
@@ -263,7 +276,7 @@ class _Tire extends StatelessWidget {
   const _Tire();
 
   @override
-  Widget build(BuildContext context) => const Text(
+  Widget build(BuildContext context) => Text(
     '-',
     style: TextStyle(
       color: AppColors.textMuted,

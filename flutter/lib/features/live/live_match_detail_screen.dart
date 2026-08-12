@@ -91,8 +91,8 @@ class LiveMatchDetailScreen extends StatefulWidget {
 }
 
 class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
-    // İKİ denetleyici var (nabız + flaş) → Single* DEĞİL, çoklu ticker mixin'i.
-    with
+        // İKİ denetleyici var (nabız + flaş) → Single* DEĞİL, çoklu ticker mixin'i.
+        with
         TickerProviderStateMixin,
         WidgetsBindingObserver {
   Map? _d;
@@ -193,7 +193,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
   Widget build(BuildContext context) {
     if (_loading && _d == null) {
       return _sarmal(
-        const Expanded(
+        Expanded(
           child: Center(
             child: SizedBox(
               width: 44,
@@ -215,7 +215,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text('⚠️', style: TextStyle(fontSize: 40)),
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: 6),
                     child: Text(
                       'Canlı veri alınamadı.',
@@ -231,7 +231,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                     child: Text(
                       _error!,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 12,
                       ),
@@ -250,10 +250,10 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                           color: AppColors.primary,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Tekrar Dene',
                           style: TextStyle(
-                            color: AppColors.white,
+                            color: AppColors.onPrimary,
                             fontWeight: AppFont.heavy,
                           ),
                         ),
@@ -327,7 +327,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                             skor != null
                                 ? '${skor['home']} - ${skor['away']}'
                                 : '–',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.text,
                               fontSize: 24,
                               fontWeight: AppFont.black,
@@ -378,7 +378,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
 
             // sekmeler
             Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.card,
                 border: Border(
                   top: BorderSide(color: AppColors.border),
@@ -501,7 +501,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                         ),
                       ),
                     ),
-                    const Text(
+                    Text(
                       'BASKI GÖSTERGESİ',
                       style: TextStyle(
                         color: AppColors.textMuted,
@@ -514,7 +514,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                       child: Text(
                         '%${pressure.away}',
                         textAlign: TextAlign.right,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.accent,
                           fontSize: 15,
                           fontWeight: AppFont.black,
@@ -547,7 +547,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                 child: Text(
                   '${pressure.basis.join(' · ')} verilerinin payı. '
                   'Sonuç tahmini değildir.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 10,
                     fontStyle: FontStyle.italic,
@@ -584,7 +584,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                     v == 'table' ? 'Tablo' : 'Grafik',
                     style: TextStyle(
                       color: _statView == v
-                          ? AppColors.white
+                          ? AppColors.onPrimary
                           : AppColors.textSoft,
                       fontSize: 12,
                       fontWeight: AppFont.heavy,
@@ -642,7 +642,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                     children: [
                       Text(
                         "${g.minute}${g.extra > 0 ? '+${g.extra}' : ''}'",
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 10.5,
                           fontWeight: AppFont.black,
@@ -651,7 +651,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                       const SizedBox(width: 5),
                       Text(
                         '${g.home}-${g.away}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.text,
                           fontSize: 12.5,
                           fontWeight: AppFont.black,
@@ -674,7 +674,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
       for (final e in events.cast<Map>())
         Container(
           padding: const EdgeInsets.symmetric(vertical: 9),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: AppColors.border)),
           ),
           child: Row(
@@ -685,7 +685,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                   e['minute'] != null
                       ? "${e['minute']}${e['extra'] != null ? '+${e['extra']}' : ''}'"
                       : '',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 12,
                     fontWeight: AppFont.black,
@@ -702,7 +702,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                     Text(
                       '${_eventLabel(e)}'
                       '${e['side'] != null ? ' · ${e['side'] == 'home' ? d['home'] : d['away']}' : (e['team'] != null ? ' · ${e['team']}' : '')}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.text,
                         fontSize: 13,
                         fontWeight: AppFont.bold,
@@ -714,7 +714,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                         child: Text(
                           '${e['player']}'
                           '${e['assist'] != null ? ' (asist: ${e['assist']})' : ''}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textMuted,
                             fontSize: 11.5,
                             fontWeight: AppFont.semibold,
@@ -748,7 +748,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
         baslik: 'Senin Kuponun',
         children: [
           if (myPicks.isEmpty) ...[
-            const Text(
+            Text(
               'Kupon yok',
               style: TextStyle(
                 color: AppColors.textMuted,
@@ -756,9 +756,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                 fontWeight: AppFont.black,
               ),
             ),
-            const _Not(
-              'Bu bülten için bu maça yapılmış kayıtlı seçimin yok.',
-            ),
+            const _Not('Bu bülten için bu maça yapılmış kayıtlı seçimin yok.'),
             if (d['roundId'] != null)
               Padding(
                 padding: const EdgeInsets.only(top: 10),
@@ -777,10 +775,10 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                         color: AppColors.primary,
                         borderRadius: AppRadius.smR,
                       ),
-                      child: const Text(
+                      child: Text(
                         'Kupon Oluştur',
                         style: TextStyle(
-                          color: AppColors.white,
+                          color: AppColors.onPrimary,
                           fontSize: 12.5,
                           fontWeight: AppFont.heavy,
                         ),
@@ -793,7 +791,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
             for (final p in myPicks)
               Container(
                 padding: const EdgeInsets.symmetric(vertical: 7),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   border: Border(bottom: BorderSide(color: AppColors.border)),
                 ),
                 child: Row(
@@ -816,7 +814,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.text,
                           fontSize: 12.5,
                           fontWeight: AppFont.heavy,
@@ -826,7 +824,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                     const SizedBox(width: 8),
                     Text(
                       p.label,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.text,
                         fontSize: 15,
                         fontWeight: AppFont.black,
@@ -874,7 +872,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
             children: [
               Text(
                 sysSym ?? '—',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.text,
                   fontSize: 22,
                   fontWeight: AppFont.black,
@@ -940,7 +938,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                   ],
                 ],
               ),
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 13,
                 fontWeight: AppFont.bold,
@@ -955,8 +953,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                   const TextSpan(text: 'Sistem Riskte: '),
                   TextSpan(
                     text:
-                        st == MacDurum.live &&
-                            pickHits(sysSym, actual) == false
+                        st == MacDurum.live && pickHits(sysSym, actual) == false
                         ? 'EVET (anlık)'
                         : 'hayır',
                     style: TextStyle(
@@ -970,7 +967,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                   ),
                 ],
               ),
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.text,
                 fontSize: 13,
                 fontWeight: AppFont.bold,
@@ -1024,7 +1021,9 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
       final v = finalVersion(c);
       final sels = (v?['selections'] as List?) ?? const [];
       final sel = sels.cast<Map?>().firstWhere(
-        (s) => s != null && num.tryParse('${s['no']}') == num.tryParse('${d['no']}'),
+        (s) =>
+            s != null &&
+            num.tryParse('${s['no']}') == num.tryParse('${d['no']}'),
         orElse: () => null,
       );
       final outcomes = (sel?['selectedOutcomes'] as List?) ?? const [];
@@ -1044,7 +1043,6 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
   // ——— kabuk ———
 
   Widget _sarmal(Widget child) => Scaffold(
-    backgroundColor: AppColors.bg,
     body: SafeArea(
       bottom: false,
       child: Column(
@@ -1054,7 +1052,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () => Navigator.of(context).maybePop(),
-              child: const Padding(
+              child: Padding(
                 padding: EdgeInsets.only(
                   left: Spacing.md,
                   right: Spacing.md,
@@ -1083,7 +1081,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
     maxLines: 1,
     overflow: TextOverflow.ellipsis,
     textAlign: hiza,
-    style: const TextStyle(
+    style: TextStyle(
       color: AppColors.text,
       fontSize: 14,
       fontWeight: AppFont.heavy,
@@ -1101,7 +1099,7 @@ class _StatTablo extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(vertical: 9),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       border: Border(bottom: BorderSide(color: AppColors.border)),
     ),
     child: Row(
@@ -1113,7 +1111,7 @@ class _StatTablo extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textSoft,
               fontSize: 12.5,
               fontWeight: AppFont.semibold,
@@ -1128,7 +1126,7 @@ class _StatTablo extends StatelessWidget {
   static Widget _deger(Object? v, {TextAlign hiza = TextAlign.start}) => Text(
     v == null ? '–' : '$v',
     textAlign: hiza,
-    style: const TextStyle(
+    style: TextStyle(
       color: AppColors.text,
       fontSize: 14,
       fontWeight: AppFont.heavy,
@@ -1164,7 +1162,7 @@ class _StatGrafik extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textSoft,
                       fontSize: 12.5,
                       fontWeight: AppFont.semibold,
@@ -1211,7 +1209,7 @@ class _OzetSatiri extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(vertical: 10),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       border: Border(bottom: BorderSide(color: AppColors.border)),
     ),
     child: Row(
@@ -1219,7 +1217,7 @@ class _OzetSatiri extends StatelessWidget {
       children: [
         Text(
           k,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textMuted,
             fontSize: 13,
             fontWeight: AppFont.bold,
@@ -1227,7 +1225,7 @@ class _OzetSatiri extends StatelessWidget {
         ),
         Text(
           v,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.text,
             fontSize: 13,
             fontWeight: AppFont.black,
@@ -1256,9 +1254,7 @@ class _Kart extends StatelessWidget {
     decoration: BoxDecoration(
       color: vurgulu ? AppColors.warningSoft : AppColors.card,
       borderRadius: BorderRadius.circular(AppRadius.md),
-      border: Border.all(
-        color: vurgulu ? AppColors.warning : AppColors.border,
-      ),
+      border: Border.all(color: vurgulu ? AppColors.warning : AppColors.border),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1267,7 +1263,7 @@ class _Kart extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 6),
           child: Text(
             baslik,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textSoft,
               fontSize: 12,
               fontWeight: AppFont.black,
@@ -1290,7 +1286,7 @@ class _Not extends StatelessWidget {
     padding: const EdgeInsets.only(top: 6),
     child: Text(
       t,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textMuted,
         fontSize: 11.5,
         fontWeight: AppFont.semibold,
@@ -1311,7 +1307,7 @@ class _Bos extends StatelessWidget {
     child: Text(
       text,
       textAlign: TextAlign.center,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textMuted,
         fontSize: 13,
         fontWeight: AppFont.semibold,
@@ -1328,7 +1324,7 @@ class _GolEtiketi extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     t,
-    style: const TextStyle(
+    style: TextStyle(
       color: AppColors.accent,
       fontSize: 9,
       fontWeight: AppFont.black,

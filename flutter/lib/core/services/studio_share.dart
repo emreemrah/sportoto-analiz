@@ -56,7 +56,8 @@ String couponShareCaptionOf({
   Object? weekNumber,
   Object? columnCount,
 }) {
-  final hafta = _haftaMetniOf(roundName: roundName, weekNumber: weekNumber) ??
+  final hafta =
+      _haftaMetniOf(roundName: roundName, weekNumber: weekNumber) ??
       'Haftalık kupon';
   final n = columnCount is num ? columnCount : null;
   final kolon = (n != null && n > 0) ? ' · $n kolon' : '';
@@ -72,12 +73,12 @@ bool isAbortError(Object? e) {
 
 /// Sonuç metinleri — ne olduğunu ekranda YAZILI söyleriz, sessiz kalmayız.
 String shareDoneTextOf(String tur) => switch (tur) {
-      'shared' => 'Paylaşım menüsü açıldı.',
-      'downloaded' => 'Görsel indirildi — indirilenler klasöründe.',
-      'unavailable' =>
-        'Bu cihazda paylaşım menüsü açılamadı; görsel oluşturuldu ama paylaşılamadı.',
-      _ => '',
-    };
+  'shared' => 'Paylaşım menüsü açıldı.',
+  'downloaded' => 'Görsel indirildi — indirilenler klasöründe.',
+  'unavailable' =>
+    'Bu cihazda paylaşım menüsü açılamadı; görsel oluşturuldu ama paylaşılamadı.',
+  _ => '',
+};
 
 String shareErrorTextOf(Object? e) {
   final m = '${e ?? ''}'.trim();
