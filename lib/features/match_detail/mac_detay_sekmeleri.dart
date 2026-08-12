@@ -26,7 +26,12 @@ class MacDetaySekme {
   const MacDetaySekme(this.ad, this.ikon, {this.ayarlanabilir = true});
 
   final String ad;
-  final String ikon;
+
+  /// İKON VEKTÖRDÜR, EMOJİ DEĞİL (kullanıcı isteği, 2026-08-12). Emoji renk
+  /// emoji fontundan gelir; `TextStyle.color` onu değiştirmez, bu yüzden
+  /// sekme ikonları açık/koyu/takım temasında sabit renkte kalıyordu. Tip
+  /// `IconData` olduğu için emoji metni buraya artık DERLENMEZ.
+  final IconData ikon;
 
   /// Kullanıcı bu sekmeyi kapatabilir mi? Yorumlar KAPATILAMAZ: kullanıcı
   /// "Yorumlar bölümü varsa korunsun" dedi ve aç/kapat listesinde saymadı.
@@ -37,13 +42,13 @@ class MacDetaySekme {
 
 /// Sekme SIRASI kullanıcının verdiği sıradır; ekranda da bu sırayla çizilir.
 const List<MacDetaySekme> kMacDetaySekmeleri = [
-  MacDetaySekme('Özet', '🕐'),
-  MacDetaySekme('Analiz', '📈'),
-  MacDetaySekme('İstatistik', '📊'),
-  MacDetaySekme('Oynanma Yüzdeleri', '👥'),
-  MacDetaySekme('Oran Takibi', '💱'),
-  MacDetaySekme('Bülten Sırası', '🗂️'),
-  MacDetaySekme('Yorumlar', '💬', ayarlanabilir: false),
+  MacDetaySekme('Özet', Icons.schedule),
+  MacDetaySekme('Analiz', Icons.trending_up),
+  MacDetaySekme('İstatistik', Icons.bar_chart),
+  MacDetaySekme('Oynanma Yüzdeleri', Icons.groups_outlined),
+  MacDetaySekme('Oran Takibi', Icons.currency_exchange),
+  MacDetaySekme('Bülten Sırası', Icons.list_alt),
+  MacDetaySekme('Yorumlar', Icons.chat_bubble_outline, ayarlanabilir: false),
 ];
 
 /// Ayarlar ekranında listelenen (kapatılabilir) sekmeler.
@@ -178,9 +183,14 @@ class MacDetaySekmeCubugu extends StatelessWidget {
   }
 }
 
-/// Seçili olmayan sekmenin ikonu soluk çizilir (AppTabs'taki 0.55 opaklık
-/// dili). Emoji rengi stille değişmediği için tek yol opaklıktır; denetleyicinin
-/// animasyonu dinlenir ki PARMAKLA kaydırırken de anında dönsün.
+/// Sekme ikonu — SEÇİLİ `accent`, PASİF `muted`; arası kaydırma boyunca
+/// yumuşak geçer.
+///
+/// ESKİDEN OPAKLIKLA yapılıyordu, çünkü ikon bir emojiydi ve rengi
+/// değiştirilemiyordu. Artık vektör: ikonun kendisi renk alıyor, böylece
+/// pasif ikon koyu temada zeminle karışmak yerine nötr `muted` tonunda
+/// okunur kalıyor. Denetleyicinin animasyonu dinlenir ki PARMAKLA
+/// kaydırırken de renk anında dönsün.
 class _Ikon extends StatelessWidget {
   const _Ikon({
     required this.controller,
@@ -192,19 +202,21 @@ class _Ikon extends StatelessWidget {
   final List<MacDetaySekme> sekmeler;
   final MacDetaySekme s;
 
+  Widget _ciz(double uzaklik) => Icon(
+    s.ikon,
+    size: 19,
+    // `lerp` null dönebilir yalnız iki renk de null ise; ikisi de dolu.
+    color: Color.lerp(AppColors.accent, AppColors.muted, uzaklik),
+  );
+
   @override
   Widget build(BuildContext context) {
     final i = sekmeler.indexOf(s);
     final anim = controller.animation;
-    final ikon = Text(s.ikon, style: const TextStyle(fontSize: 17));
-    if (anim == null) return ikon;
+    if (anim == null) return _ciz(controller.index == i ? 0 : 1);
     return AnimatedBuilder(
       animation: anim,
-      builder: (_, child) {
-        final uzaklik = (anim.value - i).abs().clamp(0.0, 1.0);
-        return Opacity(opacity: 1 - 0.45 * uzaklik, child: child);
-      },
-      child: ikon,
+      builder: (_, _) => _ciz((anim.value - i).abs().clamp(0.0, 1.0)),
     );
   }
 }

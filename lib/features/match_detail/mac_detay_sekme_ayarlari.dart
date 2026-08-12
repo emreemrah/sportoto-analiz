@@ -170,7 +170,7 @@ class _MacDetaySekmeAyarlariSayfasiState
                     color: AppColors.bgAlt,
                     borderRadius: AppRadius.smR,
                   ),
-                  child: Text(s.ikon, style: const TextStyle(fontSize: 15)),
+                  child: Icon(s.ikon, size: 17, color: AppColors.textSoft),
                 ),
                 const SizedBox(width: Spacing.md),
                 Expanded(
