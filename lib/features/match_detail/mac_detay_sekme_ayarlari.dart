@@ -52,7 +52,11 @@ class _MacDetaySekmeAyarlariSayfasiState
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.bg,
+          // MODAL BİR YÜZEYDİR, sayfa zemini değil. Eskiden `bg` yazılıydı;
+          // ters kontrast düzeninde içindeki `text` ailesi KARTA göre
+          // hesaplandığı için açıklama satırı zeminle aynı renge düşüp
+          // kayboluyordu (ölçüldü: Trabzonspor teması, bordo üstünde bordo).
+          color: AppColors.surface,
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(AppRadius.lg),
           ),
