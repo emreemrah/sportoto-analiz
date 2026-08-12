@@ -75,16 +75,25 @@ void takimGorunumunuUygula(TakimPaleti p) {
   // ── VURGU / SEÇİLİ — buton, rozet, etkin sekme ───────────────────────────
   // Kullanıcı kuralı: "Butonlar, seçili sekmeler, rozetler ve vurgular bu
   // ters renk düzenine uysun."
-  AppColors.primary = p.vurgu; // kart üstündeki aksiyon → ana tonu
-  AppColors.onPrimary = p.vurguMetni; // üstündeki yazı → ikincil tonu
+  // `primary` VE `accent` İKİSİ DE KART YÜZEYİ İÇİNDİR: uygulamadaki
+  // kullanımların ezici çoğunluğu kart içindedir (ölçüldü: 62 `accent`
+  // kullanımının neredeyse tamamı). `accent`i zemin için türetmek kartın
+  // üstündeki alt başlıkları ve bağlantıları görünmez yapıyordu — maç
+  // detayında "BAĞIMSIZ ANALİZ UYGULAMASI" ve "maçlar ›" kırmızı kartta
+  // kırmızı kalıyordu.
+  //
+  // ZEMİN ÜSTÜ vurgu ayrı tokendan gelir: `onBackgroundAccent`.
+  AppColors.primary = p.vurgu;
+  AppColors.onPrimary = p.vurguMetni;
   AppColors.primaryDark = _komsuTon(p.vurgu, p.vurguMetni);
-  AppColors.accent = p.secili; // zemin üstündeki vurgu → ikincil tonu
-  AppColors.onAccent = p.seciliMetni;
+  AppColors.accent = p.vurgu;
+  AppColors.onAccent = p.vurguMetni;
+  AppColors.onBackgroundAccent = p.secili;
 
   // Yumuşak rozet zeminleri: ÜSTLERİNDE aynı renk YAZI olarak duruyor
   // (`Pill`), o yüzden ikisi de AA sağlamak zorunda.
   AppColors.primarySoft = _yumusakZemin(p.vurgu);
-  AppColors.accentSoft = _yumusakZemin(p.secili);
+  AppColors.accentSoft = AppColors.primarySoft;
   AppColors.onPrimarySoft = _solukAmaOkunur(p.vurguMetni, [p.vurgu], 0.28);
 
   // ── HERO — vurgulu büyük panel ───────────────────────────────────────────

@@ -71,8 +71,14 @@ List<({String ad, Color yazi, Color zemin, double esik})> _ciftler() => [
     esik: kAaBuyukEsigi,
   ),
   (
-    ad: 'accent/background',
+    ad: 'accent/surface',
     yazi: AppColors.accent,
+    zemin: AppColors.surface,
+    esik: kAaBuyukEsigi,
+  ),
+  (
+    ad: 'onBackgroundAccent/background',
+    yazi: AppColors.onBackgroundAccent,
     zemin: AppColors.background,
     esik: kAaBuyukEsigi,
   ),
@@ -388,8 +394,11 @@ void main() {
       expect(AppColors.surface, p.yuzey);
       // TERS KONTRAST: primary KART üstündeki aksiyon (ana tonu), accent
       // ZEMİN üstündeki vurgu (ikincil tonu).
+      // `primary` ve `accent` ikisi de KART yüzeyi içindir; zemin üstü vurgu
+      // ayrı tokendadır.
       expect(AppColors.primary, p.vurgu);
-      expect(AppColors.accent, p.secili);
+      expect(AppColors.accent, p.vurgu);
+      expect(AppColors.onBackgroundAccent, p.secili);
       expect(AppColors.text, p.metin, reason: 'kart yazısı');
       expect(AppColors.onBackground, p.zeminMetni, reason: 'zemin yazısı');
     });
@@ -411,7 +420,7 @@ void main() {
         );
         expect(
           AppColors.accent,
-          isNot(p.secili),
+          isNot(p.vurgu),
           reason: '${modu.anahtar} modunda takım vurgusu sızdı',
         );
       }

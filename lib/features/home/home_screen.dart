@@ -668,7 +668,8 @@ class _SectionHead extends StatelessWidget {
             child: Text(
               right!,
               style: TextStyle(
-                color: AppColors.accent,
+                // ZEMİN üstünde duran bağlantı — kart vurgusu değil.
+                color: AppColors.onBackgroundAccent,
                 fontSize: 12,
                 fontWeight: AppFont.heavy,
               ),

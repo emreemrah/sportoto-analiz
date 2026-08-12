@@ -16,7 +16,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/coupon/coupon_store.dart';
 import '../../core/network/api_client.dart';
 import '../../core/services/muhurlu_sistem.dart';
-import '../../core/theme/takim_paleti.dart' show okunurMetin;
+import '../../core/theme/takim_paleti.dart' show kimlikTonu;
 import '../../core/theme/tokens.dart';
 import '../../core/week_recap.dart';
 import '../../widgets/states.dart';
@@ -521,21 +521,37 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '🏁 HAFTA KAPANIŞI',
-            style: TextStyle(
-              color: AppColors.warning,
-              fontSize: 11,
-              fontWeight: AppFont.black,
-              letterSpacing: 1.6,
-            ),
+          Row(
+            children: [
+              // ANLAMSAL RENK OKUNUR TONDA: `warning`ın anlamı korunur,
+              // yalnız parlaklığı KARTIN üstünde okunacak kadar itilir.
+              Icon(
+                Icons.sports_score_outlined,
+                size: 13,
+                color: kimlikTonu(AppColors.warning, AppColors.darkCard),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                'HAFTA KAPANIŞI',
+                style: TextStyle(
+                  color: kimlikTonu(AppColors.warning, AppColors.darkCard),
+                  fontSize: 11,
+                  fontWeight: AppFont.black,
+                  letterSpacing: 1.6,
+                ),
+              ),
+            ],
           ),
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Text(
               _baslikCumlesi(recap),
               style: TextStyle(
-                color: okunurMetin(AppColors.warning),
+                // KARTIN metni — eskiden `okunurMetin(AppColors.warning)`
+                // hesaplanıyordu, yani çizildiği yüzeyin değil UYARI
+                // RENGİNİN üstüne göre. Siyah kartlı takımda (Dortmund)
+                // koyu mürekkep çıkıp yazı kayboluyordu.
+                color: AppColors.onDark,
                 fontSize: 15,
                 fontWeight: AppFont.heavy,
                 height: 22 / 15,

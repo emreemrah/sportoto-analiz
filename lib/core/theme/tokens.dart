@@ -117,6 +117,15 @@ abstract final class AppColors {
   static Color onBackgroundSoft = Color(0xFF475467);
   static Color onBackgroundMuted = Color(0xFF98A2B3);
 
+  // ZEMİN ÜSTÜNDEKİ VURGU — "Tümünü Gör ›" gibi kart dışı bağlantılar.
+  //
+  // `accent` KART yüzeyi için türetilir (uygulamadaki 62 kullanımın ezici
+  // çoğunluğu kart içindedir). Ters kontrast düzeninde kartın vurgusu ANA
+  // rengin tonudur ve zeminin üstüne konduğunda zeminle çakışır — ölçüldü:
+  // Galatasaray temasında sarı zeminde sarı bağlantı. Zemin üstü vurgu bu
+  // ayrı tokendan gelir (takım temasında İKİNCİL rengin tonu).
+  static Color onBackgroundAccent = Color(0xFFE11D2E);
+
   static Color darkCard = Color(0xFF111C34);
   static Color darkCardSoft = Color(0xFF18243F);
 
