@@ -40,7 +40,9 @@ class _GorunumSecimScreenState extends State<GorunumSecimScreen> {
     GorunumModu.acik => 'Uygulama her zaman açık görünümde açılır.',
     GorunumModu.koyu => 'Uygulama her zaman koyu görünümde açılır.',
     GorunumModu.takim =>
-      'Favori takımının renkleri uygulamanın genelinde kullanılır.',
+      'Zemin takımının BİRİNCİ rengi, kartlar ve yazılar ikinci rengi olur.',
+    GorunumModu.takimTers =>
+      'Aynı düzenin tersi: zemin İKİNCİ renk, kartlar ve yazılar birinci renk.',
   };
 
   void _sec(GorunumModu m) {
@@ -68,8 +70,9 @@ class _GorunumSecimScreenState extends State<GorunumSecimScreen> {
           padding: const EdgeInsets.only(top: 4, bottom: Spacing.lg),
           child: Text(
             'İlk üç seçenekte takımın renkleri genel temaya karışmaz; arması '
-            've filigranı yerinde kalır. "Takım teması"nda ise favori takımın '
-            'renkleri uygulamanın geneline uygulanır.',
+            've filigranı yerinde kalır. Son iki seçenekte favori takımın iki '
+            'resmî rengi uygulamanın geneline uygulanır — hangisinin zemin, '
+            'hangisinin kart olacağını sen seçersin.',
             style: TextStyle(
               color: AppColors.onBackgroundSoft,
               fontSize: AppFont.md,
@@ -89,7 +92,8 @@ class _GorunumSecimScreenState extends State<GorunumSecimScreen> {
     // bozuk hissettirirdi (kullanıcı isteği: "takım seçmemişse seçenek
     // kullanılamasın").
     final palet = context.takimPaleti;
-    final kapali = m == GorunumModu.takim && !takimTemasiKullanilabilir(palet);
+    // İKİ TAKIM MODU DA favori takım ister.
+    final kapali = takimGerektirir(m) && !takimTemasiKullanilabilir(palet);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: Spacing.sm),

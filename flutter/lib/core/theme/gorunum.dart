@@ -37,14 +37,26 @@ enum GorunumModu {
   /// küçük profil ayrıntılarında kalır.
   ///
   /// Takım seçilmemişse bu mod VARSAYILAN AÇIĞA düşer (bkz. [gorunumuKur]).
-  takim;
+  takim,
+
+  /// TAKIM TEMASININ TERSİ — iki resmî renk YER DEĞİŞTİRİR (kullanıcı isteği,
+  /// 2026-08-13): zemin ikinci renk, kartlar/metin/vurgular birinci renk olur.
+  /// Galatasaray örneği: [takim] modunda zemin sarı + kartlar kırmızı iken bu
+  /// modda zemin kırmızı + kartlar sarı.
+  ///
+  /// Yön dışında HİÇBİR fark yoktur: palet aynı `paletUret` ile, yalnız iki
+  /// renk ters sırayla üretilir. Kontrast, kenarlık, buton, seçili durum ve
+  /// soluk metinlerin hepsi böylece YENİDEN HESAPLANIR — elle ikinci bir
+  /// hesap yazılmadı.
+  takimTers;
 
   /// Tercih ekranında görünen ad.
   String get etiket => switch (this) {
     GorunumModu.sistem => 'Sistem ayarını kullan',
     GorunumModu.acik => 'Açık mod',
     GorunumModu.koyu => 'Koyu mod',
-    GorunumModu.takim => 'Takım teması',
+    GorunumModu.takim => 'Takım teması · birinci renk',
+    GorunumModu.takimTers => 'Takım teması · ikinci renk',
   };
 
   /// `prefs`e yazılan değer. Enum adının kendisi KULLANILMAZ: karartma
@@ -56,12 +68,14 @@ enum GorunumModu {
     GorunumModu.acik => 'acik',
     GorunumModu.koyu => 'koyu',
     GorunumModu.takim => 'takim',
+    GorunumModu.takimTers => 'takim-ters',
   };
 
   static GorunumModu cozumle(Object? v) => switch ('$v') {
     'acik' => GorunumModu.acik,
     'koyu' => GorunumModu.koyu,
     'takim' => GorunumModu.takim,
+    'takim-ters' => GorunumModu.takimTers,
     // Tanınmayan/eski değer sessizce varsayılana düşer — uydurma yok.
     _ => GorunumModu.sistem,
   };
@@ -96,15 +110,19 @@ Brightness etkinParlaklik(Brightness cihaz, [GorunumModu? modu]) =>
       GorunumModu.acik => Brightness.light,
       GorunumModu.koyu => Brightness.dark,
       GorunumModu.sistem => cihaz,
-      // Takım modunun parlaklığı PALETTEN gelir; palet burada yok, o yüzden
+      // Takım modlarının parlaklığı PALETTEN gelir; palet burada yok, o yüzden
       // takım seçilmemiş hâlin karşılığı olan VARSAYILAN AÇIK döner.
       // Paletli doğru yol [gorunumuKur].
-      GorunumModu.takim => Brightness.light,
+      GorunumModu.takim || GorunumModu.takimTers => Brightness.light,
     };
 
 /// Takım teması SEÇİLEBİLİR mi? Favori takım yoksa/katalogda eşleşmiyorsa
 /// hayır — tercih ekranı seçeneği bu yüzden kapatır.
 bool takimTemasiKullanilabilir(TakimPaleti? palet) => palet != null;
+
+/// Bu mod FAVORİ TAKIM ister mi? İki takım modu da ister.
+bool takimGerektirir(GorunumModu m) =>
+    m == GorunumModu.takim || m == GorunumModu.takimTers;
 
 /// SEÇİLEN MOD + CİHAZ + FAVORİ TAKIM → görünümü kurar, `ThemeData` için
 /// kullanılacak parlaklığı döndürür. Uygulamanın TEK giriş noktası budur.
@@ -114,9 +132,17 @@ bool takimTemasiKullanilabilir(TakimPaleti? palet) => palet != null;
 /// Tercih diskte 'takim' kalır: kullanıcı sonradan takım seçtiğinde ayarı
 /// yeniden yapmak zorunda kalmasın.
 Brightness gorunumuKur(GorunumModu modu, Brightness cihaz, TakimPaleti? palet) {
-  if (modu == GorunumModu.takim && palet != null) {
-    takimGorunumunuUygula(palet);
-    return takimParlakligi(palet);
+  if (palet != null &&
+      (modu == GorunumModu.takim || modu == GorunumModu.takimTers)) {
+    // TERS YÖNDE PALET YENİDEN ÜRETİLİR, elle ikinci bir hesap yazılmaz:
+    // `paletUret` iki rengi alıp zemini, kartı, metni, kenarlığı, vurguyu ve
+    // soluk tonları AA'ya karşı türetiyor. Renkleri ters sırayla verince
+    // hepsi kendiliğinden yeniden hesaplanır.
+    final etkin = modu == GorunumModu.takim
+        ? palet
+        : paletUret(takim: palet.takim, ana: palet.ikincil, ikincil: palet.ana);
+    takimGorunumunuUygula(etkin);
+    return takimParlakligi(etkin);
   }
   final p = etkinParlaklik(cihaz, modu);
   gorunumuUygula(p);
