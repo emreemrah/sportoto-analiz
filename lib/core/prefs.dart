@@ -39,8 +39,17 @@ const Map<String, Object?> kPrefDefaults = {
   'userDashView': 'ozet',
   'couponPlace': 'both', // kolon/tutar yeri: 'top' | 'bottom' | 'both'
   'couponPreview': true, // kayıt öncesi önizleme
-  'couponSysMode': 'single', // 'single' (tekli) | 'wide' (geniş)
+  // KUPON AKTARIM GENİŞLİĞİ. Kaynakta iki değerliydi ('single'|'wide');
+  // 2026-08-11'de kullanıcı isteğiyle dörde çıktı ve VARSAYILAN OTOMATİK oldu:
+  // "tekli geniş seçimi maçın kazanır oranına göre kendi belirlenecek".
+  // 'auto' | 'single' | 'double' | 'closed'  ('wide' eski kayıt → çifte)
+  'couponSysMode': 'auto',
   'couponBudget': null, // kullanıcı bütçe limiti (TL) — null = yok
+  // MAÇ DETAYI SEKME GÖRÜNÜRLÜĞÜ (2026-08-11 kullanıcı isteği): kullanıcının
+  // KAPATTIĞI sekmelerin adları. Açık sekmeler değil KAPALI olanlar tutulur —
+  // ileride yeni bir sekme eklenirse eski kayıtlarda kendiliğinden AÇIK gelir;
+  // kullanıcı hiç görmediği bir sekmeyi kapatmış sayılmaz.
+  'macDetayGizliSekmeler': <String>[],
 };
 
 Map<String, Object?> _cache = Map.of(kPrefDefaults);

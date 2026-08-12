@@ -44,7 +44,14 @@ typedef Signals = ({
 
 /// Maçtan MEVCUT sinyalleri topla — olmayan alan null kalır, uydurulmaz.
 Signals signalsOf(Map? m) {
-  final p = m?['probabilities'] as Map?;
+  // OLASILIK İKİ YERDE OLABİLİR (2026-08-11'de ölçüldü): kaynak maç nesnesi
+  // kökte `probabilities` taşıyordu, bu projenin `/api/bulletin` ucu ise
+  // `analysis.probabilities` altında veriyor (78/14/8 gibi). Yalnız kök
+  // okunduğunda bülten maçlarında olasılık HİÇ bulunamıyor ve buna dayanan
+  // her karar sessizce "veri yok" dalına düşüyordu.
+  final p =
+      (m?['probabilities'] ?? (m?['analysis'] as Map?)?['probabilities'])
+          as Map?;
   final probs = (p != null && _kOrder.every((k) => _sonlu(p[k]) != null))
       ? {for (final k in _kOrder) k: _sonlu(p[k])!}
       : null;
@@ -195,10 +202,7 @@ SmartCoupon buildSmartCoupon({
   Object? target,
 }) {
   final butce = _sonlu(budgetColumns) ?? kCouponMaxColumns.toDouble();
-  final maxCols = math.max(
-    1,
-    math.min(kCouponMaxColumns, butce.floor()),
-  );
+  final maxCols = math.max(1, math.min(kCouponMaxColumns, butce.floor()));
   final t = target is num ? target.toInt() : int.tryParse('$target');
   final tgt = const [12, 13, 14, 15].contains(t) ? t! : 13;
   // Hedefe göre genişletme eşiği: 15 → her belirsizlik değerli;
@@ -305,15 +309,15 @@ SmartCoupon buildSmartCoupon({
   final coverageScore = covered.isEmpty
       ? null
       : (covered.fold<double>(
-              0,
-              (t, r) =>
-                  t +
-                  picks[r.no]!.fold<double>(
-                    0,
-                    (s, o) => s + r.sig.probs![o]!,
-                  ),
-            ) /
-            covered.length)
+                  0,
+                  (t, r) =>
+                      t +
+                      picks[r.no]!.fold<double>(
+                        0,
+                        (s, o) => s + r.sig.probs![o]!,
+                      ),
+                ) /
+                covered.length)
             .round();
 
   return (
@@ -363,13 +367,174 @@ String _birlestir(Map? map, int no) {
   return (v is List) ? v.join('-') : '';
 }
 
-/// Aktarım önerisi: Sistem tahmini veya Radar (favori + yakın ikinciyle çifte).
-Map<Object?, List<String>> proposalFrom(List? matches, String source) {
+/// AKTARIM GENİŞLİĞİ (kullanıcı isteği, 2026-08-11)
+///
+/// Kullanıcının tarifi: "tekli demek her maç için tek seçim, genişte hem çifte
+/// hem de kapalı yani 3 yönde seçilebilsin."
+///
+/// SONRA (aynı gün): "tekli geniş seçimi maçın kazanır oranına göre kendi
+/// belirlenecek — favori açık araysa favori tek, favoriye yakınsa çift, 3'ü de
+/// birbirine yakınsa kapalı." Bu `otomatik` genişliktir ve VARSAYILANDIR;
+/// elle seçilen üç genişlik de duruyor.
+enum AktarimGenisligi {
+  /// Maç başına karar: dağılıma bakılır (bkz. [otomatikGenislik]).
+  otomatik,
+
+  /// Her maça TEK işaret.
+  tekli,
+
+  /// En güçlü İKİ işaret.
+  cifte,
+
+  /// Üç işaret de — maç her sonuçta kolonda kapsanır (kapalı).
+  kapali,
+}
+
+/// FAVORİ "AÇIK ARA" EŞİĞİ — favori ile ikincinin puan farkı bundan büyükse
+/// maç tekli oynanır.
+///
+/// Değer bu projenin KENDİ dilinden geliyor: `uncertaintyOf` zaten 25 puan ve
+/// üstü farka "güçlü bir aday var", 10 puan ve altına "ihtimaller birbirine
+/// çok yakın" diyor. Aradaki bant ikisi arasında kaldığı için 15 seçildi —
+/// 1X2'de üç seçenek ortalama %33'tür; 15 puanlık fark (ör. 45-30) belirgin
+/// bir üstünlüktür, altı ise "yakın" sayılır.
+const double kAcikAraFarki = 15;
+
+/// "ÜÇÜ DE BİRBİRİNE YAKIN" EŞİĞİ — favori ile ÜÇÜNCÜNÜN farkı bundan küçükse
+/// maç kapalı oynanır (ör. 36-33-31).
+const double kHepsiYakinFarki = 10;
+
+/// Dağılıma göre genişlik kararı. [sirali] büyükten küçüğe puan listesidir
+/// (olasılık ya da oy yüzdesi — ikisi de yüzde ölçeğindedir).
+///
+/// Üç değer yoksa karar verilemez; tekliye düşülür (uydurma genişletme yok).
+AktarimGenisligi otomatikGenislik(List<double> sirali) {
+  if (sirali.length < 3) return AktarimGenisligi.tekli;
+  final fav = sirali[0];
+  final ikinci = sirali[1];
+  final ucuncu = sirali[2];
+
+  // Önce "açık ara mı" sorulur: favori belirgin öndeyse üçüncünün nerede
+  // olduğu kararı değiştirmez.
+  if (fav - ikinci >= kAcikAraFarki) return AktarimGenisligi.tekli;
+  if (fav - ucuncu < kHepsiYakinFarki) return AktarimGenisligi.kapali;
+  return AktarimGenisligi.cifte;
+}
+
+/// Taban seçimi istenen genişliğe getirir.
+///
+/// Sıralama ölçüsü olasılıklardır; olasılık YOKSA taban listesi olduğu gibi
+/// kullanılır (uydurma sıra üretilmez) ve tekli istendiğinde ilk işaret alınır.
+List<String> _genisligeGetir(
+  List<String> taban,
+  Map<String, double>? probs,
+  AktarimGenisligi genislik,
+) {
+  // SIRA ÖNEMLİ: önce "kayıt var mı" sorulur. Sistem tahmini olmayan maça
+  // kapalı modda 1-X-2 yazmak, olmayan bir tahmini varmış gibi göstermek
+  // olurdu — genişlik yalnız VAR OLAN bir tahmini genişletir.
+  if (taban.isEmpty) return const [];
+
+  // OTOMATİK: karar olasılık dağılımından verilir. Olasılık yoksa dağılım da
+  // yoktur; "açık ara mı" sorusu yanıtsız kalır ve tekliye düşülür.
+  final g = genislik != AktarimGenisligi.otomatik
+      ? genislik
+      : (probs == null
+            ? AktarimGenisligi.tekli
+            : otomatikGenislik([for (final e in _rankedProbs(probs)) e.$2]));
+
+  if (g == AktarimGenisligi.kapali) return List.of(_kOrder);
+
+  final istenen = g == AktarimGenisligi.tekli ? 1 : 2;
+
+  // Sıralı aday listesi: önce tabandakiler, sonra kalanlar (çifte için ikinci
+  // işaret tabanda yoksa olasılığa göre eklenir).
+  final sirali = probs == null
+      ? [...taban, ...(_kOrder.where((o) => !taban.contains(o)))]
+      : [
+          ..._rankedProbs(probs).map((e) => e.$1).where(taban.contains),
+          ..._rankedProbs(
+            probs,
+          ).map((e) => e.$1).where((o) => !taban.contains(o)),
+        ];
+
+  final secilen = sirali.take(istenen).toSet();
+  return [
+    for (final o in _kOrder)
+      if (secilen.contains(o)) o,
+  ];
+}
+
+/// ANKET SEÇİMİ — o maça verilen GERÇEK oylardan.
+///
+/// Oy yoksa maç ATLANIR: "kimse oy vermemiş" durumunda bir işaret önermek,
+/// olmayan bir topluluk tercihini varmış gibi göstermek olurdu.
+///
+/// Kimlik: anket oyları `sportotoMatchId` ile kaydedilir (mac_sonuc_anketi),
+/// bu yüzden dağılım da o anahtarla aranır.
+List<String> _anketSecimi(
+  Map m,
+  Map<String, Map<String, int>>? dagilim,
+  AktarimGenisligi genislik,
+) {
+  final kimlik = '${m['sportotoMatchId'] ?? m['no']}';
+  final d = dagilim?[kimlik];
+  if (d == null) return const [];
+  final toplam = d['total'] ?? 0;
+  if (toplam <= 0) return const [];
+
+  // Backend seçenekleri home/draw/away tutar; ekran ve kupon 1/X/2 konuşur.
+  final adaylar = <(String, int)>[
+    ('1', d['home'] ?? 0),
+    ('X', d['draw'] ?? 0),
+    ('2', d['away'] ?? 0),
+  ];
+  // Eşitlikte sıra 1 → X → 2 (kararlı sıralama).
+  final indeksli =
+      [for (var i = 0; i < adaylar.length; i++) (i: i, v: adaylar[i])]
+        ..sort((a, b) {
+          final c = b.v.$2.compareTo(a.v.$2);
+          return c != 0 ? c : a.i.compareTo(b.i);
+        });
+
+  // OTOMATİK: karar OY DAĞILIMINDAN verilir. Oylar sayı olarak tutulur, eşik
+  // ise yüzde ölçeğindedir (sistem tarafıyla aynı kural işlesin diye) — bu
+  // yüzden paylar toplam üzerinden yüzdeye çevrilir.
+  final g = genislik != AktarimGenisligi.otomatik
+      ? genislik
+      : otomatikGenislik([for (final x in indeksli) (x.v.$2 / toplam) * 100]);
+
+  final kac = switch (g) {
+    AktarimGenisligi.otomatik || AktarimGenisligi.tekli => 1,
+    AktarimGenisligi.cifte => 2,
+    AktarimGenisligi.kapali => 3,
+  };
+  final secilen = indeksli.take(kac).map((x) => x.v.$1).toSet();
+  return [
+    for (final o in _kOrder)
+      if (secilen.contains(o)) o,
+  ];
+}
+
+/// Aktarım önerisi: Sistem tahmini, Anket sonucu veya Radar (favori + yakın
+/// ikinciyle çifte).
+///
+/// [genislik] yalnız 'system' ve 'anket' kaynaklarına uygulanır; radar kendi
+/// yakınlık kuralıyla çalışmaya devam eder (davranışı değişmedi).
+Map<Object?, List<String>> proposalFrom(
+  List? matches,
+  String source, {
+  AktarimGenisligi genislik = AktarimGenisligi.otomatik,
+  Map<String, Map<String, int>>? anketDagilimi,
+}) {
   final out = <Object?, List<String>>{};
   for (final m in (matches ?? const []).cast<Map>()) {
     final sig = signalsOf(m);
     if (source == 'system') {
-      final o = expandSymbol(sig.sysSym);
+      final o = _genisligeGetir(expandSymbol(sig.sysSym), sig.probs, genislik);
+      if (o.isNotEmpty) out[m['no']] = o;
+    } else if (source == 'anket') {
+      final o = _anketSecimi(m, anketDagilimi, genislik);
       if (o.isNotEmpty) out[m['no']] = o;
     } else if (source == 'radar') {
       if (sig.radarSym == null) continue;
