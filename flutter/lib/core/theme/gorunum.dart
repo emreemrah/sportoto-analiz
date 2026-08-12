@@ -146,6 +146,12 @@ void gorunumuUygula(Brightness p) {
     AppColors.text = KoyuRenkler.text;
     AppColors.textSoft = KoyuRenkler.textSoft;
     AppColors.muted = KoyuRenkler.muted;
+    // AÇIK/KOYU'DA ZEMİN İLE KART AYNI METNİ PAYLAŞIR: ters kontrast yalnız
+    // takım temasına aittir, bu iki modda hiçbir şey değişmemeli.
+    AppColors.onBackground = KoyuRenkler.text;
+    AppColors.onBackgroundAccent = KoyuRenkler.accent;
+    AppColors.onBackgroundSoft = KoyuRenkler.textSoft;
+    AppColors.onBackgroundMuted = KoyuRenkler.muted;
     AppColors.border = KoyuRenkler.border;
     AppColors.darkCard = KoyuRenkler.darkCard;
     AppColors.darkCardSoft = KoyuRenkler.darkCardSoft;
@@ -180,6 +186,12 @@ void gorunumuUygula(Brightness p) {
   AppColors.text = VarsayilanRenkler.text;
   AppColors.textSoft = VarsayilanRenkler.textSoft;
   AppColors.muted = VarsayilanRenkler.muted;
+  // AÇIK/KOYU'DA ZEMİN İLE KART AYNI METNİ PAYLAŞIR: ters kontrast yalnız
+  // takım temasına aittir, bu iki modda hiçbir şey değişmemeli.
+  AppColors.onBackground = VarsayilanRenkler.text;
+  AppColors.onBackgroundAccent = VarsayilanRenkler.accent;
+  AppColors.onBackgroundSoft = VarsayilanRenkler.textSoft;
+  AppColors.onBackgroundMuted = VarsayilanRenkler.muted;
   AppColors.border = VarsayilanRenkler.border;
   AppColors.darkCard = VarsayilanRenkler.darkCard;
   AppColors.darkCardSoft = VarsayilanRenkler.darkCardSoft;

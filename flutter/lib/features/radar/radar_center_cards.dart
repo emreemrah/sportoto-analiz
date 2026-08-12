@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../core/theme/takim_paleti.dart' show kimlikTonu;
 import '../../core/theme/tokens.dart';
 import 'radar_screen_data.dart';
 
@@ -159,7 +160,14 @@ class _MetaChip extends StatelessWidget {
         Text(
           value,
           style: TextStyle(
-            color: tone ?? AppColors.text,
+            // ANLAMSAL RENK OKUNUR TONDA: `tone` başarı/uyarı gibi anlamsal
+            // bir renktir ve anlamı korunur; yalnız parlaklığı, çipin zemini
+            // (`surfaceSoft`) üstünde okunacak kadar itilir. Ham hâlde
+            // bırakılınca yeşil kartlı takımda (Alanyaspor) "Veri %89"
+            // değeri kayboluyordu — emülatörde görüldü.
+            color: tone == null
+                ? AppColors.text
+                : kimlikTonu(tone!, AppColors.surfaceSoft),
             fontSize: 10.5,
             fontWeight: AppFont.black,
           ),

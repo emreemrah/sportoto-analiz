@@ -576,7 +576,13 @@ class _AnaKabukState extends State<_AnaKabuk> {
   /// pasifi %50 OPAKLIKLA veriyordu; opaklık raster görselin çözümüydü.
   /// Vektörde doğru karşılık nötr `muted` tokenıdır: koyu temada yarı saydam
   /// bir ikon zeminle karışıp kaybolurken `muted` okunur kalıyor.
-  Color _sekmeRengi(bool odakta) => odakta ? AppColors.accent : AppColors.muted;
+  ///
+  /// VURGU `primary`, `accent` DEĞİL: alt çubuk bir KART yüzeyidir
+  /// (`AppColors.surface`). Ters kontrast düzeninde `accent` ZEMİNİN üstünde
+  /// durmak üzere türetilir; kart yüzeyine konduğunda takımın iki rengi
+  /// çakışıyordu (ölçüldü: accent/surface = 1.00).
+  Color _sekmeRengi(bool odakta) =>
+      odakta ? AppColors.primary : AppColors.muted;
 
   /// Profil sekmesinin ikonu olarak kullanıcının kendi avatarı.
   ///
@@ -589,7 +595,7 @@ class _AnaKabukState extends State<_AnaKabuk> {
     decoration: BoxDecoration(
       shape: BoxShape.circle,
       border: Border.all(
-        color: odakta ? AppColors.accent : Colors.transparent,
+        color: odakta ? AppColors.primary : Colors.transparent,
         width: 2,
       ),
     ),
@@ -632,7 +638,7 @@ class _AnaKabukState extends State<_AnaKabuk> {
                   fontSize: 10.5,
                   fontWeight: AppFont.heavy,
                   // SEÇİLİ SEKME — takım vurgusu.
-                  color: odakta ? AppColors.accent : AppColors.textMuted,
+                  color: odakta ? AppColors.primary : AppColors.textMuted,
                 ),
               ),
             ],

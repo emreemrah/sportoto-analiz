@@ -21,49 +21,117 @@ import 'package:masteranaliz/core/theme/tokens.dart';
 import 'package:masteranaliz/features/profile/gorunum_secim_screen.dart';
 
 /// Yazı ↔ zemin çiftleri: yazı DÜŞTÜĞÜ her zeminde okunmalı.
-List<({String ad, Color yazi, Color zemin})> _ciftler() => [
-  (ad: 'text/surface', yazi: AppColors.text, zemin: AppColors.surface),
-  (ad: 'text/background', yazi: AppColors.text, zemin: AppColors.background),
-  (ad: 'text/surfaceSoft', yazi: AppColors.text, zemin: AppColors.surfaceSoft),
-  (ad: 'textSoft/surface', yazi: AppColors.textSoft, zemin: AppColors.surface),
+/// Ölçülecek yazı/zemin çiftleri ve HER BİRİNİN eşiği.
+///
+/// Eşik çiftin ROLÜNDEN gelir, taramadan değil: gövde metni WCAG AA 4.5,
+/// rozet/buton/sekme gibi KALIN-BÜYÜK yüzeyler 3.0. İki tarama (marka
+/// görünümleri ve takım teması) aynı kuralı kullanır ki biri diğerinden
+/// gevşek kalmasın.
+List<({String ad, Color yazi, Color zemin, double esik})> _ciftler() => [
+  // TERS KONTRAST (2026-08-12): `text` ailesi KARTIN metnidir, zeminin
+  // değil. Zemine doğrudan yazılan başlıklar `onBackground` ailesini
+  // kullanır. Her yazı YALNIZ kendi yüzeyinde ölçülür — `text`i zeminde
+  // ölçmek artık yanlış bir beklenti olurdu (Galatasaray'da kart yazısı
+  // sarı, zemin de sarı).
   (
-    ad: 'textSoft/background',
-    yazi: AppColors.textSoft,
-    zemin: AppColors.background,
+    ad: 'text/surface',
+    yazi: AppColors.text,
+    zemin: AppColors.surface,
+    esik: kAaEsigi,
   ),
-  // primary ve accent KART İÇİNDE YAZI olarak da kullanılıyor.
-  (ad: 'primary/surface', yazi: AppColors.primary, zemin: AppColors.surface),
-  (ad: 'accent/surface', yazi: AppColors.accent, zemin: AppColors.surface),
+  (
+    ad: 'text/surfaceSoft',
+    yazi: AppColors.text,
+    zemin: AppColors.surfaceSoft,
+    esik: kAaEsigi,
+  ),
+  (
+    ad: 'textSoft/surface',
+    yazi: AppColors.textSoft,
+    zemin: AppColors.surface,
+    esik: kAaEsigi,
+  ),
+  (
+    ad: 'onBackground/background',
+    yazi: AppColors.onBackground,
+    zemin: AppColors.background,
+    esik: kAaEsigi,
+  ),
+  (
+    ad: 'onBackgroundSoft/background',
+    yazi: AppColors.onBackgroundSoft,
+    zemin: AppColors.background,
+    esik: kAaEsigi,
+  ),
+  // primary KART İÇİNDE, accent ZEMİN üstünde yazı/rozet olarak durur.
+  (
+    ad: 'primary/surface',
+    yazi: AppColors.primary,
+    zemin: AppColors.surface,
+    esik: kAaBuyukEsigi,
+  ),
+  (
+    ad: 'accent/surface',
+    yazi: AppColors.accent,
+    zemin: AppColors.surface,
+    esik: kAaBuyukEsigi,
+  ),
+  (
+    ad: 'onBackgroundAccent/background',
+    yazi: AppColors.onBackgroundAccent,
+    zemin: AppColors.background,
+    esik: kAaBuyukEsigi,
+  ),
   // …ve ZEMİN olarak: üstlerindeki yazı okunmalı.
   (
     ad: 'onPrimary/primary',
     yazi: AppColors.onPrimary,
     zemin: AppColors.primary,
+    esik: kAaEsigi,
   ),
   (
     ad: 'onPrimarySoft/primary',
     yazi: AppColors.onPrimarySoft,
     zemin: AppColors.primary,
+    esik: kAaEsigi,
   ),
-  (ad: 'onAccent/accent', yazi: AppColors.onAccent, zemin: AppColors.accent),
+  (
+    ad: 'onAccent/accent',
+    yazi: AppColors.onAccent,
+    zemin: AppColors.accent,
+    esik: kAaEsigi,
+  ),
   // Vurgulu panel (hero).
-  (ad: 'onHero/heroZemin', yazi: AppColors.onHero, zemin: AppColors.heroZemin),
+  (
+    ad: 'onHero/heroZemin',
+    yazi: AppColors.onHero,
+    zemin: AppColors.heroZemin,
+    esik: kAaEsigi,
+  ),
   (
     ad: 'onHeroSoft/heroZemin',
     yazi: AppColors.onHeroSoft,
     zemin: AppColors.heroZemin,
+    esik: kAaEsigi,
   ),
   // Koyu panel (Haftalık Özet, bildirimler, yan menü).
-  (ad: 'onDark/darkCard', yazi: AppColors.onDark, zemin: AppColors.darkCard),
+  (
+    ad: 'onDark/darkCard',
+    yazi: AppColors.onDark,
+    zemin: AppColors.darkCard,
+    esik: kAaEsigi,
+  ),
   (
     ad: 'onDarkSoft/darkCard',
     yazi: AppColors.onDarkSoft,
     zemin: AppColors.darkCard,
+    esik: kAaEsigi,
   ),
   (
     ad: 'onDark/darkCardSoft',
     yazi: AppColors.onDark,
     zemin: AppColors.darkCardSoft,
+    esik: kAaEsigi,
   ),
 ];
 
@@ -184,7 +252,7 @@ void main() {
         final dusenler = <String>[];
         for (final c in _ciftler()) {
           final o = kontrastOrani(c.yazi, c.zemin);
-          if (o < kAaEsigi) {
+          if (o < c.esik) {
             dusenler.add('${c.ad} = ${o.toStringAsFixed(2)}');
           }
         }
@@ -324,8 +392,15 @@ void main() {
       expect(yapisal(), isNot(markaAcik), reason: 'tema değişmedi');
       expect(AppColors.background, p.zemin);
       expect(AppColors.surface, p.yuzey);
-      expect(AppColors.primary, p.secili);
+      // TERS KONTRAST: primary KART üstündeki aksiyon (ana tonu), accent
+      // ZEMİN üstündeki vurgu (ikincil tonu).
+      // `primary` ve `accent` ikisi de KART yüzeyi içindir; zemin üstü vurgu
+      // ayrı tokendadır.
+      expect(AppColors.primary, p.vurgu);
       expect(AppColors.accent, p.vurgu);
+      expect(AppColors.onBackgroundAccent, p.secili);
+      expect(AppColors.text, p.metin, reason: 'kart yazısı');
+      expect(AppColors.onBackground, p.zeminMetni, reason: 'zemin yazısı');
     });
 
     test('DİĞER üç modda takım rengi yapısala SIZMAZ', () {
@@ -386,7 +461,7 @@ void main() {
         gorunumuKur(GorunumModu.takim, Brightness.light, takimPaletiBul(ad));
         for (final c in _ciftler()) {
           final o = kontrastOrani(c.yazi, c.zemin);
-          if (o < kAaEsigi) {
+          if (o < c.esik) {
             dusenler.add('$ad ${c.ad}=${o.toStringAsFixed(2)}');
           }
         }
