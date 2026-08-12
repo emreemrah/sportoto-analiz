@@ -164,6 +164,15 @@ Future<void> _tur(WidgetTester t, [int n = 25]) async {
 }
 
 Future<void> ekraniAc(WidgetTester t) async {
+  // GÖRÜNÜM YÜKSEKLİĞİ AÇIKÇA VERİLİR. Varsayılan 800×600 penceresinde üst
+  // panel kart görünümüne geçince (kenar boşluğu + kenarlık + gölge,
+  // 2026-08-12) üçüncü maç kartı çizim penceresinin ALTINA düşüyor ve
+  // Flutter onu hiç kurmuyordu — fikstürün 3 maçı yüklediğini doğrulayan
+  // kontrol boşuna düşüyordu. Ölçülen şey aynı; pencere gerçek telefona
+  // yaklaştırıldı.
+  t.view.physicalSize = const Size(800, 1400);
+  t.view.devicePixelRatio = 1.0;
+  addTearDown(t.view.reset);
   await t.pumpWidget(
     const ProviderScope(child: MaterialApp(home: RadarScreen())),
   );
