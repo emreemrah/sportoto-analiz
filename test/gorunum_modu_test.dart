@@ -283,11 +283,12 @@ void main() {
   group('Tercih ekranı', () {
     tearDown(() => gorunumModuAyarla(GorunumModu.sistem));
 
-    testWidgets('DÖRT seçenek de görünür ve varsayılan SİSTEM işaretli', (
+    testWidgets('BEŞ seçenek de görünür ve varsayılan SİSTEM işaretli', (
       t,
     ) async {
       await t.pumpWidget(const MaterialApp(home: GorunumSecimScreen()));
-      expect(GorunumModu.values.length, 4);
+      // Beşinci seçenek: takım renklerini YER DEĞİŞTİREN yön (2026-08-13).
+      expect(GorunumModu.values.length, 5);
       for (final m in GorunumModu.values) {
         expect(
           find.text(m.etiket),
@@ -298,24 +299,26 @@ void main() {
       expect(gorunumModu(), GorunumModu.sistem);
     });
 
-    testWidgets('takım YOKSA "Takım teması" seçilemez ve NEDENİ yazar', (
+    testWidgets('takım YOKSA İKİ takım seçeneği de kapalı ve NEDENİ yazar', (
       t,
     ) async {
       // TakimTemasi sarmalayıcısı yok → favori takım yok.
       await t.pumpWidget(const MaterialApp(home: GorunumSecimScreen()));
       expect(
         find.textContaining('önce profilinden favori'),
-        findsOneWidget,
-        reason: 'kapalı olma nedeni yazılmamış',
+        findsNWidgets(2),
+        reason: 'iki takım seçeneğinde de kapalı olma nedeni yazmalı',
       );
 
-      await t.tap(find.byKey(const Key('gorunum-takim')));
-      await t.pump();
-      expect(
-        gorunumModu(),
-        GorunumModu.sistem,
-        reason: 'takım yokken seçilebilmiş',
-      );
+      for (final anahtar in ['takim', 'takim-ters']) {
+        await t.tap(find.byKey(Key('gorunum-$anahtar')));
+        await t.pump();
+        expect(
+          gorunumModu(),
+          GorunumModu.sistem,
+          reason: '$anahtar takım yokken seçilebilmiş',
+        );
+      }
     });
 
     testWidgets('takım VARSA "Takım teması" seçilebilir', (t) async {
@@ -376,10 +379,110 @@ void main() {
       AppColors.heroZemin,
     ];
 
-    test('takim anahtarı gidip geliyor', () {
+    test('takim anahtarları gidip geliyor', () {
       expect(GorunumModu.cozumle('takim'), GorunumModu.takim);
       expect(GorunumModu.takim.anahtar, 'takim');
-      expect(GorunumModu.takim.etiket, 'Takım teması');
+      expect(GorunumModu.cozumle('takim-ters'), GorunumModu.takimTers);
+      expect(GorunumModu.takimTers.anahtar, 'takim-ters');
+      // İki yön ekranda AYRI görünmeli.
+      expect(GorunumModu.takim.etiket, isNot(GorunumModu.takimTers.etiket));
+    });
+
+    test('TERS YÖN iki rengi yer değiştirir', () {
+      final p = gs();
+      gorunumuKur(GorunumModu.takim, Brightness.light, p);
+      final duzZemin = AppColors.background;
+      final duzKart = AppColors.surface;
+
+      gorunumuKur(GorunumModu.takimTers, Brightness.light, p);
+      // Ters yönde zemin İKİNCİL renkten türer.
+      expect(AppColors.background, isNot(duzZemin));
+      expect(AppColors.surface, isNot(duzKart));
+      expect(AppColors.background, p.ikincil);
+    });
+
+    test('TERS YÖNDE de kontrast ve kutu ayrımı korunur — 150 takım', () {
+      // Renkler yer değiştirince kenarlık, buton, seçili durum ve soluk
+      // metinler YENİDEN hesaplanmalı. `paletUret` bunu zaten yapıyor;
+      // burada iki yönün İKİSİNİ birden tarıyoruz.
+      final dusenler = <String>[];
+      for (final ad in kTakimRenkleri.keys) {
+        final p = takimPaletiBul(ad)!;
+        for (final modu in [GorunumModu.takim, GorunumModu.takimTers]) {
+          gorunumuKur(modu, Brightness.light, p);
+          for (final c in _ciftler()) {
+            final o = kontrastOrani(c.yazi, c.zemin);
+            if (o < c.esik) {
+              dusenler.add(
+                '$ad ${modu.anahtar} ${c.ad}=${o.toStringAsFixed(2)}',
+              );
+            }
+          }
+          final ayrim = kontrastOrani(AppColors.surface, AppColors.background);
+          if (ayrim < 1.25) {
+            dusenler.add(
+              '$ad ${modu.anahtar} kart/zemin=${ayrim.toStringAsFixed(2)}',
+            );
+          }
+          // ANLAMSAL ROZETLER: yazı anlamsal rengin KENDİSİ ve `const` —
+          // okunabilirliği zemin taşımak zorunda. Rozet zemini karttan da
+          // ayrışmalı, yoksa kutunun sınırı kaybolur.
+          for (final r in [
+            (
+              ad: 'success',
+              renk: AppColors.success,
+              soft: AppColors.successSoft,
+            ),
+            (
+              ad: 'warning',
+              renk: AppColors.warning,
+              soft: AppColors.warningSoft,
+            ),
+            (ad: 'danger', renk: AppColors.danger, soft: AppColors.dangerSoft),
+            (ad: 'info', renk: AppColors.info, soft: AppColors.infoSoft),
+          ]) {
+            final o = kontrastOrani(r.renk, r.soft);
+            if (o < kAaEsigi) {
+              dusenler.add(
+                '$ad ${modu.anahtar} ${r.ad}/soft=${o.toStringAsFixed(2)}',
+              );
+            }
+            // BEYAZ KARTTA ÖDÜNLEŞME: ölçüldü ki "hata" kırmızısının AA'sı
+            // ancak dolgu neredeyse beyaz olunca tutuyor (yazı 4.58 / ayrım
+            // 1.05) — ayrımı 1.15'te tutmak yazıyı 4.11'e düşürüyordu.
+            // Okunmayan yazının telafisi yok; kutunun sınırı ise rozetin
+            // anlamsal KENARLIĞINDAN geliyor (bulletin_screen.dart:739 vb.).
+            // Bu yüzden AA sert eşik, ayrım yumuşak taban.
+            final ay = kontrastOrani(r.soft, AppColors.surface);
+            if (ay < 1.05) {
+              dusenler.add(
+                '$ad ${modu.anahtar} ${r.ad}Soft/kart=${ay.toStringAsFixed(2)}',
+              );
+            }
+          }
+        }
+      }
+      expect(dusenler, isEmpty, reason: dusenler.take(12).join(' · '));
+    });
+
+    test('ANLAMSAL RENKLER iki yönde de DEĞİŞMEZ', () {
+      final p = gs();
+      gorunumuKur(GorunumModu.takim, Brightness.light, p);
+      final duz = [
+        AppColors.success,
+        AppColors.warning,
+        AppColors.danger,
+        AppColors.info,
+        AppColors.live,
+      ];
+      gorunumuKur(GorunumModu.takimTers, Brightness.light, p);
+      expect([
+        AppColors.success,
+        AppColors.warning,
+        AppColors.danger,
+        AppColors.info,
+        AppColors.live,
+      ], duz);
     });
 
     test('TAKIM modunda yapısal renkler takımın paletine döner', () {

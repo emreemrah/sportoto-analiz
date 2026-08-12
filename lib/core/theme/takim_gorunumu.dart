@@ -141,16 +141,81 @@ void takimGorunumunuUygula(TakimPaleti p) {
 /// karttan AYRIŞIR ama aynı uçta kalır. Doygunluk düşürülür ki zemin
 /// bağırmasın; hue korunduğu için "uyarı", "hata", "başarı" ailesi belli
 /// olmaya devam eder.
+///
+/// ÜSTÜNDEKİ YAZI DA OKUNMALI (2026-08-13). Rozetlerin yazısı anlamsal
+/// rengin KENDİSİDİR (`Text(style: color: AppColors.success)`) ve o renk
+/// `const`tur — değiştirilemez. Bu yüzden okunabilirliği ZEMİN taşır: kartın
+/// parlaklığından başlanır, iki yöne birden taranır ve anlamsal rengi AA
+/// eşiğinde okutan, KARTA EN YAKIN parlaklık seçilir. Eskiden zemin sadece
+/// kartı takip ediyordu; takım temasında bu, kartla yazının aynı parlaklığa
+/// düştüğü yerlerde rozeti GÖRÜNMEZ yapıyordu (ölçüm: 150 takımın 129'unda
+/// "başarı", en kötüsü 1.00).
 Color _anlamsalYuzey(Color anlamsal, Color kart) {
-  final kartL = HSLColor.fromColor(kart).lightness;
   final h = HSLColor.fromColor(anlamsal);
-  final hedefL = kartL > 0.5
-      ? (kartL - 0.10).clamp(0.0, 1.0)
-      : (kartL + 0.12).clamp(0.0, 1.0);
-  return h
-      .withLightness(hedefL)
-      .withSaturation((h.saturation * 0.55).clamp(0.0, 1.0))
-      .toColor();
+  final doygunluk = (h.saturation * 0.55).clamp(0.0, 1.0);
+  final kartL = HSLColor.fromColor(kart).lightness;
+
+  Color uret(double l) =>
+      h.withLightness(l.clamp(0.0, 1.0)).withSaturation(doygunluk).toColor();
+
+  // İKİ KISIT BİRDEN: yazı okunacak (AA) VE rozet karttan ayrışacak. Beyaz
+  // kartta bu ikisi çakışabiliyor — "hata" kırmızısı beyazda 5.25 okunur ama
+  // beyaz zemin karttan hiç ayrışmaz; bir tık koyulaştırınca ayrışır ve AA
+  // yine tutar. Bu yüzden TÜM parlaklık aralığı taranıyor: ayrımı sağlayan
+  // adaylar arasından AA'yı tutturan ve KARTA EN YAKIN olan seçilir.
+  // ÖNCE YAZI OKUNSUN, AYRIM SONRA. İki kısıt BEYAZ kartta gerçekten
+  // çakışıyor; ölçüldü (Beşiktaş, kart #FFFFFF, hata kırmızısı):
+  //   parlaklık 0.940 → yazı 4.11, ayrım 1.175
+  //   parlaklık 0.980 → yazı 4.58, ayrım 1.054
+  // Yani ayrımı 1.15'te tutmak yazıyı AA'nın altına düşürüyor. Bu rozetler
+  // zaten anlamsal renkte bir KENARLIK taşıyor (`Border.all(success)` —
+  // bulletin_screen.dart:739, coupon_center_screen.dart:436,
+  // notifications_screen.dart:72), yani kutunun sınırı dolgudan değil
+  // kenarlıktan geliyor. Okunmayan yazının ise telafisi yok; sıra bu yüzden
+  // "önce AA, sonra elde kalanın en yükseği".
+  Color? yedek; // AA hiç tutmazsa en okunur olan
+  var yedekOran = 0.0;
+
+  // ADIM İNCE: geçerli pencere beyaz kartta 0.04 parlaklık kadar dar.
+  Color? enGenisAyrim;
+  var enGenisAyrimDegeri = 0.0;
+  final asamalar = <double, ({Color renk, double uzaklik})?>{
+    1.15: null,
+    1.10: null,
+  };
+  for (var adim = 0; adim <= 1000; adim++) {
+    final l = adim / 1000.0;
+    final aday = uret(l);
+    final ayrim = kontrastOrani(aday, kart);
+    final oran = kontrastOrani(anlamsal, aday);
+    if (oran < kAaEsigi) {
+      if (ayrim >= 1.10 && oran > yedekOran) {
+        yedekOran = oran;
+        yedek = aday;
+      }
+      continue;
+    }
+    // AA tutuyor. Yüksek ayrım eşiklerinde KARTA EN YAKIN olanı sakla.
+    for (final esik in asamalar.keys.toList()) {
+      if (ayrim < esik) continue;
+      final uzaklik = (l - kartL).abs();
+      final onceki = asamalar[esik];
+      if (onceki == null || uzaklik < onceki.uzaklik) {
+        asamalar[esik] = (renk: aday, uzaklik: uzaklik);
+      }
+    }
+    if (ayrim > enGenisAyrimDegeri) {
+      enGenisAyrimDegeri = ayrim;
+      enGenisAyrim = aday;
+    }
+  }
+  for (final esik in [1.15, 1.10]) {
+    final v = asamalar[esik];
+    if (v != null) return v.renk;
+  }
+  // AA tutan hiçbir aday 1.10 ayrımı sağlamıyorsa (beyaz kart), AA'yı koru
+  // ve elde kalanların EN AYRIŞANINI seç.
+  return enGenisAyrim ?? yedek ?? kart;
 }
 
 /// [renk]in KOMŞU tonu — aynı hue, bir tık farklı parlaklık.
