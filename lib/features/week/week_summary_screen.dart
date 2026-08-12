@@ -28,15 +28,28 @@ import '../../core/week_summary.dart';
 import '../../widgets/app_ui.dart';
 import '../../widgets/states.dart';
 
-const Color _navy = Color(0xFF0F2038);
+// YAPISAL RENKLER TAKIM TEMASINDAN OKUNUR (kullanıcı isteği, 2026-08-12).
+//
+// Bu dört değer eskiden marka laciverdine sabitliydi (0xFF0F2038, 0xFF1C3A5E,
+// 0xFF9DB0CD, 0xFF17304F) ve seçilen takım ne olursa olsun değişmiyordu —
+// kullanıcının "eski lacivert birçok yerde kalıyor" dediği yerlerden biri
+// tam olarak burasıydı. Getter oldular: ad ve 22 kullanım noktası aynı kaldı,
+// yalnız kaynak değişti. `const` olamazlar, çünkü tema çalışma zamanında
+// değişiyor.
+Color get _navy => AppColors.darkCard;
 // NOT: eskiden satırların ve zorluk kutusunun zemini olan NAVY_SOFT kaldırıldı —
 // artık iç kutu yok, ayraç çizgisi ve boşluk kullanılıyor.
-const Color _line = Color(0xFF1C3A5E);
-const Color _inkSoft = Color(0xFF9DB0CD);
+Color get _line => AppColors.darkBorder;
+Color get _inkSoft => AppColors.onDarkSoft;
+Color get _ayrac => AppColors.darkCardSoft;
+
+// ANLAMSAL — takım temasından ETKİLENMEZ (kullanıcı isteği: "takım rengiyle
+// hata, mağlubiyet veya uyarı anlamları çakışmasın"). Bunlar koyu panel için
+// açılmış success/warning/danger tonlarıdır; koyu panel her temada koyu
+// kaldığı için okunurlukları korunur.
 const Color _amber = Color(0xFFFFB35C);
 const Color _yesil = Color(0xFF5DD39E);
 const Color _kirmizi = Color(0xFFFF7A6E);
-const Color _ayrac = Color(0xFF17304F);
 
 /// zorluk göstergesi segment sayısı (her biri 20 puan)
 const int _segment = 5;
@@ -90,9 +103,7 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
     }
     final data = _data;
     if (data == null) {
-      return _kabuk(
-        const LoadingState(message: 'Haftanın özeti hazırlanıyor…'),
-      );
+      return _kabuk(LoadingState(message: 'Haftanın özeti hazırlanıyor…'));
     }
 
     final sum = buildWeekSummary(data['matches'] as List?);
@@ -112,7 +123,9 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
       (ad: 'Güçlü', n: sum.strong.length, renk: _yesil),
       (ad: 'Sürpriz', n: sum.surprises.length, renk: _kirmizi),
       (ad: 'Denk', n: sum.balanced, renk: _amber),
-      (ad: 'Diğer', n: diger, renk: const Color(0xFF3B5573)),
+      // "Diğer" NÖTR olmalı — yanındaki üçü anlamlı (güçlü/sürpriz/denk).
+      // Eskiden sabit lacivertti; artık koyu panelin kendi nötr tonu.
+      (ad: 'Diğer', n: diger, renk: AppColors.darkBorder),
     ];
 
     final ilkNo = sum.strong.isNotEmpty
@@ -162,7 +175,7 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
                             sonMu: i == sum.strong.length - 1,
                           )
                       else
-                        const Text(
+                        Text(
                           'Bu hafta güçlü aday çıkmadı — zorla aday üretilmez; temkinli hafta.',
                           style: TextStyle(
                             color: _inkSoft,
@@ -187,7 +200,7 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
                             sonMu: i == sum.surprises.length - 1,
                           )
                       else
-                        const Text(
+                        Text(
                           'Sürprize açık maç işareti yok.',
                           style: TextStyle(
                             color: _inkSoft,
@@ -201,7 +214,7 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
                           padding: const EdgeInsets.only(top: Spacing.md),
                           child: Text(
                             'ℹ️ ${sum.startedCount} maç başladığı için aday listelerinde gösterilmiyor.',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: _inkSoft,
                               fontSize: 11.5,
                               fontStyle: FontStyle.italic,
@@ -217,8 +230,8 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
                       ),
                       Text(
                         kLegalFooter,
-                        style: const TextStyle(
-                          color: Color(0xFF8FA3BD),
+                        style: TextStyle(
+                          color: _inkSoft,
                           fontSize: 10.5,
                           fontStyle: FontStyle.italic,
                           height: 15 / 10.5,
@@ -297,8 +310,8 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
           children: [
             RichText(
               text: TextSpan(
-                style: const TextStyle(
-                  color: AppColors.white,
+                style: TextStyle(
+                  color: AppColors.onDark,
                   fontSize: 22,
                   fontWeight: AppFont.black,
                   letterSpacing: -0.3,
@@ -329,7 +342,7 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   weekTxt,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: _inkSoft,
                     fontSize: 12.5,
                     fontWeight: AppFont.heavy,
@@ -346,15 +359,15 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
         children: [
           Text(
             '$toplam',
-            style: const TextStyle(
-              color: AppColors.white,
+            style: TextStyle(
+              color: AppColors.onDark,
               fontSize: 40,
               height: 1,
               fontWeight: AppFont.black,
               letterSpacing: -1.5,
             ),
           ),
-          const Text(
+          Text(
             'MAÇ',
             style: TextStyle(
               color: _inkSoft,
@@ -419,8 +432,8 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
               const SizedBox(width: 5),
               Text(
                 '${p.n}',
-                style: const TextStyle(
-                  color: AppColors.white,
+                style: TextStyle(
+                  color: AppColors.onDark,
                   fontSize: 12,
                   fontWeight: AppFont.black,
                 ),
@@ -428,7 +441,7 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
               const SizedBox(width: 5),
               Text(
                 p.ad,
-                style: const TextStyle(
+                style: TextStyle(
                   color: _inkSoft,
                   fontSize: 11,
                   fontWeight: AppFont.bold,
@@ -444,7 +457,7 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
   Widget _zorlukBandi(Map diff, Color renk) => Container(
     margin: const EdgeInsets.only(top: Spacing.lg),
     padding: const EdgeInsets.only(top: Spacing.md),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       border: Border(top: BorderSide(color: _line)),
     ),
     child: Column(
@@ -454,7 +467,7 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
           crossAxisAlignment: CrossAxisAlignment.end,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'BÜLTEN ZORLUĞU',
               style: TextStyle(
                 color: _inkSoft,
@@ -478,14 +491,14 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
                 const SizedBox(width: 8),
                 RichText(
                   text: TextSpan(
-                    style: const TextStyle(
-                      color: AppColors.white,
+                    style: TextStyle(
+                      color: AppColors.onDark,
                       fontSize: 15,
                       fontWeight: AppFont.black,
                     ),
                     children: [
                       TextSpan(text: '${diff['score']}'),
-                      const TextSpan(
+                      TextSpan(
                         text: '/100',
                         style: TextStyle(
                           color: _inkSoft,
@@ -526,7 +539,7 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
             padding: const EdgeInsets.only(top: 9),
             child: Text(
               '${diff['text']}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: _inkSoft,
                 fontSize: 11.5,
                 height: 16 / 11.5,
@@ -559,8 +572,8 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
         Expanded(
           child: Text(
             baslik,
-            style: const TextStyle(
-              color: AppColors.white,
+            style: TextStyle(
+              color: AppColors.onDark,
               fontSize: 13,
               fontWeight: AppFont.black,
               letterSpacing: 1.2,
@@ -594,7 +607,7 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
     child: Container(
       padding: const EdgeInsets.symmetric(vertical: 13),
       decoration: BoxDecoration(
-        border: sonMu ? null : const Border(bottom: BorderSide(color: _ayrac)),
+        border: sonMu ? null : Border(bottom: BorderSide(color: _ayrac)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -615,8 +628,8 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
                         takimAdi(m['home']),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.white,
+                        style: TextStyle(
+                          color: AppColors.onDark,
                           fontSize: 14,
                           fontWeight: AppFont.heavy,
                         ),
@@ -636,8 +649,8 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
                         maxLines: 1,
                         textAlign: TextAlign.right,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.white,
+                        style: TextStyle(
+                          color: AppColors.onDark,
                           fontSize: 14,
                           fontWeight: AppFont.heavy,
                         ),
@@ -663,7 +676,7 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     text: TextSpan(
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: _inkSoft,
                         fontSize: 11,
                         fontWeight: AppFont.bold,
@@ -672,8 +685,8 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
                       children: [
                         TextSpan(
                           text: '${m['no']}',
-                          style: const TextStyle(
-                            color: Color(0xFF7F93B4),
+                          style: TextStyle(
+                            color: _inkSoft,
                             fontWeight: AppFont.black,
                           ),
                         ),

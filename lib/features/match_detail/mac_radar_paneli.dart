@@ -267,7 +267,7 @@ class _GunSecici extends StatelessWidget {
                 Text(
                   _kisaGun[weekday] ?? (weekday.isNotEmpty ? weekday : date),
                   style: TextStyle(
-                    color: acik ? AppColors.white : AppColors.textSoft,
+                    color: acik ? AppColors.onPrimary : AppColors.textSoft,
                     fontSize: 11,
                     fontWeight: AppFont.heavy,
                   ),
@@ -275,7 +275,7 @@ class _GunSecici extends StatelessWidget {
                 Text(
                   date.length > 5 ? date.substring(5) : date,
                   style: TextStyle(
-                    color: acik ? AppColors.white : AppColors.textMuted,
+                    color: acik ? AppColors.onPrimary : AppColors.textMuted,
                     fontSize: 9,
                   ),
                 ),
@@ -352,8 +352,7 @@ class MacRadarBekle extends StatelessWidget {
 }
 
 /// Veri yokluğu / hata cümlelerinin ortak stili.
-TextStyle kMacRadarBos = TextStyle(
-  color: AppColors.textMuted,
-  fontSize: 11.5,
-  height: 16 / 11.5,
-);
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get kMacRadarBos =>
+    TextStyle(color: AppColors.textMuted, fontSize: 11.5, height: 16 / 11.5);

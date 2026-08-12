@@ -190,10 +190,10 @@ class _CouponPickBlockState extends State<CouponPickBlock> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (on) ...[
-                const Text(
+                Text(
                   '✓',
                   style: TextStyle(
-                    color: AppColors.white,
+                    color: AppColors.onPrimary,
                     fontSize: 11,
                     fontWeight: AppFont.black,
                   ),
@@ -203,7 +203,7 @@ class _CouponPickBlockState extends State<CouponPickBlock> {
               Text(
                 o,
                 style: TextStyle(
-                  color: on ? AppColors.white : AppColors.textSoft,
+                  color: on ? AppColors.onPrimary : AppColors.textSoft,
                   fontSize: 14,
                   fontWeight: AppFont.black,
                 ),

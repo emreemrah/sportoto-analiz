@@ -610,7 +610,7 @@ class MasterMatchCard extends StatelessWidget {
     child: Text(
       text,
       style: TextStyle(
-        color: dolu ? AppColors.white : AppColors.text,
+        color: dolu ? AppColors.onPrimary : AppColors.text,
         fontSize: 11.5,
         fontWeight: AppFont.black,
       ),
@@ -622,8 +622,8 @@ class MasterMatchCard extends StatelessWidget {
     decoration: BoxDecoration(color: bg, borderRadius: AppRadius.smR),
     child: Text(
       text,
-      style: const TextStyle(
-        color: AppColors.white,
+      style: TextStyle(
+        color: AppColors.onPrimary,
         fontSize: 10,
         fontWeight: AppFont.black,
       ),

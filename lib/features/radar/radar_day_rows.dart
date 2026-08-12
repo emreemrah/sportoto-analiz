@@ -332,7 +332,9 @@ class PublicRow extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: providerColor(pv),
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0x2E000000)),
+                      border: Border.all(
+                        color: AppColors.text.withValues(alpha: 0.18),
+                      ),
                     ),
                   ),
                 ),

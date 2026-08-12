@@ -424,14 +424,12 @@ class _SonucSatiri extends StatelessWidget {
   }
 }
 
-TextStyle _ipucu = TextStyle(
-  color: AppColors.textSoft,
-  fontSize: 12,
-  height: 16 / 12,
-);
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _ipucu =>
+    TextStyle(color: AppColors.textSoft, fontSize: 12, height: 16 / 12);
 
-TextStyle _bos = TextStyle(
-  color: AppColors.textMuted,
-  fontSize: 11.5,
-  height: 16 / 11.5,
-);
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _bos =>
+    TextStyle(color: AppColors.textMuted, fontSize: 11.5, height: 16 / 11.5);

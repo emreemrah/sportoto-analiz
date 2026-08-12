@@ -524,7 +524,7 @@ class _IstatistikTabState extends State<IstatistikTab> {
       child: Text(
         etiket,
         style: TextStyle(
-          color: acik ? AppColors.white : AppColors.textSoft,
+          color: acik ? AppColors.onPrimary : AppColors.textSoft,
           fontSize: 11,
           fontWeight: AppFont.heavy,
         ),
@@ -767,28 +767,30 @@ class _CmpRow extends StatelessWidget {
   );
 }
 
-TextStyle _chName = TextStyle(
-  color: AppColors.text,
-  fontSize: 13.5,
-  fontWeight: AppFont.heavy,
-);
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _chName =>
+    TextStyle(color: AppColors.text, fontSize: 13.5, fontWeight: AppFont.heavy);
 
-TextStyle _clVal = TextStyle(
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _clVal => TextStyle(
   color: AppColors.text,
   fontSize: 14.5,
   fontWeight: AppFont.heavy,
   fontFeatures: [FontFeature.tabularFigures()],
 );
 
-TextStyle _fltHint = TextStyle(
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _fltHint => TextStyle(
   color: AppColors.textMuted,
   fontSize: 10.5,
   height: 14 / 10.5,
   fontStyle: FontStyle.italic,
 );
 
-TextStyle _muted = TextStyle(
-  color: AppColors.textMuted,
-  fontSize: 12,
-  height: 18 / 12,
-);
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _muted =>
+    TextStyle(color: AppColors.textMuted, fontSize: 12, height: 18 / 12);

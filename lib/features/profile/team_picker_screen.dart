@@ -66,7 +66,7 @@ class _TeamPickerScreenState extends State<TeamPickerScreen> {
     if (_error != null) {
       govde = ErrorState(message: _error);
     } else if (_data == null) {
-      govde = const LoadingState(message: 'Takım listesi yükleniyor…');
+      govde = LoadingState(message: 'Takım listesi yükleniyor…');
     } else {
       govde = _liste();
     }

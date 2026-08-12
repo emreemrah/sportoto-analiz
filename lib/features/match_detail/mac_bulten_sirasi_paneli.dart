@@ -264,7 +264,9 @@ class _MacBultenSirasiPaneliState extends ConsumerState<MacBultenSirasiPaneli> {
                 child: Text(
                   p.label,
                   style: TextStyle(
-                    color: _donem == p.k ? AppColors.white : AppColors.textSoft,
+                    color: _donem == p.k
+                        ? AppColors.onPrimary
+                        : AppColors.textSoft,
                     fontSize: 11.5,
                     fontWeight: AppFont.heavy,
                   ),

@@ -42,7 +42,7 @@ class SystemDashboardScreen extends StatelessWidget {
     appBar: AppBar(title: const Text('Analiz Detayı (Demo)')),
     body: ListView(
       padding: const EdgeInsets.all(Spacing.lg),
-      children: const [
+      children: [
         // DEMO KAPALI (üretim): mock başarı ASLA gerçek karne yerine
         // gösterilmez.
         EmptyState(

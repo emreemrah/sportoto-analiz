@@ -25,6 +25,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../core/theme/takim_paleti.dart' show okunurMetin;
 import '../../core/theme/tokens.dart';
 import 'provider_labels.dart';
 import 'radar_screen_data.dart';
@@ -256,7 +257,7 @@ class DnaDonemFiltresi extends StatelessWidget {
           child: Text(
             etiket,
             style: TextStyle(
-              color: secili ? AppColors.white : AppColors.textSoft,
+              color: secili ? AppColors.onPrimary : AppColors.textSoft,
               fontSize: 12,
               fontWeight: AppFont.heavy,
             ),
@@ -574,7 +575,7 @@ class MemoryRow extends StatelessWidget {
             k,
             style: TextStyle(
               // Sarı zeminde beyaz okunmaz; X'te yazı lacivert olur.
-              color: k == 'X' ? AppColors.primary : AppColors.white,
+              color: okunurMetin(_harfRengi[k] ?? AppColors.gray),
               fontSize: 11,
               fontWeight: AppFont.black,
             ),
@@ -653,7 +654,10 @@ class MemoryRow extends StatelessWidget {
     ],
   );
 
-  static Widget _ayrac = Padding(
+  // GETTER, statik alan DEĞİL (2026-08-12): `textMuted` takım temasıyla
+  // değişir; statik alan ilk okunduğu renkte donar ve tema değişince
+  // güncellenmezdi.
+  static Widget get _ayrac => Padding(
     padding: EdgeInsets.symmetric(horizontal: 4),
     child: Text(
       '·',
@@ -812,13 +816,15 @@ class _SiraGecmisListesiState extends State<SiraGecmisListesi> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: const Color(0x99FFFFFF),
+                                color: AppColors.onPrimary.withValues(
+                                  alpha: 0.60,
+                                ),
                               ),
                             ),
                             child: Text(
                               _notAcik ? '✕' : 'i',
-                              style: const TextStyle(
-                                color: AppColors.white,
+                              style: TextStyle(
+                                color: AppColors.onPrimary,
                                 fontSize: 8.5,
                                 fontWeight: AppFont.black,
                                 fontStyle: FontStyle.italic,
@@ -895,8 +901,8 @@ class _Baslik extends StatelessWidget {
     maxLines: 1,
     overflow: TextOverflow.ellipsis,
     textAlign: orta ? TextAlign.center : TextAlign.start,
-    style: const TextStyle(
-      color: AppColors.white,
+    style: TextStyle(
+      color: AppColors.onPrimary,
       fontSize: 9,
       fontWeight: AppFont.black,
       letterSpacing: 0.4,
@@ -1032,7 +1038,7 @@ class _Satir extends StatelessWidget {
                         ? AppColors.primary
                         : result == null
                         ? AppColors.textSoft
-                        : AppColors.white,
+                        : AppColors.onPrimary,
                     fontSize: 11,
                     fontWeight: AppFont.black,
                   ),

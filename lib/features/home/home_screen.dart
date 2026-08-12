@@ -194,7 +194,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
 
                 if (data == null && error == null)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(horizontal: Spacing.md),
                     child: SkeletonCard(),
                   )
@@ -402,7 +402,7 @@ class _HeroCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: Spacing.md),
       padding: const EdgeInsets.all(Spacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.primary,
+        color: AppColors.heroZemin,
         borderRadius: AppRadius.xlR,
         boxShadow: AppShadow.card,
       ),
@@ -425,7 +425,7 @@ class _HeroCard extends StatelessWidget {
               Text(
                 '${data?['round'] ?? '—'}',
                 style: TextStyle(
-                  color: AppColors.onPrimary,
+                  color: AppColors.onHero,
                   fontSize: 12,
                   fontWeight: AppFont.heavy,
                   letterSpacing: 0.5,
@@ -454,8 +454,8 @@ class _HeroCard extends StatelessWidget {
                 Text(
                   'İlk maç: ${_kisaGunler[ilk.weekday % 7]} '
                   '${_matchTime(ilk.toIso8601String())}',
-                  style: const TextStyle(
-                    color: Color(0xB3FFFFFF),
+                  style: TextStyle(
+                    color: AppColors.onHero.withValues(alpha: 0.70),
                     fontSize: 10.5,
                     fontWeight: AppFont.bold,
                   ),
@@ -463,10 +463,10 @@ class _HeroCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'Bu Haftanın Bülteni',
             style: TextStyle(
-              color: AppColors.white,
+              color: AppColors.onHero,
               fontSize: 20,
               fontWeight: AppFont.black,
             ),
@@ -515,8 +515,8 @@ class _HeroCard extends StatelessWidget {
         RichText(
           maxLines: 1,
           text: TextSpan(
-            style: const TextStyle(
-              color: AppColors.white,
+            style: TextStyle(
+              color: AppColors.onHero,
               fontSize: 22,
               fontWeight: AppFont.black,
             ),
@@ -534,8 +534,8 @@ class _HeroCard extends StatelessWidget {
           etiket,
           maxLines: 2,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Color(0xB3FFFFFF),
+          style: TextStyle(
+            color: AppColors.onHero.withValues(alpha: 0.70),
             fontSize: 10,
             fontWeight: AppFont.bold,
           ),
@@ -544,8 +544,11 @@ class _HeroCard extends StatelessWidget {
     ),
   );
 
-  Widget _ayrac() =>
-      Container(width: 1, height: 28, color: const Color(0x33FFFFFF));
+  Widget _ayrac() => Container(
+    width: 1,
+    height: 28,
+    color: AppColors.onHero.withValues(alpha: 0.20),
+  );
 
   Widget _dugme(
     String etiket,
@@ -558,9 +561,13 @@ class _HeroCard extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
       decoration: BoxDecoration(
-        color: dolu ? AppColors.accent : const Color(0x1AFFFFFF),
+        color: dolu
+            ? AppColors.accent
+            : AppColors.onHero.withValues(alpha: 0.10),
         borderRadius: AppRadius.mdR,
-        border: dolu ? null : Border.all(color: const Color(0x33FFFFFF)),
+        border: dolu
+            ? null
+            : Border.all(color: AppColors.onHero.withValues(alpha: 0.20)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -570,20 +577,20 @@ class _HeroCard extends StatelessWidget {
               etiket,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.white,
+              style: TextStyle(
+                color: dolu ? AppColors.onAccent : AppColors.onHero,
                 fontSize: 12.5,
                 fontWeight: AppFont.black,
               ),
             ),
           ),
           if (ok)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(left: 6),
               child: Text(
                 '›',
                 style: TextStyle(
-                  color: AppColors.white,
+                  color: dolu ? AppColors.onAccent : AppColors.onHero,
                   fontSize: 15,
                   fontWeight: AppFont.black,
                 ),
@@ -1025,7 +1032,12 @@ class _SurpriseCard extends StatelessWidget {
     );
   }
 
-  static TextStyle _adStil = TextStyle(
+  // GETTER, `static final` DEĞİL (2026-08-12): `AppColors.text` takım
+  // temasıyla değişir. Statik alan — final olsun olmasın — İLK OKUNDUĞUNDA
+  // bir kez hesaplanır ve o renkte donardı; takım değiştirildiğinde bu yazı
+  // eski temada kalırdı. Analizcinin `prefer_final_fields` önerisi burada
+  // yanlıştır, o yüzden alan tümden getter'a çevrildi.
+  static TextStyle get _adStil => TextStyle(
     color: AppColors.text,
     fontSize: 11.5,
     fontWeight: AppFont.heavy,

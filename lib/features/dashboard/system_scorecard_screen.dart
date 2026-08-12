@@ -84,8 +84,9 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
       api
           .scorecardsCalibration()
           .then((c) {
-            if (mounted)
+            if (mounted) {
               setState(() => _cal = (c as Map).cast<String, dynamic>());
+            }
           })
           .catchError((_) {});
     } catch (e) {
@@ -98,9 +99,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading && _sc == null) {
-      return _kabuk(
-        const LoadingState(message: 'Sistem karnesi doğrulanıyor…'),
-      );
+      return _kabuk(LoadingState(message: 'Sistem karnesi doğrulanıyor…'));
     }
     if (_error != null) {
       return _kabuk(
@@ -384,7 +383,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
       return [_bosSatir('Resmî hafta kaydı yok.')];
     }
     return [
-      const DashboardSection(
+      DashboardSection(
         title: 'Resmî Hafta Performansı',
         sub:
             'Yalnız mühürlü ileri-test haftaları. Kısmi haftalar açıkça '
@@ -587,7 +586,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
   List<Widget> _kapsama() {
     final cov = _sc?['coverage'];
     return [
-      const DashboardSection(
+      DashboardSection(
         title: 'Kapsama Başarısı',
         sub:
             'Mühürlü kupon tercihlerinin (tek/çift/üçlü) resmî sonucu kapsama '

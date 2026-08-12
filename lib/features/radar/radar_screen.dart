@@ -1008,7 +1008,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         etiket,
         textAlign: TextAlign.center,
         style: TextStyle(
-          color: acik ? AppColors.white : AppColors.textSoft,
+          color: acik ? AppColors.onPrimary : AppColors.textSoft,
           fontSize: 11,
           fontWeight: AppFont.heavy,
         ),

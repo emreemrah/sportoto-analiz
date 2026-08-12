@@ -16,6 +16,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/coupon/coupon_store.dart';
 import '../../core/network/api_client.dart';
 import '../../core/services/muhurlu_sistem.dart';
+import '../../core/theme/takim_paleti.dart' show okunurMetin;
 import '../../core/theme/tokens.dart';
 import '../../core/week_recap.dart';
 import '../../widgets/states.dart';
@@ -260,9 +261,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading && _rounds == null) {
-      return _kabuk(
-        const LoadingState(message: 'Hafta kapanışı hazırlanıyor…'),
-      );
+      return _kabuk(LoadingState(message: 'Hafta kapanışı hazırlanıyor…'));
     }
     if (_error != null) {
       return _kabuk(
@@ -515,7 +514,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
       margin: const EdgeInsets.only(bottom: Spacing.md),
       padding: const EdgeInsets.all(Spacing.md),
       decoration: BoxDecoration(
-        color: const Color(0xFF132244),
+        color: AppColors.darkCard,
         borderRadius: AppRadius.lgR,
         boxShadow: AppShadow.soft,
       ),
@@ -535,8 +534,8 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
             padding: const EdgeInsets.only(top: 6),
             child: Text(
               _baslikCumlesi(recap),
-              style: const TextStyle(
-                color: AppColors.white,
+              style: TextStyle(
+                color: okunurMetin(AppColors.warning),
                 fontSize: 15,
                 fontWeight: AppFont.heavy,
                 height: 22 / 15,
@@ -562,8 +561,8 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
             padding: const EdgeInsets.only(top: 5),
             child: Text(
               '${o.resolved}/${o.total} resmî sonuç',
-              style: const TextStyle(
-                color: Color(0xFFB9C6DC),
+              style: TextStyle(
+                color: AppColors.onDarkSoft,
                 fontSize: 10.5,
                 fontWeight: AppFont.heavy,
               ),

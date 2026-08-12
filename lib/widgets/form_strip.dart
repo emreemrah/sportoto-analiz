@@ -8,6 +8,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../core/theme/takim_paleti.dart' show okunurMetin;
 import '../core/theme/tokens.dart';
 
 const Map<String, Color> _formColor = {
@@ -18,7 +19,13 @@ const Map<String, Color> _formColor = {
 
 /// `components.js` → `FormStrip` (harfli renkli kareler)
 class FormStrip extends StatelessWidget {
-  const FormStrip({super.key, required this.form, this.size = 18});
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  FormStrip({super.key, required this.form, this.size = 18});
 
   final List? form;
   final double size;
@@ -46,8 +53,10 @@ class FormStrip extends StatelessWidget {
             ),
             child: Text(
               '${form![i]}',
+              // Zeminden hesaplanır: sarı "B" kutusunda sabit beyaz
+              // okunmuyordu (kontrast 2.1).
               style: TextStyle(
-                color: const Color(0xFFFFFFFF),
+                color: okunurMetin(_formColor['${form![i]}'] ?? AppColors.gray),
                 fontWeight: AppFont.black,
                 fontSize: size * 0.58,
               ),

@@ -71,7 +71,7 @@ SkorGorunum? _scoreView(Map? m) {
     final ps = pv['score'] as Map;
     final live = pv['live'] == true;
     return (
-      color: live ? AppColors.accent : AppColors.warning,
+      color: live ? AppColors.live : AppColors.warning,
       score: '${ps['home']}-${ps['away']}',
       result: resultFromScore(ps),
       kind: live ? 'live' : 'prov',
@@ -213,9 +213,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading && _rounds == null) {
-      return _kabuk(
-        const LoadingState(message: 'Haftalık başarın hazırlanıyor…'),
-      );
+      return _kabuk(LoadingState(message: 'Haftalık başarın hazırlanıyor…'));
     }
     if (_error != null) {
       return _kabuk(
@@ -433,8 +431,8 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
                   '${selMeta?['year'] ?? ''} Sezonu',
-                  style: const TextStyle(
-                    color: Color(0xFF9DB0CD),
+                  style: TextStyle(
+                    color: AppColors.onPrimarySoft,
                     fontSize: 11,
                     fontWeight: AppFont.bold,
                   ),
@@ -468,8 +466,8 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               ),
               child: Text(
                 isaret,
-                style: const TextStyle(
-                  color: AppColors.white,
+                style: TextStyle(
+                  color: AppColors.onDark,
                   fontSize: 24,
                   height: 26 / 24,
                   fontWeight: AppFont.black,
@@ -541,7 +539,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           child: Text(
             etiket,
             style: TextStyle(
-              color: secili ? AppColors.white : AppColors.textSoft,
+              color: secili ? AppColors.onPrimary : AppColors.textSoft,
               fontSize: 12,
               fontWeight: AppFont.heavy,
             ),
@@ -1001,13 +999,13 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
       padding: const EdgeInsets.symmetric(vertical: 12),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: const Color(0xFF132244),
+        color: AppColors.darkCard,
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
-      child: const Text(
+      child: Text(
         '🏁 Bu Haftanın Kapanışı · Sen vs Sistem ›',
         style: TextStyle(
-          color: AppColors.white,
+          color: AppColors.onPrimary,
           fontSize: 13,
           fontWeight: AppFont.heavy,
         ),
@@ -1085,7 +1083,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           ),
         ),
       ),
-      const Padding(
+      Padding(
         padding: EdgeInsets.only(top: Spacing.sm),
         child: ScoreLegend(),
       ),

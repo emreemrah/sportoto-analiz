@@ -41,10 +41,22 @@ const bool _kIsDevBuild = !bool.fromEnvironment('dart.vm.product');
 // teması `AppColors`ı çalışma zamanında değiştirdiği için `final` yazılsaydı bu
 // üç renk ilk okundukları andaki tonda DONAR ve panel takım değişince eski
 // renkte açılırdı. `_ayrac` gerçekten sabit (yarı saydam beyaz), o `const`.
-Color get _zemin => AppColors.primaryDark;
+// DÜZELTME (2026-08-12, emülatörde görüldü): panel zemini `primaryDark`
+// okuyordu. `primaryDark = karart(secili, 0.2)` ve KOYU temalı bir takımda
+// `secili` zaten AÇIK bir renktir (Beşiktaş #D1D1D1, BB Erzurumspor açık
+// mavi) — onu %20 karartmak koyu panel değil GRİ panel verir. Ekranda
+// ölçüldü: BB Erzurumspor temasında panel gri açılıyordu.
+//
+// Doğru kaynak `darkCard`: koyu panel için üretilen, her temada zeminden
+// ayrışan ve `onDark` / `onDarkSoft` ile AA sağlayan token.
+Color get _zemin => AppColors.darkCard;
 Color get _satir => AppColors.darkCardSoft;
-const Color _ayrac = Color(0x1FFFFFFF);
-Color get _ikincilYazi => AppColors.muted;
+Color get _ayrac => AppColors.onDark.withValues(alpha: 0.12);
+
+// `muted` AÇIK yüzeylere (kart, zemin, ara şerit) göre hesaplanır; koyu
+// panelin üstünde okunacağının garantisi yok. Koyu panelin kendi soluk
+// metni kullanılır.
+Color get _ikincilYazi => AppColors.onDarkSoft;
 
 /// Paneldeki bir erişim satırı.
 class _Giris {
@@ -64,6 +76,7 @@ const List<_Giris> _kGirisler = [
   _Giris('📊', 'Haftalık Başarı', 'basari-panelim'),
   _Giris('⚽', 'Hazır Avatar Seç', 'avatar'),
   _Giris('🏳️', 'Takımım', 'takim-sec'),
+  _Giris('🌗', 'Görünüm', 'gorunum'),
   _Giris('⭐', 'Premium Kodu', 'premium-kod'),
   _Giris('🔐', 'Güvenlik Ayarları', 'guvenlik'),
   _Giris('📱', 'Bağlı Cihazlar', 'cihazlar'),
@@ -140,7 +153,7 @@ class _KullaniciPaneliState extends State<KullaniciPaneli> {
       // armayı koyu panele koymak olurdu.
       child: Stack(
         children: [
-          const TakimLogoZemin(acikSiluet: true),
+          TakimLogoZemin(acikSiluet: true),
           ValueListenableBuilder<auth.AuthState>(
             valueListenable: auth.authState,
             builder: (context, s, _) {
@@ -181,7 +194,7 @@ class _KullaniciPaneliState extends State<KullaniciPaneli> {
                 // kapsaması ile tekli ana tahmin farklı yüzde verir).
                 if (_operator || _kIsDevBuild) _girisSatiri(_kSistemKarnesi),
                 const SizedBox(height: Spacing.md),
-                const Divider(color: _ayrac, height: 1),
+                Divider(color: _ayrac, height: 1),
                 const SizedBox(height: Spacing.md),
                 _girisSatiri(
                   const _Giris('🚪', 'Çıkış Yap', ''),
@@ -248,8 +261,8 @@ class _KullaniciPaneliState extends State<KullaniciPaneli> {
                         username.isNotEmpty ? username : 'Hesabım',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.white,
+                        style: TextStyle(
+                          color: AppColors.onDark,
                           fontSize: 15,
                           fontWeight: AppFont.heavy,
                         ),
@@ -316,7 +329,7 @@ class _KullaniciPaneliState extends State<KullaniciPaneli> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: tehlike ? AppColors.danger : AppColors.white,
+                      color: tehlike ? AppColors.danger : AppColors.onDark,
                       fontSize: 13.5,
                       fontWeight: AppFont.semibold,
                     ),

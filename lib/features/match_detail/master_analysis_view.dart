@@ -639,19 +639,19 @@ class _AltPill extends StatelessWidget {
   );
 }
 
-TextStyle _mutedTxt = TextStyle(
-  color: AppColors.textMuted,
-  fontSize: 12,
-  height: 17 / 12,
-);
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _mutedTxt =>
+    TextStyle(color: AppColors.textMuted, fontSize: 12, height: 17 / 12);
 
-TextStyle _noteTxt = TextStyle(
-  color: AppColors.textSoft,
-  fontSize: 11.5,
-  height: 16 / 11.5,
-);
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _noteTxt =>
+    TextStyle(color: AppColors.textSoft, fontSize: 11.5, height: 16 / 11.5);
 
-TextStyle _tinyNote = TextStyle(
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _tinyNote => TextStyle(
   color: AppColors.textMuted,
   fontSize: 10,
   height: 14 / 10,

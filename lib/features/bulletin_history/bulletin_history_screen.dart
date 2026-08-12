@@ -100,14 +100,14 @@ class _BulletinHistoryScreenState extends State<BulletinHistoryScreen> {
 
     Widget govde;
     if (_loading && list == null) {
-      govde = const LoadingState(message: 'Bülten geçmişi yükleniyor…');
+      govde = LoadingState(message: 'Bülten geçmişi yükleniyor…');
     } else if (_error != null) {
       govde = SingleChildScrollView(
         padding: const EdgeInsets.symmetric(vertical: Spacing.lg),
         child: ErrorState(message: _error, onRetry: _reload),
       );
     } else if (list == null || list.isEmpty) {
-      govde = const SingleChildScrollView(
+      govde = SingleChildScrollView(
         padding: EdgeInsets.all(Spacing.md),
         child: EmptyState(
           icon: '📭',
@@ -166,7 +166,7 @@ class _BulletinHistoryScreenState extends State<BulletinHistoryScreen> {
             ),
           ),
           if (isDemo)
-            const DemoDataBanner(
+            DemoDataBanner(
               note:
                   'Arşiv sunucusuna ulaşılamadı — aşağıdaki bültenler ÖRNEKTİR, gerçek arşiv verisi değildir.',
             ),

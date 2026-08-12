@@ -13,12 +13,13 @@ import 'package:flutter/material.dart';
 import '../core/theme/tokens.dart';
 
 class InfoIpucu extends StatefulWidget {
-  const InfoIpucu({
-    super.key,
-    required this.ozet,
-    required this.detay,
-    this.renk,
-  });
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  InfoIpucu({super.key, required this.ozet, required this.detay, this.renk});
 
   final String ozet;
   final String detay;

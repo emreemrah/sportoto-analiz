@@ -344,7 +344,7 @@ class _CommentsSectionState extends State<CommentsSection> {
           Text(
             key,
             style: TextStyle(
-              color: on ? AppColors.white : AppColors.textSoft,
+              color: on ? AppColors.onPrimary : AppColors.textSoft,
               fontSize: 12,
               fontWeight: AppFont.heavy,
             ),
@@ -353,13 +353,15 @@ class _CommentsSectionState extends State<CommentsSection> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
             decoration: BoxDecoration(
-              color: on ? const Color(0x33FFFFFF) : AppColors.cardAlt,
+              color: on
+                  ? AppColors.onPrimary.withValues(alpha: 0.2)
+                  : AppColors.cardAlt,
               borderRadius: AppRadius.pillR,
             ),
             child: Text(
               '$count',
               style: TextStyle(
-                color: on ? AppColors.white : AppColors.textSoft,
+                color: on ? AppColors.onPrimary : AppColors.textSoft,
                 fontSize: 10.5,
                 fontWeight: AppFont.black,
               ),
@@ -761,7 +763,7 @@ class _CommentCardState extends State<_CommentCard> {
       child: Text(
         etiket,
         style: TextStyle(
-          color: dolu ? AppColors.white : AppColors.textSoft,
+          color: dolu ? AppColors.onPrimary : AppColors.textSoft,
           fontSize: 12,
           fontWeight: AppFont.heavy,
         ),
@@ -886,7 +888,7 @@ class _ReportSheetState extends State<_ReportSheet> {
                         s.label,
                         style: TextStyle(
                           color: _reason == s.key
-                              ? AppColors.white
+                              ? AppColors.onPrimary
                               : AppColors.textSoft,
                           fontSize: 12,
                           fontWeight: AppFont.heavy,
@@ -966,10 +968,10 @@ class _ReportSheetState extends State<_ReportSheet> {
                                 color: AppColors.onPrimary,
                               ),
                             )
-                          : const Text(
+                          : Text(
                               'Gönder',
                               style: TextStyle(
-                                color: AppColors.white,
+                                color: AppColors.onPrimary,
                                 fontSize: 13,
                                 fontWeight: AppFont.black,
                               ),
@@ -1093,7 +1095,9 @@ class _BlockDialogState extends State<_BlockDialog> {
   }
 }
 
-TextStyle _metaTxt = TextStyle(
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _metaTxt => TextStyle(
   color: AppColors.textMuted,
   fontSize: 12,
   fontWeight: AppFont.bold,

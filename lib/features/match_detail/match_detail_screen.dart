@@ -621,8 +621,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
   }
 }
 
-TextStyle _legendStil = TextStyle(
-  color: AppColors.textMuted,
-  fontSize: 10,
-  height: 14 / 10,
-);
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _legendStil =>
+    TextStyle(color: AppColors.textMuted, fontSize: 10, height: 14 / 10);

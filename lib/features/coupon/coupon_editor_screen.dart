@@ -179,7 +179,7 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
         ),
         data: (data) {
           if (data['roundId'] != widget.roundId) {
-            return const Center(
+            return Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: EmptyState(
@@ -646,7 +646,7 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
                         ad,
                         style: TextStyle(
                           color: _genislik == g
-                              ? AppColors.white
+                              ? AppColors.onPrimary
                               : AppColors.textSoft,
                           fontSize: 12.5,
                           fontWeight: AppFont.heavy,
@@ -922,7 +922,7 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
           child: Text(
             o,
             style: TextStyle(
-              color: secili ? AppColors.white : AppColors.textSoft,
+              color: secili ? AppColors.onPrimary : AppColors.textSoft,
               fontSize: 13,
               fontWeight: AppFont.black,
             ),

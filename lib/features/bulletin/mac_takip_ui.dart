@@ -221,7 +221,7 @@ class _MacBildirimAyarlariState extends State<MacBildirimAyarlari> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: AppColors.muted,
+                  color: AppColors.onPrimarySoft,
                   fontSize: 12,
                   fontWeight: AppFont.semibold,
                 ),
@@ -236,9 +236,9 @@ class _MacBildirimAyarlariState extends State<MacBildirimAyarlari> {
             key: const Key('mac-bildirim-kapat'),
             behavior: HitTestBehavior.opaque,
             onTap: () => Navigator.of(context).pop(),
-            child: const Padding(
+            child: Padding(
               padding: EdgeInsets.all(6),
-              child: Icon(Icons.close, color: AppColors.white, size: 20),
+              child: Icon(Icons.close, color: AppColors.onPrimary, size: 20),
             ),
           ),
         ),
@@ -373,11 +373,7 @@ class _MacBildirimAyarlariState extends State<MacBildirimAyarlari> {
                       ),
                     ),
                     child: acik && takipte
-                        ? const Icon(
-                            Icons.check,
-                            size: 16,
-                            color: AppColors.white,
-                          )
+                        ? Icon(Icons.check, size: 16, color: AppColors.onAccent)
                         : null,
                   ),
                 ],

@@ -30,8 +30,7 @@ import '../core/utils.dart';
 /// zemininin üstünde, içeriğin ALTINDA durur. Ekranların kendi `Scaffold`ları
 /// opak zemin çizdiği için filigranı kabuğa bir kez koymak İŞE YARAMAZ; bu
 /// yüzden her ana ekran gövdesini bu sarmalayıcıdan geçirir.
-Widget filigranli(Widget govde) =>
-    Stack(children: [const TakimLogoZemin(), govde]);
+Widget filigranli(Widget govde) => Stack(children: [TakimLogoZemin(), govde]);
 
 /// Tek uçuş: tüm ekranlar aynı sözü paylaşır (kaynaktaki `katalogSoz`).
 Future<dynamic>? _katalogSoz;
@@ -46,7 +45,13 @@ Future<dynamic> _katalog() {
 }
 
 class TakimLogoZemin extends StatefulWidget {
-  const TakimLogoZemin({super.key, this.acikSiluet});
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  TakimLogoZemin({super.key, this.acikSiluet});
 
   /// Silüet açık renk mi olsun?
   ///

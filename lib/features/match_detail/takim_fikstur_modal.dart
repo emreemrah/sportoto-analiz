@@ -21,6 +21,7 @@ import 'package:flutter/rendering.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/takim_fikstur.dart';
+import '../../core/theme/takim_paleti.dart' show okunurMetin;
 import '../../core/theme/tokens.dart';
 import '../../widgets/app_ui.dart';
 
@@ -469,8 +470,10 @@ class _SatirMac extends StatelessWidget {
                     ),
                     child: Text(
                       sonuc,
-                      style: const TextStyle(
-                        color: AppColors.white,
+                      style: TextStyle(
+                        color: okunurMetin(
+                          _sonucRengi[sonuc] ?? AppColors.gray,
+                        ),
                         fontSize: 10,
                         fontWeight: AppFont.black,
                       ),

@@ -9,14 +9,20 @@ import 'package:flutter/material.dart';
 import '../core/theme/tokens.dart';
 
 class ScoreLegend extends StatelessWidget {
-  const ScoreLegend({super.key});
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  ScoreLegend({super.key});
 
   // GETTER, `static final` DEĞİL: `accent` takım temasıyla değişir; `final`
   // liste ilk okunduğu renkte donardı.
   static List<({Color c, String l})> get _items => [
     (c: AppColors.success, l: 'Resmi sonuç'),
     (c: AppColors.warning, l: 'Henüz resmi değil'),
-    (c: AppColors.accent, l: 'Canlı'),
+    (c: AppColors.live, l: 'Canlı'),
   ];
 
   @override

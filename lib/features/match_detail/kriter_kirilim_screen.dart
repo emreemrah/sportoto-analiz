@@ -243,7 +243,7 @@ class _KriterKirilimScreenState extends ConsumerState<KriterKirilimScreen> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: acik ? AppColors.white : AppColors.textSoft,
+            color: acik ? AppColors.onPrimary : AppColors.textSoft,
             fontSize: buyuk ? 12.5 : 11,
             fontWeight: buyuk ? AppFont.heavy : AppFont.bold,
           ),

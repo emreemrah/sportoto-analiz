@@ -231,14 +231,14 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                 ),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 320),
-                  child: const Padding(
+                  child: Padding(
                     padding: EdgeInsets.only(bottom: Spacing.lg),
                     child: Text(
                       'Devam etmek için kimliğini doğrula. Parmak izi ya da '
                       'yüz tanıma verilerin cihazından asla çıkmaz.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Color(0xFFC9D4EA),
+                        color: AppColors.onDarkSoft,
                         fontSize: 13.5,
                         height: 20 / 13.5,
                       ),
@@ -326,7 +326,7 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                       style: TextStyle(
                         color: policy.emphasizePasswordFallback
                             ? AppColors.accent
-                            : const Color(0xFFC9D4EA),
+                            : AppColors.onDarkSoft,
                         fontSize: 13.5,
                         fontWeight: AppFont.bold,
                       ),

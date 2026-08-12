@@ -25,7 +25,13 @@ typedef HeroMetric = ({String value, String label, Object? tone});
 
 /// Koyu hero panel: başlık + alt metin + öne çıkan metrikler.
 class DashboardHero extends StatelessWidget {
-  const DashboardHero({
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  DashboardHero({
     super.key,
     required this.title,
     this.subtitle,
@@ -61,8 +67,11 @@ class DashboardHero extends StatelessWidget {
                   if (kicker != null)
                     Text(
                       kicker!.toUpperCase(),
-                      style: const TextStyle(
-                        color: Color(0xFF8FA6C9),
+                      // Kartın zemini `AppColors.primary` — yazılar ona göre
+                      // hesaplanır. Eskiden marka laciverdine göre seçilmiş
+                      // sabit grilerdi ve sarı temalı takımda okunmuyordu.
+                      style: TextStyle(
+                        color: AppColors.onHeroSoft,
                         fontSize: 10.5,
                         fontWeight: AppFont.black,
                         letterSpacing: 1.2,
@@ -72,8 +81,8 @@ class DashboardHero extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 3),
                     child: Text(
                       title,
-                      style: const TextStyle(
-                        color: AppColors.white,
+                      style: TextStyle(
+                        color: AppColors.onHero,
                         fontSize: 21,
                         fontWeight: AppFont.black,
                       ),
@@ -84,8 +93,8 @@ class DashboardHero extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
                         subtitle!,
-                        style: const TextStyle(
-                          color: Color(0xFFB7C4DA),
+                        style: TextStyle(
+                          color: AppColors.onHeroSoft,
                           fontSize: 12,
                           fontWeight: AppFont.semibold,
                           height: 16 / 12,
@@ -114,9 +123,9 @@ class DashboardHero extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6),
                         decoration: i > 0
-                            ? const BoxDecoration(
+                            ? BoxDecoration(
                                 border: Border(
-                                  left: BorderSide(color: Color(0xFF2A3A57)),
+                                  left: BorderSide(color: AppColors.darkBorder),
                                 ),
                               )
                             : null,
@@ -127,7 +136,7 @@ class DashboardHero extends StatelessWidget {
                               style: TextStyle(
                                 color: metrics[i].tone != null
                                     ? _toneColor(metrics[i].tone)
-                                    : AppColors.white,
+                                    : AppColors.onDark,
                                 fontSize: 22,
                                 fontWeight: AppFont.black,
                               ),
@@ -139,8 +148,9 @@ class DashboardHero extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Color(0xFF9DB0CD),
+                                // İç kutunun zemini `darkCardSoft`.
+                                style: TextStyle(
+                                  color: AppColors.onDarkSoft,
                                   fontSize: 10,
                                   fontWeight: AppFont.bold,
                                 ),
@@ -161,7 +171,13 @@ class DashboardHero extends StatelessWidget {
 
 /// Açık metrik kartı: değer + etiket + küçük açıklama.
 class DashboardMetric extends StatelessWidget {
-  const DashboardMetric({
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  DashboardMetric({
     super.key,
     required this.value,
     required this.label,
@@ -263,7 +279,13 @@ class DashboardMetric extends StatelessWidget {
 
 /// Bölüm başlığı.
 class DashboardSection extends StatelessWidget {
-  const DashboardSection({
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  DashboardSection({
     super.key,
     required this.title,
     this.count,
@@ -334,11 +356,13 @@ class DashboardSection extends StatelessWidget {
 
 /// Görünüm modu: Sade / Detaylı / Teknik.
 class ViewModeToggle extends StatelessWidget {
-  const ViewModeToggle({
-    super.key,
-    required this.value,
-    required this.onChange,
-  });
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  ViewModeToggle({super.key, required this.value, required this.onChange});
 
   final String? value;
   final ValueChanged<String> onChange;
@@ -393,7 +417,13 @@ class ViewModeToggle extends StatelessWidget {
 
 /// Yatay filtre çubuğu.
 class FilterBar extends StatelessWidget {
-  const FilterBar({
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  FilterBar({
     super.key,
     required this.options,
     required this.value,
@@ -432,7 +462,7 @@ class FilterBar extends StatelessWidget {
                 options[i].label,
                 style: TextStyle(
                   color: value == options[i].key
-                      ? AppColors.white
+                      ? AppColors.onPrimary
                       : AppColors.textSoft,
                   fontSize: 12,
                   fontWeight: AppFont.heavy,
@@ -451,7 +481,13 @@ class FilterBar extends StatelessWidget {
 /// Renk eşiği kaynaktan: %60+ yeşil, %45+ sarı, altı kırmızı. Bu renk bir
 /// "kazanır/kaybeder" iddiası DEĞİL, yalnız ölçünün nerede durduğudur.
 class MetricBar extends StatelessWidget {
-  const MetricBar({
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  MetricBar({
     super.key,
     required this.label,
     required this.value,
@@ -538,7 +574,13 @@ class MetricBar extends StatelessWidget {
 
 /// Profesyonel boş durum.
 class DashboardEmpty extends StatelessWidget {
-  const DashboardEmpty({
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  DashboardEmpty({
     super.key,
     this.icon = '📊',
     required this.title,

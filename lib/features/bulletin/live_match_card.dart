@@ -26,7 +26,8 @@ typedef _Meta = ({String text, Color color, bool pulse, bool refresh});
 _Meta _statusMeta(MacDurum st, Map m) => switch (st) {
   MacDurum.live => (
     text: "CANLI${m['minute'] != null ? " ${m['minute']}'" : ''}",
-    color: AppColors.accent,
+    // Anlamsal: canlı her takımda kırmızı (bkz. AppColors.live).
+    color: AppColors.live,
     pulse: true,
     refresh: false,
   ),
@@ -186,7 +187,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
       decoration: BoxDecoration(
         // Kaynak: 'rgba(255,255,255,0.86)' — zemindeki takım filigranı
         // kartların ARDINDAN hafifçe görünsün diye yarı saydam.
-        color: const Color(0xFFFFFFFF).withValues(alpha: 0.86),
+        color: AppColors.surface.withValues(alpha: 0.86),
         borderRadius: AppRadius.lgR,
         border: Border.all(color: AppColors.border),
         boxShadow: AppShadow.soft,

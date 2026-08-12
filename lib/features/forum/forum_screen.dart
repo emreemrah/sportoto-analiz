@@ -123,7 +123,7 @@ class _ForumScreenState extends State<ForumScreen> {
           ),
           _sekmeler(),
           if (filtered.isEmpty)
-            const EmptyState(
+            EmptyState(
               icon: '💬',
               title: 'Henüz topluluk yorumu bulunmuyor',
               message:
@@ -158,27 +158,27 @@ class _ForumScreenState extends State<ForumScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Pill(label: 'STADYUM', tone: 'dark'),
                   ),
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: Spacing.md),
                     child: Text(
                       'Tribün burada konuşuyor',
                       style: TextStyle(
-                        color: AppColors.white,
+                        color: AppColors.onDark,
                         fontSize: AppFont.xxl,
                         fontWeight: AppFont.heavy,
                       ),
                     ),
                   ),
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: Spacing.sm),
                     child: Text(
                       'Bülten, analiz, sürpriz maçlar ve tahmin listesi fikirleri tek sahada.',
                       style: TextStyle(
-                        color: Color(0xFFD7DEEA),
+                        color: AppColors.onDarkSoft,
                         fontSize: AppFont.md,
                         height: 21 / 14,
                       ),
@@ -196,7 +196,7 @@ class _ForumScreenState extends State<ForumScreen> {
                 color: AppColors.darkCardSoft,
                 borderRadius: BorderRadius.circular(AppRadius.xl),
               ),
-              child: const Icon(Icons.people, size: 30, color: AppColors.white),
+              child: Icon(Icons.people, size: 30, color: AppColors.onDark),
             ),
           ],
         ),
@@ -231,8 +231,8 @@ class _ForumScreenState extends State<ForumScreen> {
         children: [
           Text(
             deger,
-            style: const TextStyle(
-              color: AppColors.white,
+            style: TextStyle(
+              color: AppColors.onDark,
               fontSize: AppFont.xl,
               fontWeight: AppFont.heavy,
             ),
@@ -241,8 +241,8 @@ class _ForumScreenState extends State<ForumScreen> {
             padding: const EdgeInsets.only(top: 2),
             child: Text(
               etiket,
-              style: const TextStyle(
-                color: Color(0xFFB8C1D1),
+              style: TextStyle(
+                color: AppColors.onDarkSoft,
                 fontSize: AppFont.sm,
               ),
             ),
@@ -376,7 +376,7 @@ class _ForumScreenState extends State<ForumScreen> {
                 t.label,
                 style: TextStyle(
                   color: _activeTab == t.key
-                      ? AppColors.white
+                      ? AppColors.onPrimary
                       : AppColors.textSoft,
                   fontSize: AppFont.sm,
                   fontWeight: AppFont.bold,

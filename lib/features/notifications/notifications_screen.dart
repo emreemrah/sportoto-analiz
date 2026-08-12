@@ -385,16 +385,16 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     margin: const EdgeInsets.only(bottom: Spacing.md),
     padding: const EdgeInsets.all(Spacing.md),
     decoration: BoxDecoration(
-      color: const Color(0xFF132244),
+      color: AppColors.darkCard,
       borderRadius: AppRadius.lgR,
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           '🔔 Bildirimler',
           style: TextStyle(
-            color: AppColors.white,
+            color: AppColors.onDark,
             fontSize: 18,
             fontWeight: AppFont.black,
           ),
@@ -404,7 +404,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           'Yalnız gerçekleşmiş olaylar listelenir: yeni bülten, kuponundaki maçın '
           'başlaması, resmî sonuçların açıklanması ve sunucunun doğruladığı puan.',
           style: TextStyle(
-            color: AppColors.white.withValues(alpha: 0.82),
+            color: AppColors.onDark.withValues(alpha: 0.82),
             fontSize: 12,
             height: 17 / 12,
           ),

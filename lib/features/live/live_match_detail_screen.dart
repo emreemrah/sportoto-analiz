@@ -584,7 +584,7 @@ class _LiveMatchDetailScreenState extends State<LiveMatchDetailScreen>
                     v == 'table' ? 'Tablo' : 'Grafik',
                     style: TextStyle(
                       color: _statView == v
-                          ? AppColors.white
+                          ? AppColors.onPrimary
                           : AppColors.textSoft,
                       fontSize: 12,
                       fontWeight: AppFont.heavy,

@@ -14,6 +14,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../core/theme/takim_paleti.dart' show okunurMetin;
 import '../../core/theme/tokens.dart';
 import 'mac_detay_sekmeleri.dart';
 
@@ -121,9 +122,9 @@ class _MacDetaySekmeAyarlariSayfasiState
             key: const Key('sekme-ayar-kapat'),
             behavior: HitTestBehavior.opaque,
             onTap: () => Navigator.of(context).pop(false),
-            child: const Padding(
+            child: Padding(
               padding: EdgeInsets.all(6),
-              child: Icon(Icons.close, color: AppColors.white, size: 20),
+              child: Icon(Icons.close, color: AppColors.onPrimary, size: 20),
             ),
           ),
         ),
@@ -196,11 +197,7 @@ class _MacDetaySekmeAyarlariSayfasiState
                     ),
                   ),
                   child: acik
-                      ? const Icon(
-                          Icons.check,
-                          size: 17,
-                          color: AppColors.white,
-                        )
+                      ? Icon(Icons.check, size: 17, color: AppColors.onAccent)
                       : null,
                 ),
               ],
@@ -271,8 +268,8 @@ class _MacDetaySekmeAyarlariSayfasiState
           textAlign: TextAlign.center,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppColors.white,
+          style: TextStyle(
+            color: okunurMetin(zemin),
             fontSize: 13,
             fontWeight: AppFont.heavy,
           ),

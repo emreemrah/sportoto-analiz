@@ -85,7 +85,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
     final b = _bulletin;
 
     if (_loading && b == null) {
-      return _kabuk(const LoadingState(message: 'Bülten detayı yükleniyor…'));
+      return _kabuk(LoadingState(message: 'Bülten detayı yükleniyor…'));
     }
     if (_error != null) {
       return _kabuk(
@@ -170,7 +170,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
             ),
           ),
           if (b['_demo'] == true)
-            const DemoDataBanner(
+            DemoDataBanner(
               note:
                   'Arşiv sunucusuna ulaşılamadı — bu bülten detayı ÖRNEK veridir, gerçek Spor Toto bülteni/sonucu değildir.',
             ),
@@ -281,7 +281,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
 
   /// ESKİ demo kupon akışı KALDIRILDI. Kuponlar artık tek yerden, GERÇEK
   /// veriyle çalışan Kupon Merkezi'nden yönetilir (alt bar → Kuponlarım).
-  Widget _kuponSekmesi() => const SingleChildScrollView(
+  Widget _kuponSekmesi() => SingleChildScrollView(
     padding: _listPad,
     child: EmptyState(
       icon: '🎟️',
@@ -293,7 +293,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
 
   Widget _sonuclarSekmesi(Map<String, dynamic> b, Map<String, dynamic>? snap) {
     if (snap == null) {
-      return const SingleChildScrollView(
+      return SingleChildScrollView(
         padding: _listPad,
         child: EmptyState(
           icon: '📭',
@@ -311,7 +311,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
     ];
 
     if (rows.isEmpty) {
-      return const SingleChildScrollView(
+      return SingleChildScrollView(
         padding: _listPad,
         child: EmptyState(
           icon: '⏳',
@@ -374,7 +374,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
 
   Widget _sistemKarnesiSekmesi(Map<String, dynamic>? snap) {
     if (snap == null) {
-      return const SingleChildScrollView(
+      return SingleChildScrollView(
         padding: _listPad,
         child: EmptyState(
           icon: '📊',
@@ -397,7 +397,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
     ];
 
     if (resolved.isEmpty) {
-      return const SingleChildScrollView(
+      return SingleChildScrollView(
         padding: _listPad,
         child: EmptyState(
           icon: '⏳',

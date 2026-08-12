@@ -123,7 +123,7 @@ class _CouponResultScreenState extends State<CouponResultScreen> {
     final o = kuponOlcek(context);
 
     if (_loading && _hist == null) {
-      return _kabuk(const LoadingState(message: 'Kupon sonucu yükleniyor…'));
+      return _kabuk(LoadingState(message: 'Kupon sonucu yükleniyor…'));
     }
     if (_error != null) {
       return _kabuk(
@@ -139,7 +139,7 @@ class _CouponResultScreenState extends State<CouponResultScreen> {
         : getRankedCoupon(widget.roundId);
     if (coupon == null) {
       return _kabuk(
-        const SingleChildScrollView(
+        SingleChildScrollView(
           padding: EdgeInsets.all(12),
           child: EmptyState(
             icon: '🎟️',
@@ -164,7 +164,7 @@ class _CouponResultScreenState extends State<CouponResultScreen> {
     final ev = evalCoupon(coupon, resultMap);
     if (ev == null) {
       return _kabuk(
-        const SingleChildScrollView(
+        SingleChildScrollView(
           padding: EdgeInsets.all(12),
           child: EmptyState(
             icon: '🎟️',

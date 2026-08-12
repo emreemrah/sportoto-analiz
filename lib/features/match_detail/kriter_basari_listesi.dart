@@ -123,7 +123,7 @@ class _KriterBasariListesiState extends ConsumerState<KriterBasariListesi> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: _donem == k
-                                    ? AppColors.white
+                                    ? AppColors.onPrimary
                                     : AppColors.textSoft,
                                 fontSize: 10.5,
                                 fontWeight: AppFont.heavy,
@@ -257,14 +257,12 @@ class _KriterBasariListesiState extends ConsumerState<KriterBasariListesi> {
   );
 }
 
-TextStyle _bos = TextStyle(
-  color: AppColors.textMuted,
-  fontSize: 12,
-  height: 17 / 12,
-);
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _bos =>
+    TextStyle(color: AppColors.textMuted, fontSize: 12, height: 17 / 12);
 
-TextStyle _not = TextStyle(
-  color: AppColors.textMuted,
-  fontSize: 10.5,
-  height: 14 / 10.5,
-);
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _not =>
+    TextStyle(color: AppColors.textMuted, fontSize: 10.5, height: 14 / 10.5);

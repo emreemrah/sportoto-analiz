@@ -486,7 +486,7 @@ class _LeagueTableFullState extends State<LeagueTableFull> {
                           t.label,
                           style: TextStyle(
                             color: t.key == active
-                                ? AppColors.white
+                                ? AppColors.onPrimary
                                 : AppColors.textMuted,
                             fontSize: 11.5,
                             fontWeight: AppFont.heavy,

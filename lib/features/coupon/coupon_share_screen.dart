@@ -124,7 +124,7 @@ class _CouponShareScreenState extends State<CouponShareScreen> {
     final o = kuponOlcek(context);
 
     if (_loading && _hist == null) {
-      return _kabuk(const LoadingState(message: 'Kupon hazırlanıyor…'));
+      return _kabuk(LoadingState(message: 'Kupon hazırlanıyor…'));
     }
     if (_error != null) {
       return _kabuk(
@@ -138,7 +138,7 @@ class _CouponShareScreenState extends State<CouponShareScreen> {
     final coupon = getCoupon(widget.couponId);
     if (coupon == null) {
       return _kabuk(
-        const SingleChildScrollView(
+        SingleChildScrollView(
           padding: EdgeInsets.all(12),
           child: EmptyState(
             icon: '🎟️',
@@ -151,7 +151,7 @@ class _CouponShareScreenState extends State<CouponShareScreen> {
     final v = finalVersion(coupon);
     if (v == null) {
       return _kabuk(
-        const SingleChildScrollView(
+        SingleChildScrollView(
           padding: EdgeInsets.all(12),
           child: EmptyState(
             icon: '🎟️',

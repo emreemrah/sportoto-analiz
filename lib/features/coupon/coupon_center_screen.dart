@@ -264,7 +264,7 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
                 ),
 
               if (coupons.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: 20),
                   child: EmptyState(
                     icon: '🎟️',
@@ -692,7 +692,7 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
           child: Text(
             etiket,
             style: TextStyle(
-              color: dolu ? AppColors.white : AppColors.text,
+              color: dolu ? AppColors.onPrimary : AppColors.text,
               fontSize: 13.5,
               fontWeight: AppFont.black,
             ),
@@ -762,11 +762,10 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
   );
 }
 
-TextStyle _notStil = TextStyle(
-  color: AppColors.textMuted,
-  fontSize: 10.5,
-  height: 1.4,
-);
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _notStil =>
+    TextStyle(color: AppColors.textMuted, fontSize: 10.5, height: 1.4);
 
 /// Kupon deposu değişince ekranı tazeleyen köprü.
 final couponSurumuProvider = StreamProvider.autoDispose<int>((ref) {

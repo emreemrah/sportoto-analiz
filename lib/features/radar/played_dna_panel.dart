@@ -327,7 +327,7 @@ class _PlayedDnaPanelState extends State<PlayedDnaPanel> {
               child: Text(
                 o.etiket,
                 style: TextStyle(
-                  color: o.secili ? AppColors.white : AppColors.textSoft,
+                  color: o.secili ? AppColors.onPrimary : AppColors.textSoft,
                   fontSize: 10.5,
                   fontWeight: AppFont.heavy,
                 ),

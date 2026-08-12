@@ -26,6 +26,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth.dart' as auth;
 import '../../core/brand.dart';
 import '../../core/network/api_client.dart';
+import '../../core/theme/takim_paleti.dart';
+import '../../core/theme/takim_renkleri.dart';
 import '../../core/theme/tokens.dart';
 import '../../widgets/app_ui.dart';
 import '../../widgets/avatar.dart';
@@ -141,6 +143,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final nameChanged =
         _nameCtl.text.trim() != username && _nameCtl.text.trim().isNotEmpty;
     final favAd = '${user['favorite_team'] ?? ''}';
+    // KİMLİK ÇİFTİ — takımın iki rengi karşılıklı. Takım yoksa ya da
+    // katalogda eşleşmiyorsa null: uydurma renk üretilmez, nötr yüzeye
+    // düşülür (bkz. takim_paleti.kimlikCifti).
+    final takimPaletiKimlik = takimPaletiBul(favAd);
+    final kimlik = takimPaletiKimlik == null
+        ? null
+        : kimlikCifti(takimPaletiKimlik);
 
     return Scaffold(
       // ARKA PLAN: hareketli desen (`ScreenBackdrop`) bu ekrandan KULLANICI
@@ -148,7 +157,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // arması filigran olarak kalır.
       body: Stack(
         children: [
-          const TakimLogoZemin(),
+          TakimLogoZemin(),
           SafeArea(
             bottom: false,
             child: SingleChildScrollView(
@@ -293,10 +302,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     horizontal: 10,
                                     vertical: 7,
                                   ),
+                                  // KİMLİK YÜZEYİ — takımın İKİ RENGİ
+                                  // karşılıklı (kullanıcı isteği, 2026-08-12):
+                                  // zemin takımın ana rengi, yazı ikincil
+                                  // rengi. Uygulamanın geri kalanı bundan
+                                  // etkilenmez; burası takımın görünmesi
+                                  // GEREKEN yerlerden biri.
+                                  //
+                                  // Takım yoksa nötr yüzeye düşer.
                                   decoration: BoxDecoration(
-                                    color: AppColors.bgAlt,
+                                    color: kimlik?.zemin ?? AppColors.bgAlt,
                                     borderRadius: AppRadius.smR,
-                                    border: Border.all(color: AppColors.border),
+                                    border: Border.all(
+                                      color: kimlik == null
+                                          ? AppColors.border
+                                          : kimlik.yazi.withValues(alpha: 0.45),
+                                    ),
                                   ),
                                   child: Row(
                                     children: [
@@ -315,10 +336,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               : 'Takımını seç',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
+                                          // Karşılıklı renk: zemin ana renkse
+                                          // yazı ikincil renktir. Eşiği
+                                          // (3:1) geçmeyen takımlarda
+                                          // `kimlikCifti` okunur metne düşer.
                                           style: TextStyle(
-                                            color: favAd.isNotEmpty
-                                                ? AppColors.text
-                                                : AppColors.textMuted,
+                                            color:
+                                                kimlik?.yazi ??
+                                                (favAd.isNotEmpty
+                                                    ? AppColors.text
+                                                    : AppColors.textMuted),
                                             fontSize: 13,
                                             fontWeight: AppFont.bold,
                                           ),
@@ -345,6 +372,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   const SizedBox(height: Spacing.md),
 
+                  _dugme('🌗  Görünüm (açık / koyu)', () => _git('gorunum')),
                   _dugme('⚽  Hazır Avatar Seç', () => _git('avatar')),
                   if (user['avatar_type'] != 'default')
                     _dugme(
@@ -449,6 +477,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // devreye girer ve sorunu görünür kılar.
     const hazir = <String>{
       'takim-sec',
+      'gorunum',
       'avatar',
       'premium-kod',
       'guvenlik',
@@ -617,20 +646,23 @@ class _LoggedOut extends StatelessWidget {
   );
 }
 
-TextStyle _titleStil = TextStyle(
-  color: AppColors.text,
-  fontSize: 24,
-  fontWeight: AppFont.heavy,
-);
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _titleStil =>
+    TextStyle(color: AppColors.text, fontSize: 24, fontWeight: AppFont.heavy);
 
-TextStyle _legalStil = TextStyle(
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _legalStil => TextStyle(
   color: AppColors.textMuted,
   fontSize: 10.5,
   height: 15 / 10.5,
   textBaseline: TextBaseline.alphabetic,
 );
 
-TextStyle _copyrightStil = TextStyle(
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _copyrightStil => TextStyle(
   color: AppColors.textMuted,
   fontSize: 10.5,
   fontWeight: AppFont.semibold,

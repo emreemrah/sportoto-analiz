@@ -599,7 +599,9 @@ class _Kabuk extends StatelessWidget {
   );
 }
 
-TextStyle _labelStil = TextStyle(
+// GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
+// teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
+TextStyle get _labelStil => TextStyle(
   color: AppColors.textMuted,
   fontSize: 12,
   fontWeight: AppFont.bold,

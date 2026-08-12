@@ -137,7 +137,7 @@ class DayChipsRow extends StatelessWidget {
               Text(
                 '${day['weekday']}${day['isMatchDay'] == true ? ' ⚽' : ''}',
                 style: TextStyle(
-                  color: on ? const Color(0xFFFFFFFF) : AppColors.textSoft,
+                  color: on ? AppColors.onPrimary : AppColors.textSoft,
                   fontSize: 12,
                   fontWeight: AppFont.heavy,
                 ),
@@ -145,7 +145,7 @@ class DayChipsRow extends StatelessWidget {
               Text(
                 alt,
                 style: TextStyle(
-                  color: on ? const Color(0xFFFFFFFF) : AppColors.textMuted,
+                  color: on ? AppColors.onPrimary : AppColors.textMuted,
                   fontSize: 9.5,
                   fontWeight: AppFont.bold,
                 ),
@@ -233,7 +233,7 @@ class RadarGunlukUstPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // MOBİL SADELİK (2026-08-06): açıklamalar ⓘ arkasında — yer kaplamaz.
-          const InfoIpucu(
+          InfoIpucu(
             ozet: '💹 Oran Takibi · Günlük 1/X/2 Oranları',
             detay:
                 'Gerçek 1/X/2 maç oranlarının gün gün hareketi. Bir gün seçin; '
@@ -266,7 +266,7 @@ class RadarGunlukUstPanel extends StatelessWidget {
       children: [
         // MOBİL SADELİK (2026-08-06): açıklamalar ⓘ arkasında. VERİ YOKLUĞU
         // notu ⓘ DIŞINDA görünür kalır — dürüstlük kuralı gizlenmez.
-        const InfoIpucu(
+        InfoIpucu(
           ozet: '📊 Oynanma DNA · Günlük 1/X/2 Yüzdeleri',
           detay:
               'Kullanıcıların 1/X/2 OYNAMA YÜZDESİNİN gün gün değişimi. Bir '
@@ -320,7 +320,7 @@ class RadarSekmePaneli extends StatelessWidget {
 
     if (tab == 'performance' && anyData) {
       // MOBİL SADELİK (2026-08-06): açıklama ⓘ arkasında.
-      return const InfoIpucu(
+      return InfoIpucu(
         ozet: '🛡 Rakip Gücü & Saha Performansı',
         detay:
             'Form, rakibin MAÇ TARİHİNDEKİ ligdeki yerine göre tartılır '

@@ -121,7 +121,7 @@ class LiveBulletinView extends StatelessWidget {
                     ),
                   ),
                 ),
-              const ScoreLegend(),
+              ScoreLegend(),
             ],
           ),
         ),

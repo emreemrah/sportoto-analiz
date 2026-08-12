@@ -29,7 +29,13 @@ String? _remainingText(int ms) {
 }
 
 class SnapshotSealBanner extends StatefulWidget {
-  const SnapshotSealBanner({super.key, required this.archive});
+  // `const` DEĞİL — BİLEREK (2026-08-12): bu widget rengini `AppColors`
+  // küresellerinden okuyor ve tema çalışma zamanında değişiyor. `const`
+  // yapıcı widget örneğini sabitler; Flutter aynı örneği görünce alt ağacı
+  // YENİDEN KURMAZ ve widget eski renkte donar (emülatörde ölçüldü:
+  // Dortmund temasında kupon boş-durum kartı Galatasaray bordosunda kaldı).
+  // ignore: prefer_const_constructors_in_immutables
+  SnapshotSealBanner({super.key, required this.archive});
 
   final Map? archive;
 

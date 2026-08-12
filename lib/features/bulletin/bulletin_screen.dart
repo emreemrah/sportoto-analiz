@@ -537,7 +537,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                   selMetaCloseDate: selMetaCloseDate,
                 ),
                 // Güncel bültenle BİREBİR AYNI sade başlık.
-                const ScoreLegend(),
+                ScoreLegend(),
                 if (hist.checking)
                   Container(
                     margin: const EdgeInsets.only(bottom: Spacing.sm),
