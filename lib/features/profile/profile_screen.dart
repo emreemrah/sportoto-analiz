@@ -549,10 +549,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }) {
     final (bg, fg, border) = switch (tur) {
       _DugmeTuru.alt => (AppColors.card, AppColors.text, AppColors.border),
+      // HAYALET düğme SAYFA ZEMİNİ üstünde durur (dolgusu yok), o yüzden
+      // yazısı ve kenarlığı zemin ailesinden gelir.
       _DugmeTuru.hayalet => (
         Colors.transparent,
-        AppColors.textMuted,
-        AppColors.border,
+        AppColors.onBackgroundMuted,
+        AppColors.onBackgroundMuted,
       ),
       _DugmeTuru.cikis => (
         AppColors.cardAlt,
@@ -695,13 +697,17 @@ class _LoggedOut extends StatelessWidget {
 
 // GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
 // teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
-TextStyle get _titleStil =>
-    TextStyle(color: AppColors.text, fontSize: 24, fontWeight: AppFont.heavy);
+TextStyle get _titleStil => TextStyle(
+  // SAYFA ZEMİNİ üstünde duran başlık — kart değil.
+  color: AppColors.onBackground,
+  fontSize: 24,
+  fontWeight: AppFont.heavy,
+);
 
 // GETTER: dosya düzeyi değişken Dart'ta bir kez hesaplanır ve takım
 // teması değişince ESKİ renkte donardı (2026-08-12, emülatörde görüldü).
 TextStyle get _legalStil => TextStyle(
-  color: AppColors.textMuted,
+  color: AppColors.onBackgroundMuted,
   fontSize: 10.5,
   height: 15 / 10.5,
   textBaseline: TextBaseline.alphabetic,
