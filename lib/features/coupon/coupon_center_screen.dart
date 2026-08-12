@@ -677,6 +677,16 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
     ),
   );
 
+  /// Ekran düğmesi — SAYFA ZEMİNİ üstünde durur.
+  ///
+  /// DOLGU `onBackgroundAccent`, `primary` DEĞİL: `primary` KART için
+  /// türetilir ve zeminin üstüne konduğunda onunla çakışıp butonun kutusunu
+  /// görünmez bırakıyordu — emülatörde görüldü, BB Erzurumspor temasında
+  /// "+ Yeni Kupon" mavi zeminde mavi kalıyordu. `onBackgroundAccent` zemine
+  /// karşı en az 3.0 kontrastla türetiliyor.
+  ///
+  /// Boş (ikincil) düğme kart yüzeyi + kenarlık; dolu düğmeden hem dolgu hem
+  /// yazı rengiyle ayrılır.
   Widget _dugme(String etiket, {bool dolu = false, VoidCallback? onTap}) =>
       GestureDetector(
         onTap: onTap,
@@ -685,16 +695,17 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
           padding: const EdgeInsets.symmetric(vertical: 12),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: dolu ? AppColors.primary : AppColors.card,
+            color: dolu ? AppColors.onBackgroundAccent : AppColors.card,
             borderRadius: AppRadius.mdR,
             border: Border.all(
-              color: dolu ? AppColors.primary : AppColors.border,
+              color: dolu ? AppColors.onBackgroundAccent : AppColors.border,
+              width: dolu ? 2 : 1,
             ),
           ),
           child: Text(
             etiket,
             style: TextStyle(
-              color: dolu ? AppColors.onPrimary : AppColors.text,
+              color: dolu ? AppColors.onBackgroundAccentText : AppColors.text,
               fontSize: 13.5,
               fontWeight: AppFont.black,
             ),

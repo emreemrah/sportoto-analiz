@@ -112,17 +112,47 @@ void main() {
       );
     });
 
-    test('kart zeminden AYIRT EDİLİR', () {
-      final ayrisamayan = <String>[];
+    test('KUTULARIN SINIRI BELİRGİN — kart, ara yüzey, kenarlık', () {
+      // Kullanıcı isteği (2026-08-12 gece): "Kartlar, kutular, butonlar ve
+      // seçim alanları ana arka plandan net biçimde ayrışsın. Her kutuda
+      // görünür bir kenarlık, gölge veya yeterli ton farkı olsun."
+      //
+      // ÖLÇÜLEN HATA: ara yüzey (çip/şerit zemini) 150 takımın 149'unda
+      // KARTIN AYNISIYDI (kontrast 1.00) ve kenarlık 130 takımda zeminde
+      // görünmüyordu (1.00). Eşikler: iki büyük yüzey arası 1.25 — altında göz
+      // sınırı seçemiyor; kenarlık bir ARAYÜZ BİLEŞENİ olduğu için kartta
+      // WCAG 3.0, zeminde kart/zemin tabanı kadar.
+      final dusenler = <String>[];
       for (final p in paletler) {
-        final k = kontrastOrani(p.zemin, p.yuzey);
-        if (k < 1.12) ayrisamayan.add('${p.takim}: ${k.toStringAsFixed(3)}');
+        void kontrol(String ad, double deger, double esik) {
+          if (deger < esik) {
+            dusenler.add('${p.takim} $ad=${deger.toStringAsFixed(2)}');
+          }
+        }
+
+        kontrol('kart/zemin', kontrastOrani(p.yuzey, p.zemin), 1.25);
+        kontrol('ara/kart', kontrastOrani(p.yuzeySoft, p.yuzey), 1.25);
+        kontrol('ara/zemin', kontrastOrani(p.yuzeySoft, p.zemin), 1.25);
+        kontrol('kenarlik/kart', kontrastOrani(p.kenarlik, p.yuzey), 3.0);
+        kontrol('kenarlik/zemin', kontrastOrani(p.kenarlik, p.zemin), 1.55);
       }
-      expect(
-        ayrisamayan,
-        isEmpty,
-        reason: 'kart zeminden ayrılmıyor:\n${ayrisamayan.join('\n')}',
-      );
+      expect(dusenler, isEmpty, reason: dusenler.take(12).join(' · '));
+    });
+
+    test('KART YAZISI İKİ YÜZEYDE BİRDEN okunur', () {
+      // Aynı yazı hem kartın hem kart içindeki ara yüzeyin üstüne düşüyor.
+      // Yalnız birine göre hesaplanınca ötekinde 3.99'a kadar iniyordu; ara
+      // yüzey ile metin artık BİRLİKTE çözülüyor (bkz. _araYuzeyVeMetin).
+      final dusenler = <String>[];
+      for (final p in paletler) {
+        for (final (ad, yuzey) in [('kart', p.yuzey), ('ara', p.yuzeySoft)]) {
+          final o = kontrastOrani(p.metin, yuzey);
+          if (o < kAaEsigi) {
+            dusenler.add('${p.takim} metin/$ad=${o.toStringAsFixed(2)}');
+          }
+        }
+      }
+      expect(dusenler, isEmpty, reason: dusenler.take(12).join(' · '));
     });
 
     test('vurgu ve seçili KENDİ yüzeylerinde AYIRT EDİLİR', () {

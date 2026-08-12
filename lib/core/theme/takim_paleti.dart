@@ -137,6 +137,156 @@ Color kimlikTonu(
   return enIyi ?? yedek ?? okunurMetin(zemin);
 }
 
+/// [renk]i, VERİLEN ZEMİNLERİN HEPSİNDE [esik]i tutana dek tonlar.
+///
+/// Tek zeminli [kimlikTonu]nun çoklu hâli. Gerekliydi: küçük yazı hem kartın
+/// hem de kart içindeki ARA YÜZEYİN (çip, şerit) üstüne düşüyor; yalnız birine
+/// göre hesaplamak ötekinde okunmaz bırakıyordu.
+Color kimlikTonuCoklu(
+  Color renk,
+  List<Color> zeminler, {
+  double esik = kAaEsigi,
+  Color? yedek,
+}) {
+  bool tutar(Color c) => zeminler.every((z) => kontrastOrani(c, z) >= esik);
+  if (tutar(renk)) return renk;
+
+  final h = HSLColor.fromColor(renk);
+  Color? enIyi;
+  var enIyiUzaklik = 2.0;
+  for (var i = 0; i <= 100; i++) {
+    final l = i / 100;
+    final aday = h.withLightness(l).toColor();
+    if (!tutar(aday)) continue;
+    final uzaklik = (l - h.lightness).abs();
+    if (uzaklik < enIyiUzaklik) {
+      enIyiUzaklik = uzaklik;
+      enIyi = aday;
+    }
+  }
+  if (enIyi != null) return enIyi;
+
+  // HUE EKSENİNDE ÇÖZÜM YOK. Bu durumda "ilk zemine göre okunur renk" demek
+  // YETMEZ — ölçüldü: soluk yazı ara yüzeyde 3.99'a düşüyordu, çünkü yedek
+  // yalnız BİRİNCİ zemini garanti ediyordu. Adaylar arasından EN KÖTÜ zemini
+  // en iyi yapan seçilir (maximin).
+  final adaylar = <Color>[
+    const Color(0xFF000000),
+    const Color(0xFFFFFFFF),
+    const Color(0xFF101828),
+    const Color(0xFFE9ECF2),
+    ?yedek,
+  ];
+  var enIyiAday = adaylar.first;
+  var enIyiEnKotu = -1.0;
+  for (final c in adaylar) {
+    final enKotu = zeminler
+        .map((z) => kontrastOrani(c, z))
+        .reduce((a, b) => a < b ? a : b);
+    if (enKotu > enIyiEnKotu) {
+      enIyiEnKotu = enKotu;
+      enIyiAday = c;
+    }
+  }
+  return enIyiAday;
+}
+
+/// [renk]in KOMŞU tonu: aynı hue, gözle seçilebilecek kadar farklı parlaklık.
+///
+/// [ayrimEsigi] iki büyük yüzey arasındaki fark içindir; WCAG'ın metin eşiği
+/// DEĞİLDİR. 1.25 ölçülerek seçildi: altında göz sınırı seçemiyor.
+/// [uzakDurulacak] verilirse aday ondan da ayrışmak zorunda — ara yüzeyin
+/// sayfanın zeminine düşüp kaybolmasını engeller.
+Color komsuTon(Color renk, {double ayrimEsigi = 1.25, Color? uzakDurulacak}) {
+  final h = HSLColor.fromColor(renk);
+  // Yön: yüzey açıksa koyulaş, koyuysa açıl — uçta sıkışmayı önler.
+  final acik = h.lightness > 0.5;
+  bool uygun(Color c) =>
+      kontrastOrani(c, renk) >= ayrimEsigi &&
+      (uzakDurulacak == null || kontrastOrani(c, uzakDurulacak) >= ayrimEsigi);
+
+  for (var adim = 2; adim <= 60; adim++) {
+    for (final yon in acik ? const [-1, 1] : const [1, -1]) {
+      final l = h.lightness + yon * adim / 100;
+      if (l < 0 || l > 1) continue;
+      final aday = h.withLightness(l).toColor();
+      if (uygun(aday)) return aday;
+    }
+  }
+  return renk;
+}
+
+/// ARA YÜZEY ile KART METNİNİ birlikte çözer.
+///
+/// Ara yüzey karttan (≥1.25) ve zeminden (≥1.25) ayrışmalı; AYNI ZAMANDA
+/// [ana] renginin bir tonu iki yüzeyde birden AA'yı tutmalı. İki koşul
+/// birbirine bağlı olduğu için tek döngüde aranır: kartın parlaklığından
+/// başlanıp iki yöne açılarak ilk ÇALIŞAN çift alınır.
+(Color, Color) _araYuzeyVeMetin(Color kart, Color zemin, Color ana) {
+  final h = HSLColor.fromColor(kart);
+  (Color, Color)? maximin;
+  var enIyiEnKotu = -1.0;
+
+  for (var adim = 2; adim <= 60; adim++) {
+    for (final yon in h.lightness > 0.5 ? const [-1, 1] : const [1, -1]) {
+      final l = h.lightness + yon * adim / 100;
+      if (l < 0 || l > 1) continue;
+      final aday = h.withLightness(l).toColor();
+      if (kontrastOrani(aday, kart) < 1.25) continue;
+      if (kontrastOrani(aday, zemin) < 1.25) continue;
+
+      final yazi = kimlikTonuCoklu(ana, [kart, aday]);
+      final enKotu = math.min(
+        kontrastOrani(yazi, kart),
+        kontrastOrani(yazi, aday),
+      );
+      if (enKotu >= kAaEsigi) return (aday, yazi);
+      if (enKotu > enIyiEnKotu) {
+        enIyiEnKotu = enKotu;
+        maximin = (aday, yazi);
+      }
+    }
+  }
+  // Hiçbir çift AA'yı tutturamadı — en kötü tarafı en iyi yapan alınır.
+  return maximin ?? (kart, okunurMetin(kart));
+}
+
+/// KUTU KENARLIĞI — hem kartla hem zeminle ayrışır.
+///
+/// Kenarlık kutunun SINIRIDIR: iki yüzey arasında durur ve ikisinden de
+/// seçilebilmelidir. Kartta WCAG'ın arayüz bileşeni eşiği (3.0), zeminde
+/// kart/zemin tabanı kadar (1.60) aranır. İkisini birden tutan tonlardan
+/// özgün parlaklığa en yakını seçilir; hiçbiri tutmazsa en kötü tarafı en iyi
+/// yapan ton (maximin) alınır — kenarlık her hâlükârda çizilir.
+Color _kenarlikUret(Color kaynak, Color kart, Color zemin) {
+  final h = HSLColor.fromColor(kaynak);
+  Color? enIyi;
+  var enIyiUzaklik = 2.0;
+  Color? maximin;
+  var enIyiEnKotu = -1.0;
+
+  for (var i = 0; i <= 100; i++) {
+    final l = i / 100;
+    final aday = h.withLightness(l).toColor();
+    final kartta = kontrastOrani(aday, kart);
+    final zeminde = kontrastOrani(aday, zemin);
+    if (kartta >= 3.0 && zeminde >= 1.60) {
+      final uzaklik = (l - h.lightness).abs();
+      if (uzaklik < enIyiUzaklik) {
+        enIyiUzaklik = uzaklik;
+        enIyi = aday;
+      }
+    }
+    // Ölçek farkını dengele: 3.0 ve 1.60 eşiklerine göre normalize.
+    final enKotu = math.min(kartta / 3.0, zeminde / 1.60);
+    if (enKotu > enIyiEnKotu) {
+      enIyiEnKotu = enKotu;
+      maximin = aday;
+    }
+  }
+  return enIyi ?? maximin ?? kaynak;
+}
+
 /// Bir takımın tema paleti — kullanıcının saydığı dokuz alan.
 class TakimPaleti {
   const TakimPaleti({
@@ -145,6 +295,7 @@ class TakimPaleti {
     required this.ikincil,
     required this.zemin,
     required this.yuzey,
+    required this.yuzeySoft,
     required this.kenarlik,
     required this.vurgu,
     required this.secili,
@@ -167,6 +318,13 @@ class TakimPaleti {
 
   /// Kart ve yüzeyler.
   final Color yuzey;
+
+  /// KART İÇİNDEKİ ara yüzey — çip, şerit, iç kutu zemini.
+  ///
+  /// Kartla AYNI OLAMAZ: aynı olduğunda kullanıcı "kutu olduğu anlaşılmıyor"
+  /// diyordu (ölçüldü: 150 takımın 149'unda kontrast 1.00). Kartın hue'sunu
+  /// korur, yalnız parlaklığı bir tık kayar; sayfa zemininden de ayrışır.
+  final Color yuzeySoft;
 
   final Color kenarlik;
 
@@ -279,23 +437,34 @@ TakimPaleti paletUret({
   // zeminin takımın birinci rengi OLMASINI istiyor.
   final zemin = ana;
 
-  // KART = İKİNCİL RENK. Tek koşul: zeminden GÖRSEL OLARAK ayrılmalı, yoksa
-  // kartın sınırı kaybolur. 1.35 kasten düşük — kart ile zemin arasındaki
-  // fark bir yüzey ayrımıdır, metin kontrastı değil.
+  // KART = İKİNCİL RENK. Zeminden GÖRÜNÜR biçimde ayrılmalı, yoksa kartın
+  // sınırı kaybolur. Eşik 1.35'ten 1.60'a çıkarıldı: 1.35'te en kötü takımda
+  // kart/zemin 1.36 kalıyordu ve kullanıcı "kutu olduğu anlaşılmıyor" dedi.
   final yuzey = kimlikTonu(
     ikincil,
     zemin,
-    esik: 1.35,
+    esik: 1.60,
     yedek: okunurMetin(zemin),
   );
 
-  // KARTIN YAZISI = ANA rengin tonu · ZEMİNİN YAZISI = İKİNCİL rengin tonu.
-  final metin = kimlikTonu(ana, yuzey, yedek: okunurMetin(yuzey));
+  // KART İÇİ ARA YÜZEY (çip, şerit, iç kutu) + KART YAZISI **BİRLİKTE**.
+  //
+  // Ayrı ayrı çözüldüğünde ara yüzey kartla arasını açıyor, ama iki yüzeyde
+  // BİRDEN 4.5'i tutan bir metin tonu kalmıyordu — ölçüldü: 5 takımda küçük
+  // yazı 4.15–4.39'a düşüyordu. Ara yüzeyin yeri metnin varlığına bağlı, bu
+  // yüzden adaylar sırayla denenip METNİ MÜMKÜN KILAN ilki seçilir.
+  final (yuzeySoft, metin) = _araYuzeyVeMetin(yuzey, zemin, ana);
+  // ZEMİNİN YAZISI = İKİNCİL rengin tonu.
   final zeminMetni = kimlikTonu(ikincil, zemin, yedek: okunurMetin(zemin));
 
-  // KENARLIK: kartın sınırını çizer. Metin değil, o yüzden eşik düşük —
-  // yüksek eşik kartı kutuya hapsediyordu.
-  final kenarlik = kimlikTonu(metin, yuzey, esik: 1.5, yedek: metin);
+  // KENARLIK: kutunun sınırını çizer, yani HEM KARTTAN HEM ZEMİNDEN ayrışmak
+  // zorunda. Eskiden yalnız karta bakılıyordu ve 150 takımın 130'unda
+  // kenarlık/zemin 1.00 çıkıyordu — sınır görünmüyordu. Kenarlık bir ARAYÜZ
+  // BİLEŞENİDİR: kartta WCAG eşiği 3.0, zeminde gözle seçilecek kadar (1.25).
+  // İKİ KISIT AYNI ANDA TARANIR. Sırayla uygulandığında ikinci itiş birincinin
+  // kazandığını geri veriyordu — ölçüldü: kenarlık/zemin düzeltilince
+  // kenarlık/kart 2.92'den 2.10'a düşüyordu.
+  final kenarlik = _kenarlikUret(metin, yuzey, zemin);
 
   // VURGU: kart ÜSTÜNDE duran buton/rozet zemini → ana rengin tonu.
   // Rozet ve buton kalın-büyük yüzeydir, eşiği 3.0 (kAaBuyukEsigi).
@@ -323,6 +492,7 @@ TakimPaleti paletUret({
     ikincil: ikincil,
     zemin: zemin,
     yuzey: yuzey,
+    yuzeySoft: yuzeySoft,
     kenarlik: kenarlik,
     vurgu: vurgu,
     secili: secili,
