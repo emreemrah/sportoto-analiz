@@ -115,7 +115,8 @@ class LiveBulletinView extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: AppColors.textMuted,
+                      // Başlık bloğunun ALTINDA, sayfa zemini üstünde.
+                      color: AppColors.onBackgroundMuted,
                       fontSize: 11.5,
                       fontWeight: AppFont.bold,
                     ),

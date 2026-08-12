@@ -16,6 +16,8 @@
 
 import 'dart:ui';
 
+import 'package:flutter/painting.dart';
+
 import 'takim_paleti.dart';
 import 'tokens.dart';
 
@@ -28,129 +30,137 @@ Brightness takimParlakligi(TakimPaleti p) =>
 
 /// Yapısal `AppColors` alanlarını [p] takım paletine çevirir.
 ///
+/// ═══════════ TERS KONTRAST (kullanıcı isteği, 2026-08-12) ═════════════════
+///   zemin  = takımın BİRİNCİ rengi        → üstündeki yazı İKİNCİ renk
+///   kart   = takımın İKİNCİ rengi         → üstündeki yazı BİRİNCİ renk
+/// Beyaz artık varsayılan kart rengi DEĞİL; yalnız hiçbir tonun eşiği
+/// tutmadığı son çarede destek rengi olarak devreye girer (`okunurMetin`).
+///
+/// Renkler `kimlikTonu` ile itilir: HSL parlaklığı oynar, hue ve doygunluk
+/// KORUNUR. Bu yüzden "krem / pembe / kahverengi / alakasız mavi" üretilmez.
+///
 /// İdempotenttir: aynı palet iki kez uygulanabilir.
 void takimGorunumunuUygula(TakimPaleti p) {
-  // ZEMİN / YÜZEY
+  // ── ZEMİN VE KART ────────────────────────────────────────────────────────
   AppColors.background = p.zemin;
   AppColors.bg = p.zemin;
   AppColors.surface = p.yuzey;
   AppColors.card = p.yuzey;
 
-  final yuzeyAcik = gorecelParlaklik(p.yuzey) > 0.5;
-
-  // Yardımcı yüzey: kartla zemin arasında bir ara ton (şerit, çip zemini).
-  // ÜSTÜNDE DE YAZI VAR — ara tona kayarken ortak metni okutmayı bırakmamalı
-  // (ölçüldü: düz kaydırmada 150 takımın 27'sinde şerit yazısı okunmuyordu).
-  var araYuzey = yuzeyAcik ? karart(p.yuzey, 0.05) : acikla(p.yuzey, 0.07);
-  var araAdim = 0;
-  while (kontrastOrani(p.metin, araYuzey) < kAaEsigi && araAdim < 30) {
-    araYuzey = yuzeyAcik ? acikla(araYuzey, 0.04) : karart(araYuzey, 0.04);
-    araAdim++;
-  }
+  // ARA YÜZEY (şerit, çip zemini): kartın kendi tonu — beyaza/griye KAÇMAZ.
+  // Kartın metnini okutmak zorunda, yoksa şeritteki yazı kayboluyor.
+  final araYuzey = _komsuTon(p.yuzey, p.metin);
   AppColors.surfaceSoft = araYuzey;
   AppColors.bgAlt = araYuzey;
+  AppColors.cardAlt = araYuzey;
+  AppColors.track = araYuzey;
 
-  // İKİ RENK DE GÖRÜNÜR OLSUN: birincil aksiyonlar ve seçili alanlar vurgu
-  // rengini kullanır — ikincil renk "küçük detay" olarak kalmaz.
-  AppColors.primary = p.secili;
-  AppColors.primaryDark = karart(p.secili, 0.2);
-  AppColors.accent = p.vurgu;
+  // ── METİN: HANGİ YÜZEYDE DURDUĞUNA GÖRE ──────────────────────────────────
+  AppColors.text = p.metin; // kartın üstünde → ana rengin tonu
+  AppColors.onBackground = p.zeminMetni; // zeminin üstünde → ikincil tonu
 
-  // ÜSTÜNDEKİ YAZI — zeminden hesaplanır. Sarı bir seçili sekmede beyaz yazı
-  // okunmaz; palet zaten hangi rengin okunacağını biliyor.
-  AppColors.onPrimary = p.seciliUstuMetin;
-  AppColors.onAccent = p.vurguUstuMetin;
+  // Soluk tonlar kendi yüzeylerine göre ayrı hesaplanır. Kart metni ÜÇ
+  // yüzeye birden düşüyor (kart, ara şerit, çip); en zoruna göre ayarlanır.
+  AppColors.textSoft = _solukAmaOkunur(p.metin, [p.yuzey, araYuzey], 0.30);
+  final kartSoluk = _solukAmaOkunur(p.metin, [p.yuzey, araYuzey], 0.48);
+  AppColors.muted = kartSoluk;
+  AppColors.textMuted = kartSoluk;
+  AppColors.gray = kartSoluk;
 
-  // YUMUŞAK ZEMİNLER (rozet arkası, çip zemini, ilerleme yolu). Üstlerinde
-  // `primary`/`accent` YAZI olarak duruyor (ör. `Pill`), bu yüzden ikisi de
-  // AA sağlamak zorunda: yalnız "çok açık ton" üretmek yetmez.
-  AppColors.primarySoft = _yumusakZemin(p.secili, yuzeyAcik);
-  AppColors.accentSoft = _yumusakZemin(p.vurgu, yuzeyAcik);
-  AppColors.cardAlt = AppColors.primarySoft;
-  AppColors.track = AppColors.primarySoft;
-
-  // METİN — yüzeyden hesaplanır. Palet zemin ile yüzeyi AYNI metin rengini
-  // paylaşacak şekilde ürettiği için bu değer zeminde de okunur.
-  AppColors.text = p.yuzeyUstuMetin;
-
-  // SOLUK TONLAR: yazı soluklaşır ama AA eşiğinin ALTINA DÜŞMEZ. Soluk yazı
-  // ÜÇ zeminin üstüne birden düşüyor (kart, ana zemin, ara şerit); en zoruna
-  // göre ayarlanır, yoksa biri kazanırken diğeri kaybediyor.
-  final zeminler = [p.yuzey, p.zemin, araYuzey];
-  AppColors.textSoft = _solukAmaOkunur(p.metin, zeminler, 0.32);
-  final soluk = _solukAmaOkunur(p.metin, zeminler, 0.52);
-  AppColors.muted = soluk;
-  AppColors.textMuted = soluk;
-  AppColors.gray = soluk;
+  AppColors.onBackgroundSoft = _solukAmaOkunur(p.zeminMetni, [p.zemin], 0.30);
+  AppColors.onBackgroundMuted = _solukAmaOkunur(p.zeminMetni, [p.zemin], 0.48);
 
   AppColors.border = p.kenarlik;
 
-  // `primary` zeminli kartlarda ikincil yazı.
-  AppColors.onPrimarySoft = _solukAmaOkunur(AppColors.onPrimary, [
-    p.secili,
-  ], 0.30);
+  // ── VURGU / SEÇİLİ — buton, rozet, etkin sekme ───────────────────────────
+  // Kullanıcı kuralı: "Butonlar, seçili sekmeler, rozetler ve vurgular bu
+  // ters renk düzenine uysun."
+  AppColors.primary = p.vurgu; // kart üstündeki aksiyon → ana tonu
+  AppColors.onPrimary = p.vurguMetni; // üstündeki yazı → ikincil tonu
+  AppColors.primaryDark = _komsuTon(p.vurgu, p.vurguMetni);
+  AppColors.accent = p.secili; // zemin üstündeki vurgu → ikincil tonu
+  AppColors.onAccent = p.seciliMetni;
 
-  // VURGULU PANEL (hero): takım temasında bu panel takımın seçili rengidir —
-  // marka temasındaki lacivert hero'nun karşılığı.
-  AppColors.heroZemin = p.secili;
-  AppColors.onHero = p.seciliUstuMetin;
-  AppColors.onHeroSoft = AppColors.onPrimarySoft;
+  // Yumuşak rozet zeminleri: ÜSTLERİNDE aynı renk YAZI olarak duruyor
+  // (`Pill`), o yüzden ikisi de AA sağlamak zorunda.
+  AppColors.primarySoft = _yumusakZemin(p.vurgu);
+  AppColors.accentSoft = _yumusakZemin(p.secili);
+  AppColors.onPrimarySoft = _solukAmaOkunur(p.vurguMetni, [p.vurgu], 0.28);
 
-  // KOYU PANEL zeminden AYRIŞMALI: `darkCard = p.zemin` yazıldığında panel
-  // sayfanın arka planıyla birebir aynı renk oluyor ve yalnız kenarlığıyla
-  // seçilebiliyordu (ölçüldü: Fenerbahçe'de ikisi de #003B7B).
-  final zeminAcik = gorecelParlaklik(p.zemin) > 0.5;
-  AppColors.darkCard = zeminAcik
-      ? karart(p.zemin, 0.82)
-      : (gorecelParlaklik(p.zemin) < 0.02
-            ? acikla(p.zemin, 0.10)
-            : karart(p.zemin, 0.35));
-  AppColors.darkCardSoft = acikla(AppColors.darkCard, 0.08);
+  // ── HERO — vurgulu büyük panel ───────────────────────────────────────────
+  // Kart ailesinden: ikincil renk. Marka temasındaki lacivert hero'nun
+  // karşılığı.
+  AppColors.heroZemin = p.yuzey;
+  AppColors.onHero = p.metin;
+  AppColors.onHeroSoft = AppColors.textSoft;
 
-  // Koyu panelin üstü — `text`/`muted` AÇIK yüzeye göre üretiliyor ve açık
-  // temalı bir takımda koyu panelin üstünde görünmezdi.
-  AppColors.onDark = okunurMetin(AppColors.darkCard);
-  AppColors.onDarkSoft = _solukAmaOkunur(AppColors.onDark, [
-    AppColors.darkCard,
-    AppColors.darkCardSoft,
-  ], 0.32);
-  AppColors.darkBorder = acikla(AppColors.darkCard, 0.16);
+  // ── YAN MENÜ / KOYU PANELLER ─────────────────────────────────────────────
+  // Kullanıcı ayrıca işaret etti: "yan menüde eski sabit koyu gri, kahverengi,
+  // beyaz veya lacivert yüzeyler kalmasın." Bu üçlü artık SABİT DEĞİL, takımın
+  // iki renginden türüyor.
+  //
+  // Panel KART ailesindendir (ikincil renk); satırları ara tonu, yazısı kart
+  // metni. Böylece panel zeminden ayrışır ama takımın dışına çıkmaz.
+  AppColors.darkCard = p.yuzey;
+  AppColors.darkCardSoft = araYuzey;
+  AppColors.onDark = p.metin;
+  AppColors.onDarkSoft = AppColors.textSoft;
+  AppColors.darkBorder = p.kenarlik;
 }
 
-/// Rozet/çip zemini: [renk]in yumuşak tonu, ama ÜSTÜNDE [renk] yazı olarak
-/// okunacak kadar ondan uzak.
-Color _yumusakZemin(Color renk, bool yuzeyAcik) {
-  // YÖN, RENGİN KENDİ OKUNUR METNİNE DOĞRUDUR — yüzeyin açık/koyu olmasına
-  // bakmak, beyaza dayanmış bir vurgu renginde (US Lecce, Arouca, Le Mans)
-  // yanlış yöne itip rozeti okunmaz bırakıyordu.
-  final acigaGit = gorecelParlaklik(okunurMetin(renk)) > 0.5;
-  var z = acigaGit ? acikla(renk, 0.85) : karart(renk, 0.62);
-  var adim = 0;
-  while (kontrastOrani(z, renk) < kAaEsigi && adim < 60) {
-    final sonraki = acigaGit ? acikla(z, 0.05) : karart(z, 0.05);
-    // YUVARLAMA TUZAĞI: uca çok yaklaşınca %5'lik adım aynı tamsayıya
-    // yuvarlanıyor ve döngü ilerlemeden 60 turu tüketiyordu.
-    if (sonraki == z) {
-      z = acigaGit ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
-      break;
+/// [renk]in KOMŞU tonu — aynı hue, bir tık farklı parlaklık.
+///
+/// Yön [ustundekiMetin]in tersidir: koyu yazılı bir yüzey açılır, açık yazılı
+/// bir yüzey koyulaşır. Böylece ara ton her zaman metinden UZAKLAŞIR.
+/// Ayrımı görünür kılmak için en az 1.12 kontrast aranır.
+Color _komsuTon(Color renk, Color ustundekiMetin) {
+  final metinKoyu = gorecelParlaklik(ustundekiMetin) < 0.5;
+  final l = HSLColor.fromColor(renk).lightness;
+  for (var adim = 4; adim <= 40; adim += 2) {
+    final hedef = metinKoyu ? l + adim / 100 : l - adim / 100;
+    if (hedef < 0 || hedef > 1) break;
+    final aday = tonla(renk, hedef);
+    if (kontrastOrani(aday, renk) >= 1.12 &&
+        kontrastOrani(ustundekiMetin, aday) >= kAaEsigi) {
+      return aday;
     }
-    z = sonraki;
-    adim++;
   }
-  return z;
+  // Ton ekseni bitti — metni okutmak ayrımdan önce gelir.
+  return renk;
 }
 
-/// İkincil yazı rengi: [metin]i [oran] kadar soluklaştırır, sonra [zeminler]in
-/// HEPSİNDE AA eşiğini geçene dek geri iter.
+/// Rozet/çip zemini: [renk]in yumuşak tonu, ama ÜSTÜNDE [renk] YAZI olarak
+/// okunacak kadar ondan uzak. Hue korunur — gri/krem üretilmez.
+Color _yumusakZemin(Color renk) {
+  final acigaGit = gorecelParlaklik(renk) < 0.5;
+  final l = HSLColor.fromColor(renk).lightness;
+  for (var i = 1; i <= 100; i++) {
+    final hedef = acigaGit ? l + i / 100 : l - i / 100;
+    if (hedef < 0 || hedef > 1) break;
+    final aday = tonla(renk, hedef);
+    if (kontrastOrani(aday, renk) >= kAaEsigi) return aday;
+  }
+  // Hue ekseninde yer kalmadı → son çare beyaz/siyah (erişilebilirlik).
+  return acigaGit ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
+}
+
+/// İkincil yazı rengi: [metin]i soluklaştırır ama [zeminler]in HEPSİNDE AA
+/// eşiğini korur. Ton korunur — soluk yazı griye kaymaz.
 Color _solukAmaOkunur(Color metin, List<Color> zeminler, double oran) {
-  final metinAcik = gorecelParlaklik(metin) > 0.5;
-  var s = metinAcik ? karart(metin, oran) : acikla(metin, oran);
+  final l = HSLColor.fromColor(metin).lightness;
+  // Soluklaşma yönü zeminden UZAK değil, zemine DOĞRU olur; sonra AA'yı
+  // tutana dek geri çekilir.
+  final zeminAcik = gorecelParlaklik(zeminler.first) > 0.5;
+  final hedef = zeminAcik ? l + oran * (1 - l) : l - oran * l;
+  var aday = tonla(metin, hedef);
   var adim = 0;
-  bool hepsindeOkunur() =>
-      zeminler.every((z) => kontrastOrani(s, z) >= kAaEsigi);
-  while (!hepsindeOkunur() && adim < 60) {
-    s = metinAcik ? acikla(s, 0.05) : karart(s, 0.05);
+  bool tamam() => zeminler.every((z) => kontrastOrani(aday, z) >= kAaEsigi);
+  while (!tamam() && adim < 100) {
+    final yeniL =
+        HSLColor.fromColor(aday).lightness + (zeminAcik ? -0.01 : 0.01);
+    if (yeniL < 0 || yeniL > 1) break;
+    aday = tonla(aday, yeniL);
     adim++;
   }
-  return s;
+  return tamam() ? aday : metin;
 }

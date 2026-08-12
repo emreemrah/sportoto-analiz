@@ -297,7 +297,8 @@ class _Header extends StatelessWidget {
           child: RichText(
             text: TextSpan(
               style: TextStyle(
-                color: AppColors.text,
+                // Üst çubuk ZEMİNİN üstünde — kart değil.
+                color: AppColors.onBackground,
                 fontSize: 19,
                 fontWeight: AppFont.black,
                 letterSpacing: -0.3,
@@ -328,7 +329,7 @@ class _Header extends StatelessWidget {
               child: Icon(
                 Icons.notifications_none,
                 size: 22,
-                color: AppColors.text,
+                color: AppColors.onBackground,
               ),
             ),
           ),
@@ -652,7 +653,10 @@ class _SectionHead extends StatelessWidget {
         Text(
           title,
           style: TextStyle(
-            color: AppColors.text,
+            // ZEMİNİN üstünde duruyor, kartın değil → `onBackground`.
+            // Ters kontrast düzeninde `text` kartın metnidir ve takım
+            // temasında zeminle aynı renge düşer (Galatasaray: sarı/sarı).
+            color: AppColors.onBackground,
             fontSize: 16,
             fontWeight: AppFont.black,
           ),

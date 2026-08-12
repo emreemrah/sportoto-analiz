@@ -149,6 +149,9 @@ class TakimPaleti {
     required this.vurgu,
     required this.secili,
     required this.metin,
+    required this.zeminMetni,
+    required this.vurguMetni,
+    required this.seciliMetni,
     required this.acikUstuMetin,
     required this.koyuUstuMetin,
   });
@@ -179,24 +182,34 @@ class TakimPaleti {
   /// Koyu zemin üzerindeki metin.
   final Color koyuUstuMetin;
 
-  /// ZEMİNDE DE KARTTA DA okunan tek metin rengi.
+  /// KARTIN üstünde okunacak metin — ANA rengin tonu.
   ///
-  /// Tek olması şart: iki ayrı renk hesaplanınca zemine doğrudan yazılan
-  /// başlıklar kayboluyordu (ölçüldü: 150 takımın 54'ünde). [paletUret] hem
-  /// zemini hem kartı bu rengi okutacak şekilde üretir.
+  /// TERS KONTRAST (kullanıcı isteği, 2026-08-12): kart ikincil renktedir, o
+  /// yüzden kartın yazısı ANA renktir. Eskiden zemin ve kart TEK bir metin
+  /// rengini paylaşıyordu; iki renkli düzende bu imkânsız — Galatasaray'da
+  /// kart yazısı sarı olacak ama aynı sarı, sarı zeminde görünmez.
   final Color metin;
 
-  /// Zeminin üstünde okunacak metin. [metin] ile aynıdır — ayrı hesaplanmaz.
-  Color get zeminUstuMetin => metin;
+  /// ZEMİNİN üstünde okunacak metin — İKİNCİL rengin tonu.
+  final Color zeminMetni;
 
-  /// Yüzeyin üstünde okunacak metin. [metin] ile aynıdır — ayrı hesaplanmaz.
+  /// [vurgu] zemininde okunacak metin.
+  final Color vurguMetni;
+
+  /// [secili] zemininde okunacak metin.
+  final Color seciliMetni;
+
+  /// Zeminin üstünde okunacak metin.
+  Color get zeminUstuMetin => zeminMetni;
+
+  /// Yüzeyin (kartın) üstünde okunacak metin.
   Color get yuzeyUstuMetin => metin;
 
   /// Vurgunun üstünde okunacak metin (buton yazısı).
-  Color get vurguUstuMetin => okunurMetin(vurgu);
+  Color get vurguUstuMetin => vurguMetni;
 
   /// Seçili durumun üstünde okunacak metin (etkin sekme yazısı).
-  Color get seciliUstuMetin => okunurMetin(secili);
+  Color get seciliUstuMetin => seciliMetni;
 }
 
 /// Takımın İKİ RENGİNİ karşılıklı kullanan bir yüzey çifti.
@@ -233,86 +246,76 @@ KimlikCifti kimlikCifti(TakimPaleti p, {bool anaZemin = true}) {
   );
 }
 
-/// İki elle renkten dokuz alanlı paleti türetir.
+/// İki elle renkten TERS KONTRAST paletini türetir.
 ///
-/// TÜRETME KURALLARI (hepsi test edilir):
-///  • zemin  = ana renk yumuşatılmış hâli. Çok parlak renk bir miktar
-///    karartılır, çok koyu renk bir miktar açılır: tam doygun bir zemin uzun
-///    okumada yorar ve koyu uçta uygulamanın açık görsel diliyle çakışır.
-///  • yuzey  = zemine göre AYIRT EDİLEBİLİR kart rengi. Açık zeminde beyaza,
-///    koyu zeminde bir tık açığa gider — kart hep zeminden ayrılmalı.
-///  • kenarlik = zemin ile yüzey arasında düşük kontrastlı çizgi.
-///  • vurgu  = ikincil renk; ANA RENKLE KARIŞMAMALI. İkincil, zemine çok
-///    yakınsa (ör. sarı-sarı) ana renk koyulaştırılarak kullanılır.
-///  • secili = vurgunun bir tık koyu/açık tonu.
+/// ═══════════ KURAL (kullanıcı isteği, 2026-08-12) ═════════════════════════
+/// "Uygulamanın ana arka planı takımın birinci ana rengi olsun. Beyaz veya
+/// nötr kartlar, takımın ikinci ana rengine dönüşsün. Birinci renkli zemin
+/// üzerinde ikinci renkli metin; ikinci renkli zemin üzerinde birinci renkli
+/// metin kullanılsın."
+///
+///   zemin      = ana
+///   yuzey      = ikincil            (kart — beyaz DEĞİL)
+///   metin      = ana tonu           (kartın üstünde)
+///   zeminMetni = ikincil tonu       (zeminin üstünde)
+///   vurgu      = ana tonu           (kart üstündeki buton/rozet)
+///   secili     = ikincil tonu       (zemin üstündeki etkin sekme)
+///
+/// ═══════════ OKUNURLUK: TON İTİLİR, RENK DEĞİŞTİRİLMEZ ════════════════════
+/// İki resmî renk doğrudan yeterli değilse [kimlikTonu] devreye girer:
+/// HSL parlaklığı oynatılır, hue ve doygunluk KORUNUR. Ölçüldü — ham hâlde
+/// 150 takımın yalnız 87'si AA geçiyor, ton ayarından sonra 150'si de
+/// geçiyor (test/iki_renk_olcum.dart).
+///
+/// Beyaz/siyah YALNIZ son çaredir (`yedek`): hiçbir ton eşiği tutmadığında
+/// devreye girer. Kullanıcının kuralı: "Beyaz yalnız erişilebilirlik için
+/// zorunlu olduğunda destek rengi olarak kullanılsın."
 TakimPaleti paletUret({
   required String takim,
   required Color ana,
   required Color ikincil,
 }) {
-  // BEYAZ AĞIRLIKLI TAKIM: kimlik ana renkten alınsaydı beyaz olurdu ve tema
-  // varsayılandan ayırt edilemezdi (kullanıcı isteği: "beyaz ağırlıklı
-  // takımlarda yalnızca beyaz tema kullanma; ikincil renk veya ton farkı ile
-  // kimlik belirgin olsun"). Bu yüzden kaynak İKİNCİL renk olur:
-  // Real Madrid'de krem-altın, Tottenham'da açık lacivert tonu.
-  final kaynak = gorecelParlaklik(ana) > 0.85 ? ikincil : ana;
+  // ZEMİN = ANA RENK, olduğu gibi. Eskiden yumuşatılıyordu; kullanıcı artık
+  // zeminin takımın birinci rengi OLMASINI istiyor.
+  final zemin = ana;
 
-  // ═══ İKİ EKSEN: TEMA YA AÇIK YA KOYU — ARASI YOK ═══
-  //
-  // Bu bir estetik tercih değil, ölçülmüş bir zorunluluk. Zemin orta
-  // parlaklıkta (L≈0.4) kaldığında ne beyaz ne siyah metin AA'ya yaklaşır ve
-  // üstüne konacak HİÇBİR vurgu rengi 4.5:1'e ulaşamaz — 150 takımın
-  // 74'ünde birincil renk kartta okunmuyordu. Uçlara oturunca aynı ölçüm
-  // sıfıra iner.
-  //
-  // Eşik 0.16: bunun altındaki renkler (siyah, lacivert, bordo, koyu yeşil)
-  // gerçekten koyudur ve koyu tema onların kimliğini KORUR. Üstündekiler —
-  // kırmızı, sarı, turuncu, açık mavi — açık temanın zemininde kendi açık
-  // tonlarıyla görünür; koyulaştırılsalardı kullanıcının istemediği "rastgele
-  // ton"a dönerlerdi.
-  final koyuTema = gorecelParlaklik(kaynak) <= 0.16;
-
-  final zemin = koyuTema ? _koyuZemin(kaynak) : _acikZemin(kaynak);
-
-  // ORTAK METİN — zemin belirler ve kart da bunu okutmak ZORUNDA. Tek renk
-  // olması şart: kart kendi metnini seçtiğinde, aynı yazı zemine düştüğünde
-  // kayboluyordu.
-  final metin = okunurMetin(zemin);
-
-  // KART: zeminden AYRILIR ama aynı uçta kalır.
-  final yuzey = _kartUret(zemin, koyuTema);
-
-  // Kenarlık kart ile zemin arasında durur; görünür ama bağırmaz.
-  final kenarlik = koyuTema ? acikla(yuzey, 0.22) : karart(yuzey, 0.14);
-  final zeminAcik = !koyuTema;
-
-  // VURGU: ikincil renk. Zeminden ayrışmıyorsa (ör. beyaz takımda beyaz
-  // ikincil) ana rengin zıt tonuna düşülür.
-  final hamVurgu = kontrastOrani(ikincil, zemin) >= 1.6
-      ? ikincil
-      : (zeminAcik ? karart(ana, 0.5) : acikla(ana, 0.5));
-
-  // VURGU İKİ ROLDE BİRDEN KULLANILIYOR ve her ikisi de kısıt getirir:
-  //   • METİN olarak (kart içindeki vurgulu yazı, ikon, sayı) → KARTLA AA
-  //     sağlamalı. Bu kısıt olmadan 150 takımın 76'sında vurgulu yazı beyaz
-  //     kartta kayboluyordu (ölçüldü).
-  //   • ZEMİN olarak (birincil buton, etkin sekme) → ÜSTÜNDEKİ yazıyı
-  //     okutmalı.
-  final vurgu = _vurguUret(
-    kontrastOrani(hamVurgu, zemin) >= 1.6
-        ? hamVurgu
-        : (zeminAcik ? karart(zemin, 0.55) : acikla(zemin, 0.55)),
-    yuzey,
+  // KART = İKİNCİL RENK. Tek koşul: zeminden GÖRSEL OLARAK ayrılmalı, yoksa
+  // kartın sınırı kaybolur. 1.35 kasten düşük — kart ile zemin arasındaki
+  // fark bir yüzey ayrımıdır, metin kontrastı değil.
+  final yuzey = kimlikTonu(
+    ikincil,
     zemin,
+    esik: 1.35,
+    yedek: okunurMetin(zemin),
   );
 
-  // SEÇİLİ: vurgunun bir tık farklı tonu — ama aynı iki kısıta tabi, yoksa
-  // etkin sekme yazısı okunmaz.
-  final secili = _vurguUret(
-    gorecelParlaklik(vurgu) > 0.5 ? karart(vurgu, 0.18) : acikla(vurgu, 0.18),
+  // KARTIN YAZISI = ANA rengin tonu · ZEMİNİN YAZISI = İKİNCİL rengin tonu.
+  final metin = kimlikTonu(ana, yuzey, yedek: okunurMetin(yuzey));
+  final zeminMetni = kimlikTonu(ikincil, zemin, yedek: okunurMetin(zemin));
+
+  // KENARLIK: kartın sınırını çizer. Metin değil, o yüzden eşik düşük —
+  // yüksek eşik kartı kutuya hapsediyordu.
+  final kenarlik = kimlikTonu(metin, yuzey, esik: 1.5, yedek: metin);
+
+  // VURGU: kart ÜSTÜNDE duran buton/rozet zemini → ana rengin tonu.
+  // Rozet ve buton kalın-büyük yüzeydir, eşiği 3.0 (kAaBuyukEsigi).
+  final vurgu = kimlikTonu(
+    ana,
     yuzey,
-    zemin,
+    esik: kAaBuyukEsigi,
+    yedek: okunurMetin(yuzey),
   );
+  // Üstündeki yazı ters renk: ikincil tonu.
+  final vurguMetni = kimlikTonu(ikincil, vurgu, yedek: okunurMetin(vurgu));
+
+  // SEÇİLİ: ZEMİN üstünde duran etkin sekme/işaret → ikincil rengin tonu.
+  final secili = kimlikTonu(
+    ikincil,
+    zemin,
+    esik: kAaBuyukEsigi,
+    yedek: okunurMetin(zemin),
+  );
+  final seciliMetni = kimlikTonu(ana, secili, yedek: okunurMetin(secili));
 
   return TakimPaleti(
     takim: takim,
@@ -324,147 +327,10 @@ TakimPaleti paletUret({
     vurgu: vurgu,
     secili: secili,
     metin: metin,
+    zeminMetni: zeminMetni,
+    vurguMetni: vurguMetni,
+    seciliMetni: seciliMetni,
     acikUstuMetin: const Color(0xFF101828),
     koyuUstuMetin: const Color(0xFFFFFFFF),
   );
-}
-
-/// Vurgu / seçili rengi: kartta YAZI olarak okunsun VE üstündeki yazıyı
-/// okutsun.
-///
-/// İKİ KOŞUL TEK DÖNGÜDE: önce biri sonra diğeri uygulandığında ikinci itiş
-/// birincinin kazandığını geri veriyordu (ölçüldü — art arda çağrıda
-/// `primary@surface` 150 takımın 75'inde hâlâ AA altındaydı). İtiş yönü ikisi
-/// için de aynı: açık kartta koyulaştır, koyu kartta açıklaştır. Bu yüzden
-/// tek döngü iki koşulu birden götürebilir.
-Color _vurguUret(Color ham, Color yuzey, Color zemin) {
-  // YÖN, YÜZEYİN METNİNE DOĞRUDUR — "yüzey açık mı" diye sormak yetmez.
-  // Orta parlaklıktaki bir kartta (L≈0.4) beyaza doğru itmenin tavanı 2.33:1
-  // olur ve AA'ya HİÇ ulaşılamaz; oysa aynı kartta siyaha doğru itmek 9:1'e
-  // çıkar. Yüzeyin kendi metin rengi hangi uçtaysa o uca gidilir.
-  final koyulastir = gorecelParlaklik(okunurMetin(yuzey)) < 0.5;
-  var r = ham;
-  var adim = 0;
-  while (adim < 60) {
-    // HEM KARTTA HEM ZEMİNDE okunmalı: vurgulu yazı ikisinin de üstüne
-    // düşüyor (kart içi sayı ↔ zemine oturan başlık). Yalnız karta bakmak
-    // 150 takımın 16'sında zemindeki vurguyu okunmaz bırakıyordu.
-    final kartta = kontrastOrani(r, yuzey) >= kAaEsigi;
-    final zeminde = kontrastOrani(r, zemin) >= kAaEsigi;
-    final ustundeki = kontrastOrani(r, okunurMetin(r)) >= kAaEsigi;
-    if (kartta && zeminde && ustundeki) break;
-    r = koyulastir ? karart(r, 0.05) : acikla(r, 0.05);
-    adim++;
-  }
-  return r;
-}
-
-/// Kart rengi: zeminden ayrışsın VE [metin] rengini okutsun.
-///
-/// KART HER ZAMAN ZEMİNDEN AÇIKTIR — açık temada beyaza, koyu temada bir tık
-/// yukarı. Bu hem mevcut temanın düzeni (zemin #F3F5F9, kart beyaz) hem de
-/// koyu arayüzlerin genel deseni. Ters yön denendi ve siyah ana renkli
-/// takımlarda (Venezia, Frankfurt, Casa Pia…) tavana dayanıp kart zeminden
-/// hiç ayrışmadı: kontrast 1.000 ölçüldü.
-///
-/// [metin] DIŞARIDAN GELİR (zeminin metni). Kart kendi metnini seçseydi koyu
-/// temada "koyu gri kart + siyah yazı" çıkıyor, aynı siyah yazı zeminde
-/// kayboluyordu.
-/// AÇIK TEMA ZEMİNİ: takım renginin çok açık tonu (L ≥ 0.55).
-///
-/// Mevcut uygulamanın zemini de böyledir (#F3F5F9). Renk burada YUMUŞAR ama
-/// kaybolmaz — kimliği asıl taşıyan vurgu, seçili ve kenarlık tonlarıdır.
-Color _acikZemin(Color kaynak) {
-  // TON KORUNUR (kullanıcı isteği 2026-08-12: "renkler rastgele tonlara
-  // dönüşmesin, takımın bilinen ana renkleri esas alınsın").
-  //
-  // Önce şöyleydi: beyazla %86 karıştır, sonra fazla açıksa SİYAHA doğru
-  // karart. İkinci adım hatalıydı — siyaha doğru karartmak rengi aynı anda
-  // hem koyultup hem DOYGUNLUĞUNU düşürür. Ölçüldü: Dortmund sarısı
-  // (#FDE100) bu yolla #F0ECCE'ye, yani KREME dönüyordu; ekranda "sarı takım"
-  // hissi kalmıyordu.
-  //
-  // Şimdi tek bir düğme çevriliyor: BEYAZ KARIŞIM ORANI. Oranı azaltmak
-  // rengin kendisine geri döner (ton korunur), artırmak açar. Parlaklık
-  // hedefi aynı bandda kaldığı için kartın zeminden ayrışması bozulmaz.
-  var oran = 0.86;
-  var z = acikla(kaynak, oran);
-
-  // ÜST SINIR: zemin beyaza dayanırsa kart (beyaz) ondan AYRIŞAMAZ — ölçüldü,
-  // Göztepe'de ayrım 1.050'ye kadar düşüyordu. Varsayılan temanın zemini de
-  // #F3F5F9 (L≈0.90); aynı hizada tutulur.
-  var adim = 0;
-  while (gorecelParlaklik(z) > 0.88 && oran > 0.02 && adim < 60) {
-    oran -= 0.02;
-    z = acikla(kaynak, oran);
-    adim++;
-  }
-
-  // ALT SINIR: koyu bir kaynak renkte zemin fazla koyu kalmasın.
-  adim = 0;
-  while (gorecelParlaklik(z) < 0.55 && oran < 0.98 && adim < 60) {
-    oran += 0.02;
-    z = acikla(kaynak, oran);
-    adim++;
-  }
-  return z;
-}
-
-/// KOYU TEMA ZEMİNİ: koyu takım renginin dengelenmiş hâli (L ≤ 0.055).
-///
-/// Neden bu kadar koyu: kart zeminden AÇIK olmak zorunda ama beyaz yazıyı
-/// 7:1 ile okutmak için L ≤ 0.10'da kalmalı. İkisi arasında yer kalması için
-/// zeminin tavanı düşük tutulur. Ölçüldü — zemin L=0.12'de bırakıldığında
-/// kart 0.17'ye taşıyor ve Bayern/Atalanta/Atlético'da bütün kontrastlar
-/// 4.5'in hemen altına (4.37–4.48) düşüyordu. Beşiktaş'ın siyahı siyah,
-/// Fenerbahçe'nin laciverti lacivert kalır.
-Color _koyuZemin(Color kaynak) {
-  var z = kaynak;
-  var adim = 0;
-  while (gorecelParlaklik(z) > 0.055 && adim < 40) {
-    z = karart(z, 0.06);
-    adim++;
-  }
-  return z;
-}
-
-/// KART, ZEMİNLE AYNI UÇTA DURUR ama ondan ayrışır.
-///
-/// Açık temada beyaza gider, koyu temada zeminin bir tık üstüne — ama TAVANI
-/// AŞMADAN. Ayrışma ile tavan tek döngüde tutulur: art arda iki döngü
-/// yazıldığında ikincisi birincinin garantisini bozuyordu.
-Color _kartUret(Color zemin, bool koyuTema) {
-  if (koyuTema) {
-    var kart = zemin;
-    var adim = 0;
-    while (adim < 40) {
-      if (kontrastOrani(zemin, kart) >= 1.22) break;
-      final sonraki = acikla(kart, 0.04);
-      // TAVAN: beyaz yazının 7:1 okunduğu sınırı geçme. Ayrışma bir tık zayıf
-      // kalırsa kenarlık taşır; okunmayan yazının telafisi yoktur.
-      if (gorecelParlaklik(sonraki) > 0.10) break;
-      kart = sonraki;
-      adim++;
-    }
-    return kart;
-  }
-
-  var kart = acikla(zemin, 0.9);
-  var adim = 0;
-  // Eşik 1.12: varsayılan temanın kendi ayrımı (#F3F5F9 zemin ↔ beyaz kart)
-  // 1.105'tir. Daha yükseğini istemek, mevcut uygulamanın hiç sağlamadığı bir
-  // şeyi takım temasından beklemek olurdu. Ayrımı kenarlık ve gölge tamamlar.
-  while (kontrastOrani(zemin, kart) < 1.12 && adim < 30) {
-    final sonraki = acikla(kart, 0.05);
-    // YUVARLAMA TUZAĞI: beyaza yaklaşınca %5'lik adım aynı tamsayıya
-    // yuvarlanıyor ve döngü ilerlemeden dönüyordu (Lorient, Marseille:
-    // 1.118'de takılıyordu). İlerleme durunca doğrudan beyaza gidilir.
-    if (sonraki == kart) {
-      kart = const Color(0xFFFFFFFF);
-      break;
-    }
-    kart = sonraki;
-    adim++;
-  }
-  return kart;
 }

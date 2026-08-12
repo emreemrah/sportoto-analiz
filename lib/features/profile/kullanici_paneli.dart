@@ -32,6 +32,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/auth.dart' as auth;
 import '../../core/network/api_client.dart';
+import '../../core/theme/takim_paleti.dart';
 import '../../core/theme/tokens.dart';
 import '../../widgets/app_ui.dart';
 import '../../widgets/avatar.dart';
@@ -64,6 +65,16 @@ Color get _ayrac => AppColors.onDark.withValues(alpha: 0.12);
 // panelin üstünde okunacağının garantisi yok. Koyu panelin kendi soluk
 // metni kullanılır.
 Color get _ikincilYazi => AppColors.onDarkSoft;
+
+/// ANLAMSAL RENK, OKUNUR TONDA.
+///
+/// Kullanıcı kuralı: "Başarı, hata, uyarı ve canlı durum renkleri anlamsal
+/// amaçla bağımsız kalsın." Rengin ANLAMI (kırmızı = tehlike) korunuyor;
+/// yalnız parlaklığı, üstünde durduğu takım yüzeyinde okunacak kadar
+/// itiliyor. Ölçüldü: Galatasaray temasında kırmızı panelde ham `danger`
+/// neredeyse görünmüyordu.
+Color _anlamsalOkunur(Color anlamsal, Color zemin) =>
+    kimlikTonu(anlamsal, zemin);
 
 /// Paneldeki bir erişim satırı.
 class _Giris {
@@ -383,7 +394,9 @@ class _KullaniciPaneliState extends State<KullaniciPaneli> {
                   child: Icon(
                     g.ikon,
                     size: 17,
-                    color: tehlike ? AppColors.danger : AppColors.onDark,
+                    color: tehlike
+                        ? _anlamsalOkunur(AppColors.danger, _satir)
+                        : AppColors.onDark,
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -393,7 +406,9 @@ class _KullaniciPaneliState extends State<KullaniciPaneli> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: tehlike ? AppColors.danger : AppColors.onDark,
+                      color: tehlike
+                          ? _anlamsalOkunur(AppColors.danger, _satir)
+                          : AppColors.onDark,
                       fontSize: 13.5,
                       fontWeight: AppFont.semibold,
                     ),

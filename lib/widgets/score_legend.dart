@@ -50,7 +50,9 @@ class ScoreLegend extends StatelessWidget {
               Text(
                 it.l,
                 style: TextStyle(
-                  color: AppColors.textMuted,
+                  // SAYFA ZEMİNİ üstünde duruyor, kart değil → ters
+                  // kontrast düzeninde `onBackground` ailesi.
+                  color: AppColors.onBackgroundMuted,
                   fontSize: 10.5,
                   fontWeight: AppFont.bold,
                 ),

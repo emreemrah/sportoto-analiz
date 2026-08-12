@@ -125,30 +125,50 @@ void main() {
       );
     });
 
-    test('vurgu zeminden AYIRT EDİLİR (buton kaybolmaz)', () {
+    test('vurgu ve seçili KENDİ yüzeylerinde AYIRT EDİLİR', () {
+      // TERS KONTRAST (2026-08-12): `vurgu` KART üstünde duran buton/rozet,
+      // `secili` ZEMİN üstünde duran etkin sekmedir. Her biri yalnız kendi
+      // yüzeyinde ölçülür — vurguyu zeminde ölçmek artık yanlış bir beklenti
+      // olurdu: zemin ana renktir, vurgu da ana rengin tonudur, ikisi
+      // tanım gereği birbirine yakın.
       final ayrisamayan = <String>[];
       for (final p in paletler) {
-        final k = kontrastOrani(p.zemin, p.vurgu);
-        if (k < 1.5) ayrisamayan.add('${p.takim}: ${k.toStringAsFixed(2)}');
+        final kart = kontrastOrani(p.yuzey, p.vurgu);
+        if (kart < kAaBuyukEsigi) {
+          ayrisamayan.add('${p.takim} vurgu/kart: ${kart.toStringAsFixed(2)}');
+        }
+        final zem = kontrastOrani(p.zemin, p.secili);
+        if (zem < kAaBuyukEsigi) {
+          ayrisamayan.add('${p.takim} secili/zemin: ${zem.toStringAsFixed(2)}');
+        }
       }
       expect(
         ayrisamayan,
         isEmpty,
-        reason: 'vurgu zeminde kayboluyor:\n${ayrisamayan.join('\n')}',
+        reason:
+            'vurgu/seçili kendi yüzeyinde kayboluyor:\n'
+            '${ayrisamayan.join('\n')}',
       );
     });
   });
 
   group('Uç örnekler — beklenen metin rengi', () {
     test('Dortmund sarısında SİYAH metin', () {
+      // Zemin yazısı artık İKİNCİ RENGİN tonudur (ters kontrast kuralı).
+      // Dortmund (sarı, siyah) olduğu için sonuç siyahtır — eskiden projenin
+      // kendi koyu mürekkebi (#101828) hesaplanıyordu. Kontrol edilen şey
+      // aynı: sarı zeminde yazı KOYU olmalı, beyaz değil.
       final p = takimPaletiBul('BVB 09 Borussia Dortmund')!;
-      expect(p.zeminUstuMetin, const Color(0xFF101828));
+      expect(gorecelParlaklik(p.zeminUstuMetin), lessThan(0.1));
       expect(kontrastOrani(p.zemin, p.zeminUstuMetin), greaterThan(10));
     });
 
     test('Beşiktaş siyahında BEYAZ metin', () {
+      // (siyah, beyaz) → zemin siyah, zemin yazısı ikinci renk: beyaz.
       final p = takimPaletiBul('Beşiktaş')!;
       expect(p.zeminUstuMetin, const Color(0xFFFFFFFF));
+      expect(p.yuzey, const Color(0xFFFFFFFF), reason: 'kart ikinci renk');
+      expect(gorecelParlaklik(p.metin), lessThan(0.05), reason: 'kart yazısı');
     });
 
     test('beyaz ağırlıklı takımda kimlik ikincil renkten gelir', () {
@@ -156,9 +176,9 @@ void main() {
       // yoksa tema varsayılandan ayırt edilemez.
       final p = takimPaletiBul('Real Madrid CF')!;
       expect(
-        kontrastOrani(p.zemin, p.vurgu),
-        greaterThan(1.5),
-        reason: 'beyaz takımda vurgu görünmeli',
+        kontrastOrani(p.yuzey, p.vurgu),
+        greaterThan(kAaBuyukEsigi),
+        reason: 'beyaz takımda vurgu kartta görünmeli',
       );
     });
   });

@@ -29,6 +29,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/network/api_client.dart';
+import '../../core/theme/takim_paleti.dart';
 import '../../core/theme/tokens.dart';
 import '../../widgets/app_ui.dart';
 import 'hafta_secici.dart';
@@ -664,7 +665,8 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
             Text(
               'Sıralama',
               style: TextStyle(
-                color: AppColors.textMuted,
+                // SAYFA ZEMİNİ üstünde — kart değil (ters kontrast).
+                color: AppColors.onBackgroundMuted,
                 fontSize: 11,
                 fontWeight: AppFont.heavy,
               ),
@@ -1045,17 +1047,29 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
     ),
   );
 
-  Widget _serit(String metin, Color renk) => Container(
-    margin: const EdgeInsets.only(bottom: Spacing.sm),
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-    decoration: BoxDecoration(
-      color: renk.withValues(alpha: 0.08),
-      borderRadius: AppRadius.smR,
-      border: Border.all(color: renk),
-    ),
-    child: Text(
-      metin,
-      style: TextStyle(color: renk, fontSize: 11.5, fontWeight: AppFont.heavy),
-    ),
-  );
+  /// Uyarı/mühür şeridi — SAYFA ZEMİNİ üstünde durur.
+  ///
+  /// [renk] ANLAMSAL bir renktir (uyarı/bilgi) ve anlamı korunur; yalnız
+  /// parlaklığı, takım zemininde okunacak kadar itilir. Ham hâlde bırakınca
+  /// sarı zeminli takımda uyarı sarısı kayboluyordu.
+  Widget _serit(String metin, Color renk) {
+    final okunur = kimlikTonu(renk, AppColors.background);
+    return Container(
+      margin: const EdgeInsets.only(bottom: Spacing.sm),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: okunur.withValues(alpha: 0.10),
+        borderRadius: AppRadius.smR,
+        border: Border.all(color: okunur),
+      ),
+      child: Text(
+        metin,
+        style: TextStyle(
+          color: okunur,
+          fontSize: 11.5,
+          fontWeight: AppFont.heavy,
+        ),
+      ),
+    );
+  }
 }

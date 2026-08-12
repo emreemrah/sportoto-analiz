@@ -94,10 +94,28 @@ abstract final class AppColors {
   static const liveSoft = Color(0xFFFFE8EB);
   static const onLive = Color(0xFFFFFFFF);
 
+  // METİN — KART yüzeyinin üstünde okunur.
+  //
+  // TERS KONTRAST (kullanıcı isteği, 2026-08-12): iki renkli takım temasında
+  // kart ikincil renktedir ve yazısı ANA renktir; zemin ise ana renktedir ve
+  // yazısı İKİNCİL renktir. Yani tek bir metin rengi iki yüzeye birden
+  // yetmiyor — Galatasaray'da kart yazısı sarı olur, aynı sarı sarı zeminde
+  // görünmez.
+  //
+  // Uygulamadaki yazının EZİCİ ÇOĞUNLUĞU kart içindedir; bu yüzden `text`
+  // ailesi KARTIN metni sayıldı ve zemine doğrudan yazılan başlıklar için
+  // ayrı [onBackground] ailesi eklendi. Açık/koyu/sistem görünümlerinde
+  // ikisi AYNI değeri alır — o modlarda hiçbir şey değişmez.
   static Color text = Color(0xFF101828);
   static Color textSoft = Color(0xFF475467);
   static Color muted = Color(0xFF98A2B3);
   static Color border = Color(0xFFE4E7EC);
+
+  // ZEMİNE DOĞRUDAN yazılan metin (bölüm başlıkları, "Tümünü Gör" gibi
+  // kart dışı satırlar). Takım temasında ikincil rengin tonudur.
+  static Color onBackground = Color(0xFF101828);
+  static Color onBackgroundSoft = Color(0xFF475467);
+  static Color onBackgroundMuted = Color(0xFF98A2B3);
 
   static Color darkCard = Color(0xFF111C34);
   static Color darkCardSoft = Color(0xFF18243F);
