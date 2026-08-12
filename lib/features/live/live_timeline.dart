@@ -15,7 +15,14 @@ import '../../core/theme/tokens.dart';
 const Color _homeC = Color(0xFF2F6FED);
 const Color _awayC = Color(0xFFE0762C);
 
-String _iconOf(LiveEvent e) => e.kind == 'red' ? '🟥' : '⚽';
+/// Olay ikonu VEKTÖR (kullanıcı isteği, 2026-08-12): 🟥/⚽ emojisiydi ve
+/// rengi emoji fontundan geliyordu. Kırmızı kart ANLAMSAL `danger` tonunu
+/// alır — temadan bağımsızdır, her görünümde kırmızıdır.
+IconData _iconOf(LiveEvent e) =>
+    e.kind == 'red' ? Icons.square : Icons.sports_soccer;
+
+Color _iconColorOf(LiveEvent e) =>
+    e.kind == 'red' ? AppColors.danger : AppColors.textSoft;
 
 class LiveTimeline extends StatelessWidget {
   const LiveTimeline({
@@ -189,7 +196,7 @@ class LiveTimeline extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(_iconOf(m.e), style: const TextStyle(fontSize: 12)),
+                    Icon(_iconOf(m.e), size: 12, color: _iconColorOf(m.e)),
                     Text(
                       "${m.e.minute}${m.e.extra > 0 ? '+${m.e.extra}' : ''}'",
                       style: TextStyle(

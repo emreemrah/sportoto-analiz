@@ -330,7 +330,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
             )
           else if (!recap.hasData)
             _bosKart(
-              icon: '🕐',
+              icon: Icons.schedule,
               baslik: 'Bu hafta için resmî sonuç yok',
               metin:
                   'Resmî Spor Toto sonuçları açıklandıkça karne burada oluşur. Geçici/canlı skorla karne yazılmaz.',
@@ -1343,7 +1343,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
   );
 
   Widget _bosKart({
-    String? icon,
+    IconData? icon,
     required String baslik,
     required String metin,
   }) => Container(
@@ -1356,7 +1356,9 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
     ),
     child: Column(
       children: [
-        if (icon != null) Text(icon, style: const TextStyle(fontSize: 30)),
+        // VEKTÖR (kullanıcı isteği, 2026-08-12): emojiyken kartın yazısı
+        // temaya uyarken ikon sabit renkte kalıyordu.
+        if (icon != null) Icon(icon, size: 34, color: AppColors.textSoft),
         Padding(
           padding: const EdgeInsets.only(top: 6),
           child: Text(

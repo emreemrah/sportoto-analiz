@@ -151,7 +151,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('⚠️', style: TextStyle(fontSize: 34)),
+                  Icon(Icons.error_outline, size: 36, color: AppColors.danger),
                   const SizedBox(height: 10),
                   Text(
                     'Güncel başlamamış haftalık program alınamadı.',
@@ -466,7 +466,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
           Expanded(
             child: _Center(
               child: EmptyState(
-                icon: '⚠️',
+                icon: Icons.error_outline,
                 title: 'Geçmiş hafta sonucu alınamadı',
                 message: hist.error,
               ),
@@ -774,13 +774,20 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
           GestureDetector(
             onTap: () => context.push('/bulten/gecmis'),
             behavior: HitTestBehavior.opaque,
-            child: Text(
-              '📜 Bülten Geçmişi · Kilitli Analiz ›',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 12,
-                fontWeight: AppFont.bold,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.history_edu, size: 14, color: AppColors.primary),
+                const SizedBox(width: 5),
+                Text(
+                  'Bülten Geçmişi · Kilitli Analiz ›',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 12,
+                    fontWeight: AppFont.bold,
+                  ),
+                ),
+              ],
             ),
           ),
           if (archive != null) SnapshotSealBanner(archive: archive),

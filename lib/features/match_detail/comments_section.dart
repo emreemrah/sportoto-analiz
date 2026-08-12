@@ -407,13 +407,10 @@ class _CommentsSectionState extends State<CommentsSection> {
                     onTap: () => setState(() => _replyTo = null),
                     child: Padding(
                       padding: EdgeInsets.all(4),
-                      child: Text(
-                        '✕',
-                        style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 13,
-                          fontWeight: AppFont.black,
-                        ),
+                      child: Icon(
+                        Icons.close,
+                        size: 15,
+                        color: AppColors.textMuted,
                       ),
                     ),
                   ),
@@ -681,21 +678,32 @@ class _CommentCardState extends State<_CommentCard> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            c['likedByMe'] == true ? '♥' : '♡',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: c['likedByMe'] == true
-                                  ? AppColors.red
-                                  : AppColors.textMuted,
-                            ),
+                          Icon(
+                            c['likedByMe'] == true
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            size: 15,
+                            color: c['likedByMe'] == true
+                                ? AppColors.red
+                                : AppColors.textMuted,
                           ),
                           const SizedBox(width: 4),
                           Text('${c['likeCount'] ?? 0}', style: _metaTxt),
                         ],
                       ),
                     ),
-                    Text('👁 ${c['viewCount'] ?? 0}', style: _metaTxt),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.visibility_outlined,
+                          size: 14,
+                          color: AppColors.textMuted,
+                        ),
+                        const SizedBox(width: 3),
+                        Text('${c['viewCount'] ?? 0}', style: _metaTxt),
+                      ],
+                    ),
                     if (widget.canAct && widget.depth == 0)
                       _metaDugme(
                         'Cevapla',

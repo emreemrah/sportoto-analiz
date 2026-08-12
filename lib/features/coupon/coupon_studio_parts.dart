@@ -344,7 +344,9 @@ class MacSatiri extends StatelessWidget {
             if (kilitli)
               Padding(
                 padding: const EdgeInsets.only(left: 2),
-                child: Text('🔒', style: TextStyle(fontSize: t.kucuk)),
+                // STÜDYO KENDİ PALETİNİ KULLANIR: bu bir paylaşım GÖRSELİDİR,
+                // uygulama arayüzü değil — rengi uygulama temasıyla değişmez.
+                child: Icon(Icons.lock_outline, size: t.kucuk, color: S.inkDim),
               ),
           ],
         ),

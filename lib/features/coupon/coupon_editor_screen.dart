@@ -171,7 +171,7 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: EmptyState(
-              icon: '⚠️',
+              icon: Icons.error_outline,
               title: 'Bülten alınamadı',
               message: '$e',
             ),
@@ -183,7 +183,7 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: EmptyState(
-                  icon: '🔒',
+                  icon: Icons.lock_outline,
                   title: 'Bu hafta güncel bülten değil',
                   message: 'Kupon yalnız güncel bültende hazırlanır.',
                 ),
@@ -338,8 +338,9 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
                     children: [
                       Expanded(
                         child: _aktarimDugmesi(
-                          '⚙ Sistem',
+                          'Sistem',
                           () => _aktarimBaslat(matches, lockedNos, 'system'),
+                          Icons.settings_suggest_outlined,
                         ),
                       ),
                       const SizedBox(width: Spacing.sm),
@@ -347,15 +348,17 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
                         child: _aktarimDugmesi(
                           // TOPLULUK KUPONU: analiz yapmadan, yalnız
                           // kullanıcıların oy dağılımına göre doldurur.
-                          '🗳️ Topluluk',
+                          'Topluluk',
                           () => _aktarimBaslat(matches, lockedNos, 'anket'),
+                          Icons.how_to_vote_outlined,
                         ),
                       ),
                       const SizedBox(width: Spacing.sm),
                       Expanded(
                         child: _aktarimDugmesi(
-                          '✍️ Seçimim',
+                          'Seçimim',
                           () => _secimimTemizle(lockedNos),
+                          Icons.edit_outlined,
                         ),
                       ),
                     ],
@@ -532,27 +535,41 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
     );
   }
 
-  Widget _aktarimDugmesi(String metin, VoidCallback onTap) => GestureDetector(
-    onTap: onTap,
-    behavior: HitTestBehavior.opaque,
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AppColors.cardAlt,
-        borderRadius: AppRadius.smR,
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Text(
-        metin,
-        style: TextStyle(
-          color: AppColors.textSoft,
-          fontSize: 12.5,
-          fontWeight: AppFont.heavy,
+  /// [ikon] AYRI PARAMETRE, metne gomulu emoji DEGIL (kullanici istegi,
+  /// 2026-08-12): emoji `TextStyle.color`i dinlemiyordu.
+  Widget _aktarimDugmesi(String metin, VoidCallback onTap, IconData ikon) =>
+      GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.cardAlt,
+            borderRadius: AppRadius.smR,
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(ikon, size: 15, color: AppColors.textSoft),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  metin,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 12.5,
+                    fontWeight: AppFont.heavy,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    ),
-  );
+      );
 
   /// AKTARIM: önce fark, sonra kullanıcı kararı. Mevcut seçim ASLA sessizce
   /// ezilmez.

@@ -110,7 +110,7 @@ class _BulletinHistoryScreenState extends State<BulletinHistoryScreen> {
       govde = SingleChildScrollView(
         padding: EdgeInsets.all(Spacing.md),
         child: EmptyState(
-          icon: '📭',
+          icon: Icons.inbox_outlined,
           title: 'Henüz bülten yok',
           message: 'Geçmiş bülten bulunamadı.',
         ),

@@ -372,7 +372,8 @@ class KarsilastirmaCubuklari extends StatelessWidget {
     if (satirlar.isEmpty) return const SizedBox.shrink();
 
     return SectionCard(
-      title: '📊  Maç Başına Ortalamalar',
+      title: 'Maç Başına Ortalamalar',
+      icon: Icons.bar_chart,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

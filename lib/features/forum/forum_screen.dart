@@ -124,7 +124,7 @@ class _ForumScreenState extends State<ForumScreen> {
           _sekmeler(),
           if (filtered.isEmpty)
             EmptyState(
-              icon: '💬',
+              icon: Icons.chat_bubble_outline,
               title: 'Henüz topluluk yorumu bulunmuyor',
               message:
                   "Gerçek kullanıcı yorumları backend'e bağlanınca burada görünecek.",

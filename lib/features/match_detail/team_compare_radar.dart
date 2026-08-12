@@ -63,7 +63,7 @@ class TeamCompareRadar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '🕸️ Güç Karşılaştırması',
+            'Güç Karşılaştırması',
             style: TextStyle(
               color: AppColors.text,
               fontSize: 15,

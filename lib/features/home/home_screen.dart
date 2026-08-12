@@ -202,7 +202,7 @@ class HomeScreen extends ConsumerWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
                     child: EmptyState(
-                      icon: '📊',
+                      icon: Icons.bar_chart,
                       title: error != null
                           ? 'Bülten alınamadı'
                           : 'Dashboard hazırlanıyor',
@@ -321,9 +321,15 @@ class _Header extends StatelessWidget {
           child: GestureDetector(
             onTap: () => context.push('/ana-sayfa/bildirimler'),
             behavior: HitTestBehavior.opaque,
-            child: const Padding(
-              padding: EdgeInsets.all(6),
-              child: Text('🔔', style: TextStyle(fontSize: 20)),
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              // ZİL VEKTÖR: emojiyken üst çubuk koyu temada koyulaşırken zil
+              // sabit renkte kalıyordu.
+              child: Icon(
+                Icons.notifications_none,
+                size: 22,
+                color: AppColors.text,
+              ),
             ),
           ),
         ),
@@ -499,11 +505,22 @@ class _HeroCard extends StatelessWidget {
                 child: _dugme('Bülteni Aç', onBulteniAc, dolu: true, ok: true),
               ),
               const SizedBox(width: 8),
-              Expanded(child: _dugme('📺 Haftanın Özeti', onOzet)),
+              Expanded(
+                child: _dugme(
+                  'Haftanın Özeti',
+                  onOzet,
+                  ikon: Icons.live_tv_outlined,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
-          _dugme('🏁 Geçen Haftanın Kapanışı', onKapanis, ok: true),
+          _dugme(
+            'Geçen Haftanın Kapanışı',
+            onKapanis,
+            ok: true,
+            ikon: Icons.sports_score_outlined,
+          ),
         ],
       ),
     );
@@ -550,11 +567,15 @@ class _HeroCard extends StatelessWidget {
     color: AppColors.onHero.withValues(alpha: 0.20),
   );
 
+  /// [ikon] AYRI PARAMETRE, metne gömülü emoji DEĞİL (kullanıcı isteği,
+  /// 2026-08-12): düğmenin yazısı hero zeminine göre `onHero`/`onAccent`
+  /// alırken emoji sabit renkte kalıyordu.
   Widget _dugme(
     String etiket,
     VoidCallback onTap, {
     bool dolu = false,
     bool ok = false,
+    IconData? ikon,
   }) => GestureDetector(
     onTap: onTap,
     behavior: HitTestBehavior.opaque,
@@ -572,6 +593,14 @@ class _HeroCard extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          if (ikon != null) ...[
+            Icon(
+              ikon,
+              size: 15,
+              color: dolu ? AppColors.onAccent : AppColors.onHero,
+            ),
+            const SizedBox(width: 6),
+          ],
           Flexible(
             child: Text(
               etiket,

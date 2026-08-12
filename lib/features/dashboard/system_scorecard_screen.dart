@@ -940,7 +940,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
   ]);
 
   Widget _bosDurum() => DashboardEmpty(
-    icon: '🔏',
+    icon: Icons.lock_outline,
     title: kOfficialEmptyTitle,
     message: kOfficialEmptyMessage,
     actionLabel: 'Bültenleri Gör',

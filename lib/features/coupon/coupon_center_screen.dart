@@ -267,7 +267,7 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
                 Padding(
                   padding: EdgeInsets.only(top: 20),
                   child: EmptyState(
-                    icon: '🎟️',
+                    icon: Icons.confirmation_number_outlined,
                     title: 'Bu hafta için kupon yok',
                     message:
                         'Maç detayındaki "KUPONA İŞLE" bloğundan seçim '

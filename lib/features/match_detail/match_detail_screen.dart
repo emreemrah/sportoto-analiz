@@ -411,7 +411,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
         if (tags != null && tags.isNotEmpty)
           Accordion(
             title: 'Risk Etiketleri',
-            icon: '🏷️',
+            icon: Icons.sell_outlined,
             defaultOpen: true,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -453,7 +453,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
         if (sinyaller.isNotEmpty)
           Accordion(
             title: 'Öne Çıkan Notlar',
-            icon: '⭐',
+            icon: Icons.star_outline,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -477,7 +477,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
         if ((hLast5?.isNotEmpty ?? false) || (aLast5?.isNotEmpty ?? false))
           Accordion(
             title: 'Son Maçlar',
-            icon: '🗓️',
+            icon: Icons.calendar_month_outlined,
             defaultOpen: true,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

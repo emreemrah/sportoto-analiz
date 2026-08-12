@@ -226,7 +226,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
       return SingleChildScrollView(
         padding: _listPad,
         child: EmptyState(
-          icon: '🔒',
+          icon: Icons.lock_outline,
           title: 'Analiz henüz mühürlenmedi',
           message: f != null
               ? 'Analizler ${f.day} ${f.time} itibarıyla (ilk maçtan 5 dk önce) kilitlenecek ve arşive mühürlenecek.'
@@ -284,7 +284,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
   Widget _kuponSekmesi() => SingleChildScrollView(
     padding: _listPad,
     child: EmptyState(
-      icon: '🎟️',
+      icon: Icons.confirmation_number_outlined,
       title: "Kuponlar Kupon Merkezi'nde",
       message:
           'Kupon oluşturma, sonuç ve paylaşım artık alt bardaki Kuponlarım (Kupon Merkezi) bölümünde — gerçek veriyle çalışır, demo kupon üretilmez.',
@@ -296,7 +296,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
       return SingleChildScrollView(
         padding: _listPad,
         child: EmptyState(
-          icon: '📭',
+          icon: Icons.inbox_outlined,
           title: 'Sonuç yok',
           message: 'Bu hafta için analiz/sonuç kaydı yok.',
         ),
@@ -314,7 +314,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
       return SingleChildScrollView(
         padding: _listPad,
         child: EmptyState(
-          icon: '⏳',
+          icon: Icons.hourglass_empty,
           title: 'Resmî sonuçlar henüz açıklanmadı',
           message:
               'Resmî 90 dakika sonuçları (1/X/2) geldikçe burada görünecek.',
@@ -377,7 +377,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
       return SingleChildScrollView(
         padding: _listPad,
         child: EmptyState(
-          icon: '📊',
+          icon: Icons.bar_chart,
           title: 'Veri yok',
           message: 'Bu bülten için sistem karnesi oluşmadı.',
         ),
@@ -400,7 +400,7 @@ class _BulletinDetailScreenState extends State<BulletinDetailScreen> {
       return SingleChildScrollView(
         padding: _listPad,
         child: EmptyState(
-          icon: '⏳',
+          icon: Icons.hourglass_empty,
           title: 'Henüz sonuç yok',
           message: 'Maçlar sonuçlandıkça sistem karnesi burada oluşacak.',
         ),

@@ -155,7 +155,8 @@ class _MacSonucAnketiState extends ConsumerState<MacSonucAnketi> {
     final async = ref.watch(macAnketiProvider(widget.matchId));
 
     return SectionCard(
-      title: '🗳️  Maç Sonucu Anketi',
+      title: 'Maç Sonucu Anketi',
+      icon: Icons.how_to_vote_outlined,
       child: async.when(
         loading: () => Padding(
           padding: EdgeInsets.symmetric(vertical: 14),

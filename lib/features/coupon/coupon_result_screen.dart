@@ -142,7 +142,7 @@ class _CouponResultScreenState extends State<CouponResultScreen> {
         SingleChildScrollView(
           padding: EdgeInsets.all(12),
           child: EmptyState(
-            icon: '🎟️',
+            icon: Icons.confirmation_number_outlined,
             title: 'Kupon yok',
             message: 'Bu bülten için kaydedilmiş bir kuponun yok.',
           ),
@@ -167,7 +167,7 @@ class _CouponResultScreenState extends State<CouponResultScreen> {
         SingleChildScrollView(
           padding: EdgeInsets.all(12),
           child: EmptyState(
-            icon: '🎟️',
+            icon: Icons.confirmation_number_outlined,
             title: 'Kupon boş',
             message: 'Bu kuponun kayıtlı seçimi bulunamadı.',
           ),

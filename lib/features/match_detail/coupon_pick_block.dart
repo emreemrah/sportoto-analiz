@@ -72,9 +72,17 @@ class _CouponPickBlockState extends State<CouponPickBlock> {
         children: [
           Row(
             children: [
+              // BAŞLIK İKONU VEKTÖR (kullanıcı isteği, 2026-08-12): emojiyken
+              // yazı `primary` alırken bilet sabit renkte kalıyordu.
+              Icon(
+                Icons.confirmation_number_outlined,
+                size: 13,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 5),
               Expanded(
                 child: Text(
-                  '🎟️ KUPONA İŞLE',
+                  'KUPONA İŞLE',
                   style: TextStyle(
                     color: AppColors.primary,
                     fontSize: 11,
@@ -144,15 +152,28 @@ class _CouponPickBlockState extends State<CouponPickBlock> {
                           borderRadius: AppRadius.smR,
                           border: Border.all(color: AppColors.border),
                         ),
-                        child: Text(
-                          '⚙ Sistemden al',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 10.5,
-                            fontWeight: AppFont.black,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.settings_suggest_outlined,
+                              size: 13,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                'Sistemden al',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 10.5,
+                                  fontWeight: AppFont.black,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

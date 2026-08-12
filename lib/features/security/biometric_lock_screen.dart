@@ -206,9 +206,13 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 14),
-                  child: Text('🔒', style: TextStyle(fontSize: 52)),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: Icon(
+                    Icons.lock_outline,
+                    size: 54,
+                    color: AppColors.text,
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),

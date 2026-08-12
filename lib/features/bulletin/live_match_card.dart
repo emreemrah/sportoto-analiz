@@ -264,9 +264,20 @@ class _LiveMatchCardState extends State<LiveMatchCard>
                                           size: 20,
                                         ),
                                         const SizedBox(width: 7),
+                                        // FAVORİ İŞARETİ VEKTÖR (kullanıcı
+                                        // isteği, 2026-08-12): ⭐ emojisiydi,
+                                        // rengi temayla değişmiyordu.
+                                        if (favSide == 'home') ...[
+                                          Icon(
+                                            Icons.star,
+                                            size: 13,
+                                            color: AppColors.gold,
+                                          ),
+                                          const SizedBox(width: 3),
+                                        ],
                                         Flexible(
                                           child: Text(
-                                            '${favSide == 'home' ? '⭐ ' : ''}$homeName',
+                                            homeName,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
@@ -350,7 +361,7 @@ class _LiveMatchCardState extends State<LiveMatchCard>
                                       children: [
                                         Flexible(
                                           child: Text(
-                                            '$awayName${favSide == 'away' ? ' ⭐' : ''}',
+                                            awayName,
                                             maxLines: 1,
                                             textAlign: TextAlign.right,
                                             overflow: TextOverflow.ellipsis,
@@ -361,6 +372,16 @@ class _LiveMatchCardState extends State<LiveMatchCard>
                                             ),
                                           ),
                                         ),
+                                        // Favori işareti — ev sahibindekinin
+                                        // aynası; yıldız isimden SONRA gelir.
+                                        if (favSide == 'away') ...[
+                                          const SizedBox(width: 3),
+                                          Icon(
+                                            Icons.star,
+                                            size: 13,
+                                            color: AppColors.gold,
+                                          ),
+                                        ],
                                         const SizedBox(width: 7),
                                         Logo(
                                           uri: crestOf(m, 'away'),

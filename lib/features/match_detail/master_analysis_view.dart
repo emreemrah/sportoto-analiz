@@ -143,7 +143,7 @@ class _MasterAnalysisViewState extends ConsumerState<MasterAnalysisView> {
             children: [
               const Flexible(child: _Baslik()),
               if (freezeStatus == 'sealed')
-                const _Chip(label: '🔏 Mühürlü', tone: AppColors.success)
+                const _Chip(label: 'Mühürlü', tone: AppColors.success)
               else
                 const _Chip(label: 'Canlı — kilitte mühürlenecek'),
             ],
@@ -451,7 +451,7 @@ class _Baslik extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-    '🧠 Master Analiz',
+    'Master Analiz',
     style: TextStyle(
       color: AppColors.text,
       fontSize: 16,

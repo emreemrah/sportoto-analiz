@@ -141,7 +141,7 @@ class _CouponShareScreenState extends State<CouponShareScreen> {
         SingleChildScrollView(
           padding: EdgeInsets.all(12),
           child: EmptyState(
-            icon: '🎟️',
+            icon: Icons.confirmation_number_outlined,
             title: 'Kupon bulunamadı',
             message: 'Paylaşılacak kupon yok.',
           ),
@@ -154,7 +154,7 @@ class _CouponShareScreenState extends State<CouponShareScreen> {
         SingleChildScrollView(
           padding: EdgeInsets.all(12),
           child: EmptyState(
-            icon: '🎟️',
+            icon: Icons.confirmation_number_outlined,
             title: 'Kupon boş',
             message: 'Bu kuponun kayıtlı seçimi yok.',
           ),
@@ -212,9 +212,7 @@ class _CouponShareScreenState extends State<CouponShareScreen> {
             _tutarSatiri(o),
             const SizedBox(height: SP.md),
             Dugme(
-              text: _busy
-                  ? 'Görsel hazırlanıyor…'
-                  : '📸 Kupon görselini paylaş',
+              text: _busy ? 'Görsel hazırlanıyor…' : 'Kupon görselini paylaş',
               onTap: _paylas,
               disabled: _busy,
               ana: true,

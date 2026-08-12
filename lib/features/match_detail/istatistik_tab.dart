@@ -180,28 +180,29 @@ class _IstatistikTabState extends State<IstatistikTab> {
     final h2h = s['h2h'] as Map?;
     if (h2h == null) return const SizedBox.shrink();
     return SectionCard(
-      title: '⚔️  Karşılıklı Maç Geçmişi',
+      title: 'Karşılıklı Maç Geçmişi',
+      icon: Icons.compare_arrows,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           H2hCell(
             n: h2h['homeWins'],
             label: '${widget.homeName} galibiyeti',
-            icon: '🔵',
+            icon: Icons.emoji_events_outlined,
             color: AppColors.primary,
           ),
           const SizedBox(width: 8),
           H2hCell(
             n: h2h['draws'],
             label: 'Beraberlik',
-            icon: '🤝',
+            icon: Icons.handshake_outlined,
             color: AppColors.gray,
           ),
           const SizedBox(width: 8),
           H2hCell(
             n: h2h['awayWins'],
             label: '${widget.awayName} galibiyeti',
-            icon: '🟠',
+            icon: Icons.flag_outlined,
             color: AppColors.orange,
           ),
         ],
@@ -217,7 +218,7 @@ class _IstatistikTabState extends State<IstatistikTab> {
     if (!dolu) return const SizedBox.shrink();
     return Accordion(
       title: 'Lig Tablosu',
-      icon: '📋',
+      icon: Icons.assignment_outlined,
       child: LeagueTableFull(
         table: t,
         homeId: ((s['home'] as Map?)?['standing'] as Map?)?['teamId'],
@@ -237,7 +238,7 @@ class _IstatistikTabState extends State<IstatistikTab> {
     }
     return Accordion(
       title: 'Kadrolar',
-      icon: '👥',
+      icon: Icons.groups_outlined,
       child: Column(
         children: [
           SquadSection(
@@ -270,7 +271,7 @@ class _IstatistikTabState extends State<IstatistikTab> {
     }
     return Accordion(
       title: 'Eksikler',
-      icon: '🚑',
+      icon: Icons.medical_services_outlined,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

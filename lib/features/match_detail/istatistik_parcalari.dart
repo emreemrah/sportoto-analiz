@@ -28,7 +28,10 @@ class H2hCell extends StatelessWidget {
 
   final Object? n;
   final String label;
-  final String icon;
+
+  /// VEKTÖR ikon, emoji DEĞİL (kullanıcı isteği, 2026-08-12): hücrenin sayısı
+  /// ve kenarlığı `color` ile boyanırken emoji ikon sabit renkte kalıyordu.
+  final IconData icon;
   final Color color;
 
   @override
@@ -43,7 +46,7 @@ class H2hCell extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(icon, style: const TextStyle(fontSize: 18)),
+          Icon(icon, size: 19, color: color),
           Text(
             '$n',
             style: TextStyle(

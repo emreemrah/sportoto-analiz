@@ -343,7 +343,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               )
             else if (_items.isEmpty)
               EmptyState(
-                icon: '🔕',
+                icon: Icons.notifications_off_outlined,
                 title: _firstRun ? 'Bildirimler açıldı' : 'Yeni bildirim yok',
                 message: _firstRun
                     ? 'Bundan sonra olan biteni burada göreceksin. Geçmişe dönük bildirim üretilmez.'
@@ -391,13 +391,19 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '🔔 Bildirimler',
-          style: TextStyle(
-            color: AppColors.onDark,
-            fontSize: 18,
-            fontWeight: AppFont.black,
-          ),
+        Row(
+          children: [
+            Icon(Icons.notifications_none, size: 19, color: AppColors.onDark),
+            const SizedBox(width: 7),
+            Text(
+              'Bildirimler',
+              style: TextStyle(
+                color: AppColors.onDark,
+                fontSize: 18,
+                fontWeight: AppFont.black,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 6),
         Text(
@@ -434,13 +440,23 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '📱 Telefon hatırlatması',
-                      style: TextStyle(
-                        color: AppColors.text,
-                        fontSize: 14,
-                        fontWeight: AppFont.black,
-                      ),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.phone_iphone,
+                          size: 16,
+                          color: AppColors.text,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Telefon hatırlatması',
+                          style: TextStyle(
+                            color: AppColors.text,
+                            fontSize: 14,
+                            fontWeight: AppFont.black,
+                          ),
+                        ),
+                      ],
                     ),
                     Padding(
                       padding: EdgeInsets.only(top: 3),
@@ -491,7 +507,12 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             ),
           if (_pushBilgi.isNotEmpty) _bilgi(_pushBilgi),
           if (destek && !acik && _ayarOner)
-            _altDugme('⚙️ Telefon bildirim ayarlarını aç', false, _ayarlaraGit),
+            _altDugme(
+              'Telefon bildirim ayarlarını aç',
+              false,
+              _ayarlaraGit,
+              ikon: Icons.settings_outlined,
+            ),
 
           // TEST BİLDİRİMİ — gerçek kanal, gerçek zamanlama, 1 dakika sonrası.
           // İçinde tahmin, seçim, skor, puan veya hesap bilgisi YOKTUR.
@@ -508,13 +529,26 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                     color: AppColors.primary,
                     borderRadius: AppRadius.mdR,
                   ),
-                  child: Text(
-                    _testMesgul ? 'Kuruluyor…' : '🔔 Test bildirimi gönder',
-                    style: TextStyle(
-                      color: AppColors.onPrimary,
-                      fontSize: 13,
-                      fontWeight: AppFont.black,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!_testMesgul) ...[
+                        Icon(
+                          Icons.notifications_active_outlined,
+                          size: 16,
+                          color: AppColors.onPrimary,
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Text(
+                        _testMesgul ? 'Kuruluyor…' : 'Test bildirimi gönder',
+                        style: TextStyle(
+                          color: AppColors.onPrimary,
+                          fontSize: 13,
+                          fontWeight: AppFont.black,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -538,21 +572,34 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '🧪 GELİŞTİRME — yayın sürümünde görünmez',
-                    style: TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 10.5,
-                      fontWeight: AppFont.black,
-                      letterSpacing: 0.4,
-                    ),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.science_outlined,
+                        size: 13,
+                        color: AppColors.muted,
+                      ),
+                      const SizedBox(width: 5),
+                      Flexible(
+                        child: Text(
+                          'GELİŞTİRME — yayın sürümünde görünmez',
+                          style: TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 10.5,
+                            fontWeight: AppFont.black,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   _altDugme(
                     _macTestMesgul
                         ? 'Kuruluyor…'
-                        : '⚽ Maç hatırlatmasını test et',
+                        : 'Maç hatırlatmasını test et',
                     _macTestMesgul,
                     _macTestiKur,
+                    ikon: Icons.sports_soccer,
                   ),
                   _not(
                     'Güncel bültendeki başlamamış gerçek bir maç için, üretimde kullanılan '
@@ -600,7 +647,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     ),
   );
 
-  Widget _altDugme(String metin, bool mesgul, VoidCallback onTap) => Opacity(
+  /// [ikon] AYRI PARAMETRE, metne gomulu emoji DEGIL (kullanici istegi,
+  /// 2026-08-12).
+  Widget _altDugme(
+    String metin,
+    bool mesgul,
+    VoidCallback onTap, {
+    IconData? ikon,
+  }) => Opacity(
     opacity: mesgul ? 0.6 : 1,
     child: GestureDetector(
       onTap: mesgul ? null : onTap,
@@ -614,13 +668,26 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           borderRadius: AppRadius.mdR,
           border: Border.all(color: AppColors.border),
         ),
-        child: Text(
-          metin,
-          style: TextStyle(
-            color: AppColors.text,
-            fontSize: 12.5,
-            fontWeight: AppFont.black,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (ikon != null) ...[
+              Icon(ikon, size: 15, color: AppColors.text),
+              const SizedBox(width: 6),
+            ],
+            Flexible(
+              child: Text(
+                metin,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 12.5,
+                  fontWeight: AppFont.black,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     ),

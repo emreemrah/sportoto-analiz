@@ -46,7 +46,7 @@ class SystemDashboardScreen extends StatelessWidget {
         // DEMO KAPALI (üretim): mock başarı ASLA gerçek karne yerine
         // gösterilmez.
         EmptyState(
-          icon: '🧪',
+          icon: Icons.science_outlined,
           title: 'Demo karne kapalı',
           message:
               'Bu ekran yalnız demo/geliştirme verisi gösterir ve üretimde kapalıdır. '
