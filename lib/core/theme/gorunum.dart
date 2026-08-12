@@ -19,6 +19,8 @@
 import 'package:flutter/foundation.dart';
 
 import '../prefs.dart';
+import 'takim_gorunumu.dart';
+import 'takim_paleti.dart';
 import 'tokens.dart';
 
 /// Kullanıcının görünüm tercihi. Kalıcıdır (`prefs` → `gorunumModu`).
@@ -26,13 +28,22 @@ enum GorunumModu {
   /// Cihazın kendi açık/koyu ayarını izler. VARSAYILAN.
   sistem,
   acik,
-  koyu;
+  koyu,
+
+  /// FAVORİ TAKIMIN renkleri uygulamanın genel temasına uygulanır
+  /// (kullanıcı isteği, 2026-08-12 ikinci tur). Yalnız BU modda takım rengi
+  /// yapısal yüzeylere çıkar; diğer üçünde takım yalnız arma, filigran ve
+  /// küçük profil ayrıntılarında kalır.
+  ///
+  /// Takım seçilmemişse bu mod VARSAYILAN AÇIĞA düşer (bkz. [gorunumuKur]).
+  takim;
 
   /// Tercih ekranında görünen ad.
   String get etiket => switch (this) {
     GorunumModu.sistem => 'Sistem ayarını kullan',
     GorunumModu.acik => 'Açık mod',
     GorunumModu.koyu => 'Koyu mod',
+    GorunumModu.takim => 'Takım teması',
   };
 
   /// `prefs`e yazılan değer. Enum adının kendisi KULLANILMAZ: karartma
@@ -43,11 +54,13 @@ enum GorunumModu {
     GorunumModu.sistem => 'sistem',
     GorunumModu.acik => 'acik',
     GorunumModu.koyu => 'koyu',
+    GorunumModu.takim => 'takim',
   };
 
   static GorunumModu cozumle(Object? v) => switch ('$v') {
     'acik' => GorunumModu.acik,
     'koyu' => GorunumModu.koyu,
+    'takim' => GorunumModu.takim,
     // Tanınmayan/eski değer sessizce varsayılana düşer — uydurma yok.
     _ => GorunumModu.sistem,
   };
@@ -82,7 +95,32 @@ Brightness etkinParlaklik(Brightness cihaz, [GorunumModu? modu]) =>
       GorunumModu.acik => Brightness.light,
       GorunumModu.koyu => Brightness.dark,
       GorunumModu.sistem => cihaz,
+      // Takım modunun parlaklığı PALETTEN gelir; palet burada yok, o yüzden
+      // takım seçilmemiş hâlin karşılığı olan VARSAYILAN AÇIK döner.
+      // Paletli doğru yol [gorunumuKur].
+      GorunumModu.takim => Brightness.light,
     };
+
+/// Takım teması SEÇİLEBİLİR mi? Favori takım yoksa/katalogda eşleşmiyorsa
+/// hayır — tercih ekranı seçeneği bu yüzden kapatır.
+bool takimTemasiKullanilabilir(TakimPaleti? palet) => palet != null;
+
+/// SEÇİLEN MOD + CİHAZ + FAVORİ TAKIM → görünümü kurar, `ThemeData` için
+/// kullanılacak parlaklığı döndürür. Uygulamanın TEK giriş noktası budur.
+///
+/// TAKIM SEÇİLMEMİŞSE 'takim' modu VARSAYILAN AÇIĞA düşer (kullanıcı
+/// isteği: "kullanıcı takım seçmemişse … varsayılan açık temaya dönsün").
+/// Tercih diskte 'takim' kalır: kullanıcı sonradan takım seçtiğinde ayarı
+/// yeniden yapmak zorunda kalmasın.
+Brightness gorunumuKur(GorunumModu modu, Brightness cihaz, TakimPaleti? palet) {
+  if (modu == GorunumModu.takim && palet != null) {
+    takimGorunumunuUygula(palet);
+    return takimParlakligi(palet);
+  }
+  final p = etkinParlaklik(cihaz, modu);
+  gorunumuUygula(p);
+  return p;
+}
 
 /// Yapısal `AppColors` alanlarını [p] parlaklığına göre yazar.
 ///

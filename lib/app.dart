@@ -365,19 +365,16 @@ class _MasterAnalizAppState extends State<MasterAnalizApp>
     builder: (context, modu, _) => _govde(modu),
   );
 
-  Widget _govde(GorunumModu modu) {
-    // GÖRÜNÜM ÖNCE UYGULANIR: `AppTheme` ve bütün ekranlar renkleri
-    // `AppColors`tan okur, dolayısıyla tema kurulmadan ÖNCE doğru paletin
-    // yazılmış olması gerekir. İdempotenttir ve `setState` tetiklemez.
-    final etkin = etkinParlaklik(
-      WidgetsBinding.instance.platformDispatcher.platformBrightness,
-      modu,
-    );
-    gorunumuUygula(etkin);
+  Brightness get _cihazParlakligi =>
+      WidgetsBinding.instance.platformDispatcher.platformBrightness;
 
+  Widget _govde(GorunumModu modu) {
     if (_kilitli) {
-      // Router YOK: yalnız kilit ekranı. Tema aynı kalır ki kilit kalkınca
-      // renk sıçraması olmasın.
+      // Router YOK: yalnız kilit ekranı. Burada favori takım paleti KULLANILMAZ
+      // — kilit, oturum açılmadan da görünebilir; takım modu da olsa kilit
+      // ekranı görünüm tercihinin açık/koyu karşılığını kullanır.
+      final etkin = etkinParlaklik(_cihazParlakligi, modu);
+      gorunumuUygula(etkin);
       return MaterialApp(
         title: kAppName,
         debugShowCheckedModeBanner: false,
@@ -388,14 +385,23 @@ class _MasterAnalizAppState extends State<MasterAnalizApp>
       );
     }
 
-    // FAVORİ TAKIM ARTIK YAPISAL RENKLERE KARIŞMAZ (kullanıcı isteği,
-    // 2026-08-12). Palet yalnız ağaca verilir; onu okuyan yerler kimlik
-    // alanlarıdır (profil, arma, filigran, küçük takım vurguları). Zemin,
-    // metin, kart ve navigasyon yukarıdaki `gorunumuUygula` ile belirlenir.
+    // GÖRÜNÜM BURADA KURULUR — palet gerektiği için auth'un İÇİNDE.
+    //
+    // 'takim' modunda tema favori takımın paletinden gelir, o palet de
+    // `auth.authState`ten okunur. Kullanıcı takımını değiştirdiğinde bu
+    // dinleyici zaten yeniden çalışır, yani TEMA DA KENDİLİĞİNDEN yeni
+    // takıma geçer (kullanıcı isteği).
+    //
+    // Diğer üç modda palet yalnız ağaca verilir; onu okuyan yerler kimlik
+    // alanlarıdır (profil, arma, filigran) — yapısal renklere karışmaz.
     return ValueListenableBuilder<auth.AuthState>(
       valueListenable: auth.authState,
       builder: (context, s, _) {
         final palet = favoriTakimPaleti(s);
+        // `AppTheme` ve bütün ekranlar renkleri `AppColors`tan okur; tema
+        // kurulmadan ÖNCE doğru paletin yazılmış olması gerekir.
+        // İdempotenttir ve `setState` tetiklemez.
+        final etkin = gorunumuKur(modu, _cihazParlakligi, palet);
 
         return MaterialApp.router(
           // Kaynakta `documentTitle` merkezî marka kaynağından besleniyordu;
@@ -435,7 +441,14 @@ class _MasterAnalizAppState extends State<MasterAnalizApp>
             // ve bilinçli eylemdir; yarısı eski temada kalan bir ekrandansa
             // sıfırlanan bir kaydırma tercih edilir.
             child: KeyedSubtree(
-              key: ValueKey('${etkin.name}|${palet?.takim ?? '_varsayilan'}'),
+              // MOD DA ANAHTARDA: 'açık' ile açık temalı bir takımın 'takım'
+              // modu AYNI parlaklığı verir; mod anahtarda olmasaydı ikisi
+              // arasında geçişte ağaç yeniden kurulmaz ve renkler eski
+              // kalırdı.
+              key: ValueKey(
+                '${modu.anahtar}|${etkin.name}|'
+                '${palet?.takim ?? '_varsayilan'}',
+              ),
               child: child ?? const SizedBox.shrink(),
             ),
           ),

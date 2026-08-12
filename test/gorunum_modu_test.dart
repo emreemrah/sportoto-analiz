@@ -15,6 +15,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:masteranaliz/core/prefs.dart';
 import 'package:masteranaliz/core/theme/gorunum.dart';
 import 'package:masteranaliz/core/theme/takim_paleti.dart';
+import 'package:masteranaliz/core/theme/takim_renkleri.dart';
+import 'package:masteranaliz/core/theme/takim_temasi.dart';
 import 'package:masteranaliz/core/theme/tokens.dart';
 import 'package:masteranaliz/features/profile/gorunum_secim_screen.dart';
 
@@ -213,10 +215,11 @@ void main() {
   group('Tercih ekranı', () {
     tearDown(() => gorunumModuAyarla(GorunumModu.sistem));
 
-    testWidgets('üç seçenek de görünür ve varsayılan SİSTEM işaretli', (
+    testWidgets('DÖRT seçenek de görünür ve varsayılan SİSTEM işaretli', (
       t,
     ) async {
       await t.pumpWidget(const MaterialApp(home: GorunumSecimScreen()));
+      expect(GorunumModu.values.length, 4);
       for (final m in GorunumModu.values) {
         expect(
           find.text(m.etiket),
@@ -225,6 +228,42 @@ void main() {
         );
       }
       expect(gorunumModu(), GorunumModu.sistem);
+    });
+
+    testWidgets('takım YOKSA "Takım teması" seçilemez ve NEDENİ yazar', (
+      t,
+    ) async {
+      // TakimTemasi sarmalayıcısı yok → favori takım yok.
+      await t.pumpWidget(const MaterialApp(home: GorunumSecimScreen()));
+      expect(
+        find.textContaining('önce profilinden favori'),
+        findsOneWidget,
+        reason: 'kapalı olma nedeni yazılmamış',
+      );
+
+      await t.tap(find.byKey(const Key('gorunum-takim')));
+      await t.pump();
+      expect(
+        gorunumModu(),
+        GorunumModu.sistem,
+        reason: 'takım yokken seçilebilmiş',
+      );
+    });
+
+    testWidgets('takım VARSA "Takım teması" seçilebilir', (t) async {
+      await t.pumpWidget(
+        MaterialApp(
+          home: TakimTemasi(
+            palet: takimPaletiBul('Galatasaray'),
+            child: const GorunumSecimScreen(),
+          ),
+        ),
+      );
+      expect(find.textContaining('önce profilinden favori'), findsNothing);
+
+      await t.tap(find.byKey(const Key('gorunum-takim')));
+      await t.pump();
+      expect(gorunumModu(), GorunumModu.takim);
     });
 
     testWidgets('seçim tercihe YAZILIR ve köke duyurulur', (t) async {
@@ -253,6 +292,117 @@ void main() {
       await t.tap(find.byKey(const Key('gorunum-sistem')));
       await t.pump();
       expect(sayac, 0);
+    });
+  });
+
+  group('Takım teması modu', () {
+    TakimPaleti gs() => takimPaletiBul('Galatasaray')!;
+
+    List<Color> yapisal() => [
+      AppColors.background,
+      AppColors.surface,
+      AppColors.primary,
+      AppColors.accent,
+      AppColors.text,
+      AppColors.border,
+      AppColors.heroZemin,
+    ];
+
+    test('takim anahtarı gidip geliyor', () {
+      expect(GorunumModu.cozumle('takim'), GorunumModu.takim);
+      expect(GorunumModu.takim.anahtar, 'takim');
+      expect(GorunumModu.takim.etiket, 'Takım teması');
+    });
+
+    test('TAKIM modunda yapısal renkler takımın paletine döner', () {
+      gorunumuKur(GorunumModu.acik, Brightness.light, gs());
+      final markaAcik = yapisal();
+
+      final p = gs();
+      gorunumuKur(GorunumModu.takim, Brightness.light, p);
+
+      expect(yapisal(), isNot(markaAcik), reason: 'tema değişmedi');
+      expect(AppColors.background, p.zemin);
+      expect(AppColors.surface, p.yuzey);
+      expect(AppColors.primary, p.secili);
+      expect(AppColors.accent, p.vurgu);
+    });
+
+    test('DİĞER üç modda takım rengi yapısala SIZMAZ', () {
+      final p = gs();
+      for (final (modu, cihaz) in [
+        (GorunumModu.acik, Brightness.light),
+        (GorunumModu.koyu, Brightness.light),
+        (GorunumModu.sistem, Brightness.dark),
+      ]) {
+        // Palet VERİLİYOR ama mod takım değil: yapısal renk paletten
+        // etkilenmemeli.
+        gorunumuKur(modu, cihaz, p);
+        expect(
+          AppColors.background,
+          isNot(p.zemin),
+          reason: '${modu.anahtar} modunda takım zemini sızdı',
+        );
+        expect(
+          AppColors.accent,
+          isNot(p.vurgu),
+          reason: '${modu.anahtar} modunda takım vurgusu sızdı',
+        );
+      }
+    });
+
+    test('TAKIM SEÇİLMEMİŞSE varsayılan AÇIĞA düşer', () {
+      final donen = gorunumuKur(GorunumModu.takim, Brightness.dark, null);
+      expect(donen, Brightness.light, reason: 'cihaz koyu olsa bile açık');
+      expect(AppColors.background, VarsayilanRenkler.background);
+      expect(AppColors.primary, VarsayilanRenkler.primary);
+    });
+
+    test('kullanılabilirlik favori takıma bağlı', () {
+      expect(takimTemasiKullanilabilir(null), isFalse);
+      expect(takimTemasiKullanilabilir(gs()), isTrue);
+    });
+
+    test('takım değişince tema YENİ takıma geçer', () {
+      final g = takimPaletiBul('Galatasaray')!;
+      gorunumuKur(GorunumModu.takim, Brightness.light, g);
+      final gsZemin = AppColors.background;
+
+      final f = takimPaletiBul('Fenerbahçe')!;
+      gorunumuKur(GorunumModu.takim, Brightness.light, f);
+
+      expect(AppColors.background, isNot(gsZemin));
+      expect(AppColors.background, f.zemin);
+    });
+
+    test('dört örnek takımda yazı düştüğü her zeminde AA geçer', () {
+      final dusenler = <String>[];
+      for (final ad in [
+        'BVB 09 Borussia Dortmund',
+        'Fenerbahçe',
+        'Galatasaray',
+        'Beşiktaş',
+      ]) {
+        gorunumuKur(GorunumModu.takim, Brightness.light, takimPaletiBul(ad));
+        for (final c in _ciftler()) {
+          final o = kontrastOrani(c.yazi, c.zemin);
+          if (o < kAaEsigi) {
+            dusenler.add('$ad ${c.ad}=${o.toStringAsFixed(2)}');
+          }
+        }
+        // Koyu panel zeminden ayrışmalı.
+        if (kontrastOrani(AppColors.darkCard, AppColors.background) <= 1.05) {
+          dusenler.add('$ad koyu panel zeminle aynı');
+        }
+      }
+      expect(dusenler, isEmpty, reason: dusenler.join(' · '));
+    });
+
+    test('anlamsal renkler takım modunda da sabit', () {
+      gorunumuKur(GorunumModu.takim, Brightness.light, gs());
+      expect(AppColors.danger, const Color(0xFFDC2626));
+      expect(AppColors.success, const Color(0xFF16A34A));
+      expect(AppColors.live, const Color(0xFFE21B2D));
     });
   });
 
