@@ -488,7 +488,13 @@ class _CouponEditorScreenState extends ConsumerState<CouponEditorScreen> {
                   size: 18,
                 ),
                 const SizedBox(width: 5),
-                Expanded(
+                // DEPLASMAN ARMASI METNE BİTİŞİK (kullanıcı isteği,
+                // 2026-08-14): burada `Expanded` vardı ve kalan boşluğu metne
+                // verip armayı satırın en sağ ucuna itiyordu — arma kendi
+                // takımının adından kopuk, tek başına duruyordu. `Flexible`
+                // metne yalnız ihtiyacı kadar yer verir; arma adın hemen
+                // ardında kalır. Uzun isimler yine üç noktayla kısalır.
+                Flexible(
                   child: Text(
                     '${home?['mediumName'] ?? home?['name'] ?? ''} – '
                     '${away?['mediumName'] ?? away?['name'] ?? ''}',
