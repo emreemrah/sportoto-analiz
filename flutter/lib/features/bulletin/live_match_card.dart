@@ -493,6 +493,19 @@ class _LiveMatchCardState extends State<LiveMatchCard>
     );
   }
 
+  /// ALT SATIR ÇİPİ (kullanıcı isteği, 2026-08-14): "Sen …" ve "Sistem …"
+  /// düz yazıydı, ikisi tek bir gri satır gibi okunuyordu. Yumuşak zeminli
+  /// kutu ikisini ayrıştırır; içerik ve renkler AYNEN korunur.
+  Widget _cip(Widget cocuk) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+    decoration: BoxDecoration(
+      color: AppColors.surfaceSoft,
+      borderRadius: AppRadius.pillR,
+      border: Border.all(color: AppColors.border),
+    ),
+    child: cocuk,
+  );
+
   Widget _durumRozeti(_Meta meta) {
     final rozet = Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -587,56 +600,58 @@ class _LiveMatchCardState extends State<LiveMatchCard>
       ),
     );
 
+    final senBolumu = RichText(
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      text: TextSpan(
+        style: isaretli,
+        children: [
+          TextSpan(text: 'Sen ', style: label),
+          TextSpan(
+            text: p.user.sym == null ? 'Kupon yok' : yaz(p.user.sym),
+            style: TextStyle(
+              color: AppColors.textSoft,
+              fontWeight: AppFont.bold,
+            ),
+          ),
+          if (uMark != Isaret.pending && kIsaretMetni[uMark]!.isNotEmpty)
+            TextSpan(text: ' ${kIsaretMetni[uMark]}'),
+          if (st == MacDurum.postponed)
+            TextSpan(
+              text: '  · Ertelendi',
+              style: TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 11,
+                fontWeight: AppFont.bold,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+        ],
+      ),
+    );
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Flexible(
-          child: RichText(
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            text: TextSpan(
-              style: isaretli,
-              children: [
-                TextSpan(text: 'Sen ', style: label),
-                TextSpan(
-                  text: p.user.sym == null ? 'Kupon yok' : yaz(p.user.sym),
-                  style: TextStyle(
-                    color: AppColors.textSoft,
-                    fontWeight: AppFont.bold,
-                  ),
-                ),
-                if (uMark != Isaret.pending && kIsaretMetni[uMark]!.isNotEmpty)
-                  TextSpan(text: ' ${kIsaretMetni[uMark]}'),
-                if (st == MacDurum.postponed)
-                  TextSpan(
-                    text: '  · Ertelendi',
-                    style: TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 11,
-                      fontWeight: AppFont.bold,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: Spacing.md),
+        Flexible(child: _cip(senBolumu)),
+        const SizedBox(width: Spacing.sm),
         // Değişim varsa satır DOKUNULABİLİR: ayrıntı alttan açılır.
         if (eski != null)
-          Semantics(
-            button: true,
-            label:
-                'Sistem tahmini ${yaz(eski)} iken $sysSym oldu — '
-                'ayrıntı için dokun',
-            child: GestureDetector(
-              onTap: () => _degisimPenceresi(eski, p.system.sym),
-              behavior: HitTestBehavior.opaque,
-              child: sistemBolumu,
+          Flexible(
+            child: Semantics(
+              button: true,
+              label:
+                  'Sistem tahmini ${yaz(eski)} iken $sysSym oldu — '
+                  'ayrıntı için dokun',
+              child: GestureDetector(
+                onTap: () => _degisimPenceresi(eski, p.system.sym),
+                behavior: HitTestBehavior.opaque,
+                child: _cip(sistemBolumu),
+              ),
             ),
           )
         else
-          sistemBolumu,
+          Flexible(child: _cip(sistemBolumu)),
       ],
     );
   }
