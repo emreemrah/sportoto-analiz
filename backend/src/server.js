@@ -539,6 +539,34 @@ app.get('/api/history/:roundId', async (req, res) => {
           }
         }
       } catch { /* arşiv okunamazsa görüntü eski davranışında kalır */ }
+      // LİG ADI TAMAMLAMA (16 Ağustos 2026) — arşivden, UYDURMADAN.
+      //
+      // Resmî Spor Toto geçmiş bülteni lig adını çoğu maç için genel bir
+      // metinle döner ("2026/2027 Sezonu"). Bu metinden ülke çıkarılamadığı
+      // için uygulamada o maçların yanında bayrak çizilemiyordu. Aynı haftanın
+      // MÜHÜRLÜ arşiv kaydında lig adı yayın anındaki gerçek hâliyle duruyor
+      // ("Turkey Süper Lig"), çünkü kayıt bülten yayındayken zenginleştirilmiş
+      // veriden alınmıştı.
+      //
+      // Kural bozulmaz: arşive buradan hiçbir şey YAZILMAZ, yalnız okunur; ad
+      // ancak SIRA NUMARASI VE EV SAHİBİ ADI TUTUYORSA taşınır (yanlış haftanın
+      // kaydı ya da sıra kayması olursa hiçbir şey değişmez); eşleşme yoksa
+      // resmî ad olduğu gibi kalır.
+      try {
+        const arsivMaclar = (await getArchiveStore().getSnapshot(String(roundId)))
+          ?.payload?.matches || [];
+        const ligler = new Map(
+          arsivMaclar
+            .filter((m) => m && m.league && m.no != null)
+            .map((m) => [m.no, { league: m.league, home: m.home?.name }]),
+        );
+        for (const mm of bulletin.matches) {
+          const kayit = ligler.get(mm.no);
+          if (!kayit) continue;
+          if (kayit.home && mm.home?.name && kayit.home !== mm.home.name) continue;
+          mm.league = kayit.league;
+        }
+      } catch { /* arşiv yoksa lig adı resmî hâliyle kalır */ }
       const resolvedCount = bulletin.matches
         .filter((m) => (m.result && m.score) || m.viaNotary).length;
       payload = {

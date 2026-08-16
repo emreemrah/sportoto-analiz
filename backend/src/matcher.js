@@ -51,6 +51,12 @@ const ALIASES = {
   agfaarhus: ['aarhusgymnastikforening', 'agf'],
   hamkam: ['hamarkameratene'],
   ob: ['odense'],                            // OB = Odense BK (bk eki normalizasyonda düşer)
+  // TÜRKÇE KULÜP ADI (exonim) ↔ kaynağın resmî adı. Bülten "Marsilya" yazar,
+  // kaynak "Olympique de Marseille" — hiçbir metin katmanı bunu bağlayamaz.
+  // DOĞRULAMA (16 Ağustos 2026): arma defterinde id 443 kaydı var ve arması
+  // "france-olympique-de-marseille.png"; yani çift KAYNAK verisinden okundu,
+  // tahmin değil. Kural sürüyor: doğrulanmamış exonim buraya eklenmez.
+  marsilya: ['olympiquedemarseille', 'olympiquemarseille'],
 };
 
 // Bir bülten takımının tüm ad varyantlarını (normalize) döndürür:

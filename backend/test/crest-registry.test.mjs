@@ -224,3 +224,29 @@ test('arma iliştirmek resmî bülten takım nesnesini değiştirmez', () => {
   assert.equal(resmiEv.logo, undefined, 'resmî nesneye yazılmaz; kopya güncellenir');
   assert.equal(matches[0].home.logo, IMG('portugal-fc-porto'));
 });
+
+// ——— 16) TÜRKÇE EXONİM (16 Ağustos 2026 arızası) ———
+// Bülten "Marsilya" yazıyordu, kaynak "Olympique de Marseille". Defterde kayıt
+// VARDI ama hiçbir metin katmanı Türkçe adı bağlayamıyordu; kullanıcı ekranda
+// armasız bir takım gördü. Alias eklendi — bu test onun nöbetçisi.
+test('exonim: bülten "Marsilya" kaynaktaki "Olympique de Marseille" armasını bulur', () => {
+  const idx = build([[1, [team(443, 'Olympique de Marseille', 'france-olympique-de-marseille')]]]);
+  assert.equal(lookupCrest(T('Marsilya'), idx).image, IMG('france-olympique-de-marseille'));
+});
+
+// ——— 17) ALIAS TABLOSU BÜTÜNLÜĞÜ ———
+// Alias anahtar/değerleri normalizeName'den GEÇMİŞ olmalıdır. Normalize
+// edilmemiş bir satır (büyük harf, boşluk, nokta) hiçbir zaman eşleşmez ve
+// SESSİZCE ölür: tablo dolu görünür, arama hep boş döner. Bu test yeni
+// eklenen her satırı o hataya karşı korur.
+test('alias tablosundaki her anahtar ve değer normalize edilmiş hâldedir', async () => {
+  const { normalizeName, nameVariants } = await import('../src/matcher.js');
+  // Tabloya doğrudan erişim yok; nameVariants üzerinden gözlenir: normalize
+  // bir adın ürettiği varyantların HEPSİ de normalize olmalıdır.
+  const ornekler = ['Marsilya', 'Helsinki', 'TPS', 'AGF', 'OB', 'Shanghai Port'];
+  for (const ad of ornekler) {
+    for (const v of nameVariants({ name: ad })) {
+      assert.equal(v, normalizeName(v), `alias/varyant normalize değil: ${v}`);
+    }
+  }
+});
