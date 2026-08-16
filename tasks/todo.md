@@ -474,3 +474,148 @@ alanları düşürülür. `/public-percentage-history` de maskelendi
 - Backend: **1077 test, 0 hata** (2 yeni).
 - `tasks/lessons.md`'ye beş kurallık ders yazıldı (mutasyon kanıtı zorunlu,
   kuralı ekran ekran değil tarama ile koru, bekçi dar olmalı, kontrast ölçülür).
+
+---
+
+# 16 Ağustos 2026 — Mühürlü haftada oynanma yüzdesi ve oran görünmüyordu
+
+**Belirti (kullanıcı):** 2. Hafta'da Radar 5'te oynanma yüzdesi ve oran
+seçenekleri var; 1. Hafta geçmiş bültene dönünce bu seçenekler kayboluyor.
+Geçmiş haftada da görünmesi lazım.
+
+## Ölçüm — gizleme gereksizdi
+Çipler veri eksikliğinden değil, 10 Ağustos kararıyla gizleniyordu
+(`if (!muhurluHafta)`; backend `/position-dna` mühürlü haftada
+`filtre.uygulanmadi: true` döner). Gerekçe geçerliydi: yakınlık süzgeci CANLI
+yeniden hesap demektir ve mühürlü değerin sonradan değişmiş gibi görünmesine
+yol açar.
+
+Ama ölçüm gösterdi ki DEĞERLERİN KENDİSİ mühürlü hafta için zaten arşivde:
+- `/api/radar/daily-odds?roundId=1528` → **hasData: true**, gerçek oranlar
+  (1.21 / 6.75 / 11.5 …)
+- `/api/radar/daily-played?roundId=1528` → **hasData: true**
+- `matches[].radars.publicBetting.details.playedDna` → açılış + mühür anı
+- `matches[].radars.market.details` → oran hareketi, 50 gözlem
+(2. Hafta'da oran verisi henüz YOK; yani geçmiş hafta bu konuda daha zengin.)
+
+Bunları yazmak yeniden hesap değildir — mühür bozulmaz.
+
+## Düzeltme — GÖRÜNÜM MODU ≠ FİLTRE
+- `radar_screen.dart`: `oranModu = _dnaFiltreMod == 'oran' && (filtreAktif ||
+  muhurluHafta)`. `filtreAktif` mühürlü haftada FALSE kalmaya devam ediyor;
+  yani süzgeç isteği hâlâ gitmiyor, yalnız hangi birimin yazılacağı seçiliyor.
+  Çipin seçili görünmesi için `filtreMod` da aynı koşula bağlandı.
+- `radar_memory.dart`: mod çipleri mühürlü haftada da çiziliyor; yakınlık ve
+  maç penceresi satırları (filtreye ait) YİNE çizilmiyor. Sebep kullanıcıya
+  açıkça yazılıyor: "Mühürlü hafta — hafta donduğu andaki oranlar
+  gösteriliyor. Yakınlık süzgeci mühürlü haftada çalışmaz…"
+
+## Testler
+Eski test ("MÜHÜRLÜ haftada mod çipleri GÖSTERİLMEZ") kararın değiştiği
+gerekçesiyle güncellendi ve İKİYE ayrıldı:
+1. mühürlü haftada mod çipleri GÖRÜNÜR (görünüm seçici olarak),
+2. mod seçilince yakınlık/pencere ÇIKMAZ ve sebebi yazılır.
+Böylece yeni davranış da, korunan mühür kuralı da teste bağlı.
+
+**Doğrulama:** `flutter analyze lib test` temiz · **752 test**. Emülatörde
+mühürlü 1. Hafta'da "Oran" seçildi: `1 1.27 · X 5.50 · 2 9.50`,
+`1 3.51 · X 3.80 · 2 1.77`, `1 2.44 · X 3.13 · 2 2.85` — gerçek mühürlü
+oranlar geldi, yakınlık satırları çıkmadı.
+
+## Devam — yakınlık kırılımları da MÜHÜRLENİYOR (16 Ağustos 2026)
+**İstek:** "Birebir ve Tümü filtresi neden yok?" → geçmiş haftada da çalışsın.
+
+**Neden yoktu:** mühür SÜZGEÇSİZ tek değer taşıyordu; yakınlık kırılımının
+mühürde karşılığı yoktu. Canlı hesaplamak mühür ilkesini bozardı.
+
+**Çözüm — süzgeci canlıya açmak DEĞİL, mühre yazmak:**
+- `snapshotService.buildRadar5FiltreleriSnapshot`: donma anında 7 kombinasyon
+  (oynanma 0/3/5/10 + oran 0/0.02/0.03) hesaplanıp `radar5.filtreler`e yazılır.
+  Maç penceresi AYRI kombinasyon değildir — pencereler tek yanıtın
+  `dna.positions[].windows` alanında birlikte gelir. Boyut ≈ 76 KB.
+- **TEK TANIM:** hesap, uçtaki `hesaplaSiraDnasi` ile AYNI fonksiyondur. Bunun
+  için hesap uçtan ayrıldı (dosya içi taşıma) ve snapshotService onu DİNAMİK
+  import ile çağırır (statik döngü yok). İkinci bir tanım yazılsaydı mühürdeki
+  sayı ile canlı sayı zamanla ayrışırdı.
+- `/position-dna` mühürlü haftada: kırılım mühürde varsa okunur ve
+  `uygulanmadi: false` döner (yeniden hesap DEĞİL); yoksa süzgeçsiz mühürlü
+  değere düşer. Yanıt ayrıca `muhurluFiltreler` listesini taşır.
+- İstemci: İSTEK ile UYGULANDI ayrıldı. Süzgeç mühürlü haftada da gönderilir;
+  ekran neyin uygulandığını YANITTAN öğrenir. Yakınlık çipleri yalnız MÜHÜRDE
+  KAYITLI adımlar için çizilir — olmayan adım sunulmaz.
+
+**GEÇMİŞE DÖNÜK ÇALIŞMAZ:** 1528 zaten mühürlü ve mühür değişmez. Alan ilk kez
+21 Ağustos'ta 2. Hafta mühürlenince dolacak. O zamana kadar ekran eski
+davranışta kalır ve sebebini yazar.
+
+**PERFORMANS (ölçüldü):** ilk uygulamada 7 kombinasyon süzgeçten bağımsız ağır
+işi 7 kez yapıyordu — backend test paketi 10 sn → **99 sn**. Süzgeçten bağımsız
+taban (geçmiş arşiv, filtresiz DNA, combined) ve mod indeksleri paylaştırıldı:
+paket **21 sn**, mühür başına maliyet 8,5 sn → **1,8 sn**. Taban anahtarında
+`sig` var: yeni resmî sonuç geldiğinde taban da tazelenir (bayat hesap yok).
+
+**Testler:** backend 1081 (yeni: mühürden okuma, mühürde olmayan seçim
+uydurulmaz, filtresiz istek, gerçek freeze yolunda kırılım üretimi + hash) ·
+Flutter 753 (yeni: mühürde kayıtlı adımlar çip olur, olmayan olmaz).
+
+## Ek bulgu — mühürlü Radar 5 BOŞ mühürlenmiş (16 Ağustos 2026)
+**Belirti (kullanıcı):** "Kilitli haftada hâlâ birebir ve tümü seçenekleri
+görünmüyor." Beklenen davranıştı (1528 bu değişiklikten önce mühürlendi), ama
+araştırınca ALTINDA GERÇEK BİR HATA çıktı.
+
+**Ölçüm:** `/api/radar/position-dna?roundId=1528` → mühürdeki
+`dna.totalMatches` **0**. Aynı kesimle (`cutRoundId: 1528`,
+`cutFreezeAt: 2026-08-14T18:25`) canlı hesap **45 maç** veriyor.
+
+**Kök neden — aynı şeyin iki tanımı:** `buildRadar5Snapshot` DNA'yı yalnız
+statik geçmiş dosyasından (`getHistoryStore().listAllMatches()`) hesaplıyordu.
+Canlı uç ise buna arşivdeki TAMAMLANMIŞ haftaları (`archivePositionMatches`)
+ekliyor ve `eskiHaftalariAt` kesimini uyguluyor. 1. Hafta mühürlenirken geçmiş
+arşiv henüz içeri alınmamıştı; statik dosya boş olduğu için Radar 5 BOŞ
+mühürlendi. Ekranda görünen "Geçmiş N. sıra" yüzdeleri başka bir mühürlü
+alandan (`matches[].radars.bulletinMemory`) geliyor — o yüzden hata bugüne dek
+görünmedi.
+
+**Düzeltme:** `buildRadar5Snapshot` artık filtresiz DNA'yı da
+`hesaplaSiraDnasi` ile üretiyor — mühür ve canlı uç TEK kaynak kümesi. Yan
+kazanç: filtresiz çağrı süzgeçten bağımsız tabanı ısıttığı için 7 kombinasyon
+ucuzladı (backend paketi 21 sn → **13,7 sn**).
+
+**Test:** mühürdeki `radar5.cut` artık `archiveMatches`/`historyMatches`
+alanlarını taşır; eski yerel hesapta bu alanlar YOKTU, dolayısıyla alanın
+varlığı mührün uçla aynı fonksiyondan beslendiğinin yapısal kanıtıdır.
+
+**1. HAFTA İÇİN NEDEN YİNE ÇALIŞMAYACAK:** mühür değişmez. O haftanın kaydı
+boş mühürlenmiş durumda ve bugün yeniden hesaplamak mühürdekiyle çelişen bir
+tablo (0 yerine 45) gösterirdi. İlk doğru mühür 21 Ağustos'ta 2. Hafta ile
+atılacak; süzgeç kırılımları da o mühürden itibaren gerçek veriyle dolacak.
+
+## TÜREV GÖRÜNÜM — mühürlü haftada süzgeç artık çalışıyor (16 Ağustos 2026)
+**Kullanıcı tıkanması:** "1. Hafta canlıyken oynanma yüzdesi · birebir · tüm maç
+süzgeciyle bir tablo gördüm; şimdi tuttu mu diye bakıp bir sonraki haftanın
+analizini ona göre yapacaktım, yapamıyorum."
+
+Önceki cevabım ("mühür değişmez, 21 Ağustos'u bekle") DAR kalmıştı: mühre
+YAZMAK gerçekten imkânsız, ama kullanıcının ihtiyacı noter kaydı değil
+ÇÖZÜMLEMEYDİ. İkisi ayrılabilir.
+
+**Çözüm:** mühürde kırılım yoksa süzgeç, MÜHRÜN KENDİ KESİMİYLE (o haftanın
+donma anından öncesi) hesaplanır ve TÜREV olarak işaretlenir.
+- Kesim mühürden geldiği için sonraki haftalar biriktikçe tablo BÜYÜMEZ
+  (`historyLearningFilter` + `beforeRoundId`).
+- Mühürlü kayda DOKUNULMAZ — test bunu snapshot'ı okuyarak doğruluyor.
+- Yanıt `turev: true`, `filtre.muhurlu: false` der; ekran "TÜREV GÖRÜNÜM — bu
+  sayılar mühürde yok… mühürlü kayıt değişmedi" yazar. Kaynak gizlenmez.
+- Filtresiz görünüm hâlâ MÜHÜRDEN gelir (`turev: false`) — noter kaydı ile
+  çözümleme aynı ekranda ama ayrı ayrı etiketli.
+
+**Emülatörde doğrulandı (1. Hafta, mühürlü):** Yakınlık [Birebir] ±3 ±5 ±10 ve
+[Tümü] Son 5/10/15 maç satırları geldi; "Oynanması bilinen geçmiş maç: 45/45 ·
+süzgeci geçen: 2" ve TÜREV uyarısı görünüyor.
+
+**Testler:** backend 1083 → (e) türev olur + mühür dokunulmaz, (g2) mühürde
+olmayan seçim türev, (g4) mühürde olan seçim türev DEĞİL. Flutter 754 →
+türev modda satırlar gelir ve mühürlü olmadığı yazılır.
+
+**Not:** bugünkü değişiklikler canlı hafta akışını DEĞİŞTİRMEDİ; mühürlü
+haftada da hiçbir şey kaldırılmadı, yalnız eklendi.
