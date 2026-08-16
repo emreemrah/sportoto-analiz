@@ -899,3 +899,39 @@ yüzey ya da yazı). Statik olarak "bu öğe zeminde mi?" demek güvenilir deği
 bu yüzden tarama yerine ekran ekran ölçüm sürüyor. Şu ana kadar bu sınıftan
 **5 kusur** bulundu (BULGU 17, 19, 20, 21 + geçmiş hafta başlığındaki görünmez
 düğme).
+
+### 🟢 BULGU 22 — Hafta okları kırmızı kartın içinde eriyordu (kullanıcı isteği · DÜZELTİLDİ)
+Hafta kartı kırmızıya alınınca ‹ › yuvarlaklarının tonu kartın kırmızısına çok
+yaklaştı ve düğmeler kartın içinde kayboldu. İki ekranda da (bülten başlığı ve
+Haftalık Başarı hafta seçici) yuvarlaklara **sarı (`primary`) çerçeve**
+eklendi. Kanıt: `t20_oklar.png`.
+
+### 🔴 BULGU 23 — ARAYÜZDE BAHİS SİTESİ ADI: "İDDAA.COM" (KARAR KULLANICIYA AİT)
+
+`t20_oklar.png` · geçmiş hafta (53. Hafta) · İkramiye bölümü · "Açıklamalar":
+
+> 15 BİLEN İŞTİRAKÇİLERİMİZ 40 TL KUPON BEDELİ KARŞILIĞINDA SANAL BAYİMİZDEN
+> VE 800 TL KUPON KARŞILIĞINDA **İDDAA.COM** ÜZERİNDEN İKRAMİYE
+> KAZANMIŞLARDIR.
+
+**Kaynak ölçüldü:** `/api/history/1527` → `prize.description`. Metin RESMÎ
+Spor Toto açıklamasıdır, uçtan birebir gelir; uygulama kendi cümlesini
+kurmuyor.
+
+**Neden bulgu:** CLAUDE.md "kullanıcı arayüzünde marka adı yok" diyor
+(yasal/mağaza kısıtı) ve bugün API'deki gizli marka sızıntılarını (BULGU 15)
+tam bu gerekçeyle kapattık. Burada marka EKRANDA, üstelik bir BAHİS SİTESİ.
+
+**Neden kendiliğimden düzeltmedim:** iki proje kuralı burada çatışıyor —
+"marka gösterme" ile "resmî sonucu olduğu gibi göster". Resmî bir açıklamanın
+içinden kelime silmek, resmî metni DEĞİŞTİRMEK olur; bu da kendi başına bir
+dürüstlük sorunudur. Seçenekler:
+
+| # | Yaklaşım | Bedeli |
+|---|---|---|
+| a | Olduğu gibi bırak | Mağaza/yasal risk sürer |
+| b | Yalnız marka jetonunu maskele ("… resmî satış kanalı üzerinden") | Resmî metin değiştirilmiş olur |
+| c | `description` alanını hiç gösterme | Resmî bilgi kaybı |
+| d | Alanı "Spor Toto açıklaması" diye ATIFLA göster | Marka yine görünür ama alıntı olduğu belli |
+
+Ölçüm ve seçenekler kullanıcıya sunuldu; karar bekleniyor.

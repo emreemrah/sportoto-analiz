@@ -880,8 +880,14 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
             height: 40,
             alignment: Alignment.center,
             decoration: BoxDecoration(
+              // OK YUVARLAĞI KENDİ KARTINDAN AYRILIR (kullanıcı isteği,
+              // 16 Ağustos 2026). Başlık paneli kırmızı olduğu için `cardAlt`
+              // yuvarlak kartın kırmızısına çok yaklaşıyor ve düğme kartın
+              // içinde eriyip kayboluyordu. Sarı (`primary`) çerçeve sınırı
+              // belirginler.
               color: AppColors.cardAlt,
               shape: BoxShape.circle,
+              border: Border.all(color: AppColors.primary, width: 1.5),
             ),
             child: Text(
               arrow,

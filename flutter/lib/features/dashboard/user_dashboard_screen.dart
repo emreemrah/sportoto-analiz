@@ -471,8 +471,13 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               height: 40,
               alignment: Alignment.center,
               decoration: BoxDecoration(
+                // OK YUVARLAĞI KENDİ KARTINDAN AYRILIR (kullanıcı isteği,
+                // 16 Ağustos 2026). Hafta kartı kırmızıya alınınca yuvarlağın
+                // tonu kartın kırmızısına çok yaklaştı ve düğme kartın içinde
+                // eriyip kayboldu. Sarı (`primary`) çerçeve sınırı belirginler.
                 color: AppColors.darkCardSoft,
                 shape: BoxShape.circle,
+                border: Border.all(color: AppColors.primary, width: 1.5),
               ),
               child: Text(
                 isaret,
