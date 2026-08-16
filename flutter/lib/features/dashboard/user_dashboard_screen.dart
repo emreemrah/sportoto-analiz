@@ -23,7 +23,7 @@ import '../../core/live_logic.dart';
 import '../../core/network/api_client.dart';
 import '../../core/prefs.dart';
 import '../../core/services/muhurlu_sistem.dart';
-import '../../core/theme/takim_paleti.dart' show ayrisanYuzey, okunurMetin;
+import '../../core/theme/takim_paleti.dart' show okunurMetin;
 import '../../core/theme/tokens.dart';
 import '../../core/utils.dart';
 import '../../widgets/score_legend.dart';
@@ -410,14 +410,15 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
   ) => Container(
     padding: const EdgeInsets.all(Spacing.sm),
     decoration: BoxDecoration(
-      // YÜZEY ZEMİNDEN AYRIŞMALI (16 Ağustos 2026, kullanıcı bulgusu).
+      // KART KIRMIZI, YAZI SARI (kullanici karari, 16 Agustos 2026).
       //
-      // Kart düz `primary` ile boyanıyordu. Takım temasının "birinci renk"
-      // modunda SAYFA ZEMİNİ de primary'dir; ikisi aynı renge düşünce kart
-      // görünmez oluyor ve "1. Hafta" yazısı boşlukta duruyor gibi çıkıyordu.
-      // `ayrisanYuzey` hue'yu korur, yalnız zeminden ayrışacak kadar ton iter.
-      color: _haftaYuzeyi,
+      // Once duz `primary` vardi; "birinci renk" modunda sayfa zemini de
+      // primary oldugu icin kart tamamen gorunmez oluyordu. Ara denemeler
+      // (zeminden ayrisan ton, zemin dolgusu + kirmizi yazi) begenilmedi.
+      // Karar: ekranin geri kalanindaki kart dili — kart yuzeyi + cizgi.
+      color: AppColors.card,
       borderRadius: BorderRadius.circular(AppRadius.lg),
+      border: Border.all(color: AppColors.border),
       boxShadow: AppShadow.card,
     ),
     child: Row(
@@ -431,8 +432,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               Text(
                 '${selMeta?['name'] ?? '—'}',
                 style: TextStyle(
-                  // Yazı, yüzeyin SON hâlinden türetilir; yüzey ton değiştirdi.
-                  color: okunurMetin(_haftaYuzeyi),
+                  color: AppColors.text,
                   fontSize: 17,
                   fontWeight: AppFont.black,
                 ),
@@ -442,7 +442,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                 child: Text(
                   '${selMeta?['year'] ?? ''} Sezonu',
                   style: TextStyle(
-                    color: okunurMetin(_haftaYuzeyi).withValues(alpha: 0.75),
+                    color: AppColors.textSoft,
                     fontSize: 11,
                     fontWeight: AppFont.bold,
                   ),
@@ -534,37 +534,37 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     ),
   );
 
-  /// Hafta seçici ve SEÇİLİ sekme yüzeyi — sayfa zemininden ayrışmış primary.
+  /// Sekme çipi.
   ///
-  /// Düz `primary` kullanılamaz: takım temasının "birinci renk" modunda sayfa
-  /// zemini de primary'dir, ikisi aynı renge düşer ve yüzey görünmez olur
-  /// (kullanıcı bulgusu, 16 Ağustos 2026). Tek yerde çözülür ki seçici ile
-  /// sekme aynı tonu paylaşsın.
-  static Color get _haftaYuzeyi =>
-      ayrisanYuzey(AppColors.primary, AppColors.background);
-
-  Widget _cip(String etiket, {required bool secili, VoidCallback? onTap}) {
-    final yuzey = secili ? _haftaYuzeyi : AppColors.card;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: yuzey,
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          border: Border.all(color: secili ? yuzey : AppColors.border),
-        ),
-        child: Text(
-          etiket,
-          style: TextStyle(
-            color: secili ? okunurMetin(yuzey) : AppColors.textSoft,
-            fontSize: 12,
-            fontWeight: AppFont.heavy,
+  /// SEÇİLİ çip, hafta seçicisiyle AYNI dili kullanır (kullanıcı kararı,
+  /// 16 Ağustos 2026): dolgu sayfa zemini, kenar ÇİZGİ, yazı TAKIM RENGİ
+  /// (zemin metni = ikincil ton). Eskiden düz `primary` ile doluyordu ve
+  /// "birinci renk" modunda zeminle aynı renge düşüp görünmez oluyordu.
+  /// Seçili olmayan çip kart dolgusunda kalır — ayrım dolgu/çizgi zıtlığından
+  /// gelir, ikisi de görünürdür.
+  Widget _cip(String etiket, {required bool secili, VoidCallback? onTap}) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(
+              color: secili ? AppColors.primary : AppColors.border,
+              width: secili ? 1.5 : 1,
+            ),
+          ),
+          child: Text(
+            etiket,
+            style: TextStyle(
+              color: secili ? AppColors.primary : AppColors.textSoft,
+              fontSize: 12,
+              fontWeight: AppFont.heavy,
+            ),
           ),
         ),
-      ),
-    );
-  }
+      );
 
   /// Seçili haftanın SİSTEM karne kaydı — Genel Özet ve Hafta Hafta ile AYNI
   /// MERKEZÎ hesap (backend: mühürlü TEKLİ ana tahmin × resmî 1/X/2; ikisi de

@@ -457,7 +457,9 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
   }
 
   /// Geçmiş hafta gövdesi — kaynaktaki `body` dallarının geçmiş kısmı.
+
   Widget _gecmisGovde({
+    // GEÇMİŞ HAFTA BAŞLIK PANELİ — bkz. `_gecmisBaslikPaneli`.
     required Widget header,
     required HistoryState hist,
     required int? effectiveId,
@@ -469,7 +471,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
     if (hist.loading) {
       return Column(
         children: [
-          header,
+          UstPanel(child: header),
           Expanded(
             child: _Center(
               child: Column(
@@ -495,7 +497,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
     if (hist.error != null) {
       return Column(
         children: [
-          header,
+          UstPanel(child: header),
           Expanded(
             child: _Center(
               child: EmptyState(
@@ -549,7 +551,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
       },
       child: CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(child: header),
+          SliverToBoxAdapter(child: UstPanel(child: header)),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(
               Spacing.md,
@@ -688,6 +690,14 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
     required MatchDateParts? verifiedAt,
     required Map? archive,
   }) {
+    // GECMIS HAFTA BASLIGI DA PANELIN ICINDE (kullanici karari, 16 Agustos).
+    //
+    // Gecmis haftada baslik PANELSIZ basiliyordu: sari zeminde kartsiz
+    // kaliyor, kart icin turetilmis yazilar soluyor ve "Guncel Bultene Don"
+    // dugmesi (dolgu/cerceve/yazi hepsi primary) zeminle ayni renge dusup
+    // TAMAMEN GORUNMEZ oluyordu. Artik iki hafta da ayni UstPanel icinde:
+    // KART KIRMIZI, YAZI SARI. Yuzey tek oldugu icin renkler dallanmaz;
+    // kart ailesi (text / textMuted / primary) yeterlidir.
     return Container(
       padding: const EdgeInsets.symmetric(
         vertical: Spacing.md,

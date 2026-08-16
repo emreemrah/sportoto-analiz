@@ -109,39 +109,32 @@ void yuzeyTestleri() {
       }
     });
 
-    test('ZEMİNDE duran iki yüzey ayrışan tonu kullanır', () {
-      // Kural DAR tutulur: `primary` bir KART üstünde yüzey olarak meşrudur
-      // (orada zeminden farklıdır) ve yazı rengi olarak da kullanılır.
-      // Yasak olan yalnız SAYFA ZEMİNİNDE duran yüzeyin düz primary olması.
+    test('hafta karti ve secili sekme KART yuzeyinde, gorunur', () {
+      // KULLANICI KARARI (16 Agustos 2026): "kart kirmizi olacak, yazi sari".
+      // Onceki iki deneme reddedildi: (a) zeminden ayrisan amber dolgu,
+      // (b) zemin dolgusu + kirmizi yazi. Yasak olan tek sey, ZEMINDE duran
+      // yuzeyin duz `primary` olmasi — o zaman kart tamamen gorunmez olur.
       final src = File(
         'lib/features/dashboard/user_dashboard_screen.dart',
       ).readAsStringSync();
 
-      // 1) Hafta seçici kartı
       final i = src.indexOf('padding: const EdgeInsets.all(Spacing.sm)');
-      expect(i, greaterThan(-1), reason: 'hafta seçici bulunamadı');
-      expect(
-        src.substring(i, i + 800).contains('color: _haftaYuzeyi'),
-        isTrue,
-        reason: 'hafta seçici yine düz primary ile boyanıyor',
-      );
+      expect(i, greaterThan(-1), reason: 'hafta secici bulunamadi');
+      final govde = src.substring(i, i + 1400);
+      expect(govde.contains('color: AppColors.card'), isTrue,
+          reason: 'hafta karti kart yuzeyinde olmali');
+      expect(RegExp(r'color: AppColors.primary,').hasMatch(govde), isFalse,
+          reason: 'zeminde duz primary yuzey kart gorunmez yapar');
 
-      // 2) Seçili sekme çipi
       final c = src.indexOf('Widget _cip(');
-      expect(c, greaterThan(-1));
-      final cipGovde = src.substring(c, c + 700);
-      expect(
-        cipGovde.contains('secili ? _haftaYuzeyi'),
-        isTrue,
-        reason: 'seçili sekme yine düz primary ile boyanıyor',
-      );
+      final cip = src.substring(c, c + 800);
+      expect(cip.contains('secili ? AppColors.primary : AppColors.border'), isTrue,
+          reason: 'secili sekme sari cerceveyle ayrilmali');
+      expect(cip.contains('secili ? AppColors.primary : AppColors.textSoft'), isTrue,
+          reason: 'secili sekme yazisi sari olmali');
 
-      // 3) Ayrışan yüzey TEK yerde tanımlı
-      expect(
-        RegExp(r'_haftaYuzeyi\s*=>').allMatches(src).length,
-        1,
-        reason: 'ikinci bir yüzey tanımı eklenmiş',
-      );
+      expect(src.contains('_haftaYuzeyi'), isFalse,
+          reason: 'begenilmeyen ayrisan-ton cozumu hala duruyor');
     });
   });
 }
