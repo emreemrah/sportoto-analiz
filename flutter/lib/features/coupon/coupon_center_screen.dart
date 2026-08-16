@@ -33,6 +33,7 @@ import '../../core/coupon/coupon_eval.dart';
 import '../../core/coupon/coupon_store.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/tokens.dart';
+import '../../widgets/hafta_oku.dart';
 import '../../widgets/app_ui.dart';
 import '../../widgets/ust_panel.dart';
 import '../../widgets/takim_logo_zemin.dart';
@@ -196,7 +197,7 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
                   padding: const EdgeInsets.all(Spacing.md),
                   child: Row(
                     children: [
-                      _okDugme('‹', canPrev, () {
+                      HaftaOku(ileri: false, acik: canPrev, etiket: 'Önceki hafta', onTap: () {
                         setState(
                           () => _selectedId =
                               (navRounds[selIdx - 1] as Map)['id'],
@@ -228,7 +229,7 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
                           ],
                         ),
                       ),
-                      _okDugme('›', canNext, () {
+                      HaftaOku(ileri: true, acik: canNext, etiket: 'Sonraki hafta', onTap: () {
                         setState(
                           () => _selectedId =
                               (navRounds[selIdx + 1] as Map)['id'],
@@ -675,30 +676,6 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
   void _uyar(String m) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
 
-  Widget _okDugme(String ok, bool acik, VoidCallback onTap) => Opacity(
-    opacity: acik ? 1 : 0.3,
-    child: GestureDetector(
-      onTap: acik ? onTap : null,
-      child: Container(
-        width: 36,
-        height: 36,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: AppColors.cardAlt,
-          shape: BoxShape.circle,
-        ),
-        child: Text(
-          ok,
-          style: TextStyle(
-            color: AppColors.text,
-            fontSize: 20,
-            fontWeight: AppFont.black,
-            height: 1,
-          ),
-        ),
-      ),
-    ),
-  );
 
   /// Ekran düğmesi — SAYFA ZEMİNİ üstünde durur.
   ///

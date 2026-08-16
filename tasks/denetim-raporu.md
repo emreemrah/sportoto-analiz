@@ -935,3 +935,35 @@ dürüstlük sorunudur. Seçenekler:
 | d | Alanı "Spor Toto açıklaması" diye ATIFLA göster | Marka yine görünür ama alıntı olduğu belli |
 
 Ölçüm ve seçenekler kullanıcıya sunuldu; karar bekleniyor.
+
+### 🟢 BULGU 24 — Hafta okları DÖRT ayrı yerde yazılmıştı (kullanıcı isteği · DÜZELTİLDİ)
+"Her yerdekini aynı yapacaksın" isteği üzerine tarandı. Aynı işi yapan hafta
+gezinme oku **dört ayrı ekranda ayrı ayrı** yazılmış, üstelik farklı boyut ve
+farklı renk tokenleriyle:
+
+| ekran | boyut | dolgu | yazı |
+|---|---|---|---|
+| Bülten başlığı | 40 px | `cardAlt` | `text` |
+| Haftalık Başarı | 40 px | `darkCardSoft` | `onDark` |
+| Kupon Merkezi | **36 px** | `cardAlt` | `text` |
+| Hafta Kapanışı | 40 px | (kendi tanımı) | — |
+
+Dördü de ÇERÇEVESİZDİ; kartlar kırmızıya alınınca yuvarlağın tonu kartın
+kırmızısına yaklaşıp düğmeler kartın içinde eridi.
+
+**Düzeltme:** `widgets/hafta_oku.dart` — TEK bileşen. Sarı (`primary`) çerçeve,
+tek boyut, tek renk ailesi. Dört ekrandaki yerel tanımlar SİLİNDİ.
+
+**Koruma:** `hafta_oku_test.dart` (5 test) — "Önceki/Sonraki hafta" etiketini
+kullanan hiçbir ekranın kendi yuvarlağını çizmediği ve hepsinin ortak bileşeni
+çağırdığı taranıyor; ayrıca çerçevenin varlığı, ileri/geri işareti ve kapalı
+okun dokunmayı yutmadığı doğrulanıyor.
+
+**Tarama düzeltmesi:** ilk yazdığım tarama "dosyada yuvarlak + ok karakteri
+var mı" diye bakıyordu ve üç masum dosyayı işaretledi (satır sonu şevronu ve
+aç/kapa işareti de `›` kullanıyor). İmza "Önceki/Sonraki hafta" etiketine
+daraltıldı — o sırada DÖRDÜNCÜ ok (Hafta Kapanışı) da ortaya çıktı; kaba
+tarama olmasa gözden kaçacaktı.
+
+Kanıt: `t21_kupon_ok.png` (açık tema) · `t22_kupon_tema.png` (takım teması).
+**803 test** geçiyor.

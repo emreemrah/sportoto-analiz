@@ -31,6 +31,7 @@ import '../../core/utils.dart';
 import '../../widgets/app_ui.dart';
 import '../../widgets/states.dart' show HazirlaniyorState, sunucuHazirlaniyor;
 import '../../widgets/score_legend.dart';
+import '../../widgets/hafta_oku.dart';
 import '../../widgets/ust_panel.dart';
 import '../../widgets/snapshot_seal_banner.dart';
 import 'bulletin_format.dart';
@@ -711,7 +712,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
         children: [
           Row(
             children: [
-              _navBtn('‹', canPrev, 'Önceki hafta', () {
+              HaftaOku(ileri: false, acik: canPrev, etiket: 'Önceki hafta', onTap: () {
                 ref.read(selectedRoundIdProvider.notifier).state =
                     (navRounds[selIdx - 1] as Map)['id'] as int;
               }),
@@ -797,7 +798,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                   ),
                 ),
               ),
-              _navBtn('›', canNext, 'Sonraki hafta', () {
+              HaftaOku(ileri: true, acik: canNext, etiket: 'Sonraki hafta', onTap: () {
                 ref.read(selectedRoundIdProvider.notifier).state =
                     (navRounds[selIdx + 1] as Map)['id'] as int;
               }),
@@ -867,42 +868,6 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
     );
   }
 
-  Widget _navBtn(String arrow, bool enabled, String label, VoidCallback onTap) {
-    return Opacity(
-      opacity: enabled ? 1 : 0.3,
-      child: Semantics(
-        button: true,
-        label: label,
-        child: GestureDetector(
-          onTap: enabled ? onTap : null,
-          child: Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              // OK YUVARLAĞI KENDİ KARTINDAN AYRILIR (kullanıcı isteği,
-              // 16 Ağustos 2026). Başlık paneli kırmızı olduğu için `cardAlt`
-              // yuvarlak kartın kırmızısına çok yaklaşıyor ve düğme kartın
-              // içinde eriyip kayboluyordu. Sarı (`primary`) çerçeve sınırı
-              // belirginler.
-              color: AppColors.cardAlt,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.primary, width: 1.5),
-            ),
-            child: Text(
-              arrow,
-              style: TextStyle(
-                color: AppColors.text,
-                fontSize: 24,
-                fontWeight: AppFont.black,
-                height: 26 / 24,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   /// SEZON SEÇİMİ — resmî listedeki gibi açılır liste. Sezon seçilince o
   /// sezonun EN YENİ haftasına gidilir. Tek sezon varsa liste açılmaz.

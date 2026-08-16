@@ -19,6 +19,7 @@ import '../../core/services/muhurlu_sistem.dart';
 import '../../core/theme/takim_paleti.dart' show kimlikTonu;
 import '../../core/theme/tokens.dart';
 import '../../core/week_recap.dart';
+import '../../widgets/hafta_oku.dart';
 import '../../widgets/states.dart';
 
 // DİL STANDARDI (2026-08-11, kullanıcı isteği): bu ekran kullanıcıyı
@@ -413,7 +414,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
     padding: const EdgeInsets.only(bottom: Spacing.md),
     child: Row(
       children: [
-        _ok('‹', canPrev, 'Önceki hafta', () {
+        HaftaOku(ileri: false, acik: canPrev, etiket: 'Önceki hafta', onTap: () {
           setState(() => _roundId = (all[selIdx - 1] as Map)['id']);
           _haftaYukle();
         }),
@@ -439,7 +440,7 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
             ],
           ),
         ),
-        _ok('›', canNext, 'Sonraki hafta', () {
+        HaftaOku(ileri: true, acik: canNext, etiket: 'Sonraki hafta', onTap: () {
           setState(() => _roundId = (all[selIdx + 1] as Map)['id']);
           _haftaYukle();
         }),
@@ -447,35 +448,6 @@ class _WeekRecapScreenState extends State<WeekRecapScreen> {
     ),
   );
 
-  Widget _ok(String isaret, bool acik, String etiket, VoidCallback onTap) =>
-      Opacity(
-        opacity: acik ? 1 : 0.35,
-        child: Semantics(
-          button: true,
-          label: etiket,
-          child: GestureDetector(
-            onTap: acik ? onTap : null,
-            child: Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Text(
-                isaret,
-                style: TextStyle(
-                  color: AppColors.text,
-                  fontSize: 20,
-                  fontWeight: AppFont.black,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
 
   /// Başlık cümlesi — SİSTEM sayısı KARNEDEN söylenir (tek ölçü kararı,
   /// 2026-08-11). Saf modülün recapHeadline'ı kupon düellosunu anlatıyordu;

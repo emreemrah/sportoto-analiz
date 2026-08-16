@@ -26,6 +26,7 @@ import '../../core/services/muhurlu_sistem.dart';
 import '../../core/theme/takim_paleti.dart' show okunurMetin;
 import '../../core/theme/tokens.dart';
 import '../../core/utils.dart';
+import '../../widgets/hafta_oku.dart';
 import '../../widgets/score_legend.dart';
 import '../../widgets/states.dart';
 
@@ -423,7 +424,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     ),
     child: Row(
       children: [
-        _ok('‹', canPrev, 'Önceki hafta', () {
+        HaftaOku(ileri: false, acik: canPrev, etiket: 'Önceki hafta', onTap: () {
           _haftaSec((all[selIdx - 1] as Map)['id']);
         }),
         Expanded(
@@ -451,47 +452,13 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
             ],
           ),
         ),
-        _ok('›', canNext, 'Sonraki hafta', () {
+        HaftaOku(ileri: true, acik: canNext, etiket: 'Sonraki hafta', onTap: () {
           _haftaSec((all[selIdx + 1] as Map)['id']);
         }),
       ],
     ),
   );
 
-  Widget _ok(String isaret, bool acik, String etiket, VoidCallback onTap) =>
-      Opacity(
-        opacity: acik ? 1 : 0.3,
-        child: Semantics(
-          button: true,
-          label: etiket,
-          child: GestureDetector(
-            onTap: acik ? onTap : null,
-            child: Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                // OK YUVARLAĞI KENDİ KARTINDAN AYRILIR (kullanıcı isteği,
-                // 16 Ağustos 2026). Hafta kartı kırmızıya alınınca yuvarlağın
-                // tonu kartın kırmızısına çok yaklaştı ve düğme kartın içinde
-                // eriyip kayboldu. Sarı (`primary`) çerçeve sınırı belirginler.
-                color: AppColors.darkCardSoft,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary, width: 1.5),
-              ),
-              child: Text(
-                isaret,
-                style: TextStyle(
-                  color: AppColors.onDark,
-                  fontSize: 24,
-                  height: 26 / 24,
-                  fontWeight: AppFont.black,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
 
   /// Tamamlanma durumu — hafta gezmenin hemen altında tek satır.
   Widget _durumSatiri(_Hafta week) => Container(
