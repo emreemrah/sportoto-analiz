@@ -15,7 +15,12 @@ import '../core/theme/tokens.dart';
 import '../core/utils.dart';
 import 'info_ipucu.dart';
 
-String? _remainingText(int ms) {
+/// Kalan süreyi insan ölçeğinde yazar: "5 gün 8 sa", "3 sa 12 dk", "45 dk 09 sn".
+///
+/// TEK TANIM — Radar da bunu kullanır. Radar eskiden ham dakika basıyordu
+/// ("Mühürlenmeye 7538 dk kaldı."); aynı süre bültende "5 gün 8 sa" yazıyordu.
+/// İki ayrı yazım aynı anı iki farklı ölçekte gösteriyordu.
+String? kalanSureMetni(int ms) {
   if (ms <= 0) return null;
   final s = ms ~/ 1000;
   final d = s ~/ 86400;
@@ -158,7 +163,7 @@ class _SnapshotSealBannerState extends State<SnapshotSealBanner> {
     final freezeAt = _freezeAt;
     if (freezeAt != null) {
       final d = matchDate(archive['freezeAt'] as String);
-      final left = _remainingText(freezeAt.difference(_now).inMilliseconds);
+      final left = kalanSureMetni(freezeAt.difference(_now).inMilliseconds);
       final gaps = archive['dataGaps'] as List?;
 
       return Column(

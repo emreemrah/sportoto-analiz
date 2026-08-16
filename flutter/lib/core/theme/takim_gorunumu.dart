@@ -132,6 +132,11 @@ void takimGorunumunuUygula(TakimPaleti p) {
   AppColors.warningSoft = _anlamsalYuzey(AppColors.warning, p.yuzey);
   AppColors.dangerSoft = _anlamsalYuzey(AppColors.danger, p.yuzey);
   AppColors.infoSoft = _anlamsalYuzey(AppColors.info, p.yuzey);
+  // Yüzeyler kesinleşti; üstlerindeki YAZI tonları da buradan türetilir.
+  // `_anlamsalYuzey` zemini zaten anlamsal rengi okutacak şekilde seçiyor,
+  // ama tek doğruluk kaynağı olsun diye hesap iki yolda da AYNI yerden
+  // (gorunum.dart) yapılır — ikinci bir tanım zamanla ayrışırdı.
+  AppColors.anlamsalYazilariTazele();
 }
 
 /// Anlamsal yumuşak yüzey: [anlamsal] rengin HUE'su, [kart]ın parlaklık

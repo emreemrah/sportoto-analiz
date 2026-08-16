@@ -18,7 +18,7 @@ import '../../core/security/biometric_lock.dart';
 import '../../core/theme/takim_paleti.dart' show kimlikTonu;
 import '../../core/theme/tokens.dart';
 import '../../widgets/screen_backdrop.dart';
-import 'auth_screens.dart' show PasswordField;
+import 'auth_screens.dart' show PasswordField, girdiSusu;
 
 const Map<String, String> _eventLabels = {
   'login_success': '✅ Giriş yapıldı',
@@ -239,29 +239,15 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
                   style: TextStyle(color: AppColors.text, fontSize: 15),
-                  decoration: InputDecoration(
-                    hintText: 'yeni@ornek.com',
-                    hintStyle: TextStyle(color: AppColors.textMuted),
-                    filled: true,
-                    fillColor: AppColors.cardAlt,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      borderSide: BorderSide(color: AppColors.border),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      borderSide: BorderSide(color: AppColors.border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      borderSide: BorderSide(color: AppColors.border),
-                    ),
-                  ),
+                  // ORTAK GİRDİ SÜSÜ (16 Ağustos 2026 düzeltmesi).
+                  //
+                  // Burada kendi kopya `InputDecoration`ı vardı ve dolgusu
+                  // `cardAlt` idi; aynı ekrandaki iki şifre alanı ise ortak
+                  // `girdiSusu` ile `card` dolguluydu. Takım temasında
+                  // `cardAlt` parlak kırmızıya döndüğü için üç kutudan biri
+                  // başka bir bileşenmiş gibi duruyordu. Kopya kaldırıldı:
+                  // artık üçü de TEK tanımdan besleniyor.
+                  decoration: girdiSusu('yeni@ornek.com'),
                 ),
                 const SizedBox(height: Spacing.md),
                 PasswordField(

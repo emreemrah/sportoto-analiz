@@ -291,21 +291,35 @@ class SurpriseBadge extends StatelessWidget {
     required this.label,
     this.labelColor,
     this.small = false,
+    this.zeminde = false,
   });
 
   final Object? label;
   final String? labelColor;
   final bool small;
 
+  /// Rozet SAYFA ZEMİNİNDE mi duruyor (kart içinde değil)?
+  ///
+  /// Dolgusu %13 saydam olduğu için okunurluğu ARKASINDAKİ yüzey belirler:
+  /// maç detayında zemin, radar kartında kart. Yanlış yüzeye göre tonlanınca
+  /// rozet soluk kalıyordu (ölçüm: Galatasaray sarısı üstünde kart türevi
+  /// gri). Varsayılan `false` — çağrıların çoğu kart içindedir.
+  final bool zeminde;
+
   @override
   Widget build(BuildContext context) {
-    final c = switch (labelColor) {
+    final ham = switch (labelColor) {
       'green' => LabelColors.green,
       'yellow' => LabelColors.yellow,
       'red' => LabelColors.red,
       'gray' => LabelColors.gray,
       _ => AppColors.gray,
     };
+    // Durduğu yüzeye göre okunur tona itilir; hue korunur.
+    final c = AppColors.anlamsalTon(
+      ham,
+      zeminde ? AppColors.background : AppColors.card,
+    );
 
     return Container(
       padding: small

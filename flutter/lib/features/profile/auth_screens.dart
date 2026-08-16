@@ -46,14 +46,14 @@ class _Field extends StatelessWidget {
           autocorrect: false,
           textCapitalization: TextCapitalization.none,
           style: TextStyle(color: AppColors.text, fontSize: 15),
-          decoration: _girdiSusu(placeholder),
+          decoration: girdiSusu(placeholder),
         ),
       ],
     ),
   );
 }
 
-InputDecoration _girdiSusu(String? placeholder) => InputDecoration(
+InputDecoration girdiSusu(String? placeholder) => InputDecoration(
   hintText: placeholder,
   hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 15),
   filled: true,
@@ -127,7 +127,7 @@ class _PasswordFieldState extends State<PasswordField> {
                   textCapitalization: TextCapitalization.none,
                   onChanged: (_) => setState(() {}),
                   style: TextStyle(color: AppColors.text, fontSize: 15),
-                  decoration: _girdiSusu(
+                  decoration: girdiSusu(
                     widget.placeholder ?? 'en az $kMinPasswordLength karakter',
                   ),
                 ),

@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../core/network/api_client.dart' show ApiException;
 import '../core/theme/tokens.dart';
 
 /// Sürekli dönen futbol topu — spinner yerine.
@@ -224,3 +225,97 @@ class ErrorState extends StatelessWidget {
     ),
   );
 }
+
+/// SUNUCU HAZIRLANIYOR — hata DEĞİL, bekleme durumu (16 Ağustos 2026).
+///
+/// NEDEN AYRI BİR DURUM: barındırma planı boşta kalınca servisi uyutuyor.
+/// Uyanan servis bülteni hazırlayana kadar `/api/bulletin` **503** ve
+/// gövdesinde "Veri henüz hazır değil" dönüyor. Ölçüldü (iki ayrı gözlem):
+/// toparlanma **61 sn** ve ~90 sn. Bu pencerede ekran genel hata kartı
+/// gösteriyordu ("Bir şeyler ters gitti" + ham DioException metni) — oysa
+/// ters giden bir şey yok, veri hazırlanıyor. Kullanıcı bunu arıza sanıyordu.
+///
+/// DÜRÜSTLÜK: sunucunun KENDİ söylediği şey yazılır; "birazdan gelecek" diye
+/// söz verilmez, tahmini süre "genelde" diye verilir. Veri varmış gibi
+/// gösterilmez — sayı uydurulmaz.
+class HazirlaniyorState extends StatelessWidget {
+  // `const` DEĞİL — tema çalışma zamanında değişiyor (bkz. diğer durumlar).
+  // ignore: prefer_const_constructors_in_immutables
+  HazirlaniyorState({super.key, this.onRetry, this.otomatikYenileme = true});
+
+  final VoidCallback? onRetry;
+
+  /// Ekran kendiliğinden tekrar deniyorsa kullanıcıya söylenir — boşuna
+  /// beklemesin ya da gereksiz yere düğmeye basmasın.
+  final bool otomatikYenileme;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(Spacing.xxl),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          BallLoader(size: 44),
+          const SizedBox(height: Spacing.lg),
+          Text(
+            'Sunucu uyanıyor',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: AppFont.heavy,
+              color: AppColors.text,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            otomatikYenileme
+                ? 'Bülten hazırlanıyor — genelde bir dakika sürer. '
+                      'Ekran kendiliğinden yenilenecek, bir şey yapmana '
+                      'gerek yok.'
+                : 'Bülten hazırlanıyor — genelde bir dakika sürer.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12.5,
+              height: 1.4,
+              color: AppColors.textMuted,
+            ),
+          ),
+          if (onRetry != null) ...[
+            const SizedBox(height: Spacing.lg),
+            GestureDetector(
+              onTap: onRetry,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 9,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: AppRadius.smR,
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text(
+                  'Şimdi dene',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 13,
+                    fontWeight: AppFont.heavy,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
+/// Hata, "sunucu henüz hazır değil" durumu mu?
+///
+/// Backend bu durumda **503** + gövdede kendi açıklaması ile yanıtlar
+/// (`server.js`: "Veri henüz hazır değil, birkaç saniye sonra tekrar dene").
+/// Başka hiçbir 5xx bu şekilde yorumlanmaz — gerçek arıza gizlenmez.
+bool sunucuHazirlaniyor(Object? hata) =>
+    hata is ApiException && hata.status == 503;

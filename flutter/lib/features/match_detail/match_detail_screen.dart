@@ -407,6 +407,9 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
             child: SurpriseBadge(
               label: a['label'],
               labelColor: a['labelColor'] as String?,
+              // KART DEĞİL, SAYFA ZEMİNİ: rozet kartların arasında,
+              // doğrudan zeminin üstünde duruyor.
+              zeminde: true,
             ),
           ),
         ),

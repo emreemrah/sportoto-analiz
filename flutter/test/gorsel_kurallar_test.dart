@@ -112,6 +112,29 @@ void main() {
     });
   });
 
+  group('Girdi alanları tek görünüm', () {
+    // 16 Ağustos 2026: Güvenlik Ayarları'nda üç girdiden biri farklı dolguyla
+    // (`cardAlt`) çiziliyordu ve takım temasında başka bir bileşen gibi
+    // duruyordu. İkinci bir aykırı da `premium_code` idi (`surfaceSoft`).
+    // Kural: girdi dolgusu uygulama genelinde `AppColors.card`.
+    test('TextField dolgusu her yerde AppColors.card', () {
+      final hatali = <String>[];
+      for (final f in _kaynaklar()) {
+        final kod = _yorumsuz(f.readAsStringSync());
+        for (final m in RegExp(r'fillColor:\s*([A-Za-z.]+)').allMatches(kod)) {
+          if (m.group(1) != 'AppColors.card') {
+            hatali.add('${_yol(f)} → ${m.group(1)}');
+          }
+        }
+      }
+      expect(
+        hatali,
+        isEmpty,
+        reason: 'Girdi dolgusu tek olmalı; ortak `girdiSusu` kullanın.',
+      );
+    });
+  });
+
   group('Rozet yüzeyleri her görünümde karttan ayrışır', () {
     // 16 Ağustos 2026: rozetler ham `*Soft` değerlerini kullanıyordu ve koyu
     // görünümde "2. Hafta" rozeti kartın içinde kayboluyordu (kontrast 1.11).

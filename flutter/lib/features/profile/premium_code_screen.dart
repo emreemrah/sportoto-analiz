@@ -215,7 +215,11 @@ class _PremiumCodeScreenState extends State<PremiumCodeScreen> {
                       hintText: 'ÖRNEK: A7K2M9P4XR',
                       hintStyle: TextStyle(color: AppColors.textMuted),
                       filled: true,
-                      fillColor: AppColors.surfaceSoft,
+                      // Girdi dolgusu uygulama genelinde `card` (16 Ağustos
+                      // 2026). Bu alan sayaç gizleme ve dar yarıçap gibi kendi
+                      // gereksinimlerini korur; yalnız dolgu kalıba çekildi ki
+                      // ekranlar arasında iki farklı girdi görünümü kalmasın.
+                      fillColor: AppColors.card,
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12,

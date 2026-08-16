@@ -94,6 +94,10 @@ Future<void> prefsYukle() async {
   } finally {
     _diskYuklendi = true;
     _duyur();
+    // Disk gelmeden yapılan seçimler bekletiliyordu; artık güvenle yazılır
+    // (blob diskteki değerlerle BİRLEŞMİŞ hâlde). Bekleyen seçim yoksa
+    // gereksiz yazma yapılmaz.
+    if (_degistirilenler.isNotEmpty) _diskeYaz();
   }
 }
 
@@ -108,8 +112,28 @@ void setPref(String k, Object? v) {
   _cache = {..._cache, k: v};
   _degistirilenler[k] = v;
   _duyur();
-  // Yazma eşzamansızdır ve hatası akışı BOZMAZ — bir tercihin kaydedilememesi,
-  // ekranın çökmesinden iyidir.
+  // DİSK GELMEDEN YAZILMAZ (16 Ağustos 2026 — ölçülen veri kaybı).
+  //
+  // Tüm tercihler TEK JSON blob'unda tutuluyor ve `setPref` blob'un TAMAMINI
+  // yazıyor. Açılışta disk henüz yüklenmemişken `_cache` yalnız
+  // VARSAYILANLARDIR; o anda herhangi bir tercih yazılırsa (bir liste
+  // sıralaması, takip edilen maç, kupon ayarı…) diskteki KAYITLI TERCİHLERİN
+  // HEPSİ varsayılanlarla ezilirdi.
+  //
+  // Gerçekte yaşandı: kullanıcı takım temasını seçti, sonraki bir açılışta
+  // `gorunumModu` diskte 'sistem'e döndü ve uygulama varsayılan açık temada
+  // açıldı. Yükleme tarafında ters yön zaten korunuyordu (`_degistirilenler`
+  // geç gelen diskin taze seçimi ezmesini engelliyor); eksik olan bu yöndü.
+  //
+  // Değişiklik bellekte ve `_degistirilenler`de DURUR; disk yüklenince
+  // `prefsYukle` onları birleştirip yazar. Yani hiçbir seçim kaybolmaz.
+  if (!_diskYuklendi) return;
+  _diskeYaz();
+}
+
+/// Belleği diske yazar. Eşzamansızdır ve hatası akışı BOZMAZ — bir tercihin
+/// kaydedilememesi, ekranın çökmesinden iyidir.
+void _diskeYaz() {
   () async {
     try {
       final sp = await SharedPreferences.getInstance();

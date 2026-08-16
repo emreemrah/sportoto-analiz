@@ -31,6 +31,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/takim_paleti.dart';
 import '../../core/theme/tokens.dart';
+import '../../widgets/snapshot_seal_banner.dart';
 import '../../widgets/ust_panel.dart';
 import '../../widgets/app_ui.dart';
 import 'hafta_secici.dart';
@@ -698,8 +699,14 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
             '🔏 Mühürlü radar — bu haftanın kaydı değiştirilemez.',
             AppColors.success,
           )
+        // SÜRE İNSAN ÖLÇEĞİNDE (16 Ağustos 2026): ham dakika basılıyordu ve
+        // beş günlük süre "7538 dk" görünüyordu; aynı an bültende "5 gün 8 sa"
+        // yazıyordu. Biçim TEK YERDEN (`kalanSureMetni`) gelir.
         else if (freezeMinutes(meta, DateTime.now()) case final dk?)
-          _serit('🔒 Mühürlenmeye $dk dk kaldı.', AppColors.warning),
+          _serit(
+            '🔒 Mühürlenmeye ${kalanSureMetni(dk * 60000) ?? '$dk dk'} kaldı.',
+            AppColors.warning,
+          ),
 
         // Filtre çipleri
         Wrap(

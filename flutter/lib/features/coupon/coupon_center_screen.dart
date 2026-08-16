@@ -433,12 +433,14 @@ class _CouponCenterScreenState extends ConsumerState<CouponCenterScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.successSoft,
                     borderRadius: AppRadius.smR,
-                    border: Border.all(color: AppColors.success),
+                    // Yazı/kenarlık `onSuccessSoft`tan — ham `success` zemini
+                    // üstünde AA'yı tutmuyordu (16 Ağustos 2026 ölçümü).
+                    border: Border.all(color: AppColors.onSuccessSoft),
                   ),
                   child: Text(
                     '${ev!.tier} bildi',
-                    style: const TextStyle(
-                      color: AppColors.success,
+                    style: TextStyle(
+                      color: AppColors.onSuccessSoft,
                       fontSize: 10.5,
                       fontWeight: AppFont.black,
                     ),

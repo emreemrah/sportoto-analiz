@@ -29,6 +29,7 @@ import '../../core/ulke_seridi.dart' show macUlkesiEn;
 import '../../core/utils.dart';
 import '../../core/yaklasan_maclar.dart';
 import '../../widgets/app_ui.dart';
+import '../../widgets/states.dart' show HazirlaniyorState, sunucuHazirlaniyor;
 import '../../widgets/avatar.dart';
 import '../../widgets/kayan_serit.dart';
 import '../../widgets/ulke_etiketi.dart';
@@ -42,6 +43,53 @@ import '../../widgets/takim_logo_zemin.dart';
 // hatadır. Bu yüzden sabit inline YAZILMAZ.
 const int _oneCikanEsik = 45;
 const int _surprizEsik = 65;
+
+/// Maçın sürpriz puanı; analiz yoksa 0.
+double _puan(Map m) {
+  final v = (m['analysis'] as Map?)?['surpriseScore'];
+  return v is num ? v.toDouble() : 0;
+}
+
+/// Ana sayfa sayımları — TEK KAYNAK.
+///
+/// BÖLÜM BAŞLIKLARI DA BURADAN BESLENİR (16 Ağustos 2026'da ölçülen hata):
+/// hero'daki sayaç "Öne Çıkan **0**" yazarken hemen altındaki bölüm
+/// "Öne Çıkan Analizler" başlığıyla 2 kart gösteriyordu; aynı şekilde
+/// "Sürpriz Adayı **0**" iken şerit "Sürpriz İhtimali Yüksek" diyordu.
+/// Sebep: sayaçlar eşiğe (`_oneCikanEsik` / `_surprizEsik`) bakıyor, bölümler
+/// ise eşiğe BAKMADAN en yüksek 2-3 maçı basıyordu. Kartların kendi etiketi
+/// ("DENGELİ") dürüsttü; yalan söyleyen BAŞLIKTI.
+///
+/// Bu dosyanın kendi kuralı zaten bunu söylüyor: eşikler tek kaynaktır, yoksa
+/// "ekran yalan söyler". Sayım da aynı yerden gelmeli.
+class _Sayim {
+  const _Sayim({
+    required this.analizli,
+    required this.oneCikan,
+    required this.surpriz,
+  });
+
+  /// Gerçekten analizi olan maç sayısı.
+  final int analizli;
+
+  /// `_oneCikanEsik` eşiğini geçen maç sayısı.
+  final int oneCikan;
+
+  /// `_surprizEsik` eşiğini geçen maç sayısı.
+  final int surpriz;
+}
+
+_Sayim _sayimYap(List matches) {
+  final analizli = matches.cast<Map>().where((m) {
+    final a = m['analysis'] as Map?;
+    return a != null && a['surpriseScore'] != null;
+  }).toList();
+  return _Sayim(
+    analizli: analizli.length,
+    oneCikan: analizli.where((m) => _puan(m) >= _oneCikanEsik).length,
+    surpriz: analizli.where((m) => _puan(m) >= _surprizEsik).length,
+  );
+}
 
 String _shortTeam(Object? name) => '${name ?? ''}'
     .replaceAll(RegExp(r'\s+FK$', caseSensitive: false), '')
@@ -139,6 +187,17 @@ class HomeScreen extends ConsumerWidget {
         ? siraliAnaliz.take(3).toList()
         : matches.cast<Map>().take(3).toList();
 
+    // BÖLÜM BAŞLIKLARI SAYAÇLARLA AYNI HESAPTAN (bkz. `_sayimYap`). Başlık,
+    // altında GERÇEKTEN ne durduğunu anlatır; eşiği geçen maç yokken "öne
+    // çıkan" ya da "sürpriz ihtimali yüksek" DENMEZ.
+    final sayim = _sayimYap(matches);
+    final analizBasligi = sayim.oneCikan > 0
+        ? 'Öne Çıkan Analizler'
+        : (sayim.analizli > 0 ? 'Analiz Edilen Maçlar' : 'Bültenden Maçlar');
+    final surprizBasligi = sayim.surpriz > 0
+        ? 'Sürpriz İhtimali Yüksek'
+        : 'Sürpriz Puanına Göre Sıralı';
+
     // Yaklaşan maçlar — GÜNCEL hafta + ÖNCEKİ haftadan henüz oynanmamışlar,
     // tarihe göre en yakın önce.
     final upcoming = yaklasanMaclar({
@@ -192,10 +251,13 @@ class HomeScreen extends ConsumerWidget {
                     onTap: () => GoRouter.of(context).go('/bulten'),
                   ),
                   KayanSerit(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: Spacing.md,
-                      vertical: 4,
-                    ),
+                    // YATAY BOŞLUK VERİLMEZ (16 Ağustos 2026'da ölçüldü).
+                    // `KayanSerit` içeriğin iki kopyasını yan yana koyup BİR
+                    // KOPYA genişliği kadar kayınca başa döner; ölçülen
+                    // genişliğe şeridin `padding`'i DAHİL DEĞİLDİR. Yatay
+                    // boşluk verilince başa dönüşte solda boşluk kadar sıçrama
+                    // oluşur ve "dikişsiz döngü" bozulur.
+                    padding: const EdgeInsets.symmetric(vertical: 4),
                     semanticsLabel:
                         'Yaklaşan maçlar: ${upcoming.length} karşılaşma',
                     children: [
@@ -205,7 +267,7 @@ class HomeScreen extends ConsumerWidget {
                 ],
 
                 _SectionHead(
-                  title: 'Öne Çıkan Analizler',
+                  title: analizBasligi,
                   right: 'Tümünü Gör ›',
                   onTap: () => GoRouter.of(context).go('/radar'),
                 ),
@@ -214,6 +276,16 @@ class HomeScreen extends ConsumerWidget {
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: Spacing.md),
                     child: SkeletonCard(),
+                  )
+                // SUNUCU UYANIYORSA HATA DEĞİL, BEKLEME (16 Ağustos 2026).
+                // Uç 503 + "veri henüz hazır değil" dönüyor; ham hata metnini
+                // basmak kullanıcıya arıza var sandırıyordu. Ana sayfada
+                // zamanlayıcı yok, o yüzden otomatik yenileme SÖZ VERİLMEZ —
+                // düğme ve aşağı çekme var.
+                else if (sunucuHazirlaniyor(bulletinAsync.error))
+                  HazirlaniyorState(
+                    otomatikYenileme: false,
+                    onRetry: () => ref.invalidate(bulletinProvider),
                   )
                 else if (error != null || matches.isEmpty)
                   Padding(
@@ -257,7 +329,7 @@ class HomeScreen extends ConsumerWidget {
                   ),
 
                 _SectionHead(
-                  title: 'Sürpriz İhtimali Yüksek',
+                  title: surprizBasligi,
                   right: 'Tümünü Gör ›',
                   onTap: () => GoRouter.of(context).go('/bulten'),
                 ),
@@ -269,7 +341,10 @@ class HomeScreen extends ConsumerWidget {
                     vertical: 4,
                   ),
                   child: Row(
-                    children: displaySurprise.isEmpty
+                    // HİÇ ANALİZ YOKKEN SIRALAMA GÖSTERİLMEZ: sürpriz puanı
+                    // olmayan maçları "sürpriz" bölümünde dizmek, olmayan
+                    // veriyi varmış gibi göstermek olurdu. Bekleme metni yazılır.
+                    children: (displaySurprise.isEmpty || sayim.analizli == 0)
                         ? [
                             Container(
                               padding: const EdgeInsets.all(Spacing.md),
@@ -300,10 +375,6 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  static double _puan(Map m) {
-    final v = (m['analysis'] as Map?)?['surpriseScore'];
-    return v is num ? v.toDouble() : 0;
-  }
 }
 
 class _Header extends StatelessWidget {
@@ -393,21 +464,13 @@ class _HeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final matches = (data?['matches'] as List?) ?? const [];
 
-    // Sayılar YALNIZ güncel bültenin GERÇEK analizinden.
-    final analyzed = matches.cast<Map>().where((m) {
-      final a = m['analysis'] as Map?;
-      return a != null && a['surpriseScore'] != null;
-    }).toList();
-
-    double puan(Map m) {
-      final v = (m['analysis'] as Map?)?['surpriseScore'];
-      return v is num ? v.toDouble() : 0;
-    }
-
-    final total = analyzed.length;
+    // Sayılar YALNIZ güncel bültenin GERÇEK analizinden — ve bölüm
+    // başlıklarıyla AYNI hesaptan (`_sayimYap`).
+    final sayim = _sayimYap(matches);
+    final total = sayim.analizli;
     final bulletinTotal = matches.length;
-    final featured = analyzed.where((m) => puan(m) >= _oneCikanEsik).length;
-    final surprise = analyzed.where((m) => puan(m) >= _surprizEsik).length;
+    final featured = sayim.oneCikan;
+    final surprise = sayim.surpriz;
     final leagues = matches
         .cast<Map>()
         .map((m) => m['league'])
@@ -1265,23 +1328,42 @@ class _KickoffCard extends StatelessWidget {
   /// üstünde seçilmiyordu (koyu görünümde "2. Hafta" rozeti karta gömülüyordu).
   /// [ayrisanYuzey] hue'yu koruyup parlaklığı gerektiği kadar kaydırır.
   Widget _haftaRozeti(bool oncekiHafta) {
-    final zemin = ayrisanYuzey(
-      oncekiHafta ? AppColors.warningSoft : AppColors.primarySoft,
+    // AYRIM RENGE DEĞİL BİÇİME DAYANIR (16 Ağustos 2026 düzeltmesi).
+    //
+    // Önce iki hafta iki yumuşak yüzeyle ayrılıyordu (`warningSoft` /
+    // `primarySoft`). Takım temasında bu ikisi ÇAKIŞABİLİYOR: Galatasaray'da
+    // ölçüldü — warningSoft #56411C (hue 38) ile primarySoft #573E01
+    // (hue 43) neredeyse aynı renk, yani iki hafta rozeti birbirinden ayırt
+    // edilemiyordu. Üstelik `_anlamsalYuzey` doygunluğu %92→%51, parlaklığı
+    // %50→%22 çektiği için amber kahverengiye düşüyor ve "çamurlu" duruyordu
+    // (kullanıcı bildirimi).
+    //
+    // Yeni ayrım paletten BAĞIMSIZ: güncel hafta DOLGULU, geçen hafta
+    // ÇERÇEVELİ. Hangi takım seçilirse seçilsin ikisi ayırt edilir; dolgu
+    // kalkınca çamurlu blok da ortadan kalkar. Renk yine bilgi taşır ama tek
+    // taşıyıcı değildir (renk körlüğü için de daha iyi).
+    final renk = AppColors.anlamsalTon(
+      oncekiHafta ? AppColors.warning : AppColors.accent,
       AppColors.card,
+    );
+    final stil = TextStyle(
+      color: oncekiHafta ? renk : AppColors.onAccent,
+      fontSize: 9,
+      fontWeight: AppFont.black,
     );
     return Container(
       margin: const EdgeInsets.only(bottom: 5),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(color: zemin, borderRadius: AppRadius.smR),
+      decoration: BoxDecoration(
+        color: oncekiHafta ? null : AppColors.accent,
+        borderRadius: AppRadius.smR,
+        border: oncekiHafta ? Border.all(color: renk) : null,
+      ),
       child: Text(
         '${match['haftaAdi']}',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: okunurMetin(zemin),
-          fontSize: 9,
-          fontWeight: AppFont.black,
-        ),
+        style: stil,
       ),
     );
   }

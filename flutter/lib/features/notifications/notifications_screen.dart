@@ -69,9 +69,11 @@ String zamanMetni(int ms) {
 
 // GETTER, `final` DEĞİL: `primarySoft`/`primary` takım temasıyla değişir.
 Map<String, ({Color bg, Color br})> get _ton => {
-  'match-starting': (bg: AppColors.warningSoft, br: AppColors.warning),
-  'result-official': (bg: AppColors.successSoft, br: AppColors.success),
-  'new-round': (bg: AppColors.infoSoft, br: AppColors.info),
+  // Kenar şeridi `on*Soft`tan (16 Ağustos 2026): ham anlamsal renk kendi
+  // yumuşak zeminiyle aynı parlaklığa düştüğünde şerit kayboluyordu.
+  'match-starting': (bg: AppColors.warningSoft, br: AppColors.onWarningSoft),
+  'result-official': (bg: AppColors.successSoft, br: AppColors.onSuccessSoft),
+  'new-round': (bg: AppColors.infoSoft, br: AppColors.onInfoSoft),
   'achievement': (bg: AppColors.primarySoft, br: AppColors.primary),
   'points': (bg: AppColors.primarySoft, br: AppColors.primary),
 };

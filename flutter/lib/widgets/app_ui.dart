@@ -693,10 +693,14 @@ class Pill extends StatelessWidget {
     'default': (AppColors.primarySoft, AppColors.primary),
     'primary': (AppColors.primarySoft, AppColors.primary),
     'accent': (AppColors.accentSoft, AppColors.accent),
-    'success': (AppColors.successSoft, AppColors.success),
-    'warning': (AppColors.warningSoft, AppColors.warning),
-    'danger': (AppColors.dangerSoft, AppColors.danger),
-    'info': (AppColors.infoSoft, AppColors.info),
+    // YAZI TONU `on*Soft`TAN (16 Ağustos 2026): eskiden anlamsal rengin
+    // KENDİSİ yazılıyordu ve varsayılan açık/koyu modda zeminiyle kontrastı
+    // AA altındaydı (ölçüm: success/successSoft = 2.98). `on*Soft` hue'yu
+    // koruyup tonu okunana dek iter — yeşil yeşil kalır, sadece okunur.
+    'success': (AppColors.successSoft, AppColors.onSuccessSoft),
+    'warning': (AppColors.warningSoft, AppColors.onWarningSoft),
+    'danger': (AppColors.dangerSoft, AppColors.onDangerSoft),
+    'info': (AppColors.infoSoft, AppColors.onInfoSoft),
     'dark': (AppColors.darkCardSoft, AppColors.onDark),
   };
 

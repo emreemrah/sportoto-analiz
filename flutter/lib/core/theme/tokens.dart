@@ -12,6 +12,8 @@
 
 import 'package:flutter/material.dart';
 
+import 'takim_paleti.dart' show kimlikTonu, okunurMetin;
+
 // ═══════════ TAKIM TEMASI: YAPISAL RENKLER ARTIK DEĞİŞKEN ════════════════
 // (kullanıcı isteği, 2026-08-11 → bütüncül tema)
 //
@@ -88,6 +90,56 @@ abstract final class AppColors {
   static Color warningSoft = Color(0xFFFFF4DD);
   static Color dangerSoft = Color(0xFFFEE2E2);
   static Color infoSoft = Color(0xFFEAF1FF);
+
+  // ANLAMSAL YUMUŞAK YÜZEYİN ÜSTÜNDEKİ YAZI (16 Ağustos 2026).
+  //
+  // Rozetlerin yazısı anlamsal rengin KENDİSİ yazılıyordu
+  // (`Text(color: AppColors.success)` + `color: AppColors.successSoft`) ve o
+  // renk `const`tur. Takım temasında zemin `_anlamsalYuzey` ile yeniden
+  // hesaplandığı için okunuyordu; VARSAYILAN açık/koyu modda o koruma yoktu.
+  // Ölçüldü: success #16A34A / successSoft #E8F7EE = 2.98 — AA (4.5) ALTINDA.
+  //
+  // Bu dört alan `kimlikTonu` ile üretilir: HUE VE DOYGUNLUK KORUNUR, yalnız
+  // parlaklık okunana dek itilir. Yani yeşil yeşil, kırmızı kırmızı kalır —
+  // "resmî", "hata", "uyarı" anlamları takım renginden bağımsız sürer, sadece
+  // okunur olur. Tek hesap yeri tema uygulayıcılarıdır (gorunum.dart ve
+  // takim_gorunumu.dart); ekranlar yalnız bu alanı okur.
+  static Color onSuccessSoft = Color(0xFF16A34A);
+  static Color onWarningSoft = Color(0xFFF59E0B);
+  static Color onDangerSoft = Color(0xFFDC2626);
+  static Color onInfoSoft = Color(0xFF2563EB);
+
+  /// Anlamsal rengi, ÜSTÜNDE DURDUĞU yüzeyde okunur tona iter.
+  ///
+  /// NEDEN PARAMETRELİ (16 Ağustos 2026): aynı rozet iki farklı yüzeyde
+  /// çizilebiliyor — `SurpriseBadge` maç detayında SAYFA ZEMİNİNDE, radar
+  /// kartında ise KART üstünde duruyor. Sabit bir token ikisine birden doğru
+  /// cevap veremez; yüzeyi çağıran taraf bilir.
+  ///
+  /// ÖLÇÜLEN KUSUR: durum noktaları (🟢 resmî · 🟡 henüz resmî değil ·
+  /// 🔴 canlı) ham anlamsal renkle doğrudan zemine çiziliyordu. Galatasaray
+  /// temasında sarı nokta sarı zeminde kontrast **1.24**, Trabzonspor
+  /// kartında **1.03** — grafik nesneler için eşik 3:1. Bu şerit "yalnız
+  /// resmî sonuç kesindir" kuralının görsel anahtarı olduğu için görünmemesi
+  /// kozmetik değil, DÜRÜSTLÜK sorunuydu.
+  ///
+  /// `kimlikTonu` hue ve doygunluğu KORUR: yeşil yeşil, sarı sarı kalır.
+  static Color anlamsalTon(Color anlamsal, Color yuzey) =>
+      kimlikTonu(anlamsal, yuzey, yedek: okunurMetin(yuzey));
+
+  /// Yumuşak yüzeylerin üstündeki yazı tonlarını YENİDEN hesaplar.
+  ///
+  /// Hem `gorunumuUygula` (açık/koyu) hem `takimGorunumunuUygula` yüzeyleri
+  /// yazdıktan SONRA bunu çağırır — tek tanım, iki yol. Ayrı ayrı yazılsaydı
+  /// biri güncellenip diğeri unutulurdu.
+  static void anlamsalYazilariTazele() {
+    Color yazi(Color anlamsal, Color zemin) =>
+        kimlikTonu(anlamsal, zemin, yedek: okunurMetin(zemin));
+    onSuccessSoft = yazi(success, successSoft);
+    onWarningSoft = yazi(warning, warningSoft);
+    onDangerSoft = yazi(danger, dangerSoft);
+    onInfoSoft = yazi(info, infoSoft);
+  }
 
   // CANLI — ANLAMSAL, takım temasından BAĞIMSIZ (kullanıcı isteği 2026-08-12:
   // "başarı, hata, uyarı ve canlı durum gibi anlamsal renkler tema renginden

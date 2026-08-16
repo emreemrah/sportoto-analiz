@@ -183,6 +183,7 @@ void gorunumuUygula(Brightness p) {
     AppColors.warningSoft = const Color(0xFFFFF4DD);
     AppColors.dangerSoft = const Color(0xFFFEE2E2);
     AppColors.infoSoft = const Color(0xFFEAF1FF);
+    AppColors.anlamsalYazilariTazele();
     AppColors.onBackgroundSoft = KoyuRenkler.textSoft;
     AppColors.onBackgroundMuted = KoyuRenkler.muted;
     AppColors.border = KoyuRenkler.border;
@@ -228,6 +229,7 @@ void gorunumuUygula(Brightness p) {
   AppColors.warningSoft = const Color(0xFFFFF4DD);
   AppColors.dangerSoft = const Color(0xFFFEE2E2);
   AppColors.infoSoft = const Color(0xFFEAF1FF);
+  AppColors.anlamsalYazilariTazele();
   AppColors.onBackgroundSoft = VarsayilanRenkler.textSoft;
   AppColors.onBackgroundMuted = VarsayilanRenkler.muted;
   AppColors.border = VarsayilanRenkler.border;

@@ -29,6 +29,7 @@ import '../../core/theme/takim_paleti.dart' show okunurMetin;
 import '../../core/theme/tokens.dart';
 import '../../core/utils.dart';
 import '../../widgets/app_ui.dart';
+import '../../widgets/states.dart' show HazirlaniyorState, sunucuHazirlaniyor;
 import '../../widgets/score_legend.dart';
 import '../../widgets/ust_panel.dart';
 import '../../widgets/snapshot_seal_banner.dart';
@@ -149,7 +150,17 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                 ],
               ),
             ),
-            error: (e, _) => _Center(
+            // SUNUCU UYANIYORSA HATA GÖSTERİLMEZ (16 Ağustos 2026).
+            // Barındırma planı servisi uyutuyor; uyanışta bülten hazırlanana
+            // dek uç 503 döner (ölçüm: 61 sn ve ~90 sn). Bu bir arıza değil,
+            // bekleme. Ekran zaten 15 sn'de bir kendiliğinden yeniliyor
+            // (yukarıdaki zamanlayıcı), o yüzden kullanıcıya "bir şey yapma"
+            // denebiliyor.
+            error: (e, _) => sunucuHazirlaniyor(e)
+                ? HazirlaniyorState(
+                    onRetry: () => ref.invalidate(bulletinProvider),
+                  )
+                : _Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -733,18 +744,35 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                             horizontal: 9,
                             vertical: 3,
                           ),
+                          // YEŞİL BİLEREK: "resmî / doğrulanmış" bu uygulamanın
+                          // durum dili — aynı ekranın altındaki gösterge de
+                          // 🟢 Resmî sonuç · 🟡 Henüz resmî değil · 🔴 Canlı
+                          // der. Takım rengine BAĞLANMAZ: Galatasaray'da
+                          // "resmî" kırmızıya dönüp "canlı" ile çakışırdı,
+                          // yeşil formalı bir takımda da takım renginden
+                          // ayrılamazdı.
+                          //
+                          // AMA TONU OKUNUR OLMALI (16 Ağustos 2026 ölçümü):
+                          // açık/koyu modda zemin markanın sabit mint'i
+                          // (#E8F7EE) ve `success` (#16A34A) üstünde kontrast
+                          // 2.98 — AA eşiğinin (4.5) ALTINDA. Takım temasında
+                          // zemin `_anlamsalYuzey` ile yeniden hesaplandığı
+                          // için sorun görünmüyordu; varsayılan modlarda o
+                          // koruma yoktu. `kimlikTonu` hue ve doygunluğu
+                          // KORUYARAK tonu okunana dek iter — yeşil yine
+                          // yeşildir, yalnız okunur.
                           decoration: BoxDecoration(
                             color: AppColors.successSoft,
                             borderRadius: AppRadius.smR,
-                            border: Border.all(color: AppColors.success),
+                            border: Border.all(color: AppColors.onSuccessSoft),
                           ),
                           child: Text(
                             '✓ Resmi bülten teyit edildi'
                             '${verifiedAt != null ? ' · ${verifiedAt.day} ${verifiedAt.time}' : ''}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.success,
+                            style: TextStyle(
+                              color: AppColors.onSuccessSoft,
                               fontSize: 10.5,
                               fontWeight: AppFont.heavy,
                             ),

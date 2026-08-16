@@ -44,7 +44,17 @@ class ScoreLegend extends StatelessWidget {
               Container(
                 width: 8,
                 height: 8,
-                decoration: BoxDecoration(color: it.c, shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                  // NOKTA DA ZEMİNE GÖRE TONLANIR (16 Ağustos 2026).
+                  // Eskiden ham anlamsal renk basılıyordu ve bazı temalarda
+                  // görünmüyordu — ölçüldü: Galatasaray sarı zeminde sarı
+                  // nokta 1.24, Trabzonspor bordo zeminde canlı kırmızısı
+                  // 1.68 (grafik eşiği 3:1). Bu şerit "yalnız resmî sonuç
+                  // kesindir" kuralının görsel anahtarı; görünmemesi kural
+                  // ihlalidir. Hue korunur, yalnız ton itilir.
+                  color: AppColors.anlamsalTon(it.c, AppColors.background),
+                  shape: BoxShape.circle,
+                ),
               ),
               const SizedBox(width: 5),
               Text(

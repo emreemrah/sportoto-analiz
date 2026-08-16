@@ -37,6 +37,15 @@ class LigSeridi extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: Spacing.md),
       child: KayanSerit(
+        // YATAY BOŞLUK YOK — BİLEREK (16 Ağustos 2026'da ölçüldü).
+        //
+        // `KayanSerit` kendini sürekli kaydıran bir şerittir: içeriğin İKİ
+        // kopyasını yan yana koyar ve bir kopya genişliği kadar kayınca başa
+        // döner. `_kopyaGenislik` YALNIZ kopyanın genişliğini ölçer; şeridin
+        // `padding`'i bunun dışındadır. Yatay boşluk verilirse başa dönüşte
+        // ekranın solunda boşluk kadar bir SIÇRAMA oluşur — dikişsiz döngü
+        // bozulur. Ekran görüntüsünde ilk çipin kesik görünmesi kusur değil,
+        // hareketin bir anıdır.
         padding: const EdgeInsets.symmetric(vertical: 8),
         semanticsLabel:
             'Bu haftanın ülkeleri: ${ulkeler.map((u) => u.name).join(', ')}',
