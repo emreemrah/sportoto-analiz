@@ -50,7 +50,18 @@ export function publicSourceStatus() {
   const list = listPublicProviders();
   return {
     hasSource: list.length > 0,
-    providers: list.map((p) => ({ id: p.id, name: p.name })),
+    // MARKA ADI HİÇ TAŞINMAZ, kimlik ALANI TEK AD taşır: `providerId`.
+    //
+    // 16 Ağustos 2026 arızası: bu dizi `{id, name}` şeklindeydi; rota ise
+    // maskelemeyi `kaynakKodu(p.providerId)` ile yapıyordu — yani var olmayan
+    // bir alanı kodluyor, `id`/`name` alanlarını spread ile AYNEN geçiriyordu.
+    // Kod 'k0'a düşüyor, marka yanıta sızıyordu. Sessiz bir ŞEKİL
+    // UYUŞMAZLIĞIYDI: iki taraf da "maskelendi" sanıyordu.
+    //
+    // Kural: ham iç kimlik yalnız `providerId` alanında ve yalnız SUNUCU
+    // İÇİNDE dolaşır; koda çevirme HTTP sınırında (routes/radar.js) yapılır.
+    // Böylece maskelenecek tek alan ve tek yer var.
+    providers: list.map((p) => ({ providerId: p.id })),
     note: list.length
       ? null
       : 'Veri kaynağı bekleniyor — oynanma yüzdesi sağlayıcısı henüz bağlı değil. İzinli bir kaynak eklendiğinde Radar 3 otomatik devreye girer.',

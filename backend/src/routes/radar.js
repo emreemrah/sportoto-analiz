@@ -94,7 +94,16 @@ function radarKaynaklariniKodla(view) {
             ...r3,
             details: {
               ...r3.details,
-              providers: saglayicilar.map((p) => ({ ...p, providerId: kaynakKodu(p.providerId) })),
+              // TEK MASKELEME SINIRI. `details.providers` iki AYRI şekilde
+              // gelebiliyor: veri varken gözlem özetleri (providerId + seri
+              // alanları), veri yokken yalnız kaynak listesi. İkisi de artık
+              // kimliği `providerId` alanında taşır; burada koda çevrilir.
+              // `id`/`name` varsa DÜŞÜRÜLÜR — marka hiçbir şekilde çıkmaz.
+              providers: saglayicilar.map((p) => {
+                const { id, name, ...kalan } = p;
+                void name; // marka adı bilerek düşürülür
+                return { ...kalan, providerId: kaynakKodu(p.providerId ?? id) };
+              }),
             },
           },
         },
@@ -161,11 +170,13 @@ router.get('/public-percentage-history', async (req, res) => {
       const rows = await store.listObservations(String(roundId), req.query.matchId ?? null).catch(() => []);
       observations = rows
         .filter((o) => o.playedPct)
-        .map((o) => ({ matchId: o.matchId, source: o.source, observedAt: o.observedAt, percentages: o.playedPct }));
+        // `source` ARŞİVDE ham iç kimliktir ('nesine'); yanıtta koda çevrilir.
+        .map((o) => ({ matchId: o.matchId, source: kaynakKodu(o.source), observedAt: o.observedAt, percentages: o.playedPct }));
     }
     res.json({
       hasData: observations.length > 0,
-      providers: src.providers,
+      // Aynı maskeleme kuralı: ham kimlik sunucuda kalır, dışarı kod çıkar.
+      providers: src.providers.map((p) => ({ providerId: kaynakKodu(p.providerId) })),
       providerNote: src.note,
       bandsVersion: PUBLIC_BANDS.version,
       roundId: roundId != null ? Number(roundId) : null,
