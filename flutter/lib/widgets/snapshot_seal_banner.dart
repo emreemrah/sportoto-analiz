@@ -108,6 +108,21 @@ class _SnapshotSealBannerState extends State<SnapshotSealBanner> {
           ? matchDate(archive['completedAt'] as String)
           : null;
 
+      // ŞERİDİN KENDİ YÜZEYİ — yazı ve çerçeve BUNDAN türetilir.
+      //
+      // Yazı ham `AppColors.success` ile çiziliyordu ve takım temalarında
+      // ÖLÇÜLEN kontrast 1.56–3.08 arasındaydı (AA eşiği 4.5). Trabzonspor'da
+      // 1.56 — pratikte okunmuyordu. `anlamsalTon` hue'yu KORUYARAK tonu
+      // okunana dek iter: yeşil yine yeşil, yalnız görünür (4.52–4.79).
+      //
+      // Bu, 16 Ağustos 2026'da kapatılan BULGU 3/7 ailesinin gözden kaçmış
+      // üyesiydi; sabit renk taraması yakaladı.
+      final muhurYuzeyi = Color.alphaBlend(
+        const Color(0xFF22C55E).withValues(alpha: 0.08),
+        AppColors.card,
+      );
+      final muhurTonu = AppColors.anlamsalTon(AppColors.success, muhurYuzeyi);
+
       return Container(
         margin: const EdgeInsets.only(top: Spacing.sm),
         padding: const EdgeInsets.symmetric(
@@ -116,9 +131,8 @@ class _SnapshotSealBannerState extends State<SnapshotSealBanner> {
         ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.success),
-          // Kaynak: 'rgba(34,197,94,0.08)'
-          color: const Color(0xFF22C55E).withValues(alpha: 0.08),
+          border: Border.all(color: muhurTonu),
+          color: muhurYuzeyi,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -126,8 +140,8 @@ class _SnapshotSealBannerState extends State<SnapshotSealBanner> {
             Text(
               '🔏 Mühürlü Analiz'
               '${lockD != null ? ' · ${lockD.day} ${lockD.time}' : ''}',
-              style: const TextStyle(
-                color: AppColors.success,
+              style: TextStyle(
+                color: muhurTonu,
                 fontSize: 12.5,
                 fontWeight: AppFont.black,
               ),

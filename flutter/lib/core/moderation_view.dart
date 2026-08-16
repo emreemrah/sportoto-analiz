@@ -18,17 +18,17 @@
 // gösterilmez.
 
 import 'moderation_reasons.dart';
+import 'utils.dart';
 
 /// Sebeplerin bilinen sırası — özet metninde de aynı sıra kullanılır.
 final List<String> _sebepSirasi = [for (final s in kBildirimSebepleri) s.key];
 
-int _sayi(Object? v) => v is num ? v.toInt() : (int.tryParse('$v') ?? 0);
 
 /// Liste başlığındaki dürüst özet satırları.
 List<String> ozetSatirlari(Map? sonuc) {
   final items = (sonuc?['items'] as List?) ?? const [];
-  final total = _sayi(sonuc?['total']);
-  final oksuz = _sayi(sonuc?['orphanCount']);
+  final total = sayiya(sonuc?['total']);
+  final oksuz = sayiya(sonuc?['orphanCount']);
 
   if (total == 0 && oksuz == 0 && items.isEmpty) {
     return const ['İncelenmeyi bekleyen bildirim yok.'];
@@ -57,7 +57,7 @@ String sebepOzeti(Map? reasons) {
   final girdiler =
       <MapEntry<String, int>>[
         for (final e in (reasons ?? const {}).entries)
-          if (_sayi(e.value) > 0) MapEntry('${e.key}', _sayi(e.value)),
+          if (sayiya(e.value) > 0) MapEntry('${e.key}', sayiya(e.value)),
       ]..sort((a, b) {
         final fark = b.value - a.value;
         if (fark != 0) return fark;
@@ -151,7 +151,7 @@ String tarihKisa(Object? iso) {
 /// tek bir sayı göstermek, otomatik gizleme eşiğinin (3 FARKLI kişi) neye göre
 /// çalıştığını operatöre yanlış anlatırdı.
 String bildirimOzeti(Map? item) {
-  final kisi = _sayi(item?['reporterCount']);
-  final adet = _sayi(item?['reportCount']);
+  final kisi = sayiya(item?['reporterCount']);
+  final adet = sayiya(item?['reportCount']);
   return '$kisi kişi · $adet bekleyen bildirim';
 }

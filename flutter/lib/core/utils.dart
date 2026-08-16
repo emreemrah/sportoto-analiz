@@ -192,3 +192,30 @@ String? crestOf(Map<String, dynamic>? match, String side) {
   }
   return null;
 }
+
+/// JSON'dan gelen sayıyı TEK KURALLA tam sayıya çevirir.
+///
+/// KAPSAMLI KOD DENETİMİNDE BULUNDU (16 Ağustos 2026): aynı işi yapan
+/// `_sayi` yardımcısı ÜÇ dosyada ayrı ayrı tanımlıydı ve ikisi FARKLI
+/// davranıyordu:
+///
+///   moderation_view.dart      → metni parse eder  ("12" → 12)
+///   archive_mappers.dart      → metinde 0 döner   ("12" → 0)
+///   bulletin_history_service  → metinde 0 döner   ("12" → 0)
+///
+/// Riskli olan, hatanın SESSİZ olması: `systemWrong` sayısı 0 çıkardı ya da
+/// hafta sıralaması bozulurdu; ne uyarı ne çökme olurdu. Ölçüm bugünkü API'nin
+/// bu alanları SAYI gönderdiğini gösterdi (yani aktif bir yanlış değer yoktu),
+/// ama AYNI yanıtta `id` metin olarak geliyor — uç tip karıştırıyor. Sessiz
+/// sıfır üretebilecek bir ayrışmayı açık bırakmanın gereği yok.
+///
+/// Bu tanım hepsinin üst kümesidir: sayı aynen, sayısal metin PARSE edilir,
+/// tanınmayan değer 0 olur (uydurma yok — çağıran "veri yok" diyebilsin diye
+/// [sayiyaNullable] da vardır).
+int sayiya(Object? v) =>
+    v is num ? v.toInt() : (int.tryParse('$v') ?? 0);
+
+/// [sayiya] gibi ama çözülemeyen değer için `null` döner — "0" ile "bilinmiyor"
+/// ayrımının korunması gereken yerlerde kullanılır.
+int? sayiyaNullable(Object? v) =>
+    v is num ? v.toInt() : int.tryParse('$v');

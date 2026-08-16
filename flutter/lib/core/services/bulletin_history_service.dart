@@ -34,6 +34,7 @@ import 'package:flutter/foundation.dart';
 import '../types/bulletin.dart';
 import 'archive_client.dart';
 import 'archive_mappers.dart';
+import '../utils.dart';
 
 /// DEMO/ÖRNEK VERİ KAPISI — tek kaynak. Yukarıdaki nota bak: daima kapalı.
 bool _demoDataAllowed() => false;
@@ -50,11 +51,11 @@ Future<List<Map<String, dynamic>>> _listBulletinsFromApi() async {
   final list = (res is Map ? res['bulletins'] as List? : null) ?? const [];
   final items = [for (final b in list) mapBulletinSummary(b as Map)];
   // En güncel en üstte.
-  items.sort((a, b) => _sayi(b['roundId']).compareTo(_sayi(a['roundId'])));
+  items.sort((a, b) => sayiya(b['roundId']).compareTo(sayiya(a['roundId'])));
   return items;
 }
 
-int _sayi(Object? v) => v is num ? v.toInt() : 0;
+
 
 Future<Map<String, dynamic>> _getBulletinFromApi(Object id) async {
   final res = await archiveGet('/api/bulletins/$id');

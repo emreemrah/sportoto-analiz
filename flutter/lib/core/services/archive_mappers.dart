@@ -1,4 +1,5 @@
 // KAYNAK: app/src/services/archiveMappers.js — BİREBİR çeviri.
+import '../utils.dart';
 //
 // SAF dönüştürücüler: backend arşiv API yanıtları → ekranların kullandığı
 // Bulletin / AnalysisSnapshot biçimleri.
@@ -112,7 +113,7 @@ Map<String, dynamic> mapBulletinSummary(Map apiB) {
     'resultSummary': rs is Map
         ? {
             'systemCorrect': rs['correct'] ?? 0,
-            'systemWrong': _sayi(rs['predicted']) - _sayi(rs['correct']),
+            'systemWrong': sayiya(rs['predicted']) - sayiya(rs['correct']),
             'systemAccuracy': rs['accuracy'] ?? 0,
             'resolvedCount': rs['predicted'] ?? 0,
             'totalCount': rs['totalMatches'] ?? total ?? 0,
@@ -123,7 +124,7 @@ Map<String, dynamic> mapBulletinSummary(Map apiB) {
   };
 }
 
-int _sayi(Object? v) => v is num ? v.toInt() : 0;
+
 
 /// Bülten detayı → Bulletin (maç satırlarıyla).
 Map<String, dynamic> mapBulletinDetail(Map apiB) {

@@ -1116,3 +1116,79 @@ test düşüyor.
 - "Oyunu bir kez kullanabilirsin; sayılar bu maçın gerçek oylarından gelir."
 - Bu desen BAŞKA yerde yok: `ColoredBox(color: AppColors.border)` taraması
   tüm `lib/` içinde yalnız bu dosyada eşleşti.
+
+## KAPSAMLI KOD DENETİMİ — 16 Ağu, ~17:15
+
+Kullanıcı isteğiyle ekran gezintisi yerine KOD tarandı. Aranan: proje
+kurallarının ihlali, sessiz hata üreten desenler, tekrarlı tanımlar.
+
+### Temiz çıkanlar (ölçüldü)
+| Kontrol | Sonuç |
+|---|---|
+| Kodda API anahtarı | **yok** |
+| İkinci analiz motoru | **yok** (tek motor kuralı tutuyor) |
+| TODO / FIXME / HACK | **0** |
+| `use_build_context_synchronously` | **0** |
+| `await`siz `.then` (backend) | **yok** |
+| Boş `catch` | 4 — hepsi **meşru** (veri yoksa `null` → "birim bedel verisi yok") |
+
+**"İddialı dil" eşleşmeleri ihlal DEĞİL, tam tersi:** `labels.dart` "banko"yu
+"güçlü aday"a çeviren TEMİZLEYİCİ, `smart.dart` ise "kesin kazanma ihtimali
+DEĞİLDİR" diyen bir olumsuzlama. Yani kural kodda aktif olarak uygulanıyor.
+
+### 🟡 BULGU 30 — Mühürlü analiz şeridi takım temalarında OKUNMUYORDU (DÜZELTİLDİ)
+Tema katmanı dışındaki sabit renkler tarandı (41 kullanım). Çoğu meşru:
+`provider_labels.dart` renkleri BİLEREK sabit (kaynak kodu/renk eşlemesi
+haftalar arası kıyas için sabit olmalı), `week_summary_screen.dart` renkleri
+ise kendi yorumunda açıklandığı gibi KOYU PANEL için açılmış ve o panel her
+temada koyu kalıyor — ikisi de kusur değil, okuyup doğrulandı.
+
+Ama `snapshot_seal_banner.dart` şeridin yazısını/çerçevesini HAM
+`AppColors.success` ile çiziyordu. Şeridin kendi yüzeyine karşı ÖLÇÜLDÜ
+(AA metin eşiği 4.5):
+
+| tema | ham | `anlamsalTon` ile |
+|---|---|---|
+| Galatasaray | 2.44 | **4.61** |
+| Fenerbahçe | 2.57 | **4.52** |
+| **Trabzonspor** | **1.56** | **4.79** |
+| Beşiktaş | 3.08 | **4.58** |
+
+Trabzonspor'da 1.56 — pratikte okunmuyordu. Bu, aynı gün kapatılan BULGU 3/7
+ailesinin gözden kaçmış üyesi; sabit renk taraması yakaladı.
+
+**Neden önemli:** "Mühürlü Analiz" yazısı, tahminlerin kilitlendiğini ve
+sonradan DEĞİŞTİRİLEMEYECEĞİNİ söyler — karnelerin geriye dönük
+oynanamamasının kullanıcıya verilen güvencesidir. Okunmayan bir güvence
+güvence değildir.
+
+**Koruma:** `muhur_seridi_okunurluk_test.dart` (6 test), mutasyonla doğrulandı.
+
+### 🟡 BULGU 31 — Sayı çevirimi üç yerde, İKİSİ FARKLI davranıyordu (DÜZELTİLDİ)
+`int _sayi(Object?)` üç dosyada ayrı tanımlıydı:
+
+| dosya | `"12"` girdisi |
+|---|---|
+| `moderation_view.dart` | **12** (parse eder) |
+| `archive_mappers.dart` | **0** (parse etmez) |
+| `bulletin_history_service.dart` | **0** (parse etmez) |
+
+Kullanıldıkları yerler zararsız değil:
+* `archive_mappers`: `systemWrong = _sayi(predicted) - _sayi(correct)` →
+  metin gelseydi 0−0 = **0**, yani ekranda YANLIŞ SAYI, uyarı yok.
+* `bulletin_history_service`: haftaları `roundId`'ye göre sıralıyor → metin
+  gelseydi hepsi 0 olur, sıralama SESSİZCE bozulurdu.
+
+**Ölçüm — abartılmasın:** üretimde bu alanlar bugün SAYI geliyor
+(`"correct":11`, `"roundId":1526`), yani **aktif bir yanlış değer yoktu**.
+Ama AYNI yanıtta `id` METİN geliyor (`"id":"1529"` / `"roundId":1529`) — uç
+tip karıştırıyor. Sessiz sıfır üretebilecek bir ayrışmayı açık bırakmanın
+gereği yok.
+
+**Düzeltme:** `core/utils.dart` → `sayiya()` TEK TANIM (hepsinin üst kümesi:
+sayı aynen, sayısal metin parse, tanınmayan 0). Ayrıca `sayiyaNullable()`
+eklendi — "0" ile "bilinmiyor" ayrımının korunması gereken yerler için.
+
+**Koruma:** `sayiya_test.dart` (5 test) + ikinci tanım eklenirse düşen tarama.
+
+`flutter analyze` temiz · **845** test geçiyor.
