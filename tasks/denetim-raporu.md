@@ -1350,3 +1350,33 @@ bağlandı.
 **Koruma:** `tek_saat_gosterimi_test.dart` (5 test) — duvar saati ile gerçek
 anın AYNI saati göstermesi, gün sınırı (00:30 TSİ ertesi gün), cihaz
 bağımsızlığı, uydurma yokluğu ve radar dosyalarının tek tanımı kullanması.
+
+---
+
+## BEKLEYEN İŞ — 1. Hafta 15. maçın noter kararı
+
+**Durum (16 Ağustos 2026 akşamı):** 1. Hafta 15. maç **Celta Vigo – Osasuna**
+ertelendi. Resmî uç tarihi 27 Ağustos'a almış; `status: "upcoming"`, sonuç ve
+skor **null**. Uygulama kartta "Ertelendi" yazıyor, hiçbir şey uydurmuyor.
+1. Hafta bu yüzden 6/15'te kalıyor ve ikramiye bölümü "tüm sonuçlar
+tamamlanınca görünecek" diyor — doğru davranış.
+
+**Karar verilince yapılacak:** `POST /api/admin/bulten/1528/noter-sonucu`
+gövde `{ orderNo: 15, sonuc: '1' | 'X' | '2' }`. Uç operatöre kapalı
+(`requireAuth` + `operatorKapisi`), yani oturum açmış operatör belirteci ister.
+
+Sistem şunları garantiliyor: yalnız sonucu OLMAYAN maça yazılır · skor NULL
+kalır (oynanmamış maça skor uydurulmaz) · `notary_decision` kimliğiyle radar
+karnesine motor isabeti olarak SAYILMAZ · kupon değerlendirmesi Spor Toto
+kuralı gereği işareti sayar · her giriş audit'e yazılır.
+
+**Yapılmayan ve neden:** kullanıcı noter kuralını anlattı (iki takımın son 5
+resmî maçı torbaya top koyar: galibiyet kendi tarafına, mağlubiyet karşı
+tarafa, beraberlik X). Torba dağılımını EKRANDA göstermek istenirse veri
+yetmiyor — ölçüldü:
+* ertelenen maçın (geçmiş hafta) takım istatistiği HİÇ YOK,
+* güncel bültende son-5 alanının 30 taraftan **17'si boş**; dolu olanlar da
+  eksik (Ç.Rizespor `["G"]` — 5 değil 1 maç, sezon yeni başladı).
+
+Eksik veriyle torba göstermek "uydurma sayı" olurdu. Kullanıcı kararı:
+şimdilik bırakıldı, noter karar verince yalnız SONUÇ girilecek.
