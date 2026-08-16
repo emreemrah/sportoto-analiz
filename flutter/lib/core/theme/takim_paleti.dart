@@ -216,6 +216,37 @@ Color komsuTon(Color renk, {double ayrimEsigi = 1.25, Color? uzakDurulacak}) {
   return renk;
 }
 
+/// [istenen] rozet/çip yüzeyini [zemin]den GÖZLE SEÇİLECEK kadar ayrıştırır.
+///
+/// NEDEN GEREKLİ (16 Ağustos 2026): rozetler `*Soft` yüzeyleri kullanıyordu ve
+/// bu yüzeyler her temada karttan ayrışmıyordu — ölçüldü: koyu görünümde
+/// `primarySoft`(#1C2740)/kart(#1B2029) = 1.11, açık görünümde
+/// `warningSoft`(#FFF4DD)/kart(beyaz) = 1.08. İkisi de eşiğin altında, yani
+/// rozet kartın içinde kayboluyordu ("2. Hafta koyu karta koyu, belli olmuyor").
+///
+/// HUE KORUNUR, yalnız PARLAKLIK gerektiği kadar kaydırılır: rozetin anlamı
+/// (uyarı sarısı / tema laciverti) değişmez, sadece görünür olur. Zaten
+/// ayrışıyorsa renk AYNEN döner — açık görünümdeki krem gibi çalışan yerler
+/// gereksiz yere koyulaştırılmaz.
+///
+/// [ayrimEsigi] varsayılanı 1.4: [komsuTon]'un 1.25'i "ancak seçilir" sınırıdır;
+/// küçük bir rozetin bir bakışta okunması için biraz üstü gerekir.
+Color ayrisanYuzey(Color istenen, Color zemin, {double ayrimEsigi = 1.4}) {
+  if (kontrastOrani(istenen, zemin) >= ayrimEsigi) return istenen;
+  final h = HSLColor.fromColor(istenen);
+  // Zemin koyuysa önce AÇIL, açıksa önce KOYULAŞ — uçta sıkışmayı önler.
+  final zeminAcik = HSLColor.fromColor(zemin).lightness > 0.5;
+  for (var adim = 2; adim <= 60; adim++) {
+    for (final yon in zeminAcik ? const [-1, 1] : const [1, -1]) {
+      final l = h.lightness + yon * adim / 100;
+      if (l < 0 || l > 1) continue;
+      final aday = h.withLightness(l).toColor();
+      if (kontrastOrani(aday, zemin) >= ayrimEsigi) return aday;
+    }
+  }
+  return istenen; // ayrışan ton bulunamadı — sessizce bozmaktansa aynen kalsın
+}
+
 /// ARA YÜZEY ile KART METNİNİ birlikte çözer.
 ///
 /// Ara yüzey karttan (≥1.25) ve zeminden (≥1.25) ayrışmalı; AYNI ZAMANDA
