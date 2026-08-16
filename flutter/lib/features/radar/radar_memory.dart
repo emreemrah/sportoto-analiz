@@ -70,6 +70,8 @@ class DnaDonemFiltresi extends StatelessWidget {
     this.macPenceresi = 'allTime',
     this.onMacPencereSec,
     this.filtreYukleniyor = false,
+    this.muhurluFiltreler = const <String>{},
+    this.turevGorunum = false,
   });
 
   final Map? positionDna;
@@ -87,6 +89,30 @@ class DnaDonemFiltresi extends StatelessWidget {
   final String macPenceresi;
   final ValueChanged<String>? onMacPencereSec;
   final bool filtreYukleniyor;
+
+  /// MÜHÜRLÜ HAFTADA KULLANILABİLİR SÜZGEÇ SEÇİMLERİ — `'oynanma:3'` biçiminde
+  /// anahtarlar (16 Ağustos 2026). Mühür artık yakınlık kırılımlarını da
+  /// taşıyor; ama YALNIZ bu tarihten sonra mühürlenen haftalarda. Bu küme,
+  /// mühürde karşılığı OLMAYAN bir adımın çip olarak sunulmasını engeller —
+  /// basınca hiçbir şey değişmeyen ya da sessizce süzgeçsiz değere düşen bir
+  /// seçenek, kullanıcıyı yanıltırdı. Boş küme = eski mühür (süzgeç yok).
+  final Set<String> muhurluFiltreler;
+
+  /// Sayılar mühürden mi okundu, yoksa mührün kesimiyle BUGÜN mü hesaplandı?
+  /// Türev görünümde ekran bunu açıkça yazar — kullanıcı elindeki sayının
+  /// noter kaydı mı yoksa yeniden üretilmiş bir çözümleme mi olduğunu
+  /// bilmeden karar vermemeli.
+  final bool turevGorunum;
+
+  /// Bu modda mühürde kayıtlı yakınlık adımları (mühürlü hafta için).
+  List<num> _muhurluAdimlar(String mod) {
+    final tumu = mod == 'oynanma' ? kOynanmaTolAdimlari : kOranTolAdimlari;
+    return tumu.where((t) => muhurluFiltreler.contains('$mod:$t')).toList();
+  }
+
+  /// Mühürlü haftada seçili mod için süzgeç sunulabilir mi?
+  bool get _muhurluSuzgecVar =>
+      filtreMod != null && _muhurluAdimlar(filtreMod!).isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -127,19 +153,60 @@ class DnaDonemFiltresi extends StatelessWidget {
                   },
                 ),
               // ÜST KATMAN MOD ÇİPLERİ (spec: dönemlerin YANINA eklenir).
-              // Mühürlü haftada GÖSTERİLMEZ: filtre canlı yeniden hesap
-              // demektir, mühürlü haftada backend de uygulamaz (kullanıcı
-              // kararı, 2026-08-10).
-              if (!muhurluHafta)
-                for (final p in kDnaFiltreModlari)
-                  _cip(
-                    p.label,
-                    secili: filtreMod == p.k,
-                    onTap: () => onFiltreModSec?.call(p.k),
-                  ),
+              //
+              // MÜHÜRLÜ HAFTADA DA GÖSTERİLİR (kullanıcı kararı, 16 Ağustos
+              // 2026) — ama ANLAMI DEĞİŞİR: orada çip bir FİLTRE değil,
+              // GÖRÜNÜM SEÇİCİDİR. Mühürlü haftada oynanma ve oran değerleri
+              // arşivlenmiş gözlemlerde zaten duruyor; onları yazmak yeniden
+              // hesap değildir. Yakınlık ve maç penceresi satırları (aşağıda)
+              // filtreye ait olduğu için mühürlü haftada yine çizilmez.
+              //
+              // Önceki karar (2026-08-10) çipleri tümden gizliyordu; kullanıcı
+              // geçmiş haftada bu değerleri göremediğini bildirdi ve ölçüm
+              // gizlemenin gereksiz olduğunu gösterdi: /api/radar/daily-odds
+              // mühürlü hafta için de gerçek oranları döndürüyor.
+              for (final p in kDnaFiltreModlari)
+                _cip(
+                  p.label,
+                  secili: filtreMod == p.k,
+                  onTap: () => onFiltreModSec?.call(p.k),
+                ),
             ],
           ),
-          if (filtreMod != null && !muhurluHafta) ...[
+          // MÜHÜRLÜ HAFTADA NE OLDUĞU AÇIKÇA YAZILIR. Çip görünüyor ama
+          // yakınlık/pencere satırları yok; kullanıcı "filtre bozuk mu?"
+          // diye düşünmesin diye sebebi söylenir. Dürüstlük gereği değerin
+          // hangi ana ait olduğu da burada durur.
+          if (muhurluHafta && filtreMod != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: _ipucu(
+                turevGorunum
+                    // TÜREV: mühürde kırılım yok; haftanın KENDİ kesimiyle
+                    // (donma anından öncesi) bugün hesaplandı. Geçmiş o
+                    // kesimle sınırlı olduğu için sonraki haftalar biriktikçe
+                    // tablo büyümez; yine de mühürlü kayıt DEĞİLDİR ve bu
+                    // saklanmaz.
+                    ? 'TÜREV GÖRÜNÜM — bu sayılar mühürde yok. Haftanın kendi '
+                          'kesimiyle (donma anından öncesi) bugün hesaplandı; '
+                          'mühürlü kayıt değişmedi.'
+                    : _muhurluSuzgecVar
+                    // Kırılım mühürde VAR: süzgeç çalışır ama değer yeniden
+                    // hesaplanmaz — hafta donduğu anda yazılmış olan okunur.
+                    ? 'Mühürlü hafta — süzgeç sonucu da hafta donduğu anda '
+                          'mühürlendi. Buradaki sayılar yeniden hesaplanmaz; '
+                          'ileride arşiv büyüse de değişmez.'
+                    // Ne mühürde var ne türev üretilebildi.
+                    : 'Mühürlü hafta — hafta donduğu andaki '
+                          '${filtreMod == 'oran' ? 'oranlar' : 'oynanma yüzdeleri'} '
+                          'gösteriliyor. Bu hafta için yakınlık kırılımı ne '
+                          'mühürde var ne de hesaplanabildi.',
+              ),
+            ),
+          // Süzgeç satırları: canlı haftada her zaman; mühürlü haftada ancak
+          // kırılım MÜHÜRDE varsa ya da TÜREV olarak hesaplanabildiyse.
+          if (filtreMod != null &&
+              (!muhurluHafta || _muhurluSuzgecVar || turevGorunum)) ...[
             // ALT KATMAN 1 — yakınlık adımı. Kullanıcı seçer, otomatik
             // genişleme yok (Radar 3 dili).
             Padding(
@@ -157,10 +224,15 @@ class DnaDonemFiltresi extends StatelessWidget {
                       fontWeight: AppFont.heavy,
                     ),
                   ),
+                  // MÜHÜRLÜ HAFTADA YALNIZ MÜHÜRDEKİ ADIMLAR. Canlı haftada
+                  // hepsi hesaplanabilir; mühürlü haftada yalnız donarken
+                  // yazılanlar vardır ve olmayanı çip yapmak yanıltıcı olur.
                   for (final t
-                      in filtreMod == 'oynanma'
-                          ? kOynanmaTolAdimlari
-                          : kOranTolAdimlari)
+                      in muhurluHafta && !turevGorunum
+                          ? _muhurluAdimlar(filtreMod!)
+                          : (filtreMod == 'oynanma'
+                                ? kOynanmaTolAdimlari
+                                : kOranTolAdimlari))
                     _cip(
                       tolEtiketi(filtreMod!, t),
                       secili:

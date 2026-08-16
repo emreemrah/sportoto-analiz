@@ -391,16 +391,17 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
   Widget _bultenDnasi(List matches, Object? gosterilen, Map meta) {
     final muhurluHafta = meta['sealed'] == true;
 
-    // Yakınlık filtresi mühürlü haftada ETKİSİZDİR (backend de uygulamaz);
-    // seçim durur, hafta değişince yeniden devreye girer.
-    final filtreAktif = !muhurluHafta && _dnaFiltreMod != null;
-    final num? filtreTol = !filtreAktif
+    // İSTEK ile UYGULANDI AYRIDIR (16 Ağustos 2026).
+    //
+    // Süzgeç mühürlü haftada da GÖNDERİLİR: uç, kırılım mühre yazılmışsa
+    // mühürdeki hazır değeri döner (yeniden hesap DEĞİL), yazılmamışsa
+    // süzgeçsiz mühürlü değere düşer ve bunu `filtre.uygulanmadi` ile
+    // bildirir. Ekran neyin uygulandığını YANITTAN öğrenir; varsayımla
+    // "uygulandı" demez.
+    final filtreIstegi = _dnaFiltreMod != null;
+    final num? istekTol = !filtreIstegi
         ? null
         : (_dnaFiltreMod == 'oynanma' ? _dnaOynanmaTol : _dnaOranTol);
-    // Filtre modunda pencere anahtarı ALT KATMANDAN gelir ve birimi MAÇtır:
-    // windows dilimleri süzgeçten SONRA kesildiği için "last5" burada
-    // "süzgece uyan son 5 maç" demektir (backend sözleşmesi).
-    final etkinPencere = filtreAktif ? _dnaMacPenceresi : _dnaPeriod;
 
     // Mühürlü haftada uç yalnız snapshot verisini döner; istek yine de
     // yapılır çünkü "snapshot'ta Radar 5 var mı" bilgisi oradan gelir.
@@ -409,22 +410,48 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
         : ref.watch(
             _positionDnaProvider((
               rid: gosterilen,
-              mod: filtreAktif ? _dnaFiltreMod : null,
-              tol: filtreTol,
+              mod: filtreIstegi ? _dnaFiltreMod : null,
+              tol: istekTol,
             )),
           );
     final positionDna = dnaAsync?.valueOrNull;
+    final filtreOzet = positionDna?['filtre'] as Map?;
+
+    // Canlı haftada süzgeç her zaman uygulanır; mühürlü haftada ancak o
+    // kırılım mühürde varsa.
+    final filtreAktif =
+        filtreIstegi &&
+        (!muhurluHafta || filtreOzet?['uygulanmadi'] == false);
+    final num? filtreTol = filtreAktif ? istekTol : null;
+    // Filtre modunda pencere anahtarı ALT KATMANDAN gelir ve birimi MAÇtır:
+    // windows dilimleri süzgeçten SONRA kesildiği için "last5" burada
+    // "süzgece uyan son 5 maç" demektir (backend sözleşmesi).
+    final etkinPencere = filtreAktif ? _dnaMacPenceresi : _dnaPeriod;
+    // Hangi yakınlık adımları SEÇİLEBİLİR — ekran olmayan adımı çip yapmasın.
+    // İki kaynak: mühre yazılmış kırılımlar (kesin) ve türev olarak
+    // hesaplanabilenler (mühürde yok, haftanın kesimiyle bugün üretildi).
+    final secilebilirFiltreler = <String>{
+      ...((positionDna?['muhurluFiltreler'] as List?) ?? const []).map((e) => '$e'),
+      ...((positionDna?['turevFiltreler'] as List?) ?? const []).map((e) => '$e'),
+    };
+    // Sayılar mühürden mi geldi, bugün mü hesaplandı — ekran bunu YAZAR.
+    final turevGorunum = positionDna?['turev'] == true;
     // Filtreli istek daha YANITLANMADAN "verisi yok" yazmak yanlış iddiadır
     // (ilk yükleme birkaç saniye sürebiliyor; kullanıcı bunu gerçek sanıyordu).
     // Yüklenirken satırlar ve panel "hesaplanıyor" der, iddia etmez. İstek
     // BAŞARISIZ olduysa da veri yokluğu iddia edilmez — hata olduğu söylenir
     // (yaşandı: eski backend 400 dönünce ekran "verisi yok" yazıyordu).
+    // Yükleme/hata İSTEĞE bağlıdır: yanıt gelmeden "uygulandı mı" bilinemez.
     final filtreYukleniyor =
-        filtreAktif && dnaAsync != null && dnaAsync.isLoading;
-    final filtreHatasi = filtreAktif && dnaAsync != null && dnaAsync.hasError;
+        filtreIstegi && dnaAsync != null && dnaAsync.isLoading;
+    final filtreHatasi = filtreIstegi && dnaAsync != null && dnaAsync.hasError;
 
+    // SÜZGEÇLİ MÜHÜRLÜ DEĞER UÇTAN GELİR: uç onu snapshot'tan okudu, yeniden
+    // hesaplamadı. Bu yüzden satırlar master yükü yerine `positionDna`dan
+    // kurulur — yani süzgeçsiz mühürde olduğu gibi yine MÜHÜRDEKİ değerdir,
+    // sadece kırılımı seçilmiş hâlidir.
     final dna = dnaByPosition(
-      muhurluHafta: muhurluHafta,
+      muhurluHafta: muhurluHafta && !filtreAktif,
       masterMatches: matches,
       positionDna: positionDna,
       dnaPeriod: etkinPencere,
@@ -458,7 +485,15 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
     // şerit oynanma yüzdesi yerine o günün GERÇEK 1/X/2 oranını gösterir.
     // Kaynak Radar 4'ün günlük verisidir — ayrı uç YOK, aynı istek. İki birim
     // aynı anda basılmaz: oynanma yüzdesi oran DEĞİLDİR.
-    final oranModu = filtreAktif && _dnaFiltreMod == 'oran';
+    //
+    // MÜHÜRLÜ HAFTADA DA ÇALIŞIR (kullanıcı kararı, 16 Ağustos 2026).
+    // GÖRÜNÜM MODU ≠ FİLTRE: mühürlü haftada yakınlık filtresi hâlâ
+    // çalışmıyor (`filtreAktif` false kalır, backend de hesaplamaz), ama
+    // oynanma ve oran değerleri o haftanın ARŞİVLENMİŞ gözlemlerinde zaten
+    // duruyor — /api/radar/daily-odds?roundId=<geçmiş hafta> gerçek oranları
+    // döndürüyor. Bunları göstermek yeniden hesap DEĞİLDİR, mühür bozulmaz.
+    // Çip burada yalnız HANGİ BİRİMİN yazılacağını seçer.
+    final oranModu = _dnaFiltreMod == 'oran' && (filtreAktif || muhurluHafta);
     final oddsAsync = (!oranModu || gosterilen == null)
         ? null
         : ref.watch(_dailyOddsProvider(gosterilen));
@@ -496,7 +531,12 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
             muhurluHafta: muhurluHafta,
             muhurluRadar5Yok: dna.muhurluRadar5Yok,
             sealedAt: meta['sealedAt'],
-            filtreMod: filtreAktif ? _dnaFiltreMod : null,
+            // Mühürlü haftada çip SEÇİLİ görünmeli: orada süzgeç mühre
+            // yazılmamış olsa bile görünüm modu çalışıyor (bkz. oranModu).
+            // `filtreAktif`e bağlansaydı seçim hiç işaretlenmezdi.
+            filtreMod: (filtreAktif || muhurluHafta) ? _dnaFiltreMod : null,
+            muhurluFiltreler: secilebilirFiltreler,
+            turevGorunum: turevGorunum,
             onFiltreModSec: (mod) => setState(() {
               _dnaFiltreMod = mod;
               // Mod her seçildiğinde süzgeç Birebir + Tümü'ye döner —

@@ -2444,8 +2444,21 @@ void main() {
       expect(metin('%72'), findsNothing);
     });
 
-    testWidgets('MÜHÜRLÜ haftada mod çipleri GÖSTERİLMEZ (filtre canlı hesap '
-        'demektir)', (t) async {
+    // MÜHÜRLÜ HAFTADA MOD ÇİPLERİ — KARAR DEĞİŞTİ (16 Ağustos 2026).
+    //
+    // Eski test çiplerin GÖSTERİLMEDİĞİNİ sabitliyordu (2026-08-10 kararı:
+    // "filtre canlı hesap demektir"). Kullanıcı geçmiş haftada oynanma
+    // yüzdesi ve oranı hiç göremediğini bildirdi; ölçüm gizlemenin gereksiz
+    // olduğunu gösterdi: /api/radar/daily-odds ve /daily-played mühürlü hafta
+    // için de ARŞİVLENMİŞ gerçek değerleri döndürüyor. Bunları yazmak yeniden
+    // hesap değildir.
+    //
+    // Yeni kural: çip mühürlü haftada GÖRÜNÜM SEÇİCİDİR, filtre değildir.
+    // Bu yüzden yakınlık ve maç penceresi satırları orada YİNE çizilmez —
+    // aşağıdaki iki test tam olarak bu ayrımı korur.
+    testWidgets('MÜHÜRLÜ haftada mod çipleri GÖRÜNÜR (görünüm seçici olarak)', (
+      t,
+    ) async {
       _mockUclar({
         ...kVarsayilan(),
         '/api/radar/current': {...kGuncel, 'sealed': true},
@@ -2457,11 +2470,100 @@ void main() {
       });
       await ekraniAc(t);
       await sekme(t, 'Bülten DNA');
-      // Dönem çipleri (snapshot'lu mühürlü hafta) durur…
       expect(metin('Tüm Haftalar'), findsOneWidget);
-      // …ama filtre modları YOK: mühürlü değer yeniden hesaplanmaz.
-      expect(metin('Oynanma Yüzdesi'), findsNothing);
-      expect(metin('Oran'), findsNothing);
+      expect(metin('Oynanma Yüzdesi'), findsOneWidget);
+      expect(metin('Oran'), findsOneWidget);
+    });
+
+    testWidgets('MÜHÜRLÜ haftada mod seçilince YAKINLIK/PENCERE çıkmaz ve '
+        'sebebi yazılır', (t) async {
+      _mockUclar({
+        ...kVarsayilan(),
+        '/api/radar/current': {...kGuncel, 'sealed': true},
+        '/api/radar/position-dna': {
+          'hasData': true,
+          'sealed': true,
+          'dna': {'positions': <Object?>[]},
+        },
+      });
+      await ekraniAc(t);
+      await sekme(t, 'Bülten DNA');
+      await t.tap(metin('Oran'), warnIfMissed: false);
+      await _tur(t, 5);
+
+      // Süzgeç satırları YOK — süzmek mühürlü değeri yeniden hesaplamaktır.
+      expect(metin('Yakınlık:'), findsNothing);
+      expect(metin('Son 5 maç'), findsNothing);
+      // SEBEP AÇIKÇA YAZILIR — "neden Birebir/Tümü yok?" sorusu ekranda
+      // cevaplanır: bu hafta mühürlenirken yakınlık kırılımı yazılmamış.
+      // Olmayan bir alternatifi çip olarak sunmak yanıltıcı olurdu.
+      expect(metinIceren('Mühürlü hafta'), findsWidgets);
+      expect(metinIceren('ne mühürde var ne de hesaplanabildi'), findsWidgets);
+    });
+
+    // TÜREV GÖRÜNÜM — mühürde kırılım yok ama haftanın kendi kesimiyle
+    // hesaplanabildi (16 Ağustos 2026). Süzgeç satırları GERİ GELİR; ekran
+    // sayıların mühürden gelmediğini AÇIKÇA yazar.
+    testWidgets('TÜREV süzgeçte satırlar gelir ve mühürlü olmadığı yazılır', (
+      t,
+    ) async {
+      _mockUclar({
+        ...kVarsayilan(),
+        '/api/radar/current': {...kGuncel, 'sealed': true},
+        '/api/radar/position-dna': {
+          'hasData': true,
+          'sealed': true,
+          'turev': true,
+          'muhurluFiltreler': <String>[],
+          'turevFiltreler': ['oynanma:0', 'oynanma:3', 'oynanma:5', 'oynanma:10'],
+          'filtre': {'mod': 'oynanma', 'tol': 0, 'uygulanmadi': false, 'turev': true},
+          'dna': {'positions': <Object?>[]},
+        },
+      });
+      await ekraniAc(t);
+      await sekme(t, 'Bülten DNA');
+      await t.tap(metin('Oynanma Yüzdesi'), warnIfMissed: false);
+      await _tur(t, 5);
+
+      expect(metin('Yakınlık:'), findsOneWidget);
+      expect(metin('Birebir'), findsOneWidget);
+      expect(metin('Son 5 maç'), findsOneWidget);
+      // KAYNAK GİZLENMEZ: mühürlü kayıt değil, bugün hesaplandı.
+      expect(metinIceren('TÜREV GÖRÜNÜM'), findsWidgets);
+      expect(metinIceren('mühürlü kayıt değişmedi'), findsWidgets);
+    });
+
+    // SÜZGEÇ KIRILIMI MÜHÜRLENMİŞ HAFTA (16 Ağustos 2026 sonrası mühürler).
+    // Yakınlık ve maç penceresi satırları GERİ GELİR; ama yalnız mühürde
+    // KAYITLI adımlar çip olur — mühürde olmayan adım sunulmaz.
+    testWidgets('mühürde KAYITLI yakınlık adımları çip olur, olmayan olmaz', (
+      t,
+    ) async {
+      _mockUclar({
+        ...kVarsayilan(),
+        '/api/radar/current': {...kGuncel, 'sealed': true},
+        '/api/radar/position-dna': {
+          'hasData': true,
+          'sealed': true,
+          'useSnapshot': true,
+          // Mühürde yalnız Birebir ve ±3 var; ±5 ve ±10 YOK.
+          'muhurluFiltreler': ['oynanma:0', 'oynanma:3'],
+          'dna': {'positions': <Object?>[]},
+        },
+      });
+      await ekraniAc(t);
+      await sekme(t, 'Bülten DNA');
+      await t.tap(metin('Oynanma Yüzdesi'), warnIfMissed: false);
+      await _tur(t, 5);
+
+      expect(metin('Yakınlık:'), findsOneWidget);
+      expect(metin('Birebir'), findsOneWidget);
+      expect(metin('±3'), findsOneWidget);
+      // Mühürde karşılığı olmayan adım ÇİP OLMAZ.
+      expect(metin('±5'), findsNothing);
+      expect(metin('±10'), findsNothing);
+      // Maç penceresi de geri gelir (pencereler mühürlü dna'nın içinde).
+      expect(metin('Son 5 maç'), findsOneWidget);
     });
   });
 }
