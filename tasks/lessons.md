@@ -315,3 +315,39 @@ bitince "ben web sitesi yapmak istiyordum" dedi ve iş geri alındı.
 - Geri alma yolu: yeni dosyalar silinir, düzenlenen dosyalar edit'lerin tersiyle
   (git checkout DEĞİL — başka oturumların commit'lenmemiş işi ezilebilir)
   eski hâline getirilir, git diff ile birebir doğrulanır.
+
+## Ders — Düzeltmeyi teste bağlamayan gün, ertesi gün aynı hatayı görür (2026-08-16)
+Kullanıcı: *"bugünkü yaptıklarımızın tekrar yaşanmaması için nasıl önlem
+alacaksın, bir daha aynı şeyleri görmek istemiyorum."* Haklıydı: o gün altı
+kusur elle bulundu, elle düzeltildi ve **hiçbiri teste bağlanmadı**.
+
+Somut kanıt aynı gün çıktı: hero'daki "Zorluk: Kolay" etiketi kaldırıldı
+sanılıyordu; kaynak taraması yazılınca **aynı etiketin Hafta Özeti ekranında
+durduğu** görüldü ("BÜLTEN ZORLUĞU" bandı). Yani düzeltme yarım kalmıştı ve
+kimse fark etmemişti.
+
+**Kurallar:**
+1. **Bildirilen her kusur, düzeltmeyle AYNI oturumda teste bağlanır.** Test
+   yoksa iş bitmemiştir; "sonra yazarız" bir sonraki oturumun regresyonudur.
+2. **Testin gerçekten yük taşıdığı KANITLANIR:** düzeltme geçici olarak geri
+   alınır, testin KIRMIZI olduğu görülür, sonra geri konur. Yeşil ama hiçbir
+   şey ölçmeyen test, testin olmamasından kötüdür (yanlış güven verir).
+3. **Tek ekranı değil KURALI koru.** Bir metin/renk kuralı ihlali bulunduysa
+   aynı ihlal başka ekranda da olabilir — `lib/` taraması yaz (bkz.
+   `test/gorsel_kurallar_test.dart`). Ekran ekran düzeltmek, üçüncü ekranı
+   kaçırır.
+4. **Bekçi gürültülü olmayacak.** İlk yazdığım "iddialı dil" taraması veri
+   anahtarlarını ('BANKO', 'bankoEligible') ve yasal uyarıyı ("kazanç vaadi
+   DEĞİLDİR") suçlu saydı. Gürültülü bekçi kapatılır; kapatılan bekçi hiç
+   yoktur. Kural, yanlış alarm üretmeyecek kadar DAR yazılır.
+5. **Renk/kontrast göz kararıyla seçilmez, ÖLÇÜLÜR.** "Koyu karta koyu rozet"
+   kusuru 1.11 kontrast oranıydı; kod tabanının kendi eşiği 1.25. Yeni bir
+   rozet yüzeyi eklenince tema süpürme testi (her görünüm modu) sorar.
+
+**Aynı gün ikinci kanıt:** bekçi testleri koşturulunca ZATEN VAR OLAN bir
+backend testi kırmızı çıktı — `/api/radar/current` yanıtında bahis sitesi
+markası sızıyordu (`details.providers`). Sebep sessiz bir ŞEKİL UYUŞMAZLIĞIYDI:
+maskeleme `p.providerId`'yi kodluyordu ama gelen nesne `{id, name}` şeklindeydi,
+`kaynakKodu(undefined)` 'k0'a düşüyor, marka spread ile aynen geçiyordu. Ders:
+**maskeleme/temizleme kodu, beslendiği ŞEKLİ doğrulamalı** — var olmayan bir
+alanı temizlemek sessizce başarısız olur ve iki taraf da "maskelendi" sanır.

@@ -261,3 +261,216 @@ satır (yalnız ilgili modda).
 Değişiklik DNA hesabına ve önbellek anahtarına dokunuyor; yarım bırakılırsa
 Radar 5 sessizce yanlış sayı gösterir (en tehlikeli hata sınıfı). Temiz bir
 oturumda, testleriyle birlikte yapılacak.
+
+---
+
+# 16 Ağustos 2026 — Ana sayfa: "önce geçen hafta, sonra yeni hafta" akışı
+
+**Belirti (kullanıcı):** Emülatörde uygulama açılınca ana sayfada önce bir
+önceki haftanın verisi görünüyor, yeni haftanınki sonradan geliyor.
+
+**Kök neden:** `HomeScreen` iki AYRI isteği birleştiriyor:
+`bulletinProvider` (güncel bülten, ≈1 MB) ve `_oncekiHaftaProvider`
+(rounds + history, küçük). "Yaklaşan Maçlar" şeridi `yaklasanMaclar(guncel,
+onceki)` ile çiziliyordu ve `guncel` henüz gelmemişken `matches` boş oluyordu.
+`yaklasanMaclar` güncel haftaya asgari yer ayırır (`enAzGuncel`); güncel hafta
+boşken bu pay 0'a düşüyor ve şerit geçici olarak **%100 geçen haftaya**
+kalıyordu. Bülten inince liste yeniden kuruluyor ve yeni hafta "sonradan
+geliyormuş" gibi görünüyordu. Backend önbelleği yanlış hafta DÖNMÜYOR
+(bulletin.json roundId=1529 doğruydu) — sorun tamamen istemci tarafı yarış.
+
+**Düzeltme:** `flutter/lib/features/home/home_screen.dart`
+- `bultenYerlesti = data != null || error != null` eklendi.
+- "Yaklaşan Maçlar" bölümü `if (bultenYerlesti && upcoming.isNotEmpty)`
+  koşuluna alındı. Hata durumunda da çizilir (orada güncel hafta gerçekten
+  yoktur, geçen hafta doğru yedektir).
+
+**Doğrulama:** `flutter analyze lib/features/home/home_screen.dart` → temiz.
+Emülatörde (Pixel_10_Pro_XL) soğuk açılış + ana sayfaya geçiş ekran
+görüntüleriyle izlendi: yükleme sırasında şerit hiç çizilmiyor, bülten
+yerleşince iki hafta tasarlanan oranda birlikte görünüyor.
+
+**Not (düzeltilmedi, gözlem):** Hero sayaçları "Maç Analizi 1/15 · Öne Çıkan 0
+· Sürpriz Adayı 0" gösteriyor; backend 15/15 başlamamış · 13 eşleşen diyor.
+Analiz üretimi ile eşleşme arasındaki bu fark ayrıca bakılmalı.
+
+---
+
+# 16 Ağustos 2026 — Ana sayfa: dört görsel/dürüstlük düzeltmesi
+
+## 1) "Öne Çıkan Analizler" kartları eşit yükseklikte
+**Belirti:** Soldaki kartta 1/X/2 verisi olduğu için kart uzuyor, sağdaki
+kartta veri olmadığı için kısa kalıyordu; yan yana iki kart basamak gibi
+duruyordu.
+**Düzeltme (`features/home/home_screen.dart`):**
+- İki kartın satırı `IntrinsicHeight` + `CrossAxisAlignment.stretch` oldu.
+- `_AnalysisCard` içinde "Analiz Detayı" düğmesinden önce `Spacer()` — artan
+  boşluk yutulur, düğme iki kartta da alta hizalanır.
+- İhtimal verisi yokken artık `_ihtimalYok()` çizilir: 1/X/2 kutularıyla AYNI
+  iskelet, ama sayı yerine "İHTİMAL / verisi yok". Sahte kutu ya da "%–" YOK.
+
+## 2) "Yaklaşan Maçlar": her kartta hafta + ülke işareti
+**Belirti:** Hafta rozeti yalnız 1. Hafta kartlarında vardı; ayrıca çoğu
+kartta bayrak çıkmıyordu.
+**Kök neden (bayrak):** `/api/history/:roundId` resmî Spor Toto geçmiş
+bültenini olduğu gibi döner ve orada lig adı "2026/2027 Sezonu" gibi genel bir
+metindir; `ulkeAyikla` bu metinden ülke çıkaramadığı için bayrak çizilemiyordu.
+**Düzeltme:**
+- `home_screen.dart` — `_haftaRozeti()`: rozet HER kartta. Önceki hafta uyarı
+  tonunda, güncel hafta tema tonunda; yazı rengi `okunurMetin(zemin)`.
+- `backend/src/server.js` — `/api/history/:roundId` lig adını o haftanın
+  MÜHÜRLÜ arşiv kaydından (`getSnapshot(roundId).payload.matches[].league`)
+  tamamlar. Yalnız sıra numarası VE ev sahibi adı tutuyorsa taşınır; arşive
+  hiçbir şey yazılmaz. Ölçüm: 1528. hafta 15 maçın 13'ü artık gerçek lig adı
+  ("Turkey Süper Lig", "Spain La Liga") ile geliyor.
+- `widgets/ulke_etiketi.dart` — lig tanınmıyorsa artık nötr top simgesi +
+  lig adı çizilir (eskiden yalnız düz yazı). Ülke UYDURULMAZ; simge yuvası
+  korunduğu için satırlar hizalı kalır.
+- KALAN: "Final" ve "2026/2027 Sezonu" etiketli maçlarda ülke verisi ne resmî
+  bültende ne arşivde var (FootyStats eşleşmesi yok) — bayrak yerine nötr top.
+
+## 3) "Zorluk: Kolay" etiketi kaldırıldı
+Yanıltıcıydı (haftanın "kolay" olması diye bir şey yok; kolaylık/garanti imâsı)
+ve rengi tema dışıydı. Hero'da yalnız hafta + ilk maç saati kaldı. Backend'in
+`difficulty` alanı duruyor, bu ekranda gösterilmiyor.
+
+## 4) Genel yeşil (`AppColors.field` 0xFF16A34A) ana sayfadan kaldırıldı
+Rozetler artık temanın yumuşak yüzeylerini kullanır ve yazı rengi zeminden
+hesaplanır (`okunurMetin`), böylece takım teması + açık/koyu görünüm değişince
+kontrast korunur:
+- `_AnalysisCard`: SÜRPRİZ ADAYI → dolgulu `accent`/`onAccent`, AÇIK MAÇ →
+  `warningSoft`, DENGELİ → `primarySoft`. (Takım temasında `accentSoft` ile
+  `primarySoft` aynı renge ayarlandığı için üç kademe üç AYRI yüzeyden seçildi.)
+- `_SurpriseCard`: YÜKSEK → `warningSoft`, ORTA → `primarySoft`, DÜŞÜK → `bgAlt`.
+`AppColors.field` artık hiçbir yerde kullanılmıyor.
+
+**Doğrulama:** `flutter analyze` temiz; emülatörde (Pixel_10_Pro_XL) ekran
+görüntüleriyle: iki analiz kartı eşit yükseklikte ve düğmeler hizalı, hafta
+rozetleri 1. ve 2. haftada da görünüyor, TÜRKİYE/İSPANYA bayrakları geldi,
+hero'da zorluk etiketi yok.
+
+---
+
+# 16 Ağustos 2026 — "Bayraksız maç, armasız takım kalmasın"
+
+**İstek:** Hiçbir maç kartı bayraksız, hiçbir takım armasız kalmayacak.
+
+## A) Marsilya'nın arması — kök neden ad eşleşmesiydi (backend)
+Bülten takımı **"Marsilya"**, kaynak adı **"Olympique de Marseille"**. Arma
+defterinde kayıt VARDI (id 443, `france-olympique-de-marseille.png`) ama hiçbir
+metin katmanı Türkçe exonimi bağlayamıyordu → `logoReason: not_found`.
+`backend/src/matcher.js` ALIASES tablosuna doğrulanmış çift eklendi:
+`marsilya: ['olympiquedemarseille', 'olympiquemarseille']`.
+
+Yan kazanç: eşleşme kurulunca maç FootyStats'e de bağlandı ve lig adı
+`"2026/2027 Sezonu"` → **`"France Ligue 1"`** oldu. Ölçüm: güncel bültende ve
+1528. haftada **armasız taraf sayısı 0**.
+
+DENENDİ VE REDDEDİLDİ: `externalTeamId: 7959` üzerinden arma çekmek.
+`fetchTeamVenue(7959)` Podgorica/Karadağ dönüyor — o kimlik Marsilya DEĞİL.
+Yanlış kulübün armasını basmak sessiz ve ciddi bir hata olurdu.
+
+## B) Lig adı ülke vermediğinde bayrak — armadan türetme (istemci)
+`lib/core/ulke_seridi.dart`'a saf yardımcılar eklendi:
+`armaUlkesiEn` · `macArmaUlkesiEn` · `macUlkesiEn`. Arma adresindeki ülke ön eki
+(`.../teams/germany-fc-bayern-munchen.png`) yedek ülke kaynağı olur.
+- `UlkeEtiketi`'ye `yedekUlkeEn` parametresi: lig adı ülke VERMEZSE devreye
+  girer, "ALMANYA · Final" gibi çizer. Erişilebilirlik etiketine kaynağı yazılır
+  ("kulüp armalarından").
+- `ulkeListesi` (ana sayfa ülke şeridi) da aynı yedeği kullanır; "Final" maçı
+  artık ülkesiz çip bırakmıyor.
+- Bağlandığı yerler: ana sayfa (üç kart) + Bülten'deki canlı ve geçmiş maç
+  kartları.
+- **SINIR (kural):** bu KULÜBÜN ülkesidir, turnuvanın değil. İki kulüp farklı
+  ülkedeyse (uluslararası maç) ülke BELİRSİZ sayılır ve bayrak BASILMAZ —
+  yanlış bayrak, bayraksızlıktan kötüdür.
+
+## C) Armasız takım için baş harf rozeti (istemci)
+`Logo._fallback()` artık takımın adından en çok iki baş harf yazıyor (Türkçe
+büyük harf kuralıyla); ad yoksa eski nötr topa düşüyor. Böylece sağlayıcıda
+karşılığı bulunamayan her takımın da kendine ait bir kimliği oluyor ve yan yana
+iki armasız takım birbirine benzemiyor. Ülke şeridinde (`lig_seridi.dart`)
+`name` BİLEREK verilmiyor: oradaki özne kulüp değil ülke.
+
+**Doğrulama:** `flutter analyze lib` temiz; **721 + 15 yeni test geçti**
+(`test/arma_ulkesi_test.dart` — ön ek okuma, iki kelimelik ülke, uluslararası
+maçta susma, şeride yansıma).
+
+## Ek düzeltme — rozetler kartın içinde kayboluyordu
+**Belirti (kullanıcı):** "Yaklaşan Maçlar"da 2. Hafta rozeti koyu karta koyu,
+belli olmuyor.
+
+**Ölçüm:** rozetler ham `*Soft` değerlerini kullanıyordu ve bu yüzeyler her
+temada karttan ayrışmıyordu:
+- koyu görünüm: `primarySoft` #1C2740 / kart #1B2029 = **1.11**
+- açık görünüm: `warningSoft` #FFF4DD / kart #FFFFFF = **1.08**
+İkisi de `komsuTon`'un "göz ancak seçer" eşiğinin (1.25) ALTINDA. Yani sorun
+yalnız 2. Hafta rozetinde değildi; açık modda 1. Hafta rozeti de siliktı.
+
+**Düzeltme:** `core/theme/takim_paleti.dart` → `ayrisanYuzey(istenen, zemin,
+{ayrimEsigi = 1.4})`. Hue korunur, yalnız parlaklık gerektiği kadar kaydırılır;
+zaten ayrışan renge DOKUNULMAZ. Bağlandığı yerler: hafta rozeti, `_AnalysisCard`
+sınıf rozetleri, `_SurpriseCard` seviye rozetleri.
+
+**Doğrulama:** `test/ayrisan_yuzey_test.dart` (5 test: iki gerçek ölçüm, hue
+korunumu, gereksiz değiştirmeme, düzeltilmiş yüzeyde AA metin kontrastı).
+Emülatörde koyu ve açık modda ekran görüntüsüyle bakıldı. Toplam **740 test**.
+
+---
+
+# 16 Ağustos 2026 — REGRESYON ÖNLEMİ (kullanıcı isteği: "bir daha aynı şeyi görmek istemiyorum")
+
+Gün boyunca altı kusur elle bulunup elle düzeltildi ve HİÇBİRİ teste
+bağlanmamıştı. Bu bölüm o boşluğu kapatır.
+
+## 1) `test/ana_sayfa_kurallari_test.dart` — 6 render testi
+Her test bir kullanıcı şikâyetinin karşılığı ve şikâyet cümlesi testin adında:
+bülten yerleşmeden şerit çizilmez · iki analiz kartının düğmeleri aynı hizada ·
+ihtimal yokken sahte kutu değil dürüst satır · hafta rozeti her kartta · hero
+zorluk göstermez · lig adı ülke vermese de bayrak çıkar.
+Ağ, `api.tasiyici` dikişiyle sahteleniyor; yükleme yarışı için taşıyıcı ucu
+testin açacağı ana kadar bekletebiliyor (Dio yanıt akışı `runAsync` gerektirdi).
+
+**MUTASYON KANITI:** iki düzeltme geçici olarak geri alındı (`bultenYerlesti &&`
+kaldırıldı, `IntrinsicHeight`+`stretch` sökülüp `start`a döndürüldü) → 6 testin
+6'sı KIRMIZI. Geri konunca yeşil. Testler yük taşıyor.
+
+## 2) `test/gorsel_kurallar_test.dart` — kural taraması + tema süpürme
+- `AppColors.field` (genel yeşil) hiçbir dosyada kullanılmaz.
+- "Zorluk / ZORLUĞU" hiçbir ekranda geçmez.
+- İddialı dil kullanıcı CÜMLELERİNE sızmaz (veri anahtarları ve olumsuzlama
+  içeren yasal uyarılar muaf — bekçi dar tutuldu ki gürültüden kapatılmasın).
+- Her görünüm modunda rozet zeminleri karttan ≥1.4 ayrışır ve yazısı AA tutar.
+
+**BU TARAMA HEMEN BİR ŞEY BULDU:** "Zorluk" ana sayfadan kaldırılmıştı ama
+`week_summary_screen.dart` içindeki **"BÜLTEN ZORLUĞU" bandı duruyordu**
+(Kolay/Orta/Zor + yeşil/amber/kırmızı segment çubuğu, hero'daki "Haftanın
+Özeti" düğmesinden ulaşılıyor). Kaldırıldı; `_zorlukBandi`, `_zorlukRengi`,
+`_segment` ve `_doluSegment` tümüyle silindi.
+
+## 3) `test/ayrisan_yuzey_test.dart` — 5 test
+Kontrast düzeltmesinin ölçüm nöbetçisi (gerçek iki ölçüm, hue korunumu,
+gereksiz renk bozmama, AA metin).
+
+## 4) Backend `test/crest-registry.test.mjs` — 2 yeni test
+- Türkçe exonim: "Marsilya" → Olympique de Marseille arması (bugünkü arıza).
+- Alias tablosu bütünlüğü: her anahtar/değer normalize edilmiş olmalı —
+  normalize edilmemiş bir satır hiç eşleşmez ve SESSİZCE ölür.
+
+## 5) YAN BULGU — bekçiler zaten var olan bir arızayı ortaya çıkardı
+`npm test` koşturulunca mevcut `kaynak-kodu.test.mjs` KIRMIZIYDI:
+`/api/radar/current` yanıtında bahis sitesi markası sızıyordu.
+**Kök neden sessiz ŞEKİL UYUŞMAZLIĞI:** maskeleme `{...p, providerId:
+kaynakKodu(p.providerId)}` yapıyordu ama `details.providers` iki AYRI şekilde
+gelebiliyor — veri yokken `{id, name}` (providerId YOK → `kaynakKodu(undefined)`
+= 'k0', marka spread ile aynen geçiyor), veri varken `{providerId: 'nesine', …}`.
+**Düzeltme:** kimlik artık tek alanda (`providerId`) taşınır, marka adı hiç
+taşınmaz; koda çevirme TEK sınırda (routes/radar.js) yapılır ve `id`/`name`
+alanları düşürülür. `/public-percentage-history` de maskelendi
+(`observations[].source` ham iç kimlikti). Dört uç canlı doğrulandı: temiz.
+
+## Sonuç
+- Flutter: `flutter analyze lib test` temiz · **751 test** (13 yeni).
+- Backend: **1077 test, 0 hata** (2 yeni).
+- `tasks/lessons.md`'ye beş kurallık ders yazıldı (mutasyon kanıtı zorunlu,
+  kuralı ekran ekran değil tarama ile koru, bekçi dar olmalı, kontrast ölçülür).
