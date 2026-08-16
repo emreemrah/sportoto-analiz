@@ -1045,3 +1045,41 @@ ve ikisi de mutasyonla doğrulandı:
 
 Kanıt: `x2.png` (53. Hafta, takım teması). `flutter analyze` temiz · **827**
 test.
+
+## TUR 28 — 16 Ağu, ~16:45
+
+| Kontrol | Sonuç |
+|---|---|
+| `flutter analyze lib test` | temiz |
+| `flutter test` | **827** geçti |
+| `backend npm test` | **1107** geçti |
+| Üretim 5 uç | hepsi **200** · sağlayıcı adı **temiz** |
+
+### Deploy doğrulaması (alıntı bloğu yayında)
+Web derlemesi hash'i eşleşti (`397d4723a1f77ba9`). Backend soğuk açılıştan
+çıktıktan sonra ölçüldü:
+  * güncel bülten 15 maç · armasız **0**
+  * 53. Hafta 15 maç · armasız **0**
+  * `prize.description` uçtan geliyor (alıntı bloğunun kaynağı)
+  * bahis SAĞLAYICI adı temiz · ilk maç saati `21:30` (doğru TSİ)
+
+**Tarama kuralı güncellendi:** marka taramasından `iddaa` çıkarıldı. Artık o
+kelimenin RESMÎ AÇIKLAMA metninde geçmesi beklenen ve kabul edilen bir
+durumdur (BULGU 23 kararı); tarama onu sızıntı sayarsa her turda yanlış alarm
+verir. Sağlayıcı kimlikleri (`nesine` · `bilyoner` · `misli` · `oley`)
+taranmaya devam ediyor.
+
+### Bu turda gezilen YENİ ekranlar — kusur bulunmadı
+**Kupon Hazırla** (`y1_kupon_editor.png`): 15 maçın tamamında İKİ TARAF da
+armalı, saatler doğru (21:30 / 19:00), 1/X/2 düğmeleri çerçeveli ve görünür,
+takım adları kesilmemiş. Alt bantta **"birim bedel verisi yok"** —
+`coupon-pricing.json` yoksa fiyat UYDURULMUYOR, dürüst.
+
+**Haftanın Özeti** (`y2_hafta_ozeti.png`): projenin dürüstlük ilkesinin en
+temiz örneği —
+> "Bu hafta güçlü aday çıkmadı — zorla aday üretilmez; temkinli hafta."
+> "Sürprize açık maç işareti yok."
+
+Sayaçlar (0 Güçlü · 0 Sürpriz · 0 Denk · 15 Diğer) bültendeki "Öne Çıkan 0 /
+Sürpriz Adayı 0" ile TUTARLI — bugün BULGU 10'da düzeltilen sayaç/başlık
+uyumu burada da tutuyor. 18+ uyarısı yerinde.
