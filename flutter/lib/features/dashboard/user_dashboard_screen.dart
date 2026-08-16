@@ -23,7 +23,7 @@ import '../../core/live_logic.dart';
 import '../../core/network/api_client.dart';
 import '../../core/prefs.dart';
 import '../../core/services/muhurlu_sistem.dart';
-import '../../core/theme/takim_paleti.dart' show okunurMetin;
+import '../../core/theme/takim_paleti.dart' show ayrisanYuzey, okunurMetin;
 import '../../core/theme/tokens.dart';
 import '../../core/utils.dart';
 import '../../widgets/score_legend.dart';
@@ -410,7 +410,13 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
   ) => Container(
     padding: const EdgeInsets.all(Spacing.sm),
     decoration: BoxDecoration(
-      color: AppColors.primary,
+      // YÜZEY ZEMİNDEN AYRIŞMALI (16 Ağustos 2026, kullanıcı bulgusu).
+      //
+      // Kart düz `primary` ile boyanıyordu. Takım temasının "birinci renk"
+      // modunda SAYFA ZEMİNİ de primary'dir; ikisi aynı renge düşünce kart
+      // görünmez oluyor ve "1. Hafta" yazısı boşlukta duruyor gibi çıkıyordu.
+      // `ayrisanYuzey` hue'yu korur, yalnız zeminden ayrışacak kadar ton iter.
+      color: _haftaYuzeyi,
       borderRadius: BorderRadius.circular(AppRadius.lg),
       boxShadow: AppShadow.card,
     ),
@@ -425,7 +431,8 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               Text(
                 '${selMeta?['name'] ?? '—'}',
                 style: TextStyle(
-                  color: AppColors.onPrimary,
+                  // Yazı, yüzeyin SON hâlinden türetilir; yüzey ton değiştirdi.
+                  color: okunurMetin(_haftaYuzeyi),
                   fontSize: 17,
                   fontWeight: AppFont.black,
                 ),
@@ -435,7 +442,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                 child: Text(
                   '${selMeta?['year'] ?? ''} Sezonu',
                   style: TextStyle(
-                    color: AppColors.onPrimarySoft,
+                    color: okunurMetin(_haftaYuzeyi).withValues(alpha: 0.75),
                     fontSize: 11,
                     fontWeight: AppFont.bold,
                   ),
@@ -527,28 +534,37 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     ),
   );
 
-  Widget _cip(String etiket, {required bool secili, VoidCallback? onTap}) =>
-      GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: secili ? AppColors.primary : AppColors.card,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(
-              color: secili ? AppColors.primary : AppColors.border,
-            ),
-          ),
-          child: Text(
-            etiket,
-            style: TextStyle(
-              color: secili ? AppColors.onPrimary : AppColors.textSoft,
-              fontSize: 12,
-              fontWeight: AppFont.heavy,
-            ),
+  /// Hafta seçici ve SEÇİLİ sekme yüzeyi — sayfa zemininden ayrışmış primary.
+  ///
+  /// Düz `primary` kullanılamaz: takım temasının "birinci renk" modunda sayfa
+  /// zemini de primary'dir, ikisi aynı renge düşer ve yüzey görünmez olur
+  /// (kullanıcı bulgusu, 16 Ağustos 2026). Tek yerde çözülür ki seçici ile
+  /// sekme aynı tonu paylaşsın.
+  static Color get _haftaYuzeyi =>
+      ayrisanYuzey(AppColors.primary, AppColors.background);
+
+  Widget _cip(String etiket, {required bool secili, VoidCallback? onTap}) {
+    final yuzey = secili ? _haftaYuzeyi : AppColors.card;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: yuzey,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: secili ? yuzey : AppColors.border),
+        ),
+        child: Text(
+          etiket,
+          style: TextStyle(
+            color: secili ? okunurMetin(yuzey) : AppColors.textSoft,
+            fontSize: 12,
+            fontWeight: AppFont.heavy,
           ),
         ),
-      );
+      ),
+    );
+  }
 
   /// Seçili haftanın SİSTEM karne kaydı — Genel Özet ve Hafta Hafta ile AYNI
   /// MERKEZÎ hesap (backend: mühürlü TEKLİ ana tahmin × resmî 1/X/2; ikisi de
@@ -1085,7 +1101,9 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               ? 'Doğru/Yanlış filtresi senin tahminine göredir.'
               : 'Kupon yok — Doğru/Yanlış filtresi sistem tahminine göredir.',
           style: TextStyle(
-            color: AppColors.textMuted,
+            // Bu açıklama SAYFA ZEMİNİNDE duruyor; `textMuted` KART için
+            // türetilmiş soluk tondur ve sarı zeminde siliniyordu.
+            color: AppColors.onBackgroundMuted,
             fontSize: 11,
             fontStyle: FontStyle.italic,
           ),

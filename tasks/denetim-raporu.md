@@ -810,3 +810,40 @@ yanlış kulübün armasını basma riski açardı. Boş kalan yerde baş harf r
 Arşivden gelen arma defter tarafından EZİLMEZ — mutasyonla doğrulandı
 (ezme koruması kaldırılınca test düşüyor). `test/gecmis-tamamlama.test.mjs`
 13 test.
+
+### 🟡 BULGU 19 — Hafta seçici ve SEÇİLİ sekme kartı görünmüyordu (kullanıcı bulgusu · DÜZELTİLDİ)
+
+Kullanıcı bildirdi: "1. Hafta yazısının arka plan kartı yok, Özet'te de
+görünmüyor" (`t13_duzeltilmis.png`).
+
+**Kök neden (kodda doğrulandı):** ikisi de yüzeyi düz `AppColors.primary` ile
+boyuyordu —
+`user_dashboard_screen.dart` hafta seçici `Container` ve `_cip(secili: true)`.
+Takım temasının **"birinci renk"** modunda SAYFA ZEMİNİ de primary'dir; yüzey
+zeminle aynı renge düşünce kart görünmez oluyor. Yazı okunuyordu (onPrimary
+zaten o renge göre türetiliyor), kaybolan yalnız YÜZEYDİ.
+
+Bu, BULGU 3/7/17 ailesinin dördüncü örneği ama farklı yönü: orada YAZI yanlış
+yüzeyden türetiliyordu, burada YÜZEY zeminden ayrışmıyor.
+
+**Düzeltme:** bugün eklenen `ayrisanYuzey(primary, background)` kullanıldı —
+hue korunur, yalnız zeminden ayrışacak kadar ton itilir. Yüzey TEK yerde
+(`_haftaYuzeyi`) tanımlandı ki seçici ile sekme aynı tonu paylaşsın; yazı da
+`okunurMetin(_haftaYuzeyi)` ile o yüzeyden türetildi.
+
+**Kural DAR tutuldu:** `primary` bir KART üstünde yüzey olarak meşrudur (orada
+zeminden farklıdır) ve yazı rengi olarak da kullanılır — ilk yazdığım tarama
+bunları da yasaklıyordu ve üç meşru kullanımı yanlış işaretledi; tarama
+yalnız ZEMİNDE duran iki yüzeyi denetleyecek şekilde daraltıldı.
+
+**Kanıt:** `t14_yuzey.png` — hafta kartı ve seçili sekme sarı zeminden ayrışan
+amber tonda, "1. Hafta" okunur.
+**Koruma:** `haftalik_basari_okunurluk_test.dart`'a 2 test eklendi (dört takım
+temasında yüzey/zemin ayrımı + yazı okunurluğu, ve iki yüzeyin ayrışan tonu
+kullandığı). Mutasyonla doğrulandı: düz primary'ye dönünce test düşüyor.
+
+**Aynı taramada bir kusur daha:** "Kupon yok — Doğru/Yanlış filtresi sistem
+tahminine göredir." açıklaması sayfa zemininde `textMuted` (KART soluk tonu)
+kullanıyordu ve sarıda siliniyordu → `onBackgroundMuted`.
+
+`flutter analyze` temiz · **798 test** geçti.

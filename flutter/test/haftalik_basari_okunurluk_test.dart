@@ -26,6 +26,7 @@ const _temalar = <String, (int, int)>{
 };
 
 void main() {
+  yuzeyTestleri();
   group('kapanış şeridi', () {
     test('yazı, ŞERİDİN KENDİ yüzeyinden türetilir (WCAG 4.5:1)', () {
       for (final t in _temalar.entries) {
@@ -76,6 +77,71 @@ void main() {
         reason: 'sayfa başlığı zeminde KART yazı rengini kullanıyor',
       );
       expect(govde.contains('onBackground'), isTrue);
+    });
+  });
+}
+
+// ——— YÜZEY GÖRÜNÜRLÜĞÜ (kullanıcı bulgusu, 16 Ağustos 2026) ———
+//
+// "1. Hafta" seçicisinin ve SEÇİLİ sekmenin ("Özet") arka plan kartı takım
+// temasında görünmüyordu. Sebep: ikisi de düz `AppColors.primary` ile
+// boyanıyor, ama "birinci renk" modunda SAYFA ZEMİNİ de primary — aynı renge
+// düşünce yüzey kayboluyor.
+
+void yuzeyTestleri() {
+  group('hafta seçici / seçili sekme yüzeyi', () {
+    test('yüzey sayfa zemininden AYRIŞIR (her takım temasında)', () {
+      for (final t in _temalar.entries) {
+        final zemin = Color(t.value.$1);
+        // Takım temasında primary = zemin; ayrışan yüzey üretilmeli.
+        final yuzey = ayrisanYuzey(zemin, zemin);
+        expect(
+          kontrastOrani(yuzey, zemin),
+          greaterThanOrEqualTo(1.4),
+          reason: '${t.key}: yüzey zeminle aynı kaldı, kart görünmez',
+        );
+        // Yüzeyin üstündeki yazı da okunmalı.
+        expect(
+          kontrastOrani(okunurMetin(yuzey), yuzey),
+          greaterThanOrEqualTo(4.5),
+          reason: '${t.key}: yüzey yazısı okunmuyor',
+        );
+      }
+    });
+
+    test('ZEMİNDE duran iki yüzey ayrışan tonu kullanır', () {
+      // Kural DAR tutulur: `primary` bir KART üstünde yüzey olarak meşrudur
+      // (orada zeminden farklıdır) ve yazı rengi olarak da kullanılır.
+      // Yasak olan yalnız SAYFA ZEMİNİNDE duran yüzeyin düz primary olması.
+      final src = File(
+        'lib/features/dashboard/user_dashboard_screen.dart',
+      ).readAsStringSync();
+
+      // 1) Hafta seçici kartı
+      final i = src.indexOf('padding: const EdgeInsets.all(Spacing.sm)');
+      expect(i, greaterThan(-1), reason: 'hafta seçici bulunamadı');
+      expect(
+        src.substring(i, i + 800).contains('color: _haftaYuzeyi'),
+        isTrue,
+        reason: 'hafta seçici yine düz primary ile boyanıyor',
+      );
+
+      // 2) Seçili sekme çipi
+      final c = src.indexOf('Widget _cip(');
+      expect(c, greaterThan(-1));
+      final cipGovde = src.substring(c, c + 700);
+      expect(
+        cipGovde.contains('secili ? _haftaYuzeyi'),
+        isTrue,
+        reason: 'seçili sekme yine düz primary ile boyanıyor',
+      );
+
+      // 3) Ayrışan yüzey TEK yerde tanımlı
+      expect(
+        RegExp(r'_haftaYuzeyi\s*=>').allMatches(src).length,
+        1,
+        reason: 'ikinci bir yüzey tanımı eklenmiş',
+      );
     });
   });
 }
