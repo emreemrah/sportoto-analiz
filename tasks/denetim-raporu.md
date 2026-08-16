@@ -967,3 +967,58 @@ tarama olmasa gözden kaçacaktı.
 
 Kanıt: `t21_kupon_ok.png` (açık tema) · `t22_kupon_tema.png` (takım teması).
 **803 test** geçiyor.
+
+## TUR 25 — 16 Ağu, ~16:20
+
+| Kontrol | Sonuç |
+|---|---|
+| `flutter analyze lib test` | temiz |
+| `flutter test` | **823** geçti |
+| `backend npm test` | **1107** geçti |
+| Üretim | health 200 · radar 200 · `/api/bulletin` 503 (bilinen soğuk açılış) |
+
+### 🟡 BULGU 25 + 26 — Radar seçili çipleri görünmüyordu (DÜZELTİLDİ)
+`k4_radar.png`: seçili filtre **"Tümü"** ve seçili sıralama **"Bülten sırası"**
+çipsiz, yalın yazı gibi duruyordu; diğer seçenekler pill. Dolgu `primary`,
+çipler ZEMİNDE. Bugünkü sınıfın 5. ve 6. örneği. Kart dolgusu + sarı çerçeve
+ve yazıya alındı. Kanıt: `k5_radar_duz.png`.
+
+### 🟡 BULGU 27 — Teyit rozeti temaya uymuyordu (kullanıcı isteği · DÜZELTİLDİ)
+"Resmi bülten teyit edildi" rozeti sabit YEŞİL aileden (`successSoft`)
+geliyordu; takım temasında ekrandaki hiçbir renkle ilişkisi olmayan bir leke
+gibi duruyordu. Uygulamanın kendi VURGU rengine alındı ve ÜÇ MODDA da cihazda
+ölçüldü: açık `v_acik.png` (lacivert) · koyu `v_koyu.png` (mavi) · takım
+`r1_takim.png` (takımın rengi).
+
+**Anlam kaybı yok:** bu rozet "bülten teyit edildi" bilgisidir; maç sonucu
+renk dili (🟢 resmî · 🟡 henüz resmî değil · 🔴 canlı) AYRI yaşar ve skor
+efsanesi ile maç kartlarında korunur — ekran görüntülerinde ikisi bir arada
+görünüyor. ✓ işareti teyidi taşımaya devam eder.
+
+### ✅ KUSUR SINIFI ARTIK ÖLÇÜLÜ — `zemin_yuzey_cakismasi_test.dart`
+Bugün AYNI kökten **altı** kusur çıktı (hafta seçici · Özet çipi · görünmez
+"Güncel Bültene Dön" düğmesi · Bülten Geçmişi bağlantısı · Sistem Karnesi
+çipi · Radar çipleri). Ekran ekran aramak yerine kök ölçüldü.
+
+Paletin kendi kuralı zaten şunu söylüyordu: *"VURGU: kart ÜSTÜNDE duran
+buton/rozet zemini"* — yani `primary` KART için türetilir; zemin karşılığı
+`onBackgroundAccent`'tir. Yeni test bunu BEŞ gerçek kulüp paletinde sayıya
+çeviriyor:
+
+| ölçüm | sonuç |
+|---|---|
+| `primary` ↔ zemin | **< 1.25** → ayrım yok, yüzey görünmez |
+| `primary` ↔ kart | **≥ 3.0** → kartta geçerli |
+| `onBackgroundAccent` ↔ zemin | **≥ 3.0** → doğru token çalışıyor |
+| kart ↔ zemin | **≥ 1.25** → kart hep görünür |
+
+Böylece "zeminde primary kullanma" bir görüş değil, ölçülmüş kural oldu; palet
+ileride değişip kural gevşerse test bunu haber verir (gerekçe metni de o
+durumda altı bulgunun yeniden gözden geçirilmesi gerektiğini söylüyor).
+
+### Kayda geçsin — favori takım/tema DEĞİŞİKLİKLERİ BENDEN
+Gezinirken attığım kör `input tap`'ler favori takımı üç kez değiştirdi
+(Beşiktaş → Le Mans FC → Alkmaar Zaanstreek) ve görünüm modunu `takim-ters`e
+aldı. Bir ara "Takım Seç ekranı koyu moda uymuyor" diye şüphelendim; ölçünce
+modun `takim-ters` olduğunu gördüm — **kusur değildi**. Hepsi geri alındı
+(Takımım: Galatasaray · görünüm: takım teması, `w3.png`).
