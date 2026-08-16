@@ -1,7 +1,11 @@
 // KAYNAK: app/src/screens/WeekSummaryScreen.js — BİREBİR çeviri.
 //
-// HAFTANIN ÖZETİ — yayın açılış segmenti: güçlü adaylar + sürpriz adayları +
-// zorluk, tek gösterişli koyu ekranda. Yayıncı yayına bu ekranla girer.
+// HAFTANIN ÖZETİ — yayın açılış segmenti: güçlü adaylar + sürpriz adayları,
+// tek gösterişli koyu ekranda. Yayıncı yayına bu ekranla girer.
+//
+// "BÜLTEN ZORLUĞU" bandı 16 Ağustos 2026'da KALDIRILDI (kullanıcı kararı):
+// haftanın "kolay" olması diye bir şey yok, etiket tutturma kolaylığı vaat
+// ediyordu. Backend'in `difficulty` alanı duruyor; hiçbir ekran göstermiyor.
 //
 //   • Tüm veriler bültendeki GERÇEK analizden gelir (week_summary.dart — saf).
 //   • Güçlü aday yoksa dürüstçe "yok" denir; liste zorla doldurulmaz.
@@ -51,17 +55,6 @@ const Color _amber = Color(0xFFFFB35C);
 const Color _yesil = Color(0xFF5DD39E);
 const Color _kirmizi = Color(0xFFFF7A6E);
 
-/// zorluk göstergesi segment sayısı (her biri 20 puan)
-const int _segment = 5;
-
-/// Zorluk rengi — düşük skor kolay hafta.
-Color _zorlukRengi(Object? skor) {
-  if (skor is! num) return _inkSoft;
-  if (skor < 30) return _yesil;
-  if (skor < 50) return _amber;
-  return _kirmizi;
-}
-
 class WeekSummaryScreen extends StatefulWidget {
   const WeekSummaryScreen({super.key});
 
@@ -107,12 +100,10 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
     }
 
     final sum = buildWeekSummary(data['matches'] as List?);
-    final diff = data['difficulty'] as Map?;
     final weekTxt = [
       if (data['season'] != null) '${data['season']} Sezonu',
       if (data['weekNumber'] != null) '${data['weekNumber']}. Hafta',
     ].join(' · ');
-    final diffColor = _zorlukRengi(diff?['score']);
 
     // Haftanın bileşimi. "Diğer" = kalanlar; toplamı bültenle tutturur ki
     // çubuk eksik parça göstermesin.
@@ -159,7 +150,13 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
                       _baslikSatiri(sum.total, weekTxt),
                       _bilesimCubugu(parcalar, sum.total),
                       _lejant(parcalar),
-                      if (diff != null) _zorlukBandi(diff, diffColor),
+                      // BÜLTEN ZORLUĞU BANDI KALDIRILDI (kullanıcı kararı,
+                      // 16 Ağustos 2026 — ana sayfadaki "Zorluk: Kolay"
+                      // etiketiyle AYNI gerekçe). Haftanın "kolay" olması
+                      // diye bir şey yok; etiket tutturma kolaylığı vaat
+                      // ediyordu. Aynı kaldırma iki ekranda ayrı ayrı
+                      // yapılmak zorunda kaldığı için artık bir bekçi test
+                      // var: gorsel_kurallar_test.dart.
                       _bolumBasligi(
                         _yesil,
                         'GÜÇLÜ ADAYLAR',
@@ -452,108 +449,6 @@ class _WeekSummaryScreenState extends State<WeekSummaryScreen> {
       ],
     ),
   );
-
-  /// Zorluk — kutu DEĞİL, ince ayraçla bölünmüş bir bant.
-  Widget _zorlukBandi(Map diff, Color renk) => Container(
-    margin: const EdgeInsets.only(top: Spacing.lg),
-    padding: const EdgeInsets.only(top: Spacing.md),
-    decoration: BoxDecoration(
-      border: Border(top: BorderSide(color: _line)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'BÜLTEN ZORLUĞU',
-              style: TextStyle(
-                color: _inkSoft,
-                fontSize: 10.5,
-                fontWeight: AppFont.black,
-                letterSpacing: 1.4,
-              ),
-            ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(
-                  '${diff['level']}',
-                  style: TextStyle(
-                    color: renk,
-                    fontSize: 15,
-                    fontWeight: AppFont.black,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                RichText(
-                  text: TextSpan(
-                    style: TextStyle(
-                      color: AppColors.onDark,
-                      fontSize: 15,
-                      fontWeight: AppFont.black,
-                    ),
-                    children: [
-                      TextSpan(text: '${diff['score']}'),
-                      TextSpan(
-                        text: '/100',
-                        style: TextStyle(
-                          color: _inkSoft,
-                          fontSize: 11,
-                          fontWeight: AppFont.heavy,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        // Segmentli zorluk göstergesi: 100'lük ölçekte nerede olduğunu
-        // gösterir.
-        Padding(
-          padding: const EdgeInsets.only(top: 10),
-          child: Row(
-            children: [
-              for (var i = 0; i < _segment; i++) ...[
-                if (i > 0) const SizedBox(width: 5),
-                Expanded(
-                  child: Container(
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: i < _doluSegment(diff['score']) ? renk : _line,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        if (diff['text'] != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 9),
-            child: Text(
-              '${diff['text']}',
-              style: TextStyle(
-                color: _inkSoft,
-                fontSize: 11.5,
-                height: 16 / 11.5,
-              ),
-            ),
-          ),
-      ],
-    ),
-  );
-
-  static int _doluSegment(Object? skor) {
-    final s = skor is num ? skor.clamp(0, 100) : 0;
-    return (s / 100 * _segment).round();
-  }
 
   /// Bölüm başlığı — renkli aksan çubuğuyla.
   Widget _bolumBasligi(Color renk, String baslik, int? sayi) => Padding(
