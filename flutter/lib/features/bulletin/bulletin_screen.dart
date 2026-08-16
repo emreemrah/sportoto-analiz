@@ -776,10 +776,31 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                           // koruma yoktu. `kimlikTonu` hue ve doygunluğu
                           // KORUYARAK tonu okunana dek iter — yeşil yine
                           // yeşildir, yalnız okunur.
+                          // ROZET ÜÇ MODDA DA TEMAYA UYAR (kullanıcı kararı,
+                          // 16 Ağustos 2026).
+                          //
+                          // Rozet sabit YEŞİL aileden (`successSoft`) geliyordu
+                          // ve takım temasında ekrandaki hiçbir renkle
+                          // ilişkisi olmayan bir leke gibi duruyordu.
+                          //
+                          // Artık uygulamanın kendi VURGU rengini kullanıyor:
+                          // açık modda marka tonu, koyu modda koyu karşılığı,
+                          // takım temasında TAKIMIN rengi. `primary` kart
+                          // yüzeyi için türetildiği (eşik 3.0) ve rozet kartın
+                          // İÇİNDE olduğu için okunurluk garanti.
+                          //
+                          // ANLAM KAYBI YOK: bu rozet "bülten teyit edildi"
+                          // bilgisidir; maç sonucu renk dili (🟢 resmî ·
+                          // 🟡 henüz resmî değil · 🔴 canlı) AYRI yaşar ve
+                          // skor efsanesi ile maç kartlarında korunur. ✓
+                          // işareti teyidi taşımaya devam eder.
                           decoration: BoxDecoration(
-                            color: AppColors.successSoft,
+                            color: AppColors.cardAlt,
                             borderRadius: AppRadius.smR,
-                            border: Border.all(color: AppColors.onSuccessSoft),
+                            border: Border.all(
+                              color: AppColors.primary,
+                              width: 1.2,
+                            ),
                           ),
                           child: Text(
                             '✓ Resmi bülten teyit edildi'
@@ -787,7 +808,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: AppColors.onSuccessSoft,
+                              color: AppColors.primary,
                               fontSize: 10.5,
                               fontWeight: AppFont.heavy,
                             ),

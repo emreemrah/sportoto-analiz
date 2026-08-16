@@ -1086,9 +1086,19 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: acik ? AppColors.primary : AppColors.cardAlt,
+        // SEÇİLİ ÇİP ZEMİNDE DURUYOR (16 Ağustos 2026 denetimi).
+        //
+        // Dolgu `primary`ydi; takım temasının "birinci renk" modunda sayfa
+        // zemini de o aileden olduğu için SEÇİLİ çip kayboluyor ve etiket
+        // yalın yazı gibi kalıyordu (ölçüldü: `k4_radar.png` — "Tümü" ve
+        // "Bülten sırası" çipsiz). Kullanıcı kararıyla aynı dil: KART
+        // dolgusu, SARI (`primary`) çerçeve ve yazı.
+        color: acik ? AppColors.card : AppColors.cardAlt,
         borderRadius: AppRadius.smR,
-        border: Border.all(color: acik ? AppColors.primary : AppColors.border),
+        border: Border.all(
+          color: acik ? AppColors.primary : AppColors.border,
+          width: acik ? 1.5 : 1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1101,7 +1111,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen> {
             etiket,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: acik ? AppColors.onPrimary : AppColors.textSoft,
+              color: acik ? AppColors.primary : AppColors.textSoft,
               fontSize: 11,
               fontWeight: AppFont.heavy,
             ),
