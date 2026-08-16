@@ -50,7 +50,17 @@ class DashboardHero extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(Spacing.lg),
     decoration: BoxDecoration(
-      color: AppColors.primary,
+      // HERO KENDİ TOKENİYLE BOYANIR (16 Ağustos 2026 denetimi).
+      //
+      // Burada `primary` kullanılıyordu; oysa tema hero için AYRI bir yüzey
+      // tanımlıyor (`heroZemin`) ve hero yazıları (`onHero`/`onHeroSoft`) tam
+      // O YÜZEYE göre türetiliyor (bkz. takim_gorunumu.dart). Yüzey `primary`
+      // olunca yazılar başka bir yüzeyin renginden geliyordu ve takım
+      // temasında Sistem Karnesi başlığı okunmuyordu (ölçüldü:
+      // `t18_sistem_karnesi.png` — "Sistem Master Analiz Karnesi" silik).
+      //
+      // Ana sayfadaki hero zaten `heroZemin` kullanıyor; iki hero ayrışmasın.
+      color: AppColors.heroZemin,
       borderRadius: BorderRadius.circular(AppRadius.xl),
       boxShadow: AppShadow.card,
     ),
@@ -448,21 +458,30 @@ class FilterBar extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
               decoration: BoxDecoration(
+                // SEÇİLİ ÇİP ZEMİNDE DURUYOR (16 Ağustos 2026 denetimi).
+                //
+                // Dolgu `primary`ydi; takım temasının "birinci renk" modunda
+                // sayfa zemini de o aileden olduğu için seçili çip kayboluyor,
+                // sekme adı yalın yazı gibi kalıyordu (ölçüldü:
+                // `t18_sistem_karnesi.png` — "Özet" çipsiz görünüyor).
+                // Kullanıcı kararıyla aynı dil: KART dolgusu, SARI (primary)
+                // çerçeve ve yazı.
                 color: value == options[i].key
-                    ? AppColors.primary
+                    ? AppColors.card
                     : AppColors.cardAlt,
                 borderRadius: BorderRadius.circular(AppRadius.pill),
                 border: Border.all(
                   color: value == options[i].key
                       ? AppColors.primary
                       : AppColors.border,
+                  width: value == options[i].key ? 1.5 : 1,
                 ),
               ),
               child: Text(
                 options[i].label,
                 style: TextStyle(
                   color: value == options[i].key
-                      ? AppColors.onPrimary
+                      ? AppColors.primary
                       : AppColors.textSoft,
                   fontSize: 12,
                   fontWeight: AppFont.heavy,

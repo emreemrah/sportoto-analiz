@@ -281,7 +281,7 @@ class _SystemScorecardScreenState extends State<SystemScorecardScreen> {
           'dökümler, 1/X/2 kırılımı ve teknik ölçümler. Geçmiş ölçümdür, '
           'gelecek sonuç vaadi değildir.',
           style: TextStyle(
-            color: AppColors.textMuted,
+            color: AppColors.onBackgroundMuted, // zeminde duruyor — kart soluğu silinir
             fontSize: 10.5,
             fontWeight: AppFont.semibold,
             height: 15 / 10.5,

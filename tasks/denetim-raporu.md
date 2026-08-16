@@ -847,3 +847,55 @@ tahminine göredir." açıklaması sayfa zemininde `textMuted` (KART soluk tonu)
 kullanıyordu ve sarıda siliniyordu → `onBackgroundMuted`.
 
 `flutter analyze` temiz · **798 test** geçti.
+
+## TUR 20 — 16 Ağu, ~15:25
+
+| Kontrol | Sonuç |
+|---|---|
+| `flutter analyze lib test` | temiz |
+| `flutter test` | **798** geçti |
+| `backend npm test` | **1107** geçti |
+| Üretim | health 200 · radar 200 · `/api/bulletin` **503** (bilinen soğuk açılış) |
+
+Bu tur rastgele ekran gezmek yerine, bugün ortaya çıkan **en ciddi kusur
+sınıfını** sistematik kovaladı: *sayfa zemininde `primary` kullanımı*.
+
+### Kök kural (paletten okundu)
+`takim_paleti.dart`: `vurgu` (→ `AppColors.primary`) **KART yüzeyi için**
+türetiliyor — kendi yorumu: *"VURGU: kart ÜSTÜNDE duran buton/rozet zemini"*.
+Zemin karşılığı ayrı bir token: `onBackgroundAccent` (`p.secili`).
+Yani bugünkü görünmez-düğme kusuru, var olan bir kuralın ihlaliydi.
+
+### 🟡 BULGU 20 — Sistem Karnesi hero başlığı okunmuyordu (DÜZELTİLDİ)
+`t18_sistem_karnesi.png`: "ANALIZ MERKEZİ…", "Sistem Master Analiz Karnesi" ve
+alt satırı silik.
+
+**Kök neden:** tema hero için AYRI bir yüzey tanımlıyor (`heroZemin = p.yuzey`)
+ve hero yazıları (`onHero`/`onHeroSoft`) tam O YÜZEYE göre türetiliyor. Ama
+`DashboardHero` yüzeyi `AppColors.primary` ile boyuyordu — yazılar başka bir
+yüzeyin renginden geliyordu. **Ana sayfadaki hero zaten `heroZemin`
+kullanıyor**; iki hero ayrışmıştı.
+
+**Düzeltme:** `DashboardHero` → `color: AppColors.heroZemin`. Tek token; her
+`DashboardHero` kullanan ekran birlikte düzeldi.
+
+### 🟡 BULGU 21 — Sistem Karnesi'nde SEÇİLİ sekme çipi görünmüyordu (DÜZELTİLDİ)
+Aynı ekranda "Özet" çipsiz, yalın yazı gibi duruyordu; diğer sekmeler pill.
+Dolgu `AppColors.primary` ve çip ZEMİNDE — takım temasında kayboluyor.
+BULGU 19'un aynısı, farklı dosyada (`widgets/dashboard_ui.dart`).
+
+**Düzeltme:** kullanıcı kararıyla aynı dil — KART dolgusu + SARI (`primary`)
+çerçeve ve yazı.
+
+**Kanıt:** `t19_karne.png` — hero kırmızı kartta sarı yazı, "Özet" çipi sarı
+çerçeveyle görünür.
+
+Ayrıca aynı ekranın alt açıklaması zeminde `textMuted` (kart soluğu)
+kullanıyordu → `onBackgroundMuted`.
+
+### Not — bu sınıf henüz tükenmedi
+`AppColors.primary` kodda **175 yerde** kullanılıyor. Çoğu meşru (kart üstünde
+yüzey ya da yazı). Statik olarak "bu öğe zeminde mi?" demek güvenilir değil;
+bu yüzden tarama yerine ekran ekran ölçüm sürüyor. Şu ana kadar bu sınıftan
+**5 kusur** bulundu (BULGU 17, 19, 20, 21 + geçmiş hafta başlığındaki görünmez
+düğme).
