@@ -1022,3 +1022,26 @@ Gezinirken attığım kör `input tap`'ler favori takımı üç kez değiştirdi
 aldı. Bir ara "Takım Seç ekranı koyu moda uymuyor" diye şüphelendim; ölçünce
 modun `takim-ters` olduğunu gördüm — **kusur değildi**. Hepsi geri alındı
 (Takımım: Galatasaray · görünüm: takım teması, `w3.png`).
+
+### ✅ BULGU 23 KAPANDI — resmî açıklama ATIFLA gösteriliyor (kullanıcı kararı)
+Kullanıcı dört seçenekten (d)'yi seçti: metne dokunma, alıntı olduğunu görünür
+kıl.
+
+İkramiye bölümündeki `prize.description` artık "Açıklamalar" satırı değil,
+kaynaklı bir ALINTI bloğu:
+  * başlık: **"Spor Toto resmî açıklaması"**
+  * metin tırnak içinde, sol çizgiyle ayrılmış, italik
+  * altında: "Metin resmî kaynaktan olduğu gibi aktarılmıştır."
+
+Metne TEK KELİME dokunulmadı — "İDDAA.COM" yerinde duruyor. Gerekçe: metinden
+kelime ayıklamak RESMÎ BİR AÇIKLAMAYI DEĞİŞTİRMEK olurdu ve bu kendi başına
+bir dürüstlük ihlalidir. Atıf, markayı uygulamanın tanıtımı olmaktan çıkarır.
+
+**Koruma:** `resmi_aciklama_alinti_test.dart` (4 test) İKİ YÖNÜ birden tutuyor
+ve ikisi de mutasyonla doğrulandı:
+  * metinden marka ayıklanırsa → test düşer (sansür koruması)
+  * kaynak etiketi kaldırılırsa → test düşer (atıf koruması)
+  * açıklama yok/boşsa blok hiç çizilmez (uydurma yok)
+
+Kanıt: `x2.png` (53. Hafta, takım teması). `flutter analyze` temiz · **827**
+test.

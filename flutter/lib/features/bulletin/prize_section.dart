@@ -105,10 +105,70 @@ class PrizeSection extends StatelessWidget {
       // KAPANIŞ ve AÇIKLAMALAR — resmî listede etiketli satır olarak duruyor.
       // Veri yoksa satır ÇİZİLMEZ (uydurulmaz).
       if (kapanis != null) _metaSatir('Kapanış', kapanis),
-      if (aciklama != null && aciklama.isNotEmpty)
-        _metaSatir('Açıklamalar', aciklama),
+      if (aciklama != null && aciklama.isNotEmpty) _resmiAciklama(aciklama),
     ];
   }
+
+  /// RESMÎ AÇIKLAMA — ALINTI OLARAK GÖSTERİLİR (kullanıcı kararı, 16 Ağustos
+  /// 2026).
+  ///
+  /// Bu metin Spor Toto'nun KENDİ ikramiye duyurusudur ve uçtan BİREBİR gelir
+  /// (`prize.description`); uygulama tek kelimesini yazmaz. İçinde resmî satış
+  /// kanallarının adları geçebiliyor — 53. Haftada "İDDAA.COM" geçtiği
+  /// denetimde ölçüldü.
+  ///
+  /// Burada iki proje kuralı çatışıyordu: *"kullanıcı arayüzünde marka adı
+  /// yok"* (yasal/mağaza kısıtı) ile *"resmî sonucu olduğu gibi göster"*.
+  /// Metinden kelime ayıklamak, RESMÎ BİR AÇIKLAMAYI DEĞİŞTİRMEK olurdu ve bu
+  /// kendi başına bir dürüstlük sorunudur.
+  ///
+  /// Karar: metne DOKUNULMAZ, alıntı olduğu görünür kılınır. Kaynak açıkça
+  /// yazılır ve metin tırnak içinde, ayrı bir blokta durur; böylece içindeki
+  /// her ifade Spor Toto'nun cümlesi olarak okunur, uygulamanın tanıtımı
+  /// olarak değil.
+  Widget _resmiAciklama(String metin) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.only(top: 9),
+    decoration: BoxDecoration(
+      border: Border(top: BorderSide(color: AppColors.border)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Spor Toto resmî açıklaması',
+          style: TextStyle(
+            color: AppColors.text,
+            fontSize: 12,
+            fontWeight: AppFont.heavy,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Container(
+          padding: const EdgeInsets.only(left: 9),
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(color: AppColors.border, width: 2.5),
+            ),
+          ),
+          child: Text(
+            '“$metin”',
+            style: TextStyle(
+              color: AppColors.textSoft,
+              fontSize: 12,
+              height: 16 / 12,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Metin resmî kaynaktan olduğu gibi aktarılmıştır.',
+          style: TextStyle(color: AppColors.textMuted, fontSize: 10.5),
+        ),
+      ],
+    ),
+  );
 
   Widget _satir({
     required String hit,
