@@ -51,8 +51,9 @@ bool _isStarted(Map m) {
   if (m['status'] == 'finished') return true;
   final date = m['date'] as String?;
   if (date == null) return false;
-  final t = DateTime.tryParse(date);
-  return t != null && !t.toLocal().isAfter(DateTime.now());
+  // Bülten saati TÜRKİYE duvar saatidir — cihaz saat diliminden bağımsız
+  // karşılaştırma için tek tanım (bkz. utils.macBasladi).
+  return macBasladi(date);
 }
 
 class BulletinScreen extends ConsumerStatefulWidget {
@@ -653,6 +654,9 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                     HistoryMatchCard(
                       item: m,
                       duzeltmeVar: hist.corrections.any((c) => c.no == m['no']),
+                      // Erteleme, bültenin TAMAMINA bakılarak bulunur; kart
+                      // tek başına bilemez (bkz. bulletin_format.ertelendiMi).
+                      ertelendi: ertelendiMi(m, hist.hist?['matches'] as List?),
                       // Geçmiş bültende en değerli bilgi burada: maç öncesi ne
                       // demişiz, sonra ne olmuş. Detay ekranı arşivdeki
                       // MÜHÜRLÜ kaydı okur; yeniden hesap yapmaz.

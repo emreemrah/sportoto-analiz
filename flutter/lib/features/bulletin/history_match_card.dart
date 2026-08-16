@@ -25,6 +25,7 @@ class HistoryMatchCard extends StatelessWidget {
     super.key,
     required this.item,
     this.duzeltmeVar = false,
+    this.ertelendi = false,
     this.onTap,
     this.onDuzeltme,
   });
@@ -33,6 +34,11 @@ class HistoryMatchCard extends StatelessWidget {
 
   /// Bu maçta resmî sonuç DEĞİŞTİ mi (oturum içi düzeltme denetimi).
   final bool duzeltmeVar;
+
+  /// Maç, bültenin geri kalanından belirgin biçimde SONRAYA alınmış mı
+  /// (bkz. `bulletin_format.ertelendiMi`). ÇIKARIMDIR — resmî uçta
+  /// "ertelendi" alanı yoktur; kanıt olarak yeni tarih kartta zaten yazar.
+  final bool ertelendi;
   final VoidCallback? onTap;
   final VoidCallback? onDuzeltme;
 
@@ -523,10 +529,15 @@ class HistoryMatchCard extends StatelessWidget {
       );
     }
     if (notStarted) {
+      // ERTELENEN MAÇ AYRI YAZILIR (kullanıcı isteği, 16 Ağustos 2026).
+      // "Başlamadı" doğruydu ama eksikti: 13 gün sonraya alınmış bir maç
+      // için kullanıcı ertelemeyi tarihten çıkarmak zorunda kalıyordu.
+      // Etiket bir ÇIKARIMDIR (resmî uçta böyle bir alan yok); kanıtı
+      // kartta yazan YENİ TARİHTİR.
       return Text(
-        'Başlamadı',
+        ertelendi ? 'Ertelendi' : 'Başlamadı',
         style: TextStyle(
-          color: AppColors.muted,
+          color: ertelendi ? AppColors.warning : AppColors.muted,
           fontSize: 11,
           fontWeight: AppFont.heavy,
         ),

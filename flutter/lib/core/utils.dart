@@ -219,3 +219,36 @@ int sayiya(Object? v) =>
 /// ayrımının korunması gereken yerlerde kullanılır.
 int? sayiyaNullable(Object? v) =>
     v is num ? v.toInt() : int.tryParse('$v');
+
+/// BÜLTEN MAÇ SAATİNİ GERÇEK ANA ÇEVİRİR — TEK TANIM.
+///
+/// SORUN (16 Ağustos 2026, kullanıcı bildirdi): "Yaklaşan Maçlar"da BAŞLAMIŞ
+/// maçlar görünüyordu.
+///
+/// Resmî bülten maç saatini saat dilimi EKSİZ verir (`"2026-08-16T19:00:00"`)
+/// ve bu bir TÜRKİYE DUVAR SAATİDİR. `DateTime.parse` böyle bir metni CİHAZIN
+/// yerel saatinde yorumlar; cihaz TSİ değilse karşılaştırma ofset kadar kayar.
+///
+/// ÖLÇÜLDÜ (emülatör GMT): gerçek saat 20:35 TSİ iken 19:00'da başlamış maç,
+/// cihaz saatine göre "1,5 saat sonra" görünüyordu — yani başlamış maç
+/// "yaklaşan" sayılıyordu. Bu, aynı gün backend'de düzeltilen saat dilimi
+/// hatasının İSTEMCİ İKİZİDİR.
+///
+/// KARŞILAŞTIRMA bu fonksiyonla yapılır (gerçek an); GÖSTERİM duvar saatinde
+/// kalır — kullanıcı resmî bültendeki saati görür, Türkiye saatini.
+///
+/// Türkiye 2016'dan beri kalıcı UTC+3'tür (yaz saati yok), sabit ofset kesin.
+DateTime? macAni(Object? iso) {
+  if (iso is! String || iso.trim().isEmpty) return null;
+  final s = iso.trim();
+  // Saat dilimi eki VARSA olduğu gibi; YOKSA Türkiye duvar saati kabul edilir.
+  final ekli = RegExp(r'(?:Z|[+-]\d{2}:?\d{2})$', caseSensitive: false);
+  return DateTime.tryParse(ekli.hasMatch(s) ? s : '$s+03:00');
+}
+
+/// Maçın başlama anı GELDİ mi? (gerçek ana göre, cihaz saat diliminden bağımsız)
+bool macBasladi(Object? iso, {DateTime? simdi}) {
+  final t = macAni(iso);
+  if (t == null) return false;
+  return !t.isAfter(simdi ?? DateTime.now());
+}

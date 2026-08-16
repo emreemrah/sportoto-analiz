@@ -9,6 +9,7 @@
 // canlı/bülten akışıdır.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:masteranaliz/core/utils.dart';
 import 'package:masteranaliz/core/yaklasan_maclar.dart';
 
 final _an = DateTime.parse('2026-08-21T20:00:00');
@@ -28,6 +29,7 @@ Map<String, dynamic> _hafta(List<Map<String, dynamic>> maclar) => {
 };
 
 void main() {
+  saatDilimiTestleri();
   test('başlama saati GEÇMİŞ maç listeye girmez', () {
     final liste = yaklasanMaclar(
       _hafta([
@@ -100,5 +102,46 @@ void main() {
       [2, 9],
       reason: 'önceki haftanın başlamış maçı da elenmeli',
     );
+  });
+}
+
+// ——— SAAT DİLİMİ BAĞIMSIZLIĞI (kullanıcı bildirdi, 16 Ağustos 2026) ———
+//
+// Kullanıcı "başlamış maçlar var" dedi. Ölçüm: emülatör GMT'de, gerçek saat
+// 20:35 TSİ iken 19:00'da BAŞLAMIŞ maç listede duruyordu.
+//
+// Sebep: bülten saati saat dilimi EKSİZ Türkiye duvar saatidir
+// ("2026-08-16T19:00:00"); `DateTime.parse` bunu CİHAZIN yerel saatinde
+// yorumluyordu. Cihaz TSİ değilse karşılaştırma ofset kadar kayıyor ve
+// başlamış maç "yaklaşan" sayılıyordu. Bu, aynı gün backend'de düzeltilen
+// saat dilimi hatasının İSTEMCİ İKİZİYDİ.
+
+void saatDilimiTestleri() {
+  group('saat dilimi', () {
+    test('duvar saati TÜRKİYE kabul edilir (cihaz saatine göre değil)', () {
+      // 19:00 TSİ = 16:00 UTC.
+      expect(macAni('2026-08-16T19:00:00')!.toUtc(),
+          DateTime.parse('2026-08-16T16:00:00Z'));
+    });
+
+    test('saat dilimi EKLİ değere dokunulmaz', () {
+      expect(macAni('2026-08-16T16:00:00Z')!.toUtc(),
+          DateTime.parse('2026-08-16T16:00:00Z'));
+    });
+
+    test('GMT cihazda da başlamış maç "yaklaşan" SAYILMAZ', () {
+      // Gerçek an: 20:35 TSİ = 17:35 UTC (emülatörde ölçülen durum).
+      final simdi = DateTime.parse('2026-08-16T17:35:00Z');
+      expect(macBasladi('2026-08-16T19:00:00', simdi: simdi), isTrue,
+          reason: '19:00 TSİ maçı 20:35 TSİ itibarıyla BAŞLAMIŞTIR');
+      expect(macBasladi('2026-08-16T21:30:00', simdi: simdi), isFalse,
+          reason: '21:30 TSİ maçı henüz başlamamıştır');
+    });
+
+    test('çözülemeyen değer başlamış SAYILMAZ', () {
+      expect(macAni(null), isNull);
+      expect(macAni(''), isNull);
+      expect(macBasladi('bilinmiyor'), isFalse);
+    });
   });
 }

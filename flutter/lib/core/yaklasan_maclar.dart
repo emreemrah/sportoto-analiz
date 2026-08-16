@@ -18,9 +18,12 @@
 // aynı numaradaki BAŞKA bir maçı açardı. Önceki hafta kartları o haftanın
 // bülten detayına gider.
 
+import 'utils.dart';
+
 /// Sonucu belli olmayan durumlar. 'void_no_result' resmî sonucu hiç
 /// yayımlanmayacak maçtır (ertelenmiş/iptal) — "yaklaşan" değildir, listeye
 /// girmez; yoksa hiç oynanmayacak bir maç haftalarca listede kalırdı.
+
 const Set<String> _bitmemisDurumlar = {
   'upcoming',
   'scheduled',
@@ -39,8 +42,9 @@ Object? oncekiRoundId(Map? roundsYaniti) {
   return (hepsi[i - 1] as Map)['id'];
 }
 
-DateTime? _tarih(Object? iso) =>
-    iso is String ? DateTime.tryParse(iso)?.toLocal() : null;
+// Bülten saati TÜRKİYE duvar saatidir; karşılaştırma GERÇEK ana göre yapılır
+// (bkz. utils.macAni). Cihaz TSİ değilse eski hâl ofset kadar kayıyordu.
+DateTime? _tarih(Object? iso) => macAni(iso);
 
 bool _tarihGecerli(Map? m) => _tarih(m?['date']) != null;
 

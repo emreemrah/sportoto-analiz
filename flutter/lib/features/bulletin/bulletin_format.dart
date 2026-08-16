@@ -5,6 +5,8 @@
 // modül bölmenin maliyeti yoktu; burada ayırmak davranışı değiştirmez, yalnız
 // test edilebilir kılar.
 
+import '../../core/utils.dart';
+
 /// Resmi sonuç 1/X/2 (sadece resmi skordan). false → henüz yok.
 ///
 /// KAYNAKTAN BİLİNÇLİ SAPMA (2026-08-10): ertelenen maçın NOTER KARARI da
@@ -135,4 +137,40 @@ String? kapanisResmi(String? iso) {
   final gun = _gunlerTr[d.weekday % 7];
   return '${iki(d.day)} ${_aylarTr[d.month - 1]} $gun '
       '${d.year} ${iki(d.hour)}:${iki(d.minute)}';
+}
+
+/// ERTELENMİŞ MAÇ TESPİTİ — ÇIKARIMDIR, resmî bir alan DEĞİLDİR.
+///
+/// KULLANICI KARARI (16 Ağustos 2026): 1. Haftanın 15. maçı (Celta Vigo –
+/// Osasuna) ertelendi ve noter karar verecek. Kart yalnız "Başlamadı" diyordu;
+/// kullanıcı ertelemenin görünmesini istedi.
+///
+/// NEDEN ÇIKARIM: resmî Spor Toto ucu bu maçı hâlâ `status: "upcoming"` olarak
+/// veriyor — "ertelendi" diye bir alan YOK. Erteleme yalnız TARİHİN bültenin
+/// geri kalanından kopmasıyla belli oluyor. Bu yüzden etiket, resmî veriyi
+/// aktarmaz; ölçülen bir aykırılığı bildirir ve yanında YENİ TARİH de yazar
+/// (kanıt ekranda kalır).
+///
+/// EŞİK ÖLÇÜMLE SEÇİLDİ (1. Hafta, gerçek veri): normal maçlar ilk maçtan
+/// 0,0–3,0 gün sonra; ertelenen maç 13,0 gün sonra. 7 gün ikisinin ortasında
+/// güvenle durur — Spor Toto haftası birkaç güne yayılır, 7 günü aşan bir
+/// sapma normal takvimle açıklanamaz.
+const int kErtelemeEsigiGun = 7;
+
+/// [mac], aynı bültendeki diğer maçlardan belirgin biçimde sonraya alınmış mı?
+///
+/// Karşılaştırma bültenin İLK maçına göredir; böylece birden fazla maç
+/// ertelenirse hepsi yakalanır (birbirlerine göre bakılsaydı ikisi de
+/// "normal" görünürdü).
+bool ertelendiMi(Map? mac, List? tumMaclar) {
+  final t = macAni(mac?['date']);
+  if (t == null) return false;
+  DateTime? ilk;
+  for (final m in (tumMaclar ?? const []).cast<Map>()) {
+    final d = macAni(m['date']);
+    if (d == null) continue;
+    if (ilk == null || d.isBefore(ilk)) ilk = d;
+  }
+  if (ilk == null) return false;
+  return t.difference(ilk).inDays >= kErtelemeEsigiGun;
 }
