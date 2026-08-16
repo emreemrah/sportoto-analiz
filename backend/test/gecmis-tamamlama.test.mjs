@@ -69,6 +69,54 @@ test('canlı yanıtta zaten olan armanın ÜSTÜNE yazılmaz', () => {
   assert.equal(sonuc.arma, 1, 'yalnız eksik olan sayılmalı');
 });
 
+test('SPONSOR ÖNEKİ eşleşmeyi bozmaz (üretimde ölçülen iki maç)', () => {
+  // Deploy sonrası üretimde 15 maçın 13'ü tamamlandı, 2'si atlandı: resmî
+  // geçmiş bülten ile arşiv aynı takımı farklı sponsor önekiyle yazıyor.
+  // Armalar arşivde VARDI; engel ham `===` karşılaştırmasıydı.
+  const arsivGercek = [
+    {
+      no: 3,
+      league: 'Turkey Süper Lig',
+      home: { name: 'Konyaspor', logo: 'https://cdn/turkey-konyaspor.png' },
+      away: { name: 'Ç.Rizespor', logo: 'https://cdn/turkey-rizespor.png' },
+    },
+    {
+      no: 6,
+      league: 'Turkey Süper Lig',
+      home: { name: 'Rams Başakşehir', logo: 'https://cdn/turkey-basaksehir.png' },
+      away: { name: 'Kocaelispor', logo: 'https://cdn/turkey-kocaelispor.png' },
+    },
+  ];
+  const maclar = [
+    resmiMac(3, 'Tümosan Konyaspor', 'Çaykur Rizespor'),
+    resmiMac(6, 'İstanbul Başakşehir', 'Kocaelispor'),
+  ];
+  const sonuc = arsivdenTamamla(maclar, arsivGercek);
+
+  assert.equal(sonuc.arma, 4, 'sponsor öneki yüzünden armalar yine atlandı');
+  assert.equal(maclar[0].home.logo, 'https://cdn/turkey-konyaspor.png');
+  assert.equal(maclar[1].home.logo, 'https://cdn/turkey-basaksehir.png');
+  // Gösterilen ad RESMÎ hâliyle kalır — arşivdeki sponsor öneki ekrana taşınmaz.
+  assert.equal(maclar[0].home.name, 'Tümosan Konyaspor');
+  assert.equal(maclar[1].home.name, 'İstanbul Başakşehir');
+});
+
+test('gevşetme yanlış eşleşmeye kapı açmaz — iki taraf da tutmalı', () => {
+  // Ev sahibi tutuyor ama deplasman TAMAMEN farklı: kayıt kullanılmamalı.
+  const arsivKarisik = [{
+    no: 1,
+    league: 'Turkey Süper Lig',
+    home: { name: 'Galatasaray', logo: 'https://cdn/gs.png' },
+    away: { name: 'Fenerbahçe', logo: 'https://cdn/fb.png' },
+  }];
+  const maclar = [resmiMac(1, 'Galatasaray', 'Arca Çorum FK')];
+  const sonuc = arsivdenTamamla(maclar, arsivKarisik);
+
+  assert.equal(sonuc.arma, 0, 'deplasman uyuşmazken arma taşınmış');
+  assert.equal(maclar[0].home.logo, undefined);
+  assert.equal(maclar[0].league, '2026/2027 Sezonu');
+});
+
 test('SIRA KAYMASI: ev sahibi tutmuyorsa hiçbir şey taşınmaz', () => {
   // Yanlış maça yanlış arma yazmak, armasız bırakmaktan KÖTÜDÜR.
   const maclar = [resmiMac(1, 'Fenerbahçe', 'Beşiktaş')];

@@ -19,10 +19,37 @@
 // KURALLAR:
 //  * Arşive buradan HİÇBİR ŞEY YAZILMAZ — yalnız okunur.
 //  * Uydurma yok: yalnız arşivde GERÇEKTEN duran değer taşınır.
-//  * Eşleşme güvencesi: sıra numarası VE ev sahibi adı tutmalı. Yanlış
+//  * Eşleşme güvencesi: sıra numarası VE İKİ TAKIMIN ADI tutmalı. Yanlış
 //    haftanın kaydı ya da sıra kayması olursa hiçbir şey değişmez —
 //    yanlış maça yanlış arma yazmak, armasız bırakmaktan kötüdür.
 //  * Canlı yanıtta zaten olan değerin üstüne YAZILMAZ.
+
+import { normalizeName, nameTokens } from '../matcher.js';
+
+// AD EŞLEŞMESİ SPONSOR ÖNEKİNE TAKILMAMALI (16 Ağustos 2026, üretimde ölçüldü).
+//
+// İlk sürüm ham `===` karşılaştırıyordu ve deploy sonrası 15 maçın 13'ünü
+// tamamlarken 2'sini atlamıştı — çünkü resmî geçmiş bülten ile arşiv aynı
+// takımı FARKLI sponsor önekiyle yazıyor:
+//
+//   maç 3: "Tümosan Konyaspor"    ↔ arşiv "Konyaspor"
+//   maç 6: "İstanbul Başakşehir"  ↔ arşiv "Rams Başakşehir"
+//
+// Armalar arşivde VARDI; engel benim karşılaştırmamdı.
+//
+// GEVŞETİRKEN GÜVENLİK KAYBEDİLMEZ: eşleşme artık ayırt edici kelime
+// örtüşmesine bakar (`nameTokens` — jenerik ekler ve kısa kelimeler zaten
+// ayıklanmış) ve İKİ TAKIMIN DA tutması aranır. Sıra kaymasında iki takımın
+// birden örtüşmesi gerekirdi; pratikte imkânsız. "Fenerbahçe ↔ Galatasaray"
+// gibi gerçek uyuşmazlıklar hiçbir kelimede kesişmediği için REDDEDİLİR.
+function adTutuyor(a, b) {
+  if (!a || !b) return true; // taraf adı bilinmiyorsa engel çıkarma
+  if (normalizeName(a) === normalizeName(b)) return true;
+  const ja = nameTokens(a);
+  const jb = nameTokens(b);
+  for (const t of ja) if (jb.has ? jb.has(t) : jb.includes(t)) return true;
+  return false;
+}
 
 /// `maclar` listesini `arsivMaclar` (mühürlü snapshot payload'ı) ile
 /// tamamlar. Listeyi YERİNDE günceller ve kaç alanın tamamlandığını döner.
@@ -38,8 +65,9 @@ export function arsivdenTamamla(maclar, arsivMaclar) {
     if (!mm) continue;
     const kayit = kayitlar.get(mm.no);
     if (!kayit) continue;
-    // Sıra kayması koruması.
-    if (kayit.home?.name && mm.home?.name && kayit.home.name !== mm.home.name) continue;
+    // SIRA KAYMASI KORUMASI — İKİ TARAF DA tutmalı.
+    if (!adTutuyor(mm.home?.name, kayit.home?.name)) continue;
+    if (!adTutuyor(mm.away?.name, kayit.away?.name)) continue;
 
     if (kayit.league && mm.league !== kayit.league) {
       mm.league = kayit.league;
