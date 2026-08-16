@@ -52,11 +52,16 @@ bool _bitmemis(Map? m) {
   return _bitmemisDurumlar.contains('$s');
 }
 
-/// Başlama saati geçmiş ama henüz bitmemiş maç, oynanıyor olabilir; bu kadar
-/// süre boyunca listede kalır. Sonrasında "yaklaşan" değil, SONUCU BEKLENEN
-/// maçtır ve bu listeye ait değildir — dün oynanmış bir maçı "yaklaşan" diye
-/// göstermek kullanıcıyı yanıltır.
-const Duration _canliPay = Duration(minutes: 150); // 2,5 saat
+// BAŞLAMIŞ MAÇ "YAKLAŞAN" DEĞİLDİR (kullanıcı kararı, 16 Ağustos 2026).
+//
+// Eskiden 150 dakikalık bir pay vardı: başlama saati geçmiş ama bitmemiş maç,
+// "oynuyor olabilir" gerekçesiyle 2,5 saat daha listede kalıyordu. Kullanıcı
+// bunu istemedi — şeridin adı "Yaklaşan Maçlar" ve başlamış bir maç yaklaşan
+// değildir; başlamış maçın yeri canlı/bülten akışıdır.
+//
+// Pay KALDIRILDI (sabit olarak sıfır): listeye yalnız başlama saati HENÜZ
+// GELMEMİŞ maçlar girer.
+const Duration _canliPay = Duration.zero;
 
 /// Güncel ve önceki haftanın HENÜZ OYNANMAMIŞ maçlarını tek listede birleştirir,
 /// tarihe göre en yakından uzağa sıralar.
@@ -89,7 +94,8 @@ List<Map<String, dynamic>> yaklasanMaclar(
   bool uygun(Map m) {
     if (!_bitmemis(m) || !_tarihGecerli(m)) return false;
     final t = _tarih(m['date'])!;
-    return !t.isBefore(esik);
+    // Başlama saati GELMİŞ maç listeye girmez (bkz. `_canliPay`).
+    return t.isAfter(esik);
   }
 
   int sirala(Map a, Map b) => _tarih(a['date'])!.compareTo(_tarih(b['date'])!);

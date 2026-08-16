@@ -41,6 +41,13 @@ import '../../widgets/takim_logo_zemin.dart';
 // Ayrı yazılırlarsa biri değişip diğeri kalır ve ekran yalan söyler: "Öne Çıkan
 // 45+" yazıp aslında 50+ sayan bir sayaç, kullanıcının doğrulayamayacağı bir
 // hatadır. Bu yüzden sabit inline YAZILMAZ.
+/// UYGULAMANIN ANA RENGİ — marka koyu mavisi.
+///
+/// Takım teması seçilse bile bu renk DEĞİŞMEZ: güncel hafta rozeti markanın
+/// kimliğini taşır (kullanıcı kararı). Yalnız kart'tan ayrışacak kadar tonu
+/// itilir, hue korunur.
+const Color kMarkaMavisi = Color(0xFF0B1B3A);
+
 const int _oneCikanEsik = 45;
 const int _surprizEsik = 65;
 
@@ -1342,12 +1349,22 @@ class _KickoffCard extends StatelessWidget {
     // ÇERÇEVELİ. Hangi takım seçilirse seçilsin ikisi ayırt edilir; dolgu
     // kalkınca çamurlu blok da ortadan kalkar. Renk yine bilgi taşır ama tek
     // taşıyıcı değildir (renk körlüğü için de daha iyi).
-    final renk = AppColors.anlamsalTon(
-      oncekiHafta ? AppColors.warning : AppColors.accent,
-      AppColors.card,
-    );
+    // RENKLER YER DEĞİŞTİRDİ + GÜNCEL HAFTA MARKA MAVİSİ
+    // (kullanıcı kararı, 16 Ağustos 2026):
+    //   • GEÇEN hafta, önceden güncel haftada olan DOLGULU vurgu rengini alır.
+    //   • GÜNCEL hafta, uygulamanın ANA rengiyle (marka koyu mavisi) dolar.
+    //
+    // Marka mavisi SABİT bir kimliktir (#0B1B3A) ama körü körüne basılamaz:
+    // takım temasında kart da koyu olabilir (ör. Galatasaray bordosu) ve rozet
+    // kartın içinde erir. `ayrisanYuzey` hue'yu KORUYARAK yalnız kart'tan
+    // ayrışacak kadar ton iter — mavi yine mavi, ama rozet hep görünür.
+    // Yazı da o son yüzeyden türetilir (bugün altı kez yaşanan "yazı başka
+    // yüzeyin renginden geliyor" hatasına düşmemek için).
+    final yuzey = oncekiHafta
+        ? AppColors.accent
+        : ayrisanYuzey(kMarkaMavisi, AppColors.card);
     final stil = TextStyle(
-      color: oncekiHafta ? renk : AppColors.onAccent,
+      color: oncekiHafta ? AppColors.onAccent : okunurMetin(yuzey),
       fontSize: 9,
       fontWeight: AppFont.black,
     );
@@ -1355,9 +1372,9 @@ class _KickoffCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 5),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: oncekiHafta ? null : AppColors.accent,
+        // İKİSİ DE DOLGULU: ayrım artık renkle (vurgu / marka mavisi).
+        color: yuzey,
         borderRadius: AppRadius.smR,
-        border: oncekiHafta ? Border.all(color: renk) : null,
       ),
       child: Text(
         '${match['haftaAdi']}',
