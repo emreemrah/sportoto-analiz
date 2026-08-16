@@ -5,6 +5,7 @@ import cors from 'cors';
 // (node-cron kaldırıldı — zamanlama artık autoRefresh scheduler'ında.)
 import path from 'path';
 import { macAniMs } from './time/turkiyeSaati.js';
+import { arsivdenTamamla } from './archive/gecmisTamamlama.js';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
@@ -553,21 +554,26 @@ app.get('/api/history/:roundId', async (req, res) => {
       // ancak SIRA NUMARASI VE EV SAHİBİ ADI TUTUYORSA taşınır (yanlış haftanın
       // kaydı ya da sıra kayması olursa hiçbir şey değişmez); eşleşme yoksa
       // resmî ad olduğu gibi kalır.
+      // ARMA TAMAMLAMA (16 Ağustos 2026) — AYNI arşiv okumasından.
+      //
+      // Arma kayıt defteri (`crestRegistry`) DOSYA ÖNBELLEĞİNDE tutuluyor
+      // (`cache.js`). Render'ın diski kalıcı değil: her deploy defteri siler.
+      // Güncel hafta açılıştaki yenilemede armalarını yeniden topluyor, ama
+      // GEÇMİŞ hafta toplamıyor — resmî Spor Toto geçmiş bülteni arma vermez.
+      // Ölçüldü (deploy sonrası, üretim): `/api/history/1528` → 15 maçın
+      // 15'i armasız (Galatasaray dahil); aynı uç yerelde 0 eksik.
+      //
+      // Mühürlü arşiv kaydı armaları TAŞIYOR (snapshot payload `home.logo` /
+      // `away.logo`) ve arşiv veritabanında durduğu için deploy'dan
+      // etkilenmiyor. Lig adıyla aynı okumadan, aynı eşleşme güvencesiyle
+      // taşınır — ikinci bir arşiv okuması açılmaz.
+      // Kurallar ve gerekçe `archive/gecmisTamamlama.js` içinde; mantık orada
+      // SAF bir fonksiyon olarak durur (uç gövdesinde test edilemiyordu).
       try {
         const arsivMaclar = (await getArchiveStore().getSnapshot(String(roundId)))
           ?.payload?.matches || [];
-        const ligler = new Map(
-          arsivMaclar
-            .filter((m) => m && m.league && m.no != null)
-            .map((m) => [m.no, { league: m.league, home: m.home?.name }]),
-        );
-        for (const mm of bulletin.matches) {
-          const kayit = ligler.get(mm.no);
-          if (!kayit) continue;
-          if (kayit.home && mm.home?.name && kayit.home !== mm.home.name) continue;
-          mm.league = kayit.league;
-        }
-      } catch { /* arşiv yoksa lig adı resmî hâliyle kalır */ }
+        arsivdenTamamla(bulletin.matches, arsivMaclar);
+      } catch { /* arşiv yoksa lig adı ve armalar resmî hâliyle kalır */ }
       const resolvedCount = bulletin.matches
         .filter((m) => (m.result && m.score) || m.viaNotary).length;
       payload = {

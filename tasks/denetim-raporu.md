@@ -574,3 +574,76 @@ Kodda bu anahtarı yazan TEK yer var: `gorunum_secim_screen.dart:51`
 Yani bunu, ekran gezinirken attığım kör `input tap`'lerden biri yapmış.
 Uygulama hatası DEĞİL. `takim`'e geri alındı ve kapat-aç sonrası kalıcılığı
 yeniden doğrulandı (`t10_tema_geri.png`).
+
+---
+
+## 16 Ağustos 2026, ~13:40 — DEPLOY SONRASI ÜRETİM KONTROLÜ
+
+Saat dilimi düzeltmesi main'e merge edildi ve Render deploy'u indi.
+
+### ✅ BULGU 9 üretimde DOĞRULANDI
+`/api/radar/current` → `kickoffAt`:
+
+| maç | deploy ÖNCESİ | deploy SONRASI | TSİ |
+|---|---|---|---|
+| Erzurumspor–Galatasaray | `21:30:00.000Z` ❌ | `18:30:00.000Z` ✅ | 21:30 |
+| Ç.Rizespor–Samsunspor | `19:00:00.000Z` ❌ | `16:00:00.000Z` ✅ | 19:00 |
+
+Üç saatlik kayma kalktı. Tahmin kapısı ve canlı skor bağlama artık gerçek maç
+anını kullanıyor.
+
+### Sağlıklı görülenler
+- `/api/health` → 200 · `saglikli` · `hasData: true`
+- `/api/bulletin` → 200 · 15 maç · teyit `confirmed` · **armasız 0** · tarihsiz 0
+- 7 uç (rounds, radar/weeks, radar/current, daily-played, daily-odds,
+  position-dna, surprise-radar) → hepsi **200**
+
+### 🟡 BULGU 13 — API yanıtında marka adı geçiyor (arayüzde GÖRÜNMÜYOR)
+`/api/radar/current` gövdesinde 29 yerde `"FootyStats (maç-öncesi istatistik)"`:
+`matches[].radars.performance.sources[].name` ve `activeSignals[].source`.
+Kaynak: `analysis/criterionCatalog.js:325`, `radar/performanceRadar.js:16`,
+`archive/snapshotService.js:431`.
+
+**Aşırı yorumlanmasın:** uygulama bu alanları EKRANA BASMIYOR — kaynak adlarını
+kendi `_dataSourceLabels` eşlemesinden alıyor (`radar_center_cards.dart:71`),
+payload'daki `name`/`source` hiç okunmuyor. Bahis sitesi adları için zaten
+maskeleme var (`provider_labels.dart`: tanınmayan her değer "Kaynak" olur).
+Yani CLAUDE.md'nin "arayüzde marka adı yok" kuralı ŞU AN ihlal edilmiyor.
+
+**Risk:** yanıt herkese açık ve ileride bu alanı çizen bir ekran eklenirse
+marka sessizce sızar — `provider_labels.dart`'ın kendi yorumunun anlattığı
+başarısızlığın aynısı. Ayrıca mühürlü snapshot'lar bu metni içeriyor, o yüzden
+değiştirmek geçmiş mühürlerle kıyası etkiler. **Karar kullanıcıya ait.**
+
+### 🔴 BULGU 14 — GEÇMİŞ HAFTADA HİÇBİR TAKIMIN ARMASI YOK (DÜZELTİLDİ)
+
+Ölçüm — aynı uç, aynı hafta (1. Hafta, roundId 1528):
+
+| ortam | armasız taraf içeren maç |
+|---|---|
+| yerel | **0** / 15 |
+| **üretim** | **15** / 15 (Galatasaray dahil) |
+
+**Kök neden:** arma kayıt defteri (`crestRegistry.js`) `cache.js` üzerinden
+DOSYA ÖNBELLEĞİNDE tutuluyor; Render'ın diski kalıcı değil ve her deploy
+defteri siliyor. Güncel hafta açılış yenilemesinde armalarını yeniden topluyor
+(bu yüzden `/api/bulletin` 0 eksik), GEÇMİŞ hafta toplamıyor — resmî Spor Toto
+geçmiş bülteni arma vermez. Yani **her deploy geçmiş haftanın armalarını
+siliyordu** ve bugünkü deploy bunu tazeledi.
+
+**Düzeltme:** mühürlü arşiv snapshot'ı armaları ZATEN taşıyor
+(`snapshotService.js` → `home.logo` / `away.logo`) ve arşiv veritabanında
+durduğu için deploy'dan etkilenmiyor. Bugün eklenen lig-adı tamamlama zaten
+aynı kaydı okuyordu; arma da AYNI okumaya eklendi (ikinci arşiv turu açılmadı).
+Mantık `archive/gecmisTamamlama.js` içine SAF fonksiyon olarak çıkarıldı — uç
+gövdesinde test edilemiyordu.
+
+Kurallar korundu: arşive yazılmaz, yalnız okunur; uydurma yok (arşivde arma
+yoksa alan boş kalır); sıra kayması korumalı (ev sahibi adı tutmuyorsa hiçbir
+şey taşınmaz — yanlış maça yanlış arma yazmak armasız bırakmaktan kötüdür);
+canlı yanıtta zaten olan arma EZİLMEZ.
+
+**Koruma:** `test/gecmis-tamamlama.test.mjs` (7 test), mutasyonla doğrulandı.
+Backend **1096 test** geçiyor (hem TSİ hem `TZ=UTC`).
+
+> Düzeltme deploy EDİLMEDİ — üretimde geçmiş hafta hâlâ armasız.
