@@ -296,3 +296,60 @@ test('GEÇ: ilk maç başladıktan sonra atılan mühür geç işaretlenir', asy
 // SINIR DURUMU (tam ilk maç anı) `aday-muhur.test.mjs` içinde saf kontrolle
 // ölçülür; buradaki her freeze testi gerçek snapshot kurduğu için 7-14 sn
 // sürüyor ve süiti gereksiz uzatıyordu.
+
+// RADAR 5 SÜZGEÇ KIRILIMLARI MÜHÜRE YAZILIR (16 Ağustos 2026, kullanıcı isteği)
+// ---------------------------------------------------------------------------
+// Mühür eskiden SÜZGEÇSİZ tek değer taşıyordu; bu yüzden geçmiş haftada
+// "Birebir / ±3 / ±5 / ±10" seçimleri gösterilemiyordu. Doğru çözüm süzgeci
+// canlıya açmak DEĞİL, donma anında hesaplayıp mühre yazmaktır.
+//
+// BU TEST GERÇEK YOLU KOŞAR: freeze → buildRadar5Snapshot → dinamik import ile
+// uçtaki `hesaplaSiraDnasi`. Fikstür arşivi boş olduğu için sayılar 0'dır;
+// ölçülen şey KIRILIMLARIN ÜRETİLDİĞİ ve tek tanımdan geldiğidir.
+test('freeze anında Radar 5 yakınlık kırılımları da mühürlenir', async () => {
+  const store = tmpStore();
+  const data = makeBulletinData();
+  await registerBulletinFromData(data, { store, now: FREEZE_MS - 3600e3 });
+  await freezeBulletinFromData(data, { store, now: FREEZE_MS });
+
+  const snap = await store.getSnapshot(String(data.roundId));
+  const filtreler = snap.payload?.radar5?.filtreler;
+  assert.ok(filtreler, 'süzgeç kırılımları mühürde olmalı');
+
+  // Oynanma 4 adım + oran 3 adım = 7 kombinasyon. Maç penceresi AYRI
+  // kombinasyon değildir: pencereler tek yanıtın windows alanında gelir.
+  assert.deepEqual(
+    Object.keys(filtreler).sort(),
+    ['oran:0', 'oran:0.02', 'oran:0.03', 'oynanma:0', 'oynanma:10', 'oynanma:3', 'oynanma:5'],
+  );
+  // Her kırılım kendi dna'sını ve süzgeç özetini taşır (ekran ikisini de okur).
+  for (const [k, v] of Object.entries(filtreler)) {
+    assert.ok(v.dna, `${k} için dna olmalı`);
+    assert.ok(v.filtre, `${k} için süzgeç özeti olmalı`);
+  }
+  // MÜHÜR DEĞİŞMEZ: hash payload'ın tamamını kapsar, kırılımlar dahil.
+  assert.equal(hashPayload(snap.payload), snap.payloadHash);
+});
+
+// MÜHÜR VE CANLI UÇ AYNI KAYNAK KÜMESİNİ KULLANIR
+// ---------------------------------------------------------------------------
+// BULUNAN HATA (16 Ağustos 2026): mühür Radar 5 DNA'sını yalnız statik geçmiş
+// dosyasından hesaplıyordu; canlı uç ise arşivdeki TAMAMLANMIŞ haftaları da
+// katıyordu. Aynı şeyin iki tanımı vardı ve ölçüldü: 1528'in mühründe
+// totalMatches 0, aynı kesimle canlı hesapta 45.
+//
+// Yapısal kanıt: uçtan gelen `cut` nesnesi `archiveMatches`/`isCurrent`
+// alanlarını taşır — eski yerel hesapta bu alanlar YOKTU. Bu yüzden alanın
+// varlığı, mührün uçla aynı fonksiyondan beslendiğini gösterir.
+test('mühürdeki Radar 5 kesimi canlı uçla AYNI kaynak kümesini bildirir', async () => {
+  const store = tmpStore();
+  const data = makeBulletinData();
+  await registerBulletinFromData(data, { store, now: FREEZE_MS - 3600e3 });
+  await freezeBulletinFromData(data, { store, now: FREEZE_MS });
+
+  const cut = (await store.getSnapshot(String(data.roundId))).payload?.radar5?.cut;
+  assert.ok(cut, 'kesim bilgisi mühürde olmalı');
+  assert.equal(cut.roundId, data.roundId);
+  assert.ok('archiveMatches' in cut, 'arşiv maç sayısı kesimde bildirilmeli');
+  assert.ok('historyMatches' in cut, 'statik geçmiş sayısı kesimde bildirilmeli');
+});

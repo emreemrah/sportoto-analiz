@@ -20,6 +20,7 @@ import { computePositionDna, historyLearningFilter } from '../history/positionDn
 import { sealDailyPct } from '../radar/playedDnaArchive.js';
 import { movementOf } from '../radar/playedDna.js';
 import { PUBLIC_MOVE_RULES } from '../radar/config.js';
+import { OYNANMA_TOLERANSLARI, ORAN_TOLERANSLARI } from '../radar/siraFiltre.js';
 
 const iso = (v) => (v == null ? null : new Date(v).toISOString());
 
@@ -182,26 +183,101 @@ function dataConfidenceOf(m) {
 // Radar 5 de bültenle birlikte mühürlenir. Böylece geçmiş haftada ekrandaki
 // "Tüm / 5 / 10 / 15" dağılımları sonradan değişen arşivle yeniden hesaplanmaz.
 // Öğrenme sınırı: bu bültenin kendisi ve kapanışından sonraki hiçbir sonuç girmez.
+// RADAR 5 — YAKINLIK SÜZGECİ KIRILIMLARI DA MÜHÜRLENİR (16 Ağustos 2026).
+//
+// NEDEN: mühür eskiden SÜZGEÇSİZ tek değer taşıyordu. Bu yüzden geçmiş haftada
+// "Birebir / ±3 / ±5 / ±10" ve maç penceresi seçimleri gösterilemiyordu —
+// mühürde karşılıkları yoktu ve canlı hesaplamak mühürlü değeri yeniden
+// üretmek olurdu. Kullanıcı geçmiş haftada bu seçimleri istedi; doğru çözüm
+// süzgeci canlıya açmak değil, MÜHRE YAZMAKTIR: değer donduğu anda hesaplanır,
+// sonradan asla değişmez.
+//
+// TEK TANIM: hesap uçtaki `hesaplaSiraDnasi` ile AYNI fonksiyondur. Dinamik
+// import, statik döngüyü kırmak içindir (routes/radar.js bu modülden
+// computeFreezeAt alıyor); iki modül de yüklendikten sonra çalışır.
+//
+// GEÇMİŞE DÖNÜK ÇALIŞMAZ: zaten mühürlenmiş haftaların kaydı değişmez, bu
+// yüzden alan yalnız BUNDAN SONRA mühürlenen haftalarda dolar. İstemci alanın
+// yokluğunu eski davranışla karşılar (süzgeç satırları çizilmez).
+//
+// BOYUT: 7 kombinasyon (oynanma 4 + oran 3) × ~11 KB ≈ 76 KB. Maç penceresi
+// AYRI kombinasyon DEĞİLDİR: pencereler (allTime/last5/last10/last15) tek
+// yanıtın `dna.positions[].windows` alanında birlikte gelir.
+async function buildRadar5FiltreleriSnapshot(data, { store, roundId, freezeAt, hesapla } = {}) {
+  const filtreler = {};
+  if (!hesapla) return null;   // uç yüklenemedi → snapshot süzgeçsiz kalır
+  const kombinasyonlar = [
+    ...OYNANMA_TOLERANSLARI.map((tol) => ({ mod: 'oynanma', tol })),
+    ...ORAN_TOLERANSLARI.map((tol) => ({ mod: 'oran', tol })),
+  ];
+  for (const filtre of kombinasyonlar) {
+    try {
+      const y = await hesapla({
+        store, cur: data, cutRoundId: roundId, cutFreezeAt: freezeAt,
+        guncelMi: true, filtre,
+      });
+      // Yalnız süzgece BAĞLI parçalar mühürlenir; combined/examples süzgeçten
+      // bağımsızdır ve filtresiz kayıtta zaten var (mühür gereksiz şişmesin).
+      filtreler[`${filtre.mod}:${filtre.tol}`] = { dna: y.dna, filtre: y.filtre };
+    } catch {
+      // Tek kombinasyon hesaplanamazsa diğerleri yazılır; eksik anahtar
+      // istemcide "bu seçim mühürlü değil" demektir, uydurma değer üretilmez.
+    }
+  }
+  return Object.keys(filtreler).length ? filtreler : null;
+}
+
+// MÜHÜR VE CANLI UÇ AYNI KAYNAK KÜMESİNİ KULLANIR (16 Ağustos 2026 düzeltmesi).
+//
+// BULUNAN HATA: burası Radar 5 DNA'sını YALNIZ statik geçmiş dosyasından
+// (`getHistoryStore().listAllMatches()`) hesaplıyordu. Canlı uç ise buna
+// ARŞİVDEKİ TAMAMLANMIŞ HAFTALARI da ekliyor (`archivePositionMatches`) ve
+// `eskiHaftalariAt` kesimini uyguluyor. Yani aynı şeyin iki tanımı vardı.
+//
+// SONUCU ÖLÇÜLDÜ: 1528'in (1. Hafta) mühründeki `radar5.dna.totalMatches` 0
+// çıktı; aynı kesimle canlı hesap 45 maç veriyor. Mühür, geçmiş arşiv içeri
+// alınmadan önce atıldığı için Radar 5 kaydı boş mühürlendi ve o hafta için
+// süzgeç kırılımı üretmek de anlamsız hâle geldi.
+//
+// Artık ikisi de `hesaplaSiraDnasi` kullanır. Filtresiz çağrı aynı zamanda
+// süzgeçten bağımsız tabanı ısıtır; ardından gelen 7 kombinasyon ucuzdur.
 async function buildRadar5Snapshot(data, { store } = {}) {
   const roundId = data.roundId;
   const freezeAt = computeFreezeAt(data.matches);
   const season = data.year ?? null;
+  const bos = {
+    methodologyVersion: null,
+    season,
+    cut: { roundId, freezeAt, historyMatches: 0 },
+    periods: ['allTime', 'last5', 'last10', 'last15'],
+    dna: null,
+  };
+  let hesapla;
   try {
-    const all = await getHistoryStore().listAllMatches();
-    const prior = all
-      .filter(historyLearningFilter({ currentRoundId: roundId, currentFreezeAt: freezeAt }))
-      .filter((m) => season == null || String(m.seasonYear) === String(season));
-    const dna = computePositionDna(prior, { excludeRoundId: roundId, seasonYear: season });
+    ({ hesaplaSiraDnasi: hesapla } = await import('../routes/radar.js'));
+  } catch {
+    return bos;   // uç yüklenemedi → snapshot yine oluşur, Radar 5 boş kalır
+  }
+  try {
+    const filtresiz = await hesapla({
+      store, cur: data, cutRoundId: roundId, cutFreezeAt: freezeAt,
+      guncelMi: true, filtre: null,
+    });
     return {
-      methodologyVersion: dna.methodologyVersion,
+      methodologyVersion: filtresiz.dna?.methodologyVersion ?? null,
       season,
-      cut: { roundId, freezeAt, historyMatches: prior.length },
+      // Kesim bilgisi de uçtan gelir: kaç statik geçmiş + kaç arşiv maçı
+      // kullanıldığı mühürde görünür (sonradan doğrulanabilsin diye).
+      cut: filtresiz.cut ?? { roundId, freezeAt, historyMatches: 0 },
       periods: ['allTime', 'last5', 'last10', 'last15'],
-      dna,
+      dna: filtresiz.dna ?? null,
+      filtreler: await buildRadar5FiltreleriSnapshot(data, {
+        store, roundId, freezeAt, hesapla,
+      }),
     };
   } catch {
     // Snapshot yine oluşur; Radar 5 verisi yoksa bunu dürüstçe belirtir.
-    return { methodologyVersion: null, season, cut: { roundId, freezeAt, historyMatches: 0 }, periods: ['allTime', 'last5', 'last10', 'last15'], dna: null };
+    return bos;
   }
 }
 

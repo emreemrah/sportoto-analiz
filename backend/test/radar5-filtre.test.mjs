@@ -123,9 +123,31 @@ await store.addObservations('1531', [
 ]);
 
 // Mühürlü hafta örneği: 1524'ün (listede zaten görünmeyen tur) snapshot'ı.
+// ESKİ MÜHÜR — süzgeç kırılımı YOK (16 Ağustos 2026 öncesinde mühürlenmiş
+// haftaları temsil eder; o haftalarda süzgeç sunulamaz).
 await store.createSnapshot({
   bulletinId: '1524', payloadHash: 'test-hash', lockedAt: '2026-05-30T17:55:00Z',
   payload: { radar5: { dna: { totalMatches: 42 }, cut: { roundId: 1524 } } },
+});
+
+// YENİ MÜHÜR — süzgeç kırılımları da yazılmış hafta (1523). Buradaki değerler
+// hafta donduğu anda hesaplanıp mühürlendi; uç onları YENİDEN HESAPLAMADAN
+// okur. Kırılımı OLMAYAN bir seçim (oynanma:10) bilerek dışarıda bırakıldı:
+// eksik anahtarın "mühürlü değil" olarak bildirildiği de sınanır.
+await store.createSnapshot({
+  bulletinId: '1523', payloadHash: 'test-hash-1523', lockedAt: '2026-05-23T17:55:00Z',
+  payload: {
+    radar5: {
+      dna: { totalMatches: 40 },
+      cut: { roundId: 1523 },
+      periods: ['allTime', 'last5', 'last10', 'last15'],
+      filtreler: {
+        'oynanma:0': { dna: { totalMatches: 7 }, filtre: { mod: 'oynanma', tol: 0, positions: {} } },
+        'oynanma:3': { dna: { totalMatches: 11 }, filtre: { mod: 'oynanma', tol: 3, positions: {} } },
+        'oran:0.02': { dna: { totalMatches: 5 }, filtre: { mod: 'oran', tol: 0.02, positions: {} } },
+      },
+    },
+  },
 });
 
 async function kur() {
@@ -230,14 +252,86 @@ test('(d) süzgeç sonrası küçük örneklem yön sinyali ÜRETMEZ', async () 
   } finally { server.close(); }
 });
 
-test('(e) mühürlü haftada filtre uygulanmaz ve bu AÇIKÇA söylenir', async () => {
+test('(e) mühürde kırılım yoksa süzgeç TÜREV olur ve mühürlü sayılmaz', async () => {
   const { server, base } = await kur();
   try {
+    // FİLTRESİZ istek: mühürlü değer AYNEN döner — burada yeniden hesap YOK.
+    const f = await (await fetch(`${base}/api/radar/position-dna?roundId=1524`)).json();
+    assert.equal(f.sealed, true);
+    assert.equal(f.turev, false, 'filtresiz görünüm mühürden gelir');
+    assert.equal(f.dna.totalMatches, 42, 'mühürlü değer AYNEN döner');
+
+    // FİLTRELİ istek: mühürde kırılım yok → türev.
     const r = await (await fetch(`${base}/api/radar/position-dna?roundId=1524&oynanmaTol=3`)).json();
     assert.equal(r.sealed, true);
-    assert.equal(r.dna.totalMatches, 42, 'mühürlü değer AYNEN döner — yeniden hesap yok');
-    assert.equal(r.filtre.uygulanmadi, true);
-    assert.match(r.filtre.notu, /Mühürlü haftada filtre uygulanmaz/);
+    // KARAR DEĞİŞTİ (16 Ağustos 2026): süzgeç artık TÜREV olarak hesaplanır.
+    // Kullanıcı, mühürlenmiş bir haftanın süzgeçli tablosunu sonradan
+    // inceleyemediği için tıkanmıştı. Kesim MÜHÜRDEN gelir (o haftanın donma
+    // anından öncesi), dolayısıyla sonraki haftalar biriktikçe tablo BÜYÜMEZ.
+    // Değişmeyen kural: bu bir MÜHÜRLÜ DEĞER DEĞİLDİR ve gizlenmez.
+    assert.equal(r.filtre.uygulanmadi, false, 'türev hesap uygulanır');
+    assert.equal(r.filtre.muhurlu, false, 'ama mühürlü kayıt DEĞİLDİR');
+    assert.equal(r.filtre.turev, true);
+    assert.equal(r.turev, true);
+    assert.match(r.filtre.notu, /TÜREV/);
+    assert.deepEqual(r.muhurluFiltreler, [], 'eski mühürde hiçbir seçim yok');
+
+    // MÜHÜR DOKUNULMAZ: türev hesap snapshot'ı DEĞİŞTİRMEZ.
+    const snap = await getArchiveStore().getSnapshot('1524');
+    assert.equal(snap.payload.radar5.dna.totalMatches, 42, 'mühürlü kayıt aynen durur');
+    assert.equal(snap.payload.radar5.filtreler, undefined, 'mühre süzgeç YAZILMAZ');
+  } finally { server.close(); }
+});
+
+// (g) SÜZGEÇ KIRILIMI MÜHÜRDE VARSA SUNULUR (16 Ağustos 2026).
+// Kritik ayrım: bu YENİDEN HESAP DEĞİLDİR. Uç, mühürdeki hazır değeri okur;
+// bu yüzden `uygulanmadi: false` döner ve dönen dna mühürdeki dna'dır.
+test('(g) mühürlü haftada süzgeç kırılımı MÜHÜRDEN okunur (yeniden hesap yok)', async () => {
+  const { server, base } = await kur();
+  try {
+    const r = await (await fetch(`${base}/api/radar/position-dna?roundId=1523&oynanmaTol=3`)).json();
+    assert.equal(r.sealed, true);
+    assert.equal(r.useSnapshot, true);
+    assert.equal(r.filtre.uygulanmadi, false, 'mühürde var → uygulandı sayılır');
+    assert.equal(r.filtre.muhurlu, true);
+    assert.equal(r.dna.totalMatches, 11, 'mühürdeki SÜZGEÇLİ değer döner');
+    assert.match(r.note, /süzgeç sonucu da hafta donduğu anda mühürlendi/);
+  } finally { server.close(); }
+});
+
+test('(g2) mühürde OLMAYAN seçim TÜREV olur; mühürlü sayılmaz', async () => {
+  const { server, base } = await kur();
+  try {
+    // oynanma:10 bu haftanın mührüne yazılmadı → türev hesaplanır.
+    const r = await (await fetch(`${base}/api/radar/position-dna?roundId=1523&oynanmaTol=10`)).json();
+    assert.equal(r.filtre.turev, true, 'mühürde yok → türev');
+    assert.equal(r.filtre.muhurlu, false);
+    // MÜHÜRLÜ olanlar ayrı bildirilir: istemci hangisinin noter kaydı,
+    // hangisinin bugün hesaplandığını ayırt edebilmeli.
+    assert.deepEqual(
+      r.muhurluFiltreler.sort(),
+      ['oran:0.02', 'oynanma:0', 'oynanma:3'],
+    );
+  } finally { server.close(); }
+});
+
+test('(g4) MÜHÜRDE OLAN seçim türev DEĞİLDİR — mühürden okunur', async () => {
+  const { server, base } = await kur();
+  try {
+    const r = await (await fetch(`${base}/api/radar/position-dna?roundId=1523&oynanmaTol=3`)).json();
+    assert.equal(r.filtre.muhurlu, true, 'mühürde var → mühürlü');
+    assert.notEqual(r.filtre.turev, true, 'türev DEĞİL');
+    assert.equal(r.turev, false);
+    assert.equal(r.dna.totalMatches, 11, 'mühürdeki süzgeçli değer');
+  } finally { server.close(); }
+});
+
+test('(g3) filtresiz istek mühürlü süzgeç varken de SÜZGEÇSİZ değeri döner', async () => {
+  const { server, base } = await kur();
+  try {
+    const r = await (await fetch(`${base}/api/radar/position-dna?roundId=1523`)).json();
+    assert.equal(r.filtre, null);
+    assert.equal(r.dna.totalMatches, 40);
   } finally { server.close(); }
 });
 

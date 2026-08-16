@@ -561,25 +561,48 @@ function filtreSecimi(req) {
 // Gün-mühürleme dailyOdds.js motorundan aynen gelir — ikinci tanım yazılmaz.
 // Oynanma kaynağı 'nesine' sabittir: geçmiş taraf (sonGunOynanmaIndeksi) da
 // aynı kaynakla çalışır; kaynaklar karşılaştırmada asla karışmaz.
+// MOD BAŞINA ÖNBELLEK (16 Ağustos 2026): mühür anında 7 süzgeç kombinasyonu
+// koşuyor ve bu değerler yalnız (hafta, mod) çiftine bağlı — 7 kez kurmak
+// gereksizdi. TTL, uç yanıt önbelleğiyle (10 dk) aynıdır; bayatlık sınırı
+// değişmez.
+let _guncelSira = { at: 0, key: null, val: null };
 async function guncelSiraDegerleri(store, cur, roundId, mod) {
+  const key = `${roundId ?? ''}|${mod}`;
+  if (_guncelSira.val && _guncelSira.key === key && Date.now() - _guncelSira.at < 10 * 60 * 1000) {
+    return _guncelSira.val;
+  }
   const ctx = await resolveDailyContext({ query: { roundId } }, store, cur);
   if (!ctx) return new Map();
   const girdi = {
     roundId: ctx.rid, round: ctx.round, matches: ctx.matches, observations: ctx.observations,
     firstKickoffMs: ctx.firstMs, freezeAt: ctx.freezeAt, sealed: ctx.sealed, now: Date.now(),
   };
-  return mod === 'oynanma'
+  const val = mod === 'oynanma'
     ? sonGunDegerleri(buildDailyPlayed(girdi), { metric: 'played', source: 'nesine' })
     : sonGunDegerleri(buildDailyOdds(girdi), { metric: 'odds' });
+  _guncelSira = { at: Date.now(), key, val };
+  return val;
 }
 
 // Filtre için geçmiş oynanma indeksi — sızma sınırı AÇIK (beforeRoundId):
 // görüntülenen haftadan sonraki kayıt indekse hiç girmez. Gösterim indeksi
 // (/position-matches'ın satır süsü) bundan ayrıdır ve olduğu gibi kalır.
-const oynanmaFiltreIndeksi = async (store, cutRoundId) => sonGunOynanmaIndeksi(
-  await collectPlayedDnaRecords(store, { maxRounds: 40, beforeRoundId: cutRoundId }),
-  'nesine',
-);
+//
+// ÖNBELLEKLİ (16 Ağustos 2026): oran eşleniği `_oranIx` ile aynı gerekçe —
+// mühür anında dört oynanma toleransı için aynı indeks kuruluyordu.
+let _oynanmaIx = { at: 0, key: null, val: null };
+const oynanmaFiltreIndeksi = async (store, cutRoundId) => {
+  const key = String(cutRoundId ?? '');
+  if (_oynanmaIx.val && _oynanmaIx.key === key && Date.now() - _oynanmaIx.at < 10 * 60 * 1000) {
+    return _oynanmaIx.val;
+  }
+  const val = sonGunOynanmaIndeksi(
+    await collectPlayedDnaRecords(store, { maxRounds: 40, beforeRoundId: cutRoundId }),
+    'nesine',
+  );
+  _oynanmaIx = { at: Date.now(), key, val };
+  return val;
+};
 
 // GEÇMİŞ MAÇLARIN SON GÜN ORANI — (tur, sıra) → haftanın son kayıtlı gününün
 // birincil kaynak oranı. sonGunOynanmaIndeksi'nin oran eşleniği. Gün mührü
@@ -817,27 +840,89 @@ router.get('/position-dna', async (req, res) => {
       const snap = await store.getSnapshot(String(cutRoundId)).catch(() => null);
       if (snap) {
         const sealedRadar5 = snap.payload?.radar5;
+        // SÜZGEÇ KIRILIMI MÜHÜRDE VARSA SUNULUR (16 Ağustos 2026).
+        // Yeniden hesap DEĞİLDİR: değer hafta donduğu anda üretilip mühre
+        // yazıldı, burada yalnız okunuyor. Mühürde yoksa (bu tarihten önce
+        // mühürlenmiş haftalar) eski davranış aynen sürer: uygulanmadı.
+        const muhurluFiltre = filtre
+          ? (sealedRadar5?.filtreler?.[`${filtre.mod}:${filtre.tol}`] ?? null)
+          : null;
+
+        // TÜREV SÜZGEÇ — mühürde kırılım YOKSA (16 Ağustos 2026 öncesi
+        // mühürler) ve kullanıcı süzgeç istediyse, MÜHRÜN KENDİ KESİMİYLE
+        // hesaplanır ve TÜREV olarak işaretlenir.
+        //
+        // NEDEN GÜVENLİ: kesim mühürden gelir — geçmiş yalnız o haftanın
+        // donma anından ÖNCEsiyle sınırlıdır (historyLearningFilter +
+        // beforeRoundId). Yani sonraki haftalar biriktikçe tablo BÜYÜMEZ.
+        //
+        // NEDEN "MÜHÜRLÜ" DEMİYORUZ: mühre yazılmış bir değer değildir; o
+        // hafta mühürlenirken arşiv henüz içeri alınmamışsa bugünkü hesap
+        // mühürdeki (boş) kayıttan farklı çıkar. Fark gizlenmez — yanıt
+        // `turev: true` der, ekran da bunu yazar. Mühürlü kaydın kendisine
+        // DOKUNULMAZ.
+        let turevFiltre = null;
+        if (filtre && !muhurluFiltre) {
+          try {
+            turevFiltre = await hesaplaSiraDnasi({
+              store, cur, cutRoundId, cutFreezeAt, guncelMi: false, filtre, sig,
+            });
+          } catch { turevFiltre = null; /* hesaplanamazsa eski davranış */ }
+        }
         return res.json({
-          hasData: !!sealedRadar5?.dna,
+          hasData: !!(muhurluFiltre?.dna ?? turevFiltre?.dna ?? sealedRadar5?.dna),
           sealed: true,
-          useSnapshot: true,
+          useSnapshot: !turevFiltre,
+          // TÜREV: sayılar mühürden DEĞİL, mührün kesimiyle bugün hesaplandı.
+          turev: !!turevFiltre,
           roundId: cutRoundId,
           verificationHash: snap.payloadHash ?? null,
           sealedAt: snap.lockedAt ?? null,
-          cut: sealedRadar5?.cut ?? { roundId: cutRoundId },
-          dna: sealedRadar5?.dna ?? null,
+          cut: turevFiltre?.cut ?? sealedRadar5?.cut ?? { roundId: cutRoundId },
+          dna: muhurluFiltre?.dna ?? turevFiltre?.dna ?? sealedRadar5?.dna ?? null,
           periods: sealedRadar5?.periods ?? null,
-          // MÜHÜRLÜ HAFTADA FİLTRE UYGULANMAZ (kullanıcı kararı, 2026-08-10):
-          // snapshot filtresiz mühürlendi; filtreli değer üretmek yeniden hesap
-          // demektir ve mühür ilkesini bozar. İstek SESSİZCE yutulmaz — yok
-          // sayıldığı yanıtla açıkça söylenir, ekran filtre satırını kapatır.
-          filtre: filtre ? {
-            mod: filtre.mod,
-            tol: filtre.tol,
-            uygulanmadi: true,
-            notu: 'Mühürlü haftada filtre uygulanmaz — mühürlü değer yeniden hesaplanmaz.',
-          } : null,
-          note: 'Bu hafta mühürlü — Radar 5 yalnız mühürlü snapshot’tan gösterilir; yeniden hesaplanmaz.',
+          // Türev modda hangi adımlar sunulabilir: hepsi hesaplanabilir.
+          turevFiltreler: turevFiltre
+            ? [...OYNANMA_TOLERANSLARI.map((t) => `oynanma:${t}`),
+              ...ORAN_TOLERANSLARI.map((t) => `oran:${t}`)]
+            : [],
+          // Hangi süzgeç seçimleri mühürlü — istemci var olmayan seçeneği
+          // çip olarak sunmasın diye açıkça bildirilir.
+          muhurluFiltreler: sealedRadar5?.filtreler
+            ? Object.keys(sealedRadar5.filtreler)
+            : [],
+          // MÜHÜRLÜ HAFTADA CANLI HESAP YAPILMAZ (kural, 2026-08-10) — ama
+          // süzgeç kırılımı MÜHÜRDE VARSA o okunur ve `uygulanmadi: false`
+          // döner (16 Ağustos 2026). Mühürde yoksa istek SESSİZCE yutulmaz:
+          // yok sayıldığı açıkça söylenir ve ekran süzgeç satırını kapatır.
+          filtre: filtre
+            ? (muhurluFiltre?.filtre
+                ? { ...muhurluFiltre.filtre, uygulanmadi: false, muhurlu: true }
+                : (turevFiltre?.filtre
+                    ? {
+                      ...turevFiltre.filtre,
+                      uygulanmadi: false,
+                      muhurlu: false,
+                      turev: true,
+                      notu: 'TÜREV — bu sayılar mühürde YOK; haftanın kendi '
+                        + 'kesimiyle (donma anından öncesi) bugün hesaplandı. '
+                        + 'Mühürlü kayıt değişmedi.',
+                    }
+                    : {
+                      mod: filtre.mod,
+                      tol: filtre.tol,
+                      uygulanmadi: true,
+                      notu: 'Bu hafta mühürlenirken süzgeç kırılımı kaydedilmedi '
+                        + 've türev hesap da yapılamadı.',
+                    }))
+            : null,
+          note: muhurluFiltre
+            ? 'Bu hafta mühürlü — süzgeç sonucu da hafta donduğu anda mühürlendi; yeniden hesaplanmaz.'
+            : (turevFiltre
+                ? 'Bu hafta mühürlü. Süzgeçli görünüm mühürde olmadığı için '
+                  + 'haftanın kendi kesimiyle TÜREV olarak hesaplandı; mühürlü '
+                  + 'kayıt değişmedi.'
+                : 'Bu hafta mühürlü — Radar 5 yalnız mühürlü snapshot’tan gösterilir; yeniden hesaplanmaz.'),
         });
       }
     }
@@ -849,146 +934,9 @@ router.get('/position-dna', async (req, res) => {
     if (_dnaCache.val && _dnaCache.key === key && Date.now() - _dnaCache.at < 10 * 60 * 1000) {
       return res.json(_dnaCache.val);
     }
-    let histMatches = [];
-    let activeSeason = null;
-    try {
-      const all = await getHistoryStore().listAllMatches();
-      histMatches = all.filter(historyLearningFilter({
-        currentRoundId: cutRoundId, currentFreezeAt: cutFreezeAt,
-      }));
-      const allRounds = await getHistoryStore().listRounds();
-      const selectedRound = allRounds.find((r) => String(r.roundId) === String(cutRoundId));
-      const eligibleRounds = allRounds.filter((r) => r.status === 'completed'
-        && (!cutFreezeAt || (r.roundCloseAt && String(r.roundCloseAt) < String(cutFreezeAt))));
-      activeSeason = selectedRound?.seasonYear
-        || eligibleRounds.sort((a, b) => String(b.roundCloseAt || '').localeCompare(String(a.roundCloseAt || '')))[0]?.seasonYear
-        || null;
-      if (activeSeason != null) histMatches = histMatches.filter((m) => String(m.seasonYear) === String(activeSeason));
-    } catch { /* geçmiş arşiv yoksa yalnız ileri-test verisi kalır */ }
-
-    // ARŞİVDE TAMAMLANAN HAFTALAR da sıra geçmişine girer. Statik geçmiş dosyası
-    // dondurulmuş bir içe aktarımdır; yeni sonuçlanan haftalar oraya YAZILMAZ,
-    // arşive (match_official_results) yazılır. Bu yüzden yalnız statik dosyayla
-    // hesaplamak, biten haftayı sonsuza dek dışarıda bırakıyordu.
-    let arsivMaclari = [];
-    try {
-      arsivMaclari = await archivePositionMatches(store, {
-        beforeRoundId: cutRoundId,     // yalnız SEÇİLEN haftadan önceki turlar
-        // Statik geçmişte zaten olan tur ÇİFT SAYILMAZ.
-        knownRoundIds: new Set(histMatches.map((m) => String(m.roundId))),
-        seasonYear: activeSeason,
-      });
-    } catch { /* arşiv okunamazsa yalnız statik geçmişle devam edilir */ }
-
-    // OYNANMA KAYDINDAN ESKİ HAFTALAR YÜZDEYE DE GİRMEZ.
-    // Liste (/position-matches) `eskiHaftalariAt` ile 1525'ten kesiliyordu ama
-    // bu hesap kesilmiyordu: ekran "2 maç" derken yüzde 768 maçtan geliyor,
-    // dönem filtresi değiştikçe elde olmayan haftalara göre oynuyordu. İki uç
-    // AYNI kesimi kullanmazsa kullanıcı ekrandaki sayıyı doğrulayamaz.
-    const kaynakArr = eskiHaftalariAt([...histMatches, ...arsivMaclari]);
-
-    // FİLTRELİ MOD: üstteki 1/X/2 dağılımı da listeyle AYNI süzgeçten geçer.
-    // sec pencere kesiminden ÖNCE uygulandığı için last5/last10/last15
-    // dilimleri "süzgece uyan son N MAÇ" olur (alt katmanın birimi maçtır).
-    let sec = null;
-    let filtreKaynak = null;
-    if (filtre) {
-      const { gecmisDeger, yakin } = filtreAraclari(filtre);
-      const guncelMap = await guncelSiraDegerleri(store, cur, cutRoundId, filtre.mod);
-      const gecmisIx = filtre.mod === 'oynanma'
-        ? await oynanmaFiltreIndeksi(store, cutRoundId)
-        : await oranIndeksi(store, cur, { beforeRoundId: cutRoundId });
-      sec = (m) => {
-        const g = guncelMap.get(Number(m.position));
-        const h = gecmisDeger(gecmisIx.get(`${m.roundId}|${Number(m.position)}`));
-        return g != null && h != null && yakin(g.deger, h, filtre.tol);
-      };
-      filtreKaynak = { guncelMap, gecmisIx, gecmisDeger };
-    }
-
-    const dna = computePositionDna(kaynakArr, {
-      excludeRoundId: cutRoundId,
-      seasonYear: activeSeason,
-      sec,
-    });
-
-    // FİLTRE ÖZETİ — kapsam dürüstlüğü sıra sıra: aday (süzgeç öncesi), verili
-    // (değeri gerçekten bilinen), uyan (süzgeci geçen) ve güncel maçın değeri.
-    // Aday/verili sayıları da computePositionDna'dan çıkar: "kullanılabilir
-    // maç" tanımının tek sahibi odur, sayaç için ikinci tanım yazılmaz. Üç
-    // koşu da bellek içidir ve sonuç 10 dk önbelleğe girer.
-    let filtreOzeti = null;
-    if (filtre) {
-      const ham = computePositionDna(kaynakArr, { excludeRoundId: cutRoundId, seasonYear: activeSeason });
-      const verili = computePositionDna(kaynakArr, {
-        excludeRoundId: cutRoundId,
-        seasonYear: activeSeason,
-        sec: (m) => filtreKaynak.gecmisDeger(
-          filtreKaynak.gecmisIx.get(`${m.roundId}|${Number(m.position)}`),
-        ) != null,
-      });
-      const positions = {};
-      for (let p = 1; p <= 15; p += 1) {
-        const g = filtreKaynak.guncelMap.get(p) || null;
-        positions[p] = {
-          guncel: g?.deger ?? null,     // null → bu sırada filtre uygulanamaz (güncel veri yok)
-          gun: g?.gun ?? null,
-          aday: ham.positions.find((x) => x.position === p)?.sample ?? 0,
-          verili: verili.positions.find((x) => x.position === p)?.sample ?? 0,
-          uyan: dna.positions.find((x) => x.position === p)?.sample ?? 0,
-        };
-      }
-      filtreOzeti = {
-        mod: filtre.mod,
-        tol: filtre.tol,
-        positions,
-        notu: 'Süzgeç, görüntülenen haftanın aynı sırasındaki maçın son kayıtlı değerine '
-          + 'yakınlıkla uygulanır; değeri bilinmeyen geçmiş maç eşleşmez, güncel değeri '
-          + 'olmayan sırada filtre uygulanamaz.',
-      };
-    }
-
-    // İleri-test (official_forward) sıra istatistikleri — geçmiş arşivle birleşik özet.
-    let combined = null;
-    try {
-      const fwd = await getPositionStats({ toRound: cutRoundId != null ? Number(cutRoundId) - 1 : undefined });
-      combined = mergePositionStats(fwd, positionStatsFromHistory(histMatches));
-    } catch { combined = positionStatsFromHistory(histMatches); }
-
-    const availability = dna.totalMatches >= 10 ? 'available'
-      : dna.totalMatches > 0 ? 'accumulating' : 'accumulating';
-    const body = {
-      hasData: dna.totalMatches > 0,
-      availability,                       // available | accumulating (yapısal destek VAR)
-      sources: ['Resmî geçmiş bülten arşivi', 'Mühürlü ileri-test haftaları'],
-      // TARİHSEL KESİM — hangi haftaya göre hesaplandığı açıkça döner.
-      // Doğrulama YÜZDEDEN değil, ham sayaçlardan yapılır (yuvarlama gizlemesin).
-      cut: {
-        roundId: cutRoundId,
-        season: activeSeason,
-        freezeAt: cutFreezeAt,
-        isCurrent: guncelMi,
-        historyMatches: histMatches.length,
-        archiveMatches: arsivMaclari.length,
-        archiveRounds: [...new Set(arsivMaclari.map((m) => String(m.roundId)))],
-      },
-      // Eski haftada snapshot yoksa bu ekran yalnız geçmiş sonuçlardan yeniden
-      // üretilmiş bir simülasyondur; resmî mühür olarak sunulmaz.
-      retrospective: !guncelMi,
-      // Filtresiz istekte null — mevcut okuyucular için yanıt şekli değişmez.
-      // combined BİLEREK filtresiz kalır: o alan radar formül köprüsüdür
-      // (ileri-test istatistikleriyle birleşim); ekrandaki 1/X/2 dağılımı
-      // dna.positions[].windows'tan okunur ve süzgeç orada uygulanır.
-      filtre: filtreOzeti,
-      dna,
-      combined,
-      examples: [4, 14].map((p) => positionSummaryText(dna, p, 'last50')),
-      note: dna.totalMatches > 0 ? null
-        : (filtre
-          ? 'Seçilen yakınlıkta geçmiş maç yok — süzgeci genişletmeyi deneyebilirsiniz.'
-          : 'Resmî geçmiş arşiv içe aktarımı sürüyor — veri biriktikçe bu bölüm dolar.'),
-      disclaimer: dna.disclaimer,
-    };
+    // `sig` taban önbelleğine de geçer: yeni resmî sonuç geldiğinde yalnız
+    // yanıt değil, altındaki geçmiş tabanı da tazelenir.
+    const body = await hesaplaSiraDnasi({ store, cur, cutRoundId, cutFreezeAt, guncelMi, filtre, sig });
     _dnaCache = { at: Date.now(), key, val: body };
     res.json(body);
   } catch (e) { fail(res, e); }
@@ -1099,3 +1047,190 @@ export function makeLegacyRadarHandler({ fetchBulletin = null } = {}) {
 }
 
 export default router;
+
+
+// ---- SIRA DNA HESABI (tek tanım) --------------------------------------------
+// CANLI UÇ ve MÜHÜR AYNI KODU KULLANIR (16 Ağustos 2026). Mühürlenen haftaya
+// yakınlık süzgeci kırılımları da yazılabilsin diye hesap uçtan ayrıldı;
+// snapshotService bunu mühür anında çağırır. İkinci bir tanım yazılsaydı
+// mühürdeki sayı ile canlı sayı zamanla ayrışırdı — bu ekranın en tehlikeli
+// hata sınıfı. Döngü olmaması için snapshotService bu modülü DİNAMİK import
+// eder (routes/radar.js zaten snapshotService'ten computeFreezeAt alıyor).
+// SÜZGEÇTEN BAĞIMSIZ TABAN — HAFTA BAŞINA BİR KEZ.
+//
+// Geçmiş arşivi okumak, tamamlanan haftaların resmî sonuçlarını çevirmek ve
+// filtresiz DNA'yı hesaplamak SÜZGECE BAĞLI DEĞİLDİR; tolerans değişince
+// aynen tekrar edilir. Mühür anında 7 kombinasyon koşuyor ve bu ağır iş 7 kez
+// yapılıyordu: backend test paketi 10 sn'den 99 sn'ye çıktı (ölçüldü,
+// 16 Ağustos 2026). Taban paylaşılınca hem mühür hızlandı hem de canlı uçta
+// tolerans değiştirmek ucuzladı.
+//
+// ANAHTARDA `sig` VAR: yeni resmî sonuç geldiğinde taban da tazelenmeli.
+// Yalnız süreye güvenmek, sonuç düştükten sonra 10 dk boyunca eski tabanla
+// hesap yapmak olurdu (sessiz hata sınıfı).
+let _dnaTaban = { at: 0, key: null, val: null };
+async function siraDnaTabani({ store, cutRoundId, cutFreezeAt, sig = '' }) {
+  const key = `${cutRoundId}|${cutFreezeAt ?? ''}|${sig}`;
+  if (_dnaTaban.val && _dnaTaban.key === key && Date.now() - _dnaTaban.at < 10 * 60 * 1000) {
+    return _dnaTaban.val;
+  }
+  let histMatches = [];
+  let activeSeason = null;
+  try {
+    const all = await getHistoryStore().listAllMatches();
+    histMatches = all.filter(historyLearningFilter({
+      currentRoundId: cutRoundId, currentFreezeAt: cutFreezeAt,
+    }));
+    const allRounds = await getHistoryStore().listRounds();
+    const selectedRound = allRounds.find((r) => String(r.roundId) === String(cutRoundId));
+    const eligibleRounds = allRounds.filter((r) => r.status === 'completed'
+      && (!cutFreezeAt || (r.roundCloseAt && String(r.roundCloseAt) < String(cutFreezeAt))));
+    activeSeason = selectedRound?.seasonYear
+      || eligibleRounds.sort((a, b) => String(b.roundCloseAt || '').localeCompare(String(a.roundCloseAt || '')))[0]?.seasonYear
+      || null;
+    if (activeSeason != null) histMatches = histMatches.filter((m) => String(m.seasonYear) === String(activeSeason));
+  } catch { /* geçmiş arşiv yoksa yalnız ileri-test verisi kalır */ }
+
+  // ARŞİVDE TAMAMLANAN HAFTALAR da sıra geçmişine girer. Statik geçmiş dosyası
+  // dondurulmuş bir içe aktarımdır; yeni sonuçlanan haftalar oraya YAZILMAZ,
+  // arşive (match_official_results) yazılır. Bu yüzden yalnız statik dosyayla
+  // hesaplamak, biten haftayı sonsuza dek dışarıda bırakıyordu.
+  let arsivMaclari = [];
+  try {
+    arsivMaclari = await archivePositionMatches(store, {
+      beforeRoundId: cutRoundId,     // yalnız SEÇİLEN haftadan önceki turlar
+      // Statik geçmişte zaten olan tur ÇİFT SAYILMAZ.
+      knownRoundIds: new Set(histMatches.map((m) => String(m.roundId))),
+      seasonYear: activeSeason,
+    });
+  } catch { /* arşiv okunamazsa yalnız statik geçmişle devam edilir */ }
+
+  // OYNANMA KAYDINDAN ESKİ HAFTALAR YÜZDEYE DE GİRMEZ.
+  // Liste (/position-matches) `eskiHaftalariAt` ile 1525'ten kesiliyordu ama
+  // bu hesap kesilmiyordu: ekran "2 maç" derken yüzde 768 maçtan geliyor,
+  // dönem filtresi değiştikçe elde olmayan haftalara göre oynuyordu. İki uç
+  // AYNI kesimi kullanmazsa kullanıcı ekrandaki sayıyı doğrulayamaz.
+  const kaynakArr = eskiHaftalariAt([...histMatches, ...arsivMaclari]);
+  // Filtresiz DNA da süzgeçten bağımsızdır: hem filtresiz yanıtın kendisi hem
+  // de filtre özetindeki "aday" sayacı bunu kullanır.
+  const ham = computePositionDna(kaynakArr, { excludeRoundId: cutRoundId, seasonYear: activeSeason });
+
+  let combined = null;
+  try {
+    const fwd = await getPositionStats({ toRound: cutRoundId != null ? Number(cutRoundId) - 1 : undefined });
+    combined = mergePositionStats(fwd, positionStatsFromHistory(histMatches));
+  } catch { combined = positionStatsFromHistory(histMatches); }
+
+  const val = { histMatches, activeSeason, arsivMaclari, kaynakArr, ham, combined };
+  _dnaTaban = { at: Date.now(), key, val };
+  return val;
+}
+
+export async function hesaplaSiraDnasi({ store, cur, cutRoundId, cutFreezeAt, guncelMi, filtre, sig = '' }) {
+    const taban = await siraDnaTabani({ store, cutRoundId, cutFreezeAt, sig });
+    const { histMatches, activeSeason, arsivMaclari, kaynakArr } = taban;
+
+    // FİLTRELİ MOD: üstteki 1/X/2 dağılımı da listeyle AYNI süzgeçten geçer.
+    // sec pencere kesiminden ÖNCE uygulandığı için last5/last10/last15
+    // dilimleri "süzgece uyan son N MAÇ" olur (alt katmanın birimi maçtır).
+    let sec = null;
+    let filtreKaynak = null;
+    if (filtre) {
+      const { gecmisDeger, yakin } = filtreAraclari(filtre);
+      const guncelMap = await guncelSiraDegerleri(store, cur, cutRoundId, filtre.mod);
+      const gecmisIx = filtre.mod === 'oynanma'
+        ? await oynanmaFiltreIndeksi(store, cutRoundId)
+        : await oranIndeksi(store, cur, { beforeRoundId: cutRoundId });
+      sec = (m) => {
+        const g = guncelMap.get(Number(m.position));
+        const h = gecmisDeger(gecmisIx.get(`${m.roundId}|${Number(m.position)}`));
+        return g != null && h != null && yakin(g.deger, h, filtre.tol);
+      };
+      filtreKaynak = { guncelMap, gecmisIx, gecmisDeger };
+    }
+
+    // Süzgeçsiz istekte taban zaten hesapladı — ikinci kez koşulmaz.
+    const dna = filtre
+      ? computePositionDna(kaynakArr, {
+        excludeRoundId: cutRoundId,
+        seasonYear: activeSeason,
+        sec,
+      })
+      : taban.ham;
+
+    // FİLTRE ÖZETİ — kapsam dürüstlüğü sıra sıra: aday (süzgeç öncesi), verili
+    // (değeri gerçekten bilinen), uyan (süzgeci geçen) ve güncel maçın değeri.
+    // Aday/verili sayıları da computePositionDna'dan çıkar: "kullanılabilir
+    // maç" tanımının tek sahibi odur, sayaç için ikinci tanım yazılmaz. Üç
+    // koşu da bellek içidir ve sonuç 10 dk önbelleğe girer.
+    let filtreOzeti = null;
+    if (filtre) {
+      const { ham } = taban;   // süzgeçten bağımsız — tabandan gelir
+      const verili = computePositionDna(kaynakArr, {
+        excludeRoundId: cutRoundId,
+        seasonYear: activeSeason,
+        sec: (m) => filtreKaynak.gecmisDeger(
+          filtreKaynak.gecmisIx.get(`${m.roundId}|${Number(m.position)}`),
+        ) != null,
+      });
+      const positions = {};
+      for (let p = 1; p <= 15; p += 1) {
+        const g = filtreKaynak.guncelMap.get(p) || null;
+        positions[p] = {
+          guncel: g?.deger ?? null,     // null → bu sırada filtre uygulanamaz (güncel veri yok)
+          gun: g?.gun ?? null,
+          aday: ham.positions.find((x) => x.position === p)?.sample ?? 0,
+          verili: verili.positions.find((x) => x.position === p)?.sample ?? 0,
+          uyan: dna.positions.find((x) => x.position === p)?.sample ?? 0,
+        };
+      }
+      filtreOzeti = {
+        mod: filtre.mod,
+        tol: filtre.tol,
+        positions,
+        notu: 'Süzgeç, görüntülenen haftanın aynı sırasındaki maçın son kayıtlı değerine '
+          + 'yakınlıkla uygulanır; değeri bilinmeyen geçmiş maç eşleşmez, güncel değeri '
+          + 'olmayan sırada filtre uygulanamaz.',
+      };
+    }
+
+    // İleri-test (official_forward) sıra istatistikleri — geçmiş arşivle
+    // birleşik özet. Süzgeçten BAĞIMSIZ olduğu için tabandan gelir.
+    const { combined } = taban;
+
+    const availability = dna.totalMatches >= 10 ? 'available'
+      : dna.totalMatches > 0 ? 'accumulating' : 'accumulating';
+    const body = {
+      hasData: dna.totalMatches > 0,
+      availability,                       // available | accumulating (yapısal destek VAR)
+      sources: ['Resmî geçmiş bülten arşivi', 'Mühürlü ileri-test haftaları'],
+      // TARİHSEL KESİM — hangi haftaya göre hesaplandığı açıkça döner.
+      // Doğrulama YÜZDEDEN değil, ham sayaçlardan yapılır (yuvarlama gizlemesin).
+      cut: {
+        roundId: cutRoundId,
+        season: activeSeason,
+        freezeAt: cutFreezeAt,
+        isCurrent: guncelMi,
+        historyMatches: histMatches.length,
+        archiveMatches: arsivMaclari.length,
+        archiveRounds: [...new Set(arsivMaclari.map((m) => String(m.roundId)))],
+      },
+      // Eski haftada snapshot yoksa bu ekran yalnız geçmiş sonuçlardan yeniden
+      // üretilmiş bir simülasyondur; resmî mühür olarak sunulmaz.
+      retrospective: !guncelMi,
+      // Filtresiz istekte null — mevcut okuyucular için yanıt şekli değişmez.
+      // combined BİLEREK filtresiz kalır: o alan radar formül köprüsüdür
+      // (ileri-test istatistikleriyle birleşim); ekrandaki 1/X/2 dağılımı
+      // dna.positions[].windows'tan okunur ve süzgeç orada uygulanır.
+      filtre: filtreOzeti,
+      dna,
+      combined,
+      examples: [4, 14].map((p) => positionSummaryText(dna, p, 'last50')),
+      note: dna.totalMatches > 0 ? null
+        : (filtre
+          ? 'Seçilen yakınlıkta geçmiş maç yok — süzgeci genişletmeyi deneyebilirsiniz.'
+          : 'Resmî geçmiş arşiv içe aktarımı sürüyor — veri biriktikçe bu bölüm dolar.'),
+      disclaimer: dna.disclaimer,
+    };
+  return body;
+}
