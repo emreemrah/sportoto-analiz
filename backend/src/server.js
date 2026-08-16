@@ -28,7 +28,7 @@ import premiumRoutes from './routes/premium.js';
 import predictionRoutes from './routes/predictions.js';
 import couponRoutes from './routes/coupons.js';
 import bulletinArchiveRoutes from './routes/bulletins.js';
-import radarRoutes, { makeLegacyRadarHandler } from './routes/radar.js';
+import radarRoutes, { makeLegacyRadarHandler, radarKaynaklariniKodla } from './routes/radar.js';
 import analysisRoutes from './routes/analysis.js';
 import makeScorecardsRouter from './routes/scorecards.js';
 import { legacySystemScorecardResponse, legacyCriteriaScorecardResponse } from './scorecards/scorecardService.js';
@@ -258,8 +258,25 @@ app.get('/api/bulletin', async (req, res) => {
   // getiriyordu. Paket bir kez hazırlanır, TTL boyunca aynı baytlar servis
   // edilir; yoklama maliyeti neredeyse sıfıra iner.
   // TTL kısa (5 sn): canlı skor 45 sn'de tazeleniyor, bayatlık sınırlı kalmalı.
+  // KAYNAK KİMLİĞİ NÖTRLEME — BURASI DA BİR HTTP SINIRI (16 Ağustos 2026).
+  //
+  // `radarKaynaklariniKodla` radar rotalarında uygulanıyordu ama bülten
+  // `radarCenter`'ı taşıdığı hâlde o rotadan geçmiyor. Üretimde ölçüldü:
+  //   /api/radar/current → providerId "k1"      (maskeli)
+  //   /api/bulletin      → providerId "nesine"  (HAM — 15 maçın hepsinde)
+  // Bahis sitesi adı yanıta hiç çıkmamalı (yasal/mağaza kısıtı).
+  //
+  // AYNI fonksiyon kullanılır, ikinci bir maskeleme tanımı yazılmaz. İç hesap
+  // ve MÜHÜRLÜ snapshot ham kimliği kullanmaya devam eder — benzer-DNA
+  // eşleşmesi ona bağlı ve geçmiş mühürler değiştirilemez.
   const paket = bultenPaketi.al(
-    () => paketHazirla({ ...data, matches, archive, couponPricing: readCouponPricing() }),
+    () => paketHazirla({
+      ...data,
+      matches,
+      archive,
+      couponPricing: readCouponPricing(),
+      ...(data.radarCenter ? { radarCenter: radarKaynaklariniKodla(data.radarCenter) } : {}),
+    }),
     `${data.updatedAt ?? ''}|${archive?.status ?? ''}`,
   );
   paketiYolla(req, res, paket);

@@ -78,7 +78,7 @@ function kaynaklariKodla(view) {
 // RADAR YANITINDA KAYNAK KİMLİĞİNİ NÖTRLE (Radar 3 sağlayıcı listesi).
 // İç hesap ve MÜHÜRLÜ SNAPSHOT ham kimliği kullanır — benzer-DNA eşleşmesi ona
 // bağlıdır ve geçmiş mühürler değiştirilemez. Nötrleme yalnız HTTP sınırında.
-function radarKaynaklariniKodla(view) {
+export function radarKaynaklariniKodla(view) {
   if (!view?.matches) return view;
   return {
     ...view,

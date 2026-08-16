@@ -647,3 +647,84 @@ canlı yanıtta zaten olan arma EZİLMEZ.
 Backend **1096 test** geçiyor (hem TSİ hem `TZ=UTC`).
 
 > Düzeltme deploy EDİLMEDİ — üretimde geçmiş hafta hâlâ armasız.
+
+---
+
+## TUR 11 — 16 Ağu, ~13:55
+
+| Kontrol | Sonuç |
+|---|---|
+| `flutter analyze lib test` | temiz |
+| `flutter test` | **789** geçti |
+| `backend npm test` | **1101** geçti (TSİ ve `TZ=UTC`) |
+| Yerel uçlar (health/bulletin/radar) | 200 |
+| Üretim 8 uç | hepsi **200** |
+
+### 🔴 BULGU 15 — BÜLTEN YANITINDA BAHİS SİTESİ ADI (DÜZELTİLDİ)
+
+Marka taraması üretimde yakaladı — **15 yerde** (her maçta bir):
+`radarCenter.matches[].radars.publicBetting.details.providers[].providerId = "nesine"`
+
+Karşılaştırma aynı alanı iki uçta ölçtü:
+
+| uç | `providerId` |
+|---|---|
+| `/api/radar/current` | `k1` ✅ maskeli |
+| `/api/bulletin` | `nesine` ❌ HAM |
+
+**Kök neden:** `radarKaynaklariniKodla` RADAR ROTALARINDA uygulanıyor; bülten
+`radarCenter`'ı taşıdığı hâlde o rotadan geçmiyor (`refresh.js:864` ham hâlini
+bültene iliştiriyor). Yani maskeleme sınırı eksikti — fonksiyonun kendi
+yorumunun söylediği "nötrleme yalnız HTTP sınırında" kuralı bir sınırda
+uygulanmamış.
+
+Marka adı yasal/mağaza kısıtı; yanıt herkese açık.
+
+**Aşırı yorumlanmasın:** ARAYÜZDE görünmüyordu — `provider_labels.dart` ham
+kimliği istemcide de koda çeviriyor ("nesine" → k1 → "Sarı kaynak"). Ama o
+katman kendi yorumunda "ESKİ SUNUCU KORUMASI" diye tanımlanmış, yani yedek;
+asıl sınır sunucu olmalı.
+
+**Düzeltme:** AYNI fonksiyon bülten yanıt sınırında da uygulandı; ikinci bir
+maskeleme tanımı YAZILMADI. İç hesap ve MÜHÜRLÜ snapshot ham kimliği
+kullanmaya devam ediyor (benzer-DNA eşleşmesi ona bağlı, geçmiş mühürler
+değiştirilemez).
+
+**Kanıt (yerel, uçtan uca):** bülten yanıtında bahis-marka geçişi **0**,
+`providerId: k1`, 15 maç yerinde.
+**Koruma:** `test/bulten-marka-sizintisi.test.mjs` (5 test) — maskeleme,
+`id`/`name` düşürme, tanınmayan kimlik → k0, bülten ucunun aynı fonksiyonu
+çağırdığı ve ikinci tanım olmadığı.
+
+### ⚠ Kayda geçsin — "Profil ekranı yarı kaymış" TEŞHİSİ YANLIŞTI
+Profil'e dokununca ekranın %20'si solda açıkta kalıyor, alt menünün 5
+öğesinden 4'ü kırpık görünüyordu (`t11_profil.png`, `t11_profil3.png`) ve iki
+ölçümde de aynı kaldığı için "oturmuş kusur" sandım.
+
+Kodda ölçtüm: `app.dart:495` → `endDrawer: const KullaniciPaneli()`. Gördüğüm
+şey bir YAN PANEL (drawer) ve altındaki ekranı kısmen açıkta bırakması
+tasarımın kendisi. Gerçek Profil sayfası tam genişlikte ve alt menüsü eksiksiz
+(`t11_profil4.png`). **Kusur yok.**
+
+### 🟡 BULGU 16 — Kuponlarım boş durumu kendi düğmesini anmıyor (küçük)
+Boş durum: *"Maç detayındaki 'KUPONA İŞLE' bloğundan seçim yapıp Kupon Oluştur
+ile kaydedebilirsin."* Ama hemen ÜSTÜNDE **"+ Yeni Kupon"** düğmesi var ve
+doğrudan kupon editörünü açıyor
+(`coupon_center_screen.dart:275` → `/kuponlarim/kupon-editor/...`).
+
+Metin yanlış değil (o yol da çalışıyor) ama kullanıcıyı bir tık ötedeki kısa
+yoldan haberdar etmiyor. Metin kararı kullanıcıya ait — değiştirmedim.
+
+### Cihazda doğrulanan düzeltmeler
+- **BULGU 7** — maç detayındaki "VERİ YOK" çipi artık zeminde okunur
+  (`t11_macdetay.png`).
+- **Tema** — "Takım teması · birinci renk" seçili ve uygulanmış
+  (`t11_gorunum.png`).
+- Maç saati 21:30 (doğru TSİ), armalar tam, "Bu maç için yeterli veri yok
+  (oran da, form da yok)" dürüst dil.
+
+### Açık kalan (yeni değil)
+Bülten `date` alanı saat dilimi EKSİZ olduğu için istemcide cihaz-yerel
+sayılıyor; radar ise gerçek anı çeviriyor. Türkiye'deki cihazda ikisi de 21:30
+gösterir, GMT emülatöründe bülten 21:30 / radar 18:30 çıkar. Gerçek kullanıcı
+kitlesi TSİ olduğu için görünür etkisi yok; kayıt için.
