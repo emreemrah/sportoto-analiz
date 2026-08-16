@@ -1083,3 +1083,36 @@ temiz örneği —
 Sayaçlar (0 Güçlü · 0 Sürpriz · 0 Denk · 15 Diğer) bültendeki "Öne Çıkan 0 /
 Sürpriz Adayı 0" ile TUTARLI — bugün BULGU 10'da düzeltilen sayaç/başlık
 uyumu burada da tutuyor. 18+ uyarısı yerinde.
+
+### 🟡 BULGU 29 — Anket çubuğu SAYIYI YALANLIYORDU (DÜZELTİLDİ)
+
+Maç detayı · "Maç Sonucu Anketi" (`m1_detay.png`, takım teması):
+**"X Berabere biter · 0 oy · %0"** satırının çubuğu TAM DOLU görünüyordu.
+
+**Kök neden:** çubuğun dolu kısmı seçeneğin rengiyle, BOŞ kısmı ise düz
+`AppColors.border` ile boyanıyordu (`mac_sonuc_anketi.dart:416`). Takım
+temasında `border` beyaza yakındır; koyu kart üstünde parlak beyaz bir şerit
+"dolu" gibi okunur. Yani ekranda yazan **%0** ile çubuğun görüntüsü
+birbirini yalanlıyordu.
+
+**Neden önemli:** çubuk da bir VERİ GÖSTERİMİDİR. Sayı doğruyken görselin
+tersini söylemesi, "uydurma sayı gösterme" kuralının görsel karşılığının
+ihlalidir — kullanıcı ekrana bakıp %0'ı dolu sanabilir.
+
+**Düzeltme:** boş kısım oluk gibi geri çekildi
+(`border` %30 saydamlıkta). Doluluk vurgusu yalnız DOLU kısımda.
+
+**Kanıt:** `m2_anket.png` — %0 satırları geri çekilmiş oluk, %100 satırı sarı
+dolu.
+**Koruma:** `anket_cubugu_test.dart` (7 test) üç takım temasında ölçüyor:
+boş kısım dolu kısımdan DAHA AZ göze çarpmalı, ama tamamen de kaybolmamalı
+(çubuğun boyu okunabilsin). Mutasyonla doğrulandı: düz `border`'a dönünce
+test düşüyor.
+
+### Aynı ekranda sağlıklı görülenler
+- Saat 21:30 (doğru TSİ) · armalar tam · hava/stat bilgisi yerinde.
+- "Bu maç için yeterli veri yok (oran da, form da yok)." — dürüst.
+- "Son Maçlar" → Erzurumspor FK için **"Detay yok"** — uydurma yok.
+- "Oyunu bir kez kullanabilirsin; sayılar bu maçın gerçek oylarından gelir."
+- Bu desen BAŞKA yerde yok: `ColoredBox(color: AppColors.border)` taraması
+  tüm `lib/` içinde yalnız bu dosyada eşleşti.

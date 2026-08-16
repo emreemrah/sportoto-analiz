@@ -413,7 +413,21 @@ class _SonucSatiri extends StatelessWidget {
                   if (yuzde < 100)
                     Expanded(
                       flex: 100 - yuzde,
-                      child: ColoredBox(color: AppColors.border),
+                      // BOŞ KISIM OLUK GİBİ DURMALI, DOLU GİBİ DEĞİL
+                      // (16 Ağustos 2026 denetimi).
+                      //
+                      // Boş kısım düz `border` ile boyanıyordu. Takım
+                      // temasında `border` beyaza yakın olduğu için **%0'lık
+                      // satır tam beyaz bir çubuk** gibi çıkıyor ve gözle
+                      // "dolu" okunuyordu — üstünde "0 oy · %0" yazarken.
+                      // Ölçüldü: `m1_detay.png`, "X Berabere biter" satırı.
+                      //
+                      // Sayı ile çubuk BİRBİRİNİ YALANLAMAMALI: doluluk
+                      // vurgusu yalnız DOLU kısımda olur, boş kısım geri
+                      // çekilir.
+                      child: ColoredBox(
+                        color: AppColors.border.withValues(alpha: 0.30),
+                      ),
                     ),
                 ],
               ),
