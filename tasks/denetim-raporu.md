@@ -728,3 +728,85 @@ Bülten `date` alanı saat dilimi EKSİZ olduğu için istemcide cihaz-yerel
 sayılıyor; radar ise gerçek anı çeviriyor. Türkiye'deki cihazda ikisi de 21:30
 gösterir, GMT emülatöründe bülten 21:30 / radar 18:30 çıkar. Gerçek kullanıcı
 kitlesi TSİ olduğu için görünür etkisi yok; kayıt için.
+
+---
+
+## TUR 13 — 16 Ağu, ~14:35
+
+| Kontrol | Sonuç |
+|---|---|
+| `flutter analyze lib test` | temiz |
+| `flutter test` | **796** geçti |
+| `backend npm test` | **1107** geçti (`TZ=UTC` dahil) |
+| Üretim 7 uç | 6× 200 · `/api/bulletin` **503** (bilinen soğuk açılış, BULGU 5) |
+
+### 🟡 BULGU 17 — Haftalık Başarı'da iki yazı okunmuyordu (DÜZELTİLDİ)
+`t13_haftalik_basari.png` (takım teması):
+
+1. **"🏁 Bu Haftanın Kapanışı · Sen vs Sistem"** şeridi KOYU zeminde KOYU
+   yazıyla çıkıyor, pratikte okunmuyordu. Kodda doğrulandı: şeridin yüzeyi
+   `AppColors.darkCard`, yazısı `AppColors.onPrimary` — yani **başka bir yüzey
+   için türetilmiş** renk.
+2. **Sayfa başlığı "Haftalık Başarı"** sayfa zemininde `AppColors.text` (KART
+   yazı rengi) kullanıyor ve sarı zeminde siliniyordu.
+
+İkisi de bugün kapatılan **BULGU 3/7 ile aynı sınıf**: bir yüzey için türetilen
+renk başka yüzeyde kullanılıyor. Düzeltme aynı ilkeyle: şerit yazısı
+`okunurMetin(AppColors.darkCard)`, başlık `AppColors.onBackground`.
+
+**Kanıt:** `t13_duzeltilmis.png` — başlık koyu bordo/sarı zeminde net, şerit
+krem/bordo okunur.
+**Koruma:** `flutter/test/haftalik_basari_okunurluk_test.dart` (3 test) —
+dört takım temasında türetilen yazının WCAG 4.5:1 tutturduğu + kaynakta
+`onPrimary`/`text` kullanılmadığı taranıyor. Testler yazıldığında ÖNCE düştü
+(kusuru gösterdi), düzeltmeden sonra geçti.
+
+### ⚠ Kendi gözlemimi düzeltiyorum — mavi dişli kusur DEĞİL
+"Teknik bilgiler" satırındaki parlak mavi ⚙ için "tema dışı ikon" demiştim.
+Kodda `Icon` değil, metnin içindeki EMOJİ: `'⚙ Teknik bilgiler'`. Rengini
+uygulama belirlemiyor (sistem emoji fontu) ve uygulama başka yerlerde de emoji
+kullanıyor (🏁 🔒 🔏 ⚽). Kusur saymıyorum.
+
+### Marka taraması — iki kayıt
+- `/api/history/1528` → "footystats" geçiyor ama **yalnız arma görsel
+  adresinde** (`cdn.footystats.org/img/teams/...`). Kullanıcıya gösterilen
+  metin değil; bulgu değil.
+- `/api/analysis/criteria` → "FootyStats" **etiket metni** olarak geçiyor —
+  bilinen **BULGU 13** (arayüzde görünmüyor, karar kullanıcıya ait).
+- Bahis sitesi adı **hiçbir uçta yok** (BULGU 15 düzeltmesi üretimde tutuyor).
+
+### 🟢 BULGU 18 — "Resmi sonuçlar kontrol ediliyor" yazısı 15 sn'de bir parlıyordu (DÜZELTİLDİ)
+Kullanıcı bildirdi. `bulletin_screen.dart:80` geçmiş hafta için 15 sn'lik
+otomatik kontrol kuruyor; döngü yalnız **15/15 sonuç + ikramiye** gelince
+duruyor. 1. Haftada o an 6/15 sonuç vardı (kalan maçlar aynı gün 17:00–21:45),
+yani koşul saatlerce sağlanmayacaktı.
+
+Asıl kusur: arka plan yoklaması, kullanıcının BAŞLATTIĞI kontrolle aynı
+`checking` bayrağını yakıyordu. `checkOfficial(..., sessiz: true)` eklendi —
+veri yine tazeleniyor, gerçek değişiklik (yeni sonuç / düzeltme) yine
+bildiriliyor, ama gösterge yanmıyor. Elle yenilemede gösterge KORUNDU.
+
+**Koruma:** `flutter/test/sessiz_yoklama_test.dart` (4 test), mutasyonla
+doğrulandı (sessiz çağrı geri alınınca tarama testi düşüyor).
+
+### 🟢 BULGU 14 devamı — arşivi olmayan haftalar için ad eşleştirmesi (DÜZELTİLDİ)
+Kullanıcı isteğiyle. Arşivde yalnız 6 bülten var; daha eski haftalarda mühür
+olmadığı için arşiv tamamlaması hiçbir şey bulamıyordu.
+
+`defterdenArmaTamamla` eklendi: BOŞ kalan arma yerleri arma kayıt defterinden
+(`lookupCrest`) çözülür. Ölçüm — 48. Hafta (1520, arşivde YOK):
+
+| | önce | sonra |
+|---|---|---|
+| armasız maç | 15/15 | **2/15** |
+| defterden çözülen arma | 0 | **28** |
+
+Kalan iki takım BİLEREK boş: "Malmö" defterde iki farklı kulüple eşleşiyor
+(Malmö FF · IFK Malmö), "AIK Stockholm" güvenli eşleşme bulamıyor (AIK
+Fotboll · Oskarshamns AIK). `lookupCrest` default-deny çalışıyor; gevşetmek
+yanlış kulübün armasını basma riski açardı. Boş kalan yerde baş harf rozeti
+çizilir.
+
+Arşivden gelen arma defter tarafından EZİLMEZ — mutasyonla doğrulandı
+(ezme koruması kaldırılınca test düşüyor). `test/gecmis-tamamlama.test.mjs`
+13 test.

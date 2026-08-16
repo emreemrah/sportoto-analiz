@@ -5,7 +5,8 @@ import cors from 'cors';
 // (node-cron kaldırıldı — zamanlama artık autoRefresh scheduler'ında.)
 import path from 'path';
 import { macAniMs } from './time/turkiyeSaati.js';
-import { arsivdenTamamla } from './archive/gecmisTamamlama.js';
+import { arsivdenTamamla, defterdenArmaTamamla } from './archive/gecmisTamamlama.js';
+import { indexRegistry } from './crestRegistry.js';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
@@ -51,6 +52,8 @@ const maclarBellegi = yanitBellegi(5000);
 const bultenPaketi = yanitBellegi(5000);
 // Arşiv/mühür durumu — 116 ms'lik Supabase turu; dakikalar mertebesinde değişir.
 const arsivBellegi = yanitBellegi(30000);
+// Arma kayıt defteri indeksi — dosya okuma + indeksleme, istek başına yapılmaz.
+const armaDefteriBellegi = yanitBellegi(60000);
 
 const app = express();
 // Render/ters vekil arkasında gerçek istemci IP'sini görmek için şart.
@@ -591,6 +594,19 @@ app.get('/api/history/:roundId', async (req, res) => {
           ?.payload?.matches || [];
         arsivdenTamamla(bulletin.matches, arsivMaclar);
       } catch { /* arşiv yoksa lig adı ve armalar resmî hâliyle kalır */ }
+
+      // İKİNCİ AŞAMA — ARŞİVİ OLMAYAN HAFTALAR (bkz. gecmisTamamlama.js).
+      // Arşivde yalnız son birkaç bülten var; daha eski haftalarda mühür
+      // olmadığı için yukarıdaki adım hiçbir şey bulamaz. Ölçüldü: 49. Hafta
+      // (arşivde var) armasız 0/15, 48. Hafta (arşivde yok) armasız 15/15 —
+      // oysa AYNI kulüpler 49'da armalı görünüyordu.
+      //
+      // Yalnız BOŞ kalan yerler doldurulur; arşivden gelen değer ezilmez.
+      // Defter indeksi her istekte kurulmaz (dosya okuma + indeksleme).
+      try {
+        const idx = armaDefteriBellegi.al(() => indexRegistry(), 'defter');
+        defterdenArmaTamamla(bulletin.matches, idx);
+      } catch { /* defter okunamazsa armasız kalır — uydurma yapılmaz */ }
       const resolvedCount = bulletin.matches
         .filter((m) => (m.result && m.score) || m.viaNotary).length;
       payload = {

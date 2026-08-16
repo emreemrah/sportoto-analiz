@@ -249,7 +249,9 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
           Text(
             'Haftalık Başarı',
             style: TextStyle(
-              color: AppColors.text,
+              // Başlık SAYFA ZEMİNİNDE duruyor; `text` KART yazı rengidir ve
+              // takım temasında zeminde siliniyordu (emülatörde ölçüldü).
+              color: AppColors.onBackground,
               fontSize: 22,
               fontWeight: AppFont.black,
             ),
@@ -1006,7 +1008,12 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
       child: Text(
         '🏁 Bu Haftanın Kapanışı · Sen vs Sistem ›',
         style: TextStyle(
-          color: AppColors.onPrimary,
+          // YAZI, ŞERİDİN KENDİ YÜZEYİNDEN TÜRETİLİR (16 Ağustos 2026).
+          // Eskiden `onPrimary` kullanılıyordu — o, PRIMARY yüzeyi için
+          // türetilmiş bir renk. Şeridin yüzeyi `darkCard` olduğu için takım
+          // temasında koyu zeminde koyu yazı çıkıyor ve şerit okunmuyordu
+          // (emülatörde ölçüldü). BULGU 3/7 ile aynı sınıf hata.
+          color: okunurMetin(AppColors.darkCard),
           fontSize: 13,
           fontWeight: AppFont.heavy,
         ),

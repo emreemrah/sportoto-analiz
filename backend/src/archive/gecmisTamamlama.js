@@ -25,6 +25,7 @@
 //  * Canlı yanıtta zaten olan değerin üstüne YAZILMAZ.
 
 import { normalizeName, nameTokens } from '../matcher.js';
+import { lookupCrest } from '../crestRegistry.js';
 
 // AD EŞLEŞMESİ SPONSOR ÖNEKİNE TAKILMAMALI (16 Ağustos 2026, üretimde ölçüldü).
 //
@@ -79,6 +80,54 @@ export function arsivdenTamamla(maclar, arsivMaclar) {
     }
     if (!mm.away?.logo && kayit.away?.logo) {
       mm.away = { ...mm.away, logo: kayit.away.logo };
+      sonuc.arma++;
+    }
+  }
+  return sonuc;
+}
+
+// ————————————————————————————————————————————————————————————————————————
+// İKİNCİ AŞAMA: ARŞİVİ OLMAYAN HAFTALAR İÇİN AD EŞLEŞTİRMESİ
+//
+// `arsivdenTamamla` yalnız MÜHÜRLÜ kaydı olan haftayı kurtarabilir. Arşivde
+// 6 bülten var; ölçüldü (yerel):
+//   49. Hafta (1521, arşivde VAR) → armasız 0/15
+//   48. Hafta (1520, arşivde YOK) → armasız 15/15
+// Aynı kulüpler (Mjallby, Malmö, Göteborg, AIK) 49'da armalı, 48'de armasız
+// görünüyordu — yani arma BİLİNİYOR, yalnız o haftaya bağlanamıyordu.
+//
+// KANIT GÜCÜ FARKLIDIR, BU YÜZDEN AYRI ADIM: arşiv, O HAFTA İÇİN mühürlenmiş
+// değerdir; defter ise kulüp adından çözülen armadır. Önce arşiv denenir,
+// yalnız BOŞ kalan yerler deftere sorulur. `logoSource` ile hangisinden
+// geldiği yanıtta kalır.
+//
+// UYDURMA YOK: `lookupCrest` katmanlı ve default-deny çalışır (tam ad →
+// içerme → slug → jeton; gevşek katmanlarda işaret koruması, birden fazla
+// aday çıkarsa REDDEDER). Bulunamayan taraf BOŞ bırakılır — ekranda kulüp
+// baş harfleri çizilir, yanlış arma çizilmez.
+
+/// Boş kalan arma yerlerini arma kayıt defterinden doldurur.
+/// Dolu olanı ASLA ezmez (arşivden gelen değer korunur).
+export function defterdenArmaTamamla(maclar, index) {
+  const sonuc = { arma: 0, bulunamayan: [] };
+  if (!Array.isArray(maclar) || !index) return sonuc;
+
+  for (const mm of maclar) {
+    for (const yon of ['home', 'away']) {
+      const t = mm?.[yon];
+      if (!t || t.logo) continue;              // dolu → dokunma
+      let hit = null;
+      try { hit = lookupCrest(t, index); } catch { hit = null; }
+      if (!hit?.image) {
+        if (t.name) sonuc.bulunamayan.push(t.name);
+        continue;                              // bulunamadı → BOŞ kalır
+      }
+      mm[yon] = {
+        ...t,
+        logo: hit.image,
+        logoSource: 'registry',
+        logoMatchedBy: hit.matchedBy || null,
+      };
       sonuc.arma++;
     }
   }

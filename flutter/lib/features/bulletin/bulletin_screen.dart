@@ -98,7 +98,11 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
           ms.cast<Map>().every(officialResolved) &&
           h.hist?['prize'] != null;
       if (done) return;
-      ref.read(historyControllerProvider.notifier).checkOfficial(secili);
+      // SESSİZ: arka plan yoklaması "kontrol ediliyor" göstergesini
+      // yakmaz (bkz. checkOfficial). Elle yenilemede gösterge KALIR.
+      ref
+          .read(historyControllerProvider.notifier)
+          .checkOfficial(secili, sessiz: true);
     });
   }
 

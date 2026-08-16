@@ -154,3 +154,75 @@ test('arşivde arma yoksa alan UYDURULMAZ', () => {
   assert.equal(maclar[0].home.logo, undefined);
   assert.equal(sonuc.lig, 1, 'lig adı yine de taşınmalı');
 });
+
+// ——— İKİNCİ AŞAMA: arşivi olmayan haftalar için defterden arma ———
+//
+// Ölçüldü (yerel): 48. Hafta (1520, arşivde YOK) armasız 15/15 iken bu adımla
+// 2/15'e indi; 28 arma defterden çözüldü. Kalan ikisi eşleşmenin BİLEREK
+// reddi: "Malmö" defterde iki farklı kulüple eşleşiyor (Malmö FF · IFK Malmö),
+// "AIK Stockholm" hiçbiriyle güvenli eşleşmiyor (AIK Fotboll · Oskarshamns AIK).
+
+const { defterdenArmaTamamla } = await import('../src/archive/gecmisTamamlama.js');
+
+test('ARŞİVDEN gelen arma defterle EZİLMEZ, boş olan dolar', async () => {
+  const { indexRegistry } = await import('../src/crestRegistry.js');
+  // Defterde İKİ takım da var; yani ezme koruması olmasa arşiv değeri
+  // defterinkiyle değişirdi (mutasyonla doğrulandı).
+  const idx = indexRegistry({
+    version: 1,
+    entries: [
+      { id: 1, names: ['Sirius'], image: 'https://cdn/defter-sirius.png', seasons: [1] },
+      { id: 2, names: ['Degerfors'], image: 'https://cdn/defter-degerfors.png', seasons: [1] },
+    ],
+  });
+  const maclar = [{
+    no: 1,
+    home: { name: 'Sirius', logo: 'https://arsivden/sirius.png' }, // DOLU
+    away: { name: 'Degerfors' },                                    // BOŞ
+  }];
+  const sonuc = defterdenArmaTamamla(maclar, idx);
+
+  assert.equal(maclar[0].home.logo, 'https://arsivden/sirius.png', 'arşiv değeri ezilmiş');
+  assert.equal(maclar[0].home.logoSource, undefined, 'dolu tarafa dokunulmamalı');
+  assert.equal(maclar[0].away.logo, 'https://cdn/defter-degerfors.png');
+  assert.equal(sonuc.arma, 1, 'yalnız boş olan sayılmalı');
+});
+
+test('defter yoksa hiçbir şey yapılmaz', () => {
+  const maclar = [{ no: 1, home: { name: 'A' }, away: { name: 'B' } }];
+  assert.equal(defterdenArmaTamamla(maclar, null).arma, 0);
+  assert.equal(maclar[0].home.logo, undefined);
+});
+
+test('defterden dolar; BELİRSİZ eşleşmede arma UYDURULMAZ', async () => {
+  const { indexRegistry } = await import('../src/crestRegistry.js');
+  // Defter KENDİ verimizle kurulur — testin yerel `backend/cache/` içeriğine
+  // bağlı olması onu ortama göre değişken yapardı (temiz kopyada boş defter).
+  // Kurgu, üretimde ölçülen durumun birebir aynısı: "Malmö" iki farklı kulüple
+  // eşleşiyor (Malmö FF · IFK Malmö) ve reddedilmeli.
+  const idx = indexRegistry({
+    version: 1,
+    entries: [
+      { id: 1, names: ['Sirius'], image: 'https://cdn/sirius.png', seasons: [1] },
+      { id: 2, names: ['Malmö FF'], image: 'https://cdn/malmoff.png', seasons: [1] },
+      { id: 3, names: ['IFK Malmö'], image: 'https://cdn/ifkmalmo.png', seasons: [1] },
+    ],
+  });
+  const maclar = [
+    { no: 1, home: { name: 'Sirius' }, away: { name: 'Malmö' } },
+  ];
+  const sonuc = defterdenArmaTamamla(maclar, idx);
+
+  // Sirius defterde tek adayla duruyor → dolar.
+  assert.ok(maclar[0].home.logo, 'tek adaylı kulüp doldurulmalı');
+  assert.equal(maclar[0].home.logoSource, 'registry');
+  assert.ok(String(maclar[0].home.logoMatchedBy || '').startsWith('registry-'));
+  // "Malmö" iki farklı kulüple eşleşiyor → UYDURULMAZ.
+  assert.equal(maclar[0].away.logo, undefined, 'belirsiz eşleşmede arma basılmış');
+  assert.ok(sonuc.bulunamayan.includes('Malmö'));
+});
+
+test('bozuk girdi akışı bozmaz', () => {
+  assert.equal(defterdenArmaTamamla(null, {}).arma, 0);
+  assert.equal(defterdenArmaTamamla([null, undefined, {}], {}).arma, 0);
+});

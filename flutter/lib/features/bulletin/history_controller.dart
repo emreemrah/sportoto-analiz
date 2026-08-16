@@ -116,8 +116,19 @@ class HistoryController extends StateNotifier<HistoryState> {
 
   /// [onlyNo] verilirse yalnız o satırın resmi sonucu uygulanır
   /// ("Bu maçı yenile").
-  Future<void> checkOfficial(int roundId, {Object? onlyNo}) async {
-    state = state.copyWith(checking: true);
+  /// [sessiz] ARKA PLAN YOKLAMASI: 15 sn'lik otomatik kontrol kendini
+  /// kullanıcıya DUYURMAZ.
+  ///
+  /// Bildirilen sorun (16 Ağustos 2026): geçmiş haftada "Resmi sonuçlar
+  /// kontrol ediliyor 🔄" yazısı ve çarkı 15 saniyede bir parlayıp duruyordu.
+  /// Sebep: yoklama, kullanıcının BAŞLATTIĞI kontrolle aynı `checking`
+  /// bayrağını kullanıyordu. Döngü ancak 15/15 sonuç + ikramiye gelince
+  /// durduğu için, maçları henüz oynanmamış bir haftada saatlerce sürüyordu.
+  ///
+  /// Yoklamanın kendisi doğru — durdurulan şey yalnız GÖSTERGE. Gerçek bir
+  /// değişiklik (yeni sonuç, düzeltme) yine bildirilir.
+  Future<void> checkOfficial(int roundId, {Object? onlyNo, bool sessiz = false}) async {
+    if (!sessiz) state = state.copyWith(checking: true);
     try {
       final freshRaw = await _api.history(roundId, fresh: true);
       final fresh = Map<String, dynamic>.from(freshRaw as Map);
