@@ -15,10 +15,21 @@
 // snapshot'tur). Bu yüzden mühür durumu BİLİNMEDEN yüzde çizilmez: `radarMatch`
 // yanıtı gelene kadar ekran "hesaplanıyor" der, yokluk ya da değer İDDİA ETMEZ.
 //
-// YAKINLIK FİLTRESİ YOK: Radar ekranındaki "Oynanma ±5 / Oran ±0.25" üst-katman
-// süzgeci buraya taşınmadı — kullanıcı maç detayında sıranın kendisini istedi.
-// Dönem çipleri (Tüm/5/10/15 hafta) DURUYOR, çünkü yüzdenin hangi döneme ait
-// olduğu yazılmazsa sayı doğrulanamaz.
+// YAKINLIK FİLTRESİ VAR (kullanıcı kararı, 16 Ağustos 2026 — 11 Ağustos'taki
+// karar TERSİNE DÖNDÜ).
+//
+// Önce "maç detayında sıranın kendisi yeter" denip Radar ekranındaki
+// "Oynanma ±5 / Oran ±0.25" süzgeci buraya taşınmamıştı. Kullanıcı bunu eksik
+// buldu: maçın içindeyken de o sırada BENZER oynanma/oran koşullarında ne
+// çıktığını görmek istiyor.
+//
+// Süzgeç Radar ekranının KENDİ bileşeniyle (`DnaDonemFiltresi`) ve AYNI
+// parametrelerle bağlandı; ikinci bir filtre arayüzü ya da ikinci bir istek
+// biçimi yazılmadı. İki ekran aynı süzgeci farklı uygularsa hangisinin doğru
+// olduğu bilinemez.
+//
+// Dönem çipleri DURUYOR, çünkü yüzdenin hangi döneme ait olduğu yazılmazsa
+// sayı doğrulanamaz.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,11 +41,20 @@ import '../radar/radar_screen_data.dart';
 import '../radar/radar_screen_logic.dart';
 import 'mac_radar_paneli.dart';
 
-/// Haftanın sıra dağılımı. Yakınlık süzgeci GEÇİLMEZ (bkz. dosya başı).
+/// Haftanın sıra dağılımı.
+///
+/// ANAHTAR SÜZGECİ DE İÇERİR: süzgeç değişince istek yeniden atılmalı. Yalnız
+/// `roundId` anahtar olsaydı eski süzgecin sonucu ekranda kalırdı (Radar
+/// ekranındaki sağlayıcıyla aynı gerekçe).
 final _positionDnaProvider = FutureProvider.autoDispose
-    .family<Map<String, dynamic>, Object>(
-      (ref, rid) async => Map<String, dynamic>.from(
-        await api.radarPositionDna(roundId: rid) as Map,
+    .family<Map<String, dynamic>, ({Object rid, String? mod, num? tol})>(
+      (ref, k) async => Map<String, dynamic>.from(
+        await api.radarPositionDna(
+              roundId: k.rid,
+              oynanmaTol: k.mod == 'oynanma' ? k.tol : null,
+              oranTol: k.mod == 'oran' ? k.tol : null,
+            )
+            as Map,
       ),
     );
 
@@ -76,6 +96,13 @@ class MacBultenSirasiPaneli extends ConsumerStatefulWidget {
 class _MacBultenSirasiPaneliState extends ConsumerState<MacBultenSirasiPaneli> {
   String _donem = 'allTime';
   bool _acik = false;
+
+  // YAKINLIK SÜZGECİ — Radar ekranındaki alanların birebir karşılığı.
+  // `_filtreMod` null = dönem modu (süzgeç kapalı).
+  String? _filtreMod;
+  num _oynanmaTol = 0;
+  num _oranTol = 0;
+  String _macPenceresi = 'allTime';
 
   @override
   Widget build(BuildContext context) {
@@ -131,7 +158,11 @@ class _MacBultenSirasiPaneliState extends ConsumerState<MacBultenSirasiPaneli> {
     final muhurluHafta = macKaydi['sealed'] == true;
     final master = macKaydi['match'];
 
-    final dnaAsync = ref.watch(_positionDnaProvider(roundId));
+    // SÜZGEÇ İSTEĞİ: mod seçiliyse tolerans da gönderilir.
+    final istekTol = _filtreMod == 'oran' ? _oranTol : _oynanmaTol;
+    final dnaAsync = ref.watch(
+      _positionDnaProvider((rid: roundId, mod: _filtreMod, tol: _filtreMod == null ? null : istekTol)),
+    );
     final positionDna = dnaAsync.valueOrNull;
 
     final dna = dnaByPosition(
@@ -175,7 +206,7 @@ class _MacBultenSirasiPaneliState extends ConsumerState<MacBultenSirasiPaneli> {
             ),
           )
         else
-          _donemCipleri(),
+          _filtrePaneli(positionDna, dnaAsync, muhurluHafta, dna),
         // Yüzde HENÜZ gelmediyse satır "yok" demez: dağılım isteği uçarken
         // pct null geçmek "bu dönemde geçmiş sonuç yok" cümlesini bastırırdı.
         if (!muhurluHafta && dnaAsync.isLoading)
@@ -233,48 +264,58 @@ class _MacBultenSirasiPaneliState extends ConsumerState<MacBultenSirasiPaneli> {
     );
   }
 
-  /// Dönem çipleri — Radar ekranındaki dört dönem, aynı anahtarlarla.
-  Widget _donemCipleri() => Padding(
-    padding: const EdgeInsets.only(bottom: Spacing.sm),
-    child: Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: [
-        for (final p in kDnaPeriods)
-          Semantics(
-            button: true,
-            selected: _donem == p.k,
-            label: p.label,
-            child: GestureDetector(
-              key: Key('bulten-sirasi-donem-${p.k}'),
-              behavior: HitTestBehavior.opaque,
-              onTap: () => setState(() => _donem = p.k),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: _donem == p.k ? AppColors.primary : AppColors.bgAlt,
-                  borderRadius: AppRadius.smR,
-                  border: Border.all(
-                    color: _donem == p.k ? AppColors.primary : AppColors.border,
-                  ),
-                ),
-                child: Text(
-                  p.label,
-                  style: TextStyle(
-                    color: _donem == p.k
-                        ? AppColors.onPrimary
-                        : AppColors.textSoft,
-                    fontSize: 11.5,
-                    fontWeight: AppFont.heavy,
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    ),
-  );
+  /// SÜZGEÇ PANELİ — Radar ekranının KENDİ bileşeni (`DnaDonemFiltresi`).
+  ///
+  /// Kopya bir arayüz yazılmadı: iki ekran aynı süzgeci farklı sunarsa
+  /// hangisinin doğru olduğu bilinemez. Mühürlü haftada yalnız mühre yazılmış
+  /// (ya da haftanın kesiminden TÜREV olarak üretilebilen) adımlar çip olur —
+  /// basınca hiçbir şey değişmeyen bir seçenek kullanıcıyı yanıltırdı.
+  Widget _filtrePaneli(
+    Map? positionDna,
+    AsyncValue<Map<String, dynamic>> dnaAsync,
+    bool muhurluHafta,
+    ({bool muhurluRadar5Yok, Map? byPosition}) dna,
+  ) {
+    final secilebilir = <String>{
+      ...((positionDna?['muhurluFiltreler'] as List?) ?? const []).map((e) => '$e'),
+      ...((positionDna?['turevFiltreler'] as List?) ?? const []).map((e) => '$e'),
+    };
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Spacing.sm),
+      child: DnaDonemFiltresi(
+        positionDna: positionDna,
+        dnaPeriod: _donem,
+        onSelect: (k) => setState(() => _donem = k),
+        muhurluHafta: muhurluHafta,
+        muhurluRadar5Yok: dna.muhurluRadar5Yok,
+        filtreMod: _filtreMod,
+        muhurluFiltreler: secilebilir,
+        turevGorunum: positionDna?['turev'] == true,
+        onFiltreModSec: (mod) => setState(() {
+          _filtreMod = mod;
+          // Mod her seçildiğinde süzgeç Birebir + Tümü'ye döner — önceki
+          // seçimden kalan dar/geniş değer sessizce taşınmaz (Radar ekranıyla
+          // aynı kural).
+          if (mod != null) {
+            _oynanmaTol = 0;
+            _oranTol = 0;
+            _macPenceresi = 'allTime';
+          }
+        }),
+        oynanmaTol: _oynanmaTol,
+        oranTol: _oranTol,
+        onTolSec: (t) => setState(() {
+          if (_filtreMod == 'oran') {
+            _oranTol = t;
+          } else {
+            _oynanmaTol = t;
+          }
+        }),
+        macPenceresi: _macPenceresi,
+        onMacPencereSec: (k) => setState(() => _macPenceresi = k),
+        filtreYukleniyor: _filtreMod != null && dnaAsync.isLoading,
+      ),
+    );
+  }
+
 }
