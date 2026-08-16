@@ -38,7 +38,7 @@
 import { LEGACY_ODDS_SOURCE, oddsSourceLabel, sortOddsSources } from '../providers/oddsSources.js';
 
 // Türkiye 2016'dan beri kalıcı UTC+3 (yaz saati YOK) — sabit ofset güvenli.
-import { TR_OFFSET_MS } from '../time/turkiyeSaati.js';  // tek tanım
+import { TR_OFFSET_MS, dayKeyOf, istanbulTimeToUtcMs } from '../time/turkiyeSaati.js';
 const WEEKDAY_TR = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 const MS_DAY = 86400e3;
 
@@ -74,15 +74,6 @@ function istanbulSaat(ms) {
   return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
 }
 // UTC ms → İstanbul gün anahtarı ('2026-07-19').
-function dayKeyOf(ms) {
-  const p = istanbulParts(ms);
-  return `${p.y}-${String(p.m).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
-}
-// İstanbul gün anahtarı + saat/dk → UTC ms.
-function istanbulTimeToUtcMs(dayKey, hour, minute) {
-  const [y, m, d] = dayKey.split('-').map(Number);
-  return Date.UTC(y, m - 1, d, hour, minute, 0) - TR_OFFSET_MS;
-}
 function addDaysKey(dayKey, delta) {
   const [y, m, d] = dayKey.split('-').map(Number);
   const nd = new Date(Date.UTC(y, m - 1, d) + delta * MS_DAY);

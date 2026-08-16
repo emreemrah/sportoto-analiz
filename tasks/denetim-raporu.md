@@ -1192,3 +1192,59 @@ eklendi — "0" ile "bilinmiyor" ayrımının korunması gereken yerler için.
 **Koruma:** `sayiya_test.dart` (5 test) + ikinci tanım eklenirse düşen tarama.
 
 `flutter analyze` temiz · **845** test geçiyor.
+
+## TUR 32 — 16 Ağu, ~17:45 · BACKEND KOD DENETİMİ
+
+Geçen tur Flutter tarafı tarandı; bu tur BACKEND.
+
+| Kontrol | Sonuç |
+|---|---|
+| `flutter analyze lib test` | temiz |
+| `flutter test` | **845** |
+| `backend npm test` | **1111** (TSİ ve `TZ=UTC`) |
+
+### Temiz çıkanlar
+- **Uydurma sabit yok:** `|| 0.5` / `?? 0.5` gibi "veri yoksa ortala" deseni
+  hiç yok.
+- **`Math.random` kullanılmıyor** — üstelik `ev/math.js` yorumu bunu AÇIKÇA
+  gerekçelendiriyor: *"Gölge kayıtlarının YENİDEN ÜRETİLEBİLİR olması için
+  Math.random kullanılmaz."* Kural kodda bilinçli.
+- `await`siz `.then` yok · kodda API anahtarı yok.
+
+### Yanlış alarmlar (kayda geçsin)
+İlk tarama "5 tekrarlı fonksiyon" dedi; üçü YANLIŞ ALARM çıktı — grep adları
+kırpıyordu: `teamLast5`/`teamLast5Detail`, `recordStatus(patch)` vs
+`recordStatus(key, patch)` (farklı imza, farklı dosya, farklı iş),
+`buildRadar5Snapshot`/`buildRadar5FiltreleriSnapshot`/`buildRadarScorecard`.
+Hepsi ayrı işler.
+
+### 🟡 BULGU 32 — Gün anahtarı İKİ yerde tanımlıydı (DÜZELTİLDİ)
+`dayKeyOf` ve `istanbulTimeToUtcMs` hem `radar/dailyOdds.js` hem
+`radar/playedDnaArchive.js` içinde ayrı tanımlıydı; yazımları da farklıydı
+(biri `istanbulParts`, diğeri doğrudan UTC getter'ları).
+
+**Ölçüm — abartılmasın:** 20.000 örnekle, iki yılı aşan aralıkta tarandı,
+**sıfır fark**. Yani aktif bir hata YOKTU, eşdeğerdiler.
+
+**Neden yine de birleştirildi:** ikisi de MÜHÜRLEME gün anahtarı üretiyor
+(Radar 3 oynanma DNA'sı · Radar 4 oran takibi). Biri değişirse iki radar
+gözlemleri farklı günlere yazar, mühürler sessizce ayrışır ve haftalar arası
+kıyas bozulur — ne uyarı ne çökme olur. **Eşdeğerlik kanıta değil YAPIYA
+bağlanmalı.**
+
+Ayrıca bu, bugünün ikinci "aynı ad, ayrı tanım" bulgusu (ilki BULGU 31,
+`_sayi`) — ve orada ikisi GERÇEKTEN ayrışmıştı. Desen kanıtlanmış durumda.
+
+**Düzeltme:** ikisi de `src/time/turkiyeSaati.js`'e taşındı (bugün saat dilimi
+düzeltmesi için açılan modül). `playedDnaArchive` eski içe aktarmalar
+bozulmasın diye `dayKeyOf`'u yeniden dışa veriyor.
+
+**Not — kendi eksiğim:** o modülü açarken "gün anahtarını burada yeniden
+tanımlamadım, tek tanım `playedDnaArchive`'da" diye not düşmüştüm; `dailyOdds`
+içinde ikinci kopya olduğunu O ZAMAN görmemiştim. Bu turdaki sistematik tarama
+yakaladı.
+
+**Koruma:** `test/gun-anahtari-tek-tanim.test.mjs` (4 test) — tanım sayısını
+sayıyor, gün anahtarının TÜRKİYE gününü verdiğini (UTC gününü değil)
+doğruluyor, gidiş-dönüş tutarlılığını ve ofset sabitini sınıyor. Mutasyonla
+doğrulandı: ikinci tanım eklenince test düşüyor.

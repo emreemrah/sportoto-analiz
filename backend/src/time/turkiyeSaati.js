@@ -72,3 +72,32 @@ export function macAniIso(deger) {
 // NOT: gün anahtarı (`dayKeyOf`) ve gün-saati çevirimi burada YENİDEN
 // TANIMLANMADI — `radar/playedDnaArchive.js` içindeki çalışan tanımlar
 // kullanılır. Aynı işin iki tanımı sessiz sapma üretir.
+
+// ————————————————————————————————————————————————————————————————————————
+// GÜN ANAHTARI — TEK TANIM (16 Ağustos 2026 kod denetimi).
+//
+// Bu iki yardımcı `radar/dailyOdds.js` ve `radar/playedDnaArchive.js` içinde
+// AYRI AYRI tanımlıydı. Yazımları farklıydı (biri `istanbulParts`, diğeri
+// doğrudan UTC getter'ları), anlamları AYNIYDI: 20.000 örnekle, iki yılı aşan
+// aralıkta taranıp SIFIR fark ölçüldü. Yani aktif bir hata yoktu.
+//
+// Yine de birleştirildi: ikisi de MÜHÜRLEME gün anahtarı üretiyor (Radar 3
+// oynanma DNA'sı ve Radar 4 oran takibi). Biri değişirse iki radar gözlemleri
+// farklı günlere yazar ve mühürler sessizce ayrışır — kıyas bozulur, kimse
+// hata görmez. Eşdeğerliği kanıt değil, YAPI garanti etmeli.
+//
+// (Bu dosyanın ilk sürümünde "gün anahtarını burada yeniden tanımlamadım"
+// notu vardı; o sırada `dailyOdds`'un kendi kopyası olduğu görülmemişti.)
+
+/// UTC ms → Türkiye gün anahtarı (`YYYY-MM-DD`).
+export function dayKeyOf(ms) {
+  const d = new Date(ms + TR_OFFSET_MS);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`;
+}
+
+/// Türkiye gün anahtarı + saat/dakika → UTC ms.
+export function istanbulTimeToUtcMs(dayKey, hour, minute) {
+  const [y, m, d] = String(dayKey).split('-').map(Number);
+  return Date.UTC(y, m - 1, d, hour, minute, 0) - TR_OFFSET_MS;
+}

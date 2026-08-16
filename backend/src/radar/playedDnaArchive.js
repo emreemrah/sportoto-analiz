@@ -15,7 +15,10 @@
 //  • Şema değişikliği YOK: mevcut store metodları (listBulletins, getMatches,
 //    listObservations, listOfficialResults) bestelenerek çalışır.
 // Türkiye sabit UTC+3 (yaz saati uygulaması yok) — dailyOdds.js ile aynı kabul.
-import { TR_OFFSET_MS } from '../time/turkiyeSaati.js';  // tek tanım
+import { TR_OFFSET_MS, dayKeyOf, istanbulTimeToUtcMs } from '../time/turkiyeSaati.js';
+
+// Eski içe aktarmalar bozulmasın: gün anahtarı buradan da erişilebilir kalır.
+export { dayKeyOf };
 const SEAL_HOUR = 23;
 const SEAL_MINUTE = 55;
 const FREEZE_BEFORE_KICKOFF_MS = 5 * 60e3;
@@ -43,18 +46,7 @@ const msOf = (v) => {
   return Number.isFinite(t) ? t : null;
 };
 
-// UTC ms → Istanbul gün anahtarı (YYYY-MM-DD)
-export function dayKeyOf(ms) {
-  const d = new Date(ms + TR_OFFSET_MS);
-  const p = (n) => String(n).padStart(2, '0');
-  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`;
-}
 
-// Istanbul gün anahtarı + saat → UTC ms
-function istanbulTimeToUtcMs(dayKey, hour, minute) {
-  const [y, m, d] = dayKey.split('-').map(Number);
-  return Date.UTC(y, m - 1, d, hour, minute, 0) - TR_OFFSET_MS;
-}
 
 // Gün anahtarından hafta günü (0=Pazar … 6=Cumartesi)
 export function weekdayOf(dayKey) {
