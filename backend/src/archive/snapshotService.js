@@ -11,6 +11,7 @@ import {
   RADAR_ID, RADAR_VERSION, FREEZE_BEFORE_MS, LATE_THRESHOLD_MS,
 } from './constants.js';
 import { hashPayload, HASH_ALGO } from './hash.js';
+import { macAniMs, macAniIso } from '../time/turkiyeSaati.js';
 import { getArchiveStore } from './store.js';
 import { AlreadyExistsError, ValidationError } from './errors.js';
 import { evaluateCriteriaSignals, CRITERIA_LABELS } from '../analysis/criteriaEval.js';
@@ -22,7 +23,11 @@ import { movementOf } from '../radar/playedDna.js';
 import { PUBLIC_MOVE_RULES } from '../radar/config.js';
 import { OYNANMA_TOLERANSLARI, ORAN_TOLERANSLARI } from '../radar/siraFiltre.js';
 
-const iso = (v) => (v == null ? null : new Date(v).toISOString());
+// Maç/bülten saatleri TEK yerden çözülür (`macAniIso`): saat dilimi eki olan
+// değerler olduğu gibi, EKSİZ olanlar Türkiye duvar saati kabul edilir. Ham
+// `new Date(...)` sunucunun saat dilimine göre farklı an üretiyordu — üretim
+// (UTC) ile geliştirme (TSİ) arasında 3 saatlik sapma ölçüldü.
+const iso = (v) => macAniIso(v);
 
 // Backend sembolleri → kullanıcıya dönük gösterim ('0' = X).
 export function displaySymbol(sym) {
@@ -33,7 +38,7 @@ export function displaySymbol(sym) {
 // Bültendeki İLK maçın resmî başlama zamanı (UTC ms). Maç saati yoksa null.
 export function firstKickoffMs(matches) {
   const times = (matches || [])
-    .map((m) => new Date(m.date || m.kickoffAt || 0).getTime())
+    .map((m) => macAniMs(m.date ?? m.kickoffAt) ?? 0)
     .filter((t) => Number.isFinite(t) && t > 0);
   return times.length ? Math.min(...times) : null;
 }
@@ -101,7 +106,7 @@ export async function registerBulletinFromData(data, { store = getArchiveStore()
       if ((prev.homeName || '') !== (m.home?.name || '')) diffs.push({ type: 'home', matchId: prev.matchId, from: prev.homeName, to: m.home?.name });
       if ((prev.awayName || '') !== (m.away?.name || '')) diffs.push({ type: 'away', matchId: prev.matchId, from: prev.awayName, to: m.away?.name });
       const prevT = prev.kickoffAt ? new Date(prev.kickoffAt).getTime() : null;
-      const curT = m.date ? new Date(m.date).getTime() : null;
+      const curT = macAniMs(m.date);
       if (prevT !== curT) diffs.push({ type: 'kickoff', matchId: prev.matchId, from: prev.kickoffAt, to: iso(m.date) });
     }
     if (diffs.length) {

@@ -38,7 +38,7 @@
 import { LEGACY_ODDS_SOURCE, oddsSourceLabel, sortOddsSources } from '../providers/oddsSources.js';
 
 // Türkiye 2016'dan beri kalıcı UTC+3 (yaz saati YOK) — sabit ofset güvenli.
-const TR_OFFSET_MS = 3 * 3600e3;
+import { TR_OFFSET_MS } from '../time/turkiyeSaati.js';  // tek tanım
 const WEEKDAY_TR = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 const MS_DAY = 86400e3;
 

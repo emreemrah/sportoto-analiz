@@ -4,6 +4,7 @@
 // 3) Her bülten maçını FootyStats maçıyla eşleştirip analiz eder
 // 4) Sonucu cache'e yazar (mobil uygulama buradan okur)
 import { config, usingExampleKey } from './config.js';
+import { macAniMs } from './time/turkiyeSaati.js';
 import { getLatestBulletin, getBulletinByRoundId } from './sources/sportoto.js';
 import { fetchSeason, fetchMatches, fetchLeagueInfo, fetchTeamVenue, fetchMatchScore } from './sources/footystats.js';
 import { discoverSeasonIds } from './seasonDiscovery.js';
@@ -739,7 +740,7 @@ export async function refreshAll() {
   // öncesi gördüğü tahmin, maçlar oynanırken/bitince de aynen kalır.
   // Yeni hafta (roundId değişince) mühür sıfırlanır, normal akış başlar.
   const RADAR_FREEZE_BEFORE_MS = 5 * 60 * 1000;
-  const kickoffs = analyzedMatches.map((m) => new Date(m.date).getTime()).filter(Number.isFinite);
+  const kickoffs = analyzedMatches.map((m) => macAniMs(m.date)).filter(Number.isFinite);
   const firstKickoff = kickoffs.length ? Math.min(...kickoffs)
     : (bulletin.closeDate ? new Date(bulletin.closeDate).getTime() : null);
   const radarFreezeAt = firstKickoff != null ? firstKickoff - RADAR_FREEZE_BEFORE_MS : null;
@@ -935,7 +936,7 @@ export async function refreshAll() {
 const LIVE_WINDOW_MS = 3.5 * 3600 * 1000;
 function inLiveWindow(m, now) {
   if (!m?.date) return false;
-  const t = new Date(m.date).getTime();
+  const t = macAniMs(m.date) ?? NaN;
   return Number.isFinite(t) && t <= now && now - t <= LIVE_WINDOW_MS;
 }
 

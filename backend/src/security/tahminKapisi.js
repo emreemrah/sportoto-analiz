@@ -22,6 +22,7 @@
 // Saf çekirdek (`tahminKabulEdilirMi`) ayrı tutuldu: bülteni parametre alır,
 // böylece testler ağa/cache'e bağlı kalmaz.
 import { load } from '../cache.js';
+import { macAniMs } from '../time/turkiyeSaati.js';
 
 /** Maç başlangıcından bu kadar önce tahmin kapanır. */
 export const KILIT_ONCESI_MS = 5 * 60e3;
@@ -46,7 +47,7 @@ export function tahminKabulEdilirMi(matchId, bulletin, now = Date.now()) {
   const mac = matches.find((m) => String(m.sportotoMatchId ?? m.no) === id);
   if (!mac) return { ok: false, code: 'unknown_match', mesaj: 'Bu maç güncel bültende yok.' };
 
-  const kickoffMs = mac.date ? new Date(mac.date).getTime() : NaN;
+  const kickoffMs = macAniMs(mac.date) ?? NaN;
   if (!Number.isFinite(kickoffMs)) {
     return { ok: false, code: 'no_kickoff', mesaj: 'Maç saati bilinmiyor, tahmin alınamıyor.' };
   }

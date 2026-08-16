@@ -15,7 +15,7 @@
 //  • Şema değişikliği YOK: mevcut store metodları (listBulletins, getMatches,
 //    listObservations, listOfficialResults) bestelenerek çalışır.
 // Türkiye sabit UTC+3 (yaz saati uygulaması yok) — dailyOdds.js ile aynı kabul.
-const TR_OFFSET_MS = 3 * 3600e3;
+import { TR_OFFSET_MS } from '../time/turkiyeSaati.js';  // tek tanım
 const SEAL_HOUR = 23;
 const SEAL_MINUTE = 55;
 const FREEZE_BEFORE_KICKOFF_MS = 5 * 60e3;

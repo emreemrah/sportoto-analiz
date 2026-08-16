@@ -14,6 +14,7 @@ import { nesineAdapter } from './nesine.js';
 // Gün anahtarı (Europe/Istanbul) tek yerden gelir — iki ayrı tanım zamanla
 // birbirinden ayrışıp gün sınırlarını bozmasın.
 import { dayKeyOf } from '../radar/playedDnaArchive.js';
+import { macAniMs } from '../time/turkiyeSaati.js';
 import { load, save } from '../cache.js';
 import { denenebilir, durumuGuncelle } from './saglayiciTempo.js';
 
@@ -125,7 +126,7 @@ export async function observePlayedPercentages({
   observeInFlight = true;
   try {
     const bulletinId = String(bulletinData.roundId);
-    const kickoffs = bulletinData.matches.map((m) => new Date(m.date).getTime()).filter(Number.isFinite);
+    const kickoffs = bulletinData.matches.map((m) => macAniMs(m.date)).filter(Number.isFinite);
     const freezeAtMs = kickoffs.length ? Math.min(...kickoffs) - 5 * 60e3 : null;
     const publishedAtMs = bulletinData.publishedAt ? new Date(bulletinData.publishedAt).getTime()
       : bulletinData.updatedAt ? new Date(bulletinData.updatedAt).getTime() : null;

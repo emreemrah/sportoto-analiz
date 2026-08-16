@@ -32,7 +32,7 @@ const MAX_BACKOFF_MS = 30 * 60e3;
 // RADAR 4 (Oran Takibi) GÜNLÜK MÜHÜR: her gün 23:55 Europe/Istanbul'da güncel
 // bülten bir kez tazelenir → o anki GERÇEK oran gözlemi arşive yazılır ve o
 // günün mührü olur (kilit/freeze sonrası kayıt zaten engelli — sahte oran yok).
-const TR_OFFSET_MS = 3 * 3600e3;             // Türkiye kalıcı UTC+3 (yaz saati yok)
+import { TR_OFFSET_MS } from '../time/turkiyeSaati.js';   // Türkiye kalıcı UTC+3 (tek tanım)
 const DAILY_SEAL_HOUR = 23;
 const DAILY_SEAL_MIN = 55;
 

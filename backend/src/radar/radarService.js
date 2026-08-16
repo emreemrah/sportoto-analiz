@@ -5,6 +5,7 @@
 //   payload'ındaki mühürlü radarCenter gösterilir. Metodoloji sonradan değişse
 //   de eski bülten eski methodologyVersion ile kalır.
 import { load, save, listRadarRounds } from '../cache.js';
+import { macAniIso } from '../time/turkiyeSaati.js';
 import { getArchiveStore } from '../archive/store.js';
 import { computeFreezeAt, bulletinIdOf } from '../archive/snapshotService.js';
 import { getPositionStats } from '../archive/resultsService.js';
@@ -149,7 +150,7 @@ export async function computeRadarCenterForData(data, { store = getArchiveStore(
         home: m.home?.mediumName || m.home?.name || '',
         away: m.away?.mediumName || m.away?.name || '',
         league: m.league || null,
-        kickoffAt: m.date ? new Date(m.date).toISOString() : null,
+        kickoffAt: macAniIso(m.date),
         master,
         radars,
       };
