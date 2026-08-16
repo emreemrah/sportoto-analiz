@@ -23,8 +23,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/brand.dart';
 import '../../core/network/api_client.dart';
-import '../../core/theme/takim_paleti.dart' show okunurMetin;
+import '../../core/theme/takim_paleti.dart' show ayrisanYuzey, okunurMetin;
 import '../../core/theme/tokens.dart';
+import '../../core/ulke_seridi.dart' show macUlkesiEn;
 import '../../core/utils.dart';
 import '../../core/yaklasan_maclar.dart';
 import '../../widgets/app_ui.dart';
@@ -114,6 +115,13 @@ class HomeScreen extends ConsumerWidget {
     final error = bulletinAsync.hasError ? '${bulletinAsync.error}' : null;
     final onceki = ref.watch(_oncekiHaftaProvider).valueOrNull;
 
+    // GÜNCEL BÜLTEN YERİNE OTURDU MU (veri geldi ya da hata verdi).
+    // "Yaklaşan Maçlar" iki isteği birleştirir ve önceki hafta isteği KÜÇÜK
+    // olduğu için düzenli olarak ÖNCE döner; bülten (≈1 MB) hâlâ yoldayken
+    // şerit tek başına çizilirse ana sayfa bir süre YALNIZ geçen haftanın
+    // maçlarını gösterir, sonra yeni hafta üzerine biner (16 Ağu 2026 tespiti).
+    final bultenYerlesti = data != null || error != null;
+
     final matches = (data?['matches'] as List?) ?? const [];
 
     // 360px SINIFI EKRANLAR: dar ekranda analiz kartları yan yana sıkışmak
@@ -170,7 +178,14 @@ class HomeScreen extends ConsumerWidget {
                 // YAKLAŞAN MAÇLAR — konum kullanıcı isteğiyle "Öne Çıkan
                 // Analizler"in ÜSTÜNDE: önce "ne zaman ne oynanıyor", sonra
                 // "hangisi ilginç".
-                if (upcoming.isNotEmpty) ...[
+                //
+                // BÜLTEN YERLEŞMEDEN ÇİZİLMEZ: liste iki haftayı belli bir
+                // oranda karıştırır (güncel haftaya ayrılan asgari yer). Güncel
+                // hafta henüz elde yokken çizmek o oranı bozar ve şeridi geçici
+                // olarak %100 geçen haftaya bırakır. Hata durumunda da çizilir:
+                // orada güncel hafta gerçekten yoktur ve geçen hafta doğru
+                // yedektir.
+                if (bultenYerlesti && upcoming.isNotEmpty) ...[
                   _SectionHead(
                     title: 'Yaklaşan Maçlar',
                     right: 'Tümünü Gör ›',
@@ -217,17 +232,27 @@ class HomeScreen extends ConsumerWidget {
                 else
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (final m in displayAnalysis) ...[
-                          Expanded(
-                            child: _AnalysisCard(match: m, dar: darEkran),
-                          ),
-                          if (m != displayAnalysis.last)
-                            const SizedBox(width: 8),
+                    // İKİ KART HER ZAMAN AYNI YÜKSEKLİKTE (kullanıcı kararı,
+                    // 16 Ağustos 2026). Eskiden `Row` her kartı kendi içeriğine
+                    // göre boyutluyordu: ihtimalleri olan kart uzuyor, veri
+                    // gelmeyen kart kısa kalıyordu ve yan yana duran iki kart
+                    // basamak gibi görünüyordu. `IntrinsicHeight` + `stretch`
+                    // ikisini de UZUN OLANIN boyuna getirir; kartın kendisi de
+                    // artan boşluğu düğmeyi alta iterek harcar (bkz.
+                    // _AnalysisCard içindeki Spacer).
+                    child: IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final m in displayAnalysis) ...[
+                            Expanded(
+                              child: _AnalysisCard(match: m, dar: darEkran),
+                            ),
+                            if (m != displayAnalysis.last)
+                              const SizedBox(width: 8),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
 
@@ -393,15 +418,17 @@ class _HeroCard extends StatelessWidget {
     final hazir = !loading && data != null;
     String v(int n) => hazir ? '$n' : '–';
 
-    // Haftanın GERÇEK karakteri: sabit tanıtım cümlesi yerine backend'in
-    // zorluk özeti + ilk maç zamanı. Veri yoksa satır çizilmez — uydurma yok.
-    final zorluk = data?['difficulty'] as Map?;
-    final zorlukRenk = zorluk?['level'] == 'Zor'
-        ? AppColors.accent
-        : zorluk?['level'] == 'Orta'
-        ? AppColors.warning
-        : AppColors.success;
-
+    // ZORLUK ETİKETİ KALDIRILDI (kullanıcı kararı, 16 Ağustos 2026).
+    //
+    // Hero'da "Zorluk: Kolay / Orta / Zor" yazıyordu. İki ayrı sebeple kalktı:
+    //   • YANILTICI: haftanın "kolay" olması diye bir şey yok; etiket
+    //     kullanıcıya tutturma kolaylığı vaat ediyordu. Bu uygulama kupon
+    //     karar desteği verir, kolaylık/garanti sözü vermez.
+    //   • Rozetin rengi anlamsal yeşil/sarı/kırmızıydı ve takım temasının
+    //     dışında kalıyordu.
+    // Backend'in `difficulty` alanı DURUYOR; yalnız bu ekranda gösterilmiyor.
+    //
+    // Kalan satır haftanın GERÇEK verisi: ilk maç zamanı. Veri yoksa çizilmez.
     DateTime? ilk;
     for (final m in matches.cast<Map>()) {
       final t = m['date'] is String
@@ -443,25 +470,6 @@ class _HeroCard extends StatelessWidget {
                   letterSpacing: 0.5,
                 ),
               ),
-              if (hazir && zorluk?['level'] != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: AppRadius.pillR,
-                    border: Border.all(color: zorlukRenk),
-                  ),
-                  child: Text(
-                    'Zorluk: ${zorluk!['level']}',
-                    style: TextStyle(
-                      color: zorlukRenk,
-                      fontSize: 10.5,
-                      fontWeight: AppFont.heavy,
-                    ),
-                  ),
-                ),
               if (hazir && ilk != null)
                 Text(
                   'İlk maç: ${_kisaGunler[ilk.weekday % 7]} '
@@ -700,12 +708,30 @@ class _AnalysisCard extends StatelessWidget {
     // hiçbir görsel işaret yok, dolayısıyla değerine de ihtiyaç yok.
 
     // Etiket GERÇEK sürpriz puanından — karta göre sabit etiket uydurulmaz.
+    //
+    // RENK: rozet artık SABİT yeşil/sarı/kırmızı DEĞİL, temanın YUMUŞAK
+    // YÜZEYLERİNDEN gelir (kullanıcı kararı, 16 Ağustos 2026). Eski hâlde
+    // "DENGELİ" `AppColors.field` (0xFF16A34A) ile çiziliyordu; bu ton takım
+    // temasının da açık/koyu görünümün de dışında kalan, her yerde görülen
+    // genel bir yeşildi. `*Soft` yüzeyler [temayiUygula] tarafından takıma ve
+    // görünüme göre yeniden hesaplanır; yazı rengi de zeminden türetilir
+    // (`okunurMetin`), böylece kontrast her temada korunur.
+    //
+    // ÜÇ ROZET ÜÇ AYRI YÜZEY: takım temasında `accentSoft` ile `primarySoft`
+    // AYNI renge ayarlanıyor (takim_gorunumu.dart) — ikisini kullansaydık
+    // "AÇIK MAÇ" ile "DENGELİ" birbirinden ayırt edilemezdi. Bu yüzden en
+    // dikkat çeken kademe DOLGULU takım vurgusu, ortası uyarı yüzeyi, en
+    // sakini tema yüzeyidir.
+    // Yumuşak yüzeyler karttan AYRIŞTIRILIR (bkz. ayrisanYuzey): ham değerler
+    // bazı temalarda kartın üstünde seçilmiyor ve rozet kayboluyordu.
     final sc = (analysis?['surpriseScore'] as num?)?.toDouble() ?? 0;
-    final (tag, color) = sc >= _surprizEsik
-        ? ('SÜRPRİZ ADAYI', AppColors.gold)
+    final uyariZemin = ayrisanYuzey(AppColors.warningSoft, AppColors.card);
+    final temaZemin = ayrisanYuzey(AppColors.primarySoft, AppColors.card);
+    final (tag, tagZemin, tagYazi) = sc >= _surprizEsik
+        ? ('SÜRPRİZ ADAYI', AppColors.accent, AppColors.onAccent)
         : sc >= _oneCikanEsik
-        ? ('AÇIK MAÇ', AppColors.accent)
-        : ('DENGELİ', AppColors.field);
+        ? ('AÇIK MAÇ', uyariZemin, okunurMetin(uyariZemin))
+        : ('DENGELİ', temaZemin, okunurMetin(temaZemin));
 
     final d = match['date'] is String
         ? DateTime.tryParse(match['date'] as String)?.toLocal()
@@ -743,7 +769,7 @@ class _AnalysisCard extends StatelessWidget {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0x26 / 255),
+                      color: tagZemin,
                       borderRadius: AppRadius.smR,
                     ),
                     child: Text(
@@ -751,7 +777,7 @@ class _AnalysisCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: color,
+                        color: tagYazi,
                         fontSize: dar ? 8.5 : 9.5,
                         fontWeight: AppFont.black,
                         letterSpacing: 0.3,
@@ -764,6 +790,7 @@ class _AnalysisCard extends StatelessWidget {
                   league: match['league'] as String?,
                   ligGoster: false,
                   kisa: dar,
+                  yedekUlkeEn: macUlkesiEn(match),
                 ),
               ],
             ),
@@ -813,9 +840,13 @@ class _AnalysisCard extends StatelessWidget {
               ],
             ),
 
-            // GERÇEK ihtimaller — veri yoksa bu bölüm HİÇ çizilmez.
-            if (segs.isNotEmpty) ...[
-              const SizedBox(height: 10),
+            // GERÇEK ihtimaller. UYDURMA YOK: veri yoksa 1/X/2 kutuları
+            // çizilmez — boş kutu ya da "%–" kullanıcıya sayı varmış izlenimi
+            // verirdi. Onun yerine AYNI YÜKSEKLİKTE dürüst bir satır konur
+            // ("İhtimal verisi yok"), böylece yan yana duran iki kart aynı
+            // iskelete oturur ve eksik veri açıkça söylenmiş olur.
+            const SizedBox(height: 10),
+            if (segs.isNotEmpty)
               Row(
                 children: [
                   for (final s in segs) ...[
@@ -829,11 +860,12 @@ class _AnalysisCard extends StatelessWidget {
                     if (s.k != '2') SizedBox(width: dar ? 4 : 5),
                   ],
                 ],
-              ),
-              // Açıklama satırının yeri: kartı ferahlatmak için küçük bir
-              // nefes payı bırakıldı (2026-08-11).
-              SizedBox(height: dar ? 2 : 4),
-            ],
+              )
+            else
+              _ihtimalYok(),
+            // Açıklama satırının yeri: kartı ferahlatmak için küçük bir
+            // nefes payı bırakıldı (2026-08-11).
+            SizedBox(height: dar ? 2 : 4),
 
             const SizedBox(height: 8),
             Text(
@@ -846,6 +878,10 @@ class _AnalysisCard extends StatelessWidget {
                 height: dar ? 1.3 : 1.4,
               ),
             ),
+            // ARTAN BOŞLUĞU YUTAR: kartlar `IntrinsicHeight` ile eşit boya
+            // getirildiğinde kısa kalan kartın fazlası buraya gider ve
+            // "Analiz Detayı" düğmesi İKİ KARTTA DA en altta hizalanır.
+            const Spacer(),
             const SizedBox(height: 8),
             Container(
               padding: EdgeInsets.symmetric(vertical: dar ? 7 : 9),
@@ -889,6 +925,41 @@ class _AnalysisCard extends StatelessWidget {
         ),
       ),
     ],
+  );
+
+  /// İhtimal verisi olmayan maç için 1/X/2 satırının DÜRÜST karşılığı.
+  ///
+  /// `_ihtimalKutusu` ile AYNI iskelet (aynı iç boşluk, aynı iki satır, aynı
+  /// punto) kullanılır; tek fark sayı yerine "verisi yok" yazmasıdır. Böylece
+  /// yan yana duran iki kartın yüksekliği veri durumundan bağımsız aynı kalır
+  /// ve eksik veri gizlenmek yerine açıkça söylenir.
+  Widget _ihtimalYok() => Container(
+    padding: EdgeInsets.symmetric(vertical: dar ? 3 : 4),
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: AppColors.bgAlt,
+      borderRadius: AppRadius.smR,
+    ),
+    child: Column(
+      children: [
+        Text(
+          'İHTİMAL',
+          style: TextStyle(
+            color: AppColors.textSoft,
+            fontSize: dar ? 7 : 8,
+            fontWeight: AppFont.bold,
+          ),
+        ),
+        Text(
+          'verisi yok',
+          style: TextStyle(
+            color: AppColors.textMuted,
+            fontSize: dar ? 7.5 : 8.5,
+            fontWeight: AppFont.bold,
+          ),
+        ),
+      ],
+    ),
   );
 
   /// 1/X/2 KUTULARI TEK TİPTİR — hiçbir seçenek öne çıkarılmaz.
@@ -951,11 +1022,18 @@ class _SurpriseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // Seviye ve yüzde GERÇEK sürpriz puanından — sıraya göre etiket
     // uydurulmaz.
+    //
+    // RENK: `_AnalysisCard` rozetiyle aynı gerekçe (16 Ağustos 2026) — sabit
+    // yeşil/sarı yerine temanın yumuşak yüzeyleri; yazı zeminden türetilir.
     final score = (match['analysis'] as Map?)?['surpriseScore'] as num? ?? 0;
     final level = score >= 65 ? 'YÜKSEK' : (score >= 45 ? 'ORTA' : 'DÜŞÜK');
-    final color = score >= 65
-        ? AppColors.gold
-        : (score >= 45 ? AppColors.field : AppColors.gray);
+    final zemin = ayrisanYuzey(
+      score >= 65
+          ? AppColors.warningSoft
+          : (score >= 45 ? AppColors.primarySoft : AppColors.bgAlt),
+      AppColors.card,
+    );
+    final yazi = okunurMetin(zemin);
 
     // İzleyici armadan takımı tanımaz — kısaltılmış ad her zaman görünür.
     String kisaAd(Map? t) {
@@ -982,7 +1060,11 @@ class _SurpriseCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            UlkeEtiketi(league: match['league'] as String?, ligGoster: false),
+            UlkeEtiketi(
+              league: match['league'] as String?,
+              ligGoster: false,
+              yedekUlkeEn: macUlkesiEn(match),
+            ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -1038,13 +1120,13 @@ class _SurpriseCard extends StatelessWidget {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0x33 / 255),
+                    color: zemin,
                     borderRadius: AppRadius.smR,
                   ),
                   child: Text(
                     level,
                     style: TextStyle(
-                      color: color,
+                      color: yazi,
                       fontSize: 9.5,
                       fontWeight: AppFont.black,
                     ),
@@ -1085,9 +1167,13 @@ class _SurpriseCard extends StatelessWidget {
 
 /// Yaklaşan maç kartı — gerçek bülten verisi: gün + saat + takımlar + ülke.
 ///
-/// HAFTA ROZETİ yalnız ÖNCEKİ haftanın maçlarında görünür: liste iki haftayı
-/// karıştırdığı için kullanıcının hangi bültene baktığını bilmesi gerekir.
-/// TIKLAMA HEDEFİ de haftaya göre değişir — önceki hafta maçı MAÇ DETAYINA
+/// HAFTA ROZETİ HER KARTTA VARDIR (kullanıcı kararı, 16 Ağustos 2026). Önceden
+/// yalnız önceki haftanın maçlarında çiziliyordu; rozetsiz kart "hafta bilgisi
+/// yok" değil "güncel hafta" demek oluyordu ve bunu ancak rozetli kartlarla
+/// karşılaştıran biri anlayabiliyordu. Liste iki haftayı karıştırdığı için her
+/// kart hangi bültene ait olduğunu KENDİ ÜSTÜNDE yazar; iki hafta rozetin
+/// renginden de ayırt edilir.
+/// TIKLAMA HEDEFİ haftaya göre değişir — önceki hafta maçı MAÇ DETAYINA
 /// GİDEMEZ, çünkü detay sıra numarasını GÜNCEL bültende arar ve aynı
 /// numaradaki BAŞKA bir maçı açardı.
 class _KickoffCard extends StatelessWidget {
@@ -1129,25 +1215,7 @@ class _KickoffCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (oncekiHafta && match['haftaAdi'] != null)
-              Container(
-                margin: const EdgeInsets.only(bottom: 5),
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.warningSoft,
-                  borderRadius: AppRadius.smR,
-                ),
-                child: Text(
-                  '${match['haftaAdi']}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: okunurMetin(AppColors.warningSoft),
-                    fontSize: 9,
-                    fontWeight: AppFont.black,
-                  ),
-                ),
-              ),
+            if (match['haftaAdi'] != null) _haftaRozeti(oncekiHafta),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -1178,8 +1246,41 @@ class _KickoffCard extends StatelessWidget {
             const SizedBox(height: 4),
             _takimSatiri(match, 'away'),
             const SizedBox(height: 6),
-            UlkeEtiketi(league: match['league'] as String?),
+            UlkeEtiketi(
+              league: match['league'] as String?,
+              yedekUlkeEn: macUlkesiEn(match),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Hafta rozeti. ÖNCEKİ hafta uyarı tonunda, GÜNCEL hafta tema tonunda —
+  /// aynı listede duran iki haftayı okumadan da ayırt ettirir. Yazı rengi iki
+  /// durumda da zeminden hesaplanır, böylece takım teması ve açık/koyu
+  /// görünüm değiştiğinde kontrast korunur.
+  ///
+  /// ZEMİN KARTTAN AYRIŞTIRILIR: ham `*Soft` değerleri her temada kartın
+  /// üstünde seçilmiyordu (koyu görünümde "2. Hafta" rozeti karta gömülüyordu).
+  /// [ayrisanYuzey] hue'yu koruyup parlaklığı gerektiği kadar kaydırır.
+  Widget _haftaRozeti(bool oncekiHafta) {
+    final zemin = ayrisanYuzey(
+      oncekiHafta ? AppColors.warningSoft : AppColors.primarySoft,
+      AppColors.card,
+    );
+    return Container(
+      margin: const EdgeInsets.only(bottom: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(color: zemin, borderRadius: AppRadius.smR),
+      child: Text(
+        '${match['haftaAdi']}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: okunurMetin(zemin),
+          fontSize: 9,
+          fontWeight: AppFont.black,
         ),
       ),
     );
