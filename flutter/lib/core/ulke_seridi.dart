@@ -80,6 +80,69 @@ UlkeBilgi? ulkeAyikla(String? league) {
   return UlkeBilgi(name: ad); // tanınmadı → lig adı aynen (uydurma yok)
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// ARMA ADRESİNDEN ÜLKE (yedek yol — 16 Ağustos 2026, kullanıcı isteği)
+//
+// Resmî Spor Toto bülteni bazı maçlarda lig adını genel bir metinle yazar
+// ("Final", "2026/2027 Sezonu"). O metinden ülke çıkmadığı için kartlarda
+// bayrak yerine nötr top kalıyordu.
+//
+// Kulüp armasının adresi sağlayıcının kendi düzeninde ÜLKE ÖN EKİ taşır
+// (".../teams/france-olympique-de-marseille.png"). Bu ön ek uydurma değil,
+// armanın kendi kimliğidir; lig adı ülke vermediğinde yedek kaynak olur.
+//
+// SINIRI AÇIK: bu, KULÜBÜN ülkesidir — turnuvanın ülkesi değil. İki kulüp
+// FARKLI ülkedense (uluslararası karşılaşma) ülke BELİRSİZDİR ve hiçbir
+// bayrak basılmaz; yanlış bayrak, bayraksızlıktan kötüdür.
+// ───────────────────────────────────────────────────────────────────────────
+
+/// Ülke ön ekleri UZUNDAN KISAYA denenir ki "Czech Republic" ile "Czechia"
+/// birbirini gölgelemesin.
+final List<String> _ulkeOnEkleri = kEnTr.keys.toList()
+  ..sort((a, b) => b.length.compareTo(a.length));
+
+/// Arma adresindeki ülke ön ekinden İngilizce ülke adı. Bulunamazsa null.
+String? armaUlkesiEn(String? armaAdresi) {
+  final adres = (armaAdresi ?? '').trim();
+  if (adres.isEmpty) return null;
+  final dosya = adres.split('?').first.split('/').last.toLowerCase();
+  if (dosya.isEmpty) return null;
+  for (final en in _ulkeOnEkleri) {
+    if (dosya.startsWith('${en.toLowerCase().replaceAll(' ', '-')}-')) {
+      return en;
+    }
+  }
+  return null;
+}
+
+/// Maçın iki armasından ORTAK ülke. Biri bilinmiyorsa diğeri kullanılır;
+/// ikisi de biliniyor ve farklıysa (uluslararası maç) null döner.
+String? macArmaUlkesiEn(String? evArma, String? deplasmanArma) {
+  final ev = armaUlkesiEn(evArma);
+  final dep = armaUlkesiEn(deplasmanArma);
+  if (ev != null && dep != null) return ev == dep ? ev : null;
+  return ev ?? dep;
+}
+
+/// Maç kaydından (bülten ya da geçmiş hafta) ortak ülke.
+String? macUlkesiEn(Map? m) => macArmaUlkesiEn(
+  _armaAdresi(m, 'home'),
+  _armaAdresi(m, 'away'),
+);
+
+String? _armaAdresi(Map? m, String taraf) {
+  final stats = m?['stats'];
+  if (stats is Map) {
+    final s = stats[taraf];
+    if (s is Map && s['logo'] is String && (s['logo'] as String).isNotEmpty) {
+      return s['logo'] as String;
+    }
+  }
+  final t = m?[taraf];
+  if (t is Map && t['logo'] is String) return t['logo'] as String;
+  return null;
+}
+
 class UlkeSatiri {
   const UlkeSatiri({
     required this.name,
@@ -98,7 +161,14 @@ List<UlkeSatiri> ulkeListesi(List? matches) {
   final gorulen = <String, ({String name, String code, int count})>{};
   for (final raw in matches ?? const []) {
     final m = raw as Map?;
-    final u = ulkeAyikla(m?['league'] as String?);
+    var u = ulkeAyikla(m?['league'] as String?);
+    // Lig adı ülke vermediyse armadan türet — böylece "Final" / "2026/2027
+    // Sezonu" gibi maçlar şeritte ülkesiz bir çip olarak kalmaz, ait oldukları
+    // ülkenin altında sayılır.
+    if (u?.en == null) {
+      final yedek = macUlkesiEn(m);
+      if (yedek != null) u = UlkeBilgi(name: kEnTr[yedek]!, en: yedek);
+    }
     if (u == null) continue;
     final mevcut = gorulen[u.name];
     if (mevcut != null) {

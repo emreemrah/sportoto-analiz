@@ -32,11 +32,18 @@ class UlkeEtiketi extends StatelessWidget {
     this.ligGoster = true,
     this.gizleTanimsiz = false,
     this.kisa = false,
+    this.yedekUlkeEn,
   });
 
   final String? league;
   final bool ligGoster;
   final bool gizleTanimsiz;
+
+  /// Lig adından ülke ÇIKMADIĞINDA kullanılacak yedek ülke (İngilizce ad).
+  /// Çağıran taraf bunu kulüp armalarından türetir — bkz. [macUlkesiEn].
+  /// Turnuvanın değil KULÜPLERİN ülkesidir; bu yüzden yalnız yedektir ve
+  /// erişilebilirlik etiketinde kaynağı yazılır.
+  final String? yedekUlkeEn;
 
   /// YALNIZ bayrak çizilir (ülke adı yazılmaz). Dar ekranda yan yana duran
   /// kartlarda "FİNLANDİYA" yazısı satırı taşırıyordu; bilgi kaybolmasın diye
@@ -50,33 +57,86 @@ class UlkeEtiketi extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final u = ulkeAyikla(league);
+    var u = ulkeAyikla(league);
+
+    // LİG ADI ÜLKE VERMEDİYSE ARMADAN TÜRETİLENE DÜŞ (16 Ağustos 2026).
+    // Resmî bültende "Final" / "2026/2027 Sezonu" yazan maçlar böylece
+    // bayraksız kalmaz. Türetim kulüplerin ülkesidir; iki kulüp farklı
+    // ülkedeyse çağıran taraf zaten null gönderir (bkz. macArmaUlkesiEn).
+    final armadan =
+        u?.en == null &&
+        yedekUlkeEn != null &&
+        kEnTr.containsKey(yedekUlkeEn);
+    if (armadan) u = UlkeBilgi(name: kEnTr[yedekUlkeEn]!, en: yedekUlkeEn);
+
     if (u == null) return const SizedBox.shrink();
 
     // Tanınmayan lig (ülkesiz ve "Kulüp Maçları" da değil).
+    //
+    // ÜLKE YİNE UYDURULMAZ — ama SİMGE YUVASI KORUNUR (16 Ağustos 2026):
+    // eskiden bu dal yalnız düz yazı döndürüyordu, dolayısıyla aynı listede
+    // bazı kartlarda bayrak varken bazılarında hiçbir işaret olmuyordu ve
+    // satırlar hizasız görünüyordu. Nötr top uygulamanın kendi yedek
+    // simgesidir; bir ülke bayrağı DEĞİLDİR, "ülke bilinmiyor" demektir.
     if (u.en == null && league != kKulupEtiketi) {
       if (gizleTanimsiz) return const SizedBox.shrink();
-      return Text(
-        league ?? '',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: AppColors.muted,
-          fontSize: 10.5,
-          fontWeight: AppFont.bold,
-        ),
+      if (kisa) {
+        return Semantics(
+          label: league ?? '',
+          child: Icon(
+            Icons.sports_soccer,
+            size: 12,
+            color: AppColors.textSoft,
+          ),
+        );
+      }
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Icon(
+              Icons.sports_soccer,
+              size: 12,
+              color: AppColors.textSoft,
+            ),
+          ),
+          Flexible(
+            child: Text(
+              league ?? '',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: 10.5,
+                fontWeight: AppFont.bold,
+              ),
+            ),
+          ),
+        ],
       );
     }
 
     final code = u.en != null ? countryCode(u.en) : '';
-    final ligKalan = (ligGoster && u.en != null)
+    // Lig adının ülke önekinden SONRASI. Ülke armadan türetildiyse lig adı
+    // ülkeyle başlamaz; o durumda metnin TAMAMI ikincil parça olur
+    // ("ALMANYA · Final").
+    final ligBasliyor =
+        u.en != null &&
+        (league ?? '').toLowerCase().startsWith(u.en!.toLowerCase());
+    final ligKalan = !ligGoster
+        ? ''
+        : ligBasliyor
         ? (league ?? '').substring(u.en!.length).trim()
-        : '';
+        : (armadan ? (league ?? '').trim() : '');
     final ad = _buyukTr(u.name);
+    // Ülke armadan türetildiyse ekran okuyucuya kaynağı söylenir; görselde
+    // ek işaret yok (kullanıcı sade görünüm istedi).
+    final erisimAd = armadan ? '$ad (kulüp armalarından)' : ad;
 
     if (kisa) {
       return code.isNotEmpty
-          ? Semantics(label: ad, child: _bayrak(code, tekBasina: true))
+          ? Semantics(label: erisimAd, child: _bayrak(code, tekBasina: true))
           : Semantics(
               label: ad,
               // BAYRAK YOKSA NÖTR TOP — VEKTÖR (kullanıcı isteği,
@@ -92,47 +152,50 @@ class UlkeEtiketi extends StatelessWidget {
             );
     }
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (code.isNotEmpty)
-          _bayrak(code)
-        else
-          Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: Icon(
-              Icons.sports_soccer,
-              size: 12,
-              color: AppColors.textSoft,
+    return Semantics(
+      label: armadan ? erisimAd : null,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (code.isNotEmpty)
+            _bayrak(code)
+          else
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Icon(
+                Icons.sports_soccer,
+                size: 12,
+                color: AppColors.textSoft,
+              ),
             ),
-          ),
-        Flexible(
-          child: Text(
-            ad,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: AppColors.textSoft,
-              fontSize: 10.5,
-              fontWeight: AppFont.black,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
-        if (ligKalan.isNotEmpty)
           Flexible(
             child: Text(
-              ' · $ligKalan',
+              ad,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: AppColors.muted,
+                color: AppColors.textSoft,
                 fontSize: 10.5,
-                fontWeight: AppFont.bold,
+                fontWeight: AppFont.black,
+                letterSpacing: 0.5,
               ),
             ),
           ),
-      ],
+          if (ligKalan.isNotEmpty)
+            Flexible(
+              child: Text(
+                ' · $ligKalan',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 10.5,
+                  fontWeight: AppFont.bold,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 

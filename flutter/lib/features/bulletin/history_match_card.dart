@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import '../../core/live_logic.dart';
 import '../../core/theme/takim_paleti.dart' show okunurMetin;
 import '../../core/theme/tokens.dart';
+import '../../core/ulke_seridi.dart' show macUlkesiEn;
 import '../../core/utils.dart';
 import '../../widgets/app_ui.dart';
 import '../../widgets/form_strip.dart';
@@ -87,6 +88,7 @@ class HistoryMatchCard extends StatelessWidget {
                   child: UlkeEtiketi(
                     league: item['league'] as String?,
                     gizleTanimsiz: true,
+                    yedekUlkeEn: macUlkesiEn(item),
                   ),
                 ),
 

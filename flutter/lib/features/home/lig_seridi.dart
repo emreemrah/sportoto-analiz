@@ -76,7 +76,11 @@ class _UlkeRozeti extends StatelessWidget {
           )
         else
           // Bayrak yoksa uydurma URL kurulmaz — nötr ⚽.
-          Logo(name: ulke.name, size: 20),
+          //
+          // `name` BİLEREK VERİLMEZ: `Logo` artık ad verilince BAŞ HARF rozeti
+          // çiziyor (armasız kulüpler için). Burada satırın öznesi kulüp değil
+          // ÜLKEDİR; "KU" gibi bir ülke kısaltması uydurmak yanlış olurdu.
+          Logo(size: 20),
         const SizedBox(width: 7),
         Text(
           LigSeridi._buyukTr(ulke.name),

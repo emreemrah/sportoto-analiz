@@ -12,6 +12,7 @@ import 'mac_takip_ui.dart';
 import '../../core/services/muhurlu_sistem.dart';
 import '../../core/theme/takim_paleti.dart' show okunurMetin;
 import '../../core/theme/tokens.dart';
+import '../../core/ulke_seridi.dart' show macUlkesiEn;
 import '../../core/utils.dart';
 import '../../widgets/app_ui.dart';
 import '../../widgets/form_strip.dart';
@@ -214,7 +215,10 @@ class _LiveMatchCardState extends State<LiveMatchCard>
                   child: Row(
                     children: [
                       Expanded(
-                        child: UlkeEtiketi(league: m['league'] as String?),
+                        child: UlkeEtiketi(
+                          league: m['league'] as String?,
+                          yedekUlkeEn: macUlkesiEn(m),
+                        ),
                       ),
                       MacTakipSimgeleri(match: m),
                     ],

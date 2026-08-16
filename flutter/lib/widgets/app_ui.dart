@@ -63,15 +63,70 @@ class Logo extends StatelessWidget {
     );
   }
 
-  Widget _fallback() => Container(
-    width: size,
-    height: size,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(color: AppColors.cardAlt, shape: BoxShape.circle),
-    // ARMA YOKKEN ÇİZİLEN YEDEK — kulübün arması DEĞİL, uygulamanın kendi
-    // yer tutucusudur; bu yüzden temaya uyar (kullanıcı isteği, 2026-08-12).
-    child: Icon(Icons.sports_soccer, size: size * 0.55, color: AppColors.muted),
-  );
+  /// ARMA YOKKEN ÇİZİLEN YEDEK — kulübün arması DEĞİL, uygulamanın kendi yer
+  /// tutucusudur; bu yüzden temaya uyar (kullanıcı isteği, 2026-08-12).
+  ///
+  /// BAŞ HARF ROZETİ (kullanıcı isteği, 16 Ağustos 2026: "takım logosuz
+  /// kalmasın"). Eskiden her armasız takım AYNI nötr topu alıyordu; yan yana
+  /// iki armasız takım birbirinden ayırt edilemiyordu. Artık takımın adından
+  /// baş harfler yazılır — ad yoksa top yedeğine düşülür.
+  ///
+  /// BAŞKA KULÜBÜN ARMASI BASILMAZ: sağlayıcıda karşılığı bulunamayan takım
+  /// için "benzeri" bir arma göstermek sessiz ve ciddi bir hata olurdu. Baş
+  /// harf, uydurmadan doldurulmuş dürüst bir kimliktir.
+  Widget _fallback() {
+    final harfler = _basHarfler(name);
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.cardAlt,
+        shape: BoxShape.circle,
+      ),
+      child: harfler.isEmpty
+          ? Icon(
+              Icons.sports_soccer,
+              size: size * 0.55,
+              color: AppColors.muted,
+            )
+          : FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: size * 0.12),
+                child: Text(
+                  harfler,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: size * 0.42,
+                    fontWeight: AppFont.black,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
+
+  /// Takım adından en çok iki baş harf. Türkçe büyük harf kuralı uygulanır
+  /// ('i' → 'İ'); Dart'ın `toUpperCase()`'i bunu kendiliğinden yapmaz.
+  static String _basHarfler(String? ad) {
+    final temiz = (ad ?? '').trim();
+    if (temiz.isEmpty) return '';
+    String buyuk(String s) =>
+        s.replaceAll('i', 'İ').replaceAll('ı', 'I').toUpperCase();
+    final kelimeler = temiz
+        .split(RegExp(r'[\s.]+'))
+        .where((k) => k.isNotEmpty)
+        .toList();
+    if (kelimeler.isEmpty) return '';
+    if (kelimeler.length == 1) {
+      final k = kelimeler.first;
+      return buyuk(k.length >= 2 ? k.substring(0, 2) : k);
+    }
+    return buyuk(kelimeler[0][0] + kelimeler[1][0]);
+  }
 }
 
 /// `components.js` → `RecordBadges`
