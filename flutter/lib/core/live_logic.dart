@@ -6,6 +6,8 @@
 //
 // Saf modül: Flutter'a bağlı değil, testten doğrudan çağrılır.
 
+import 'utils.dart';
+
 /// Maçın görüntü durumu.
 enum MacDurum {
   live,
@@ -63,8 +65,10 @@ MacDurum deriveStatus(Map m, {DateTime? now}) {
   final tarih = m['date'] as String?;
   final started =
       m['started'] == true ||
-      (tarih != null &&
-          (DateTime.tryParse(tarih)?.toLocal().isAfter(simdi) == false));
+      // Bülten saati TÜRKİYE duvar saatidir; cihaz saat diliminden BAĞIMSIZ
+      // karşılaştırma için tek tanım (bkz. utils.macAni). Eski hâl cihaz TSİ
+      // değilse ofset kadar kayıyor ve maçı yanlış sınıflandırıyordu.
+      (tarih != null && (macAni(tarih)?.isAfter(simdi) == false));
 
   if (m['finalized'] == true || m['status'] == 'finished') {
     return MacDurum.finished; // MS

@@ -19,6 +19,8 @@
 //  5) Kimliği belirleyen alan yok — bildirim metninde e-posta, telefon,
 //     belirteç veya başka kullanıcının verisi bulunmaz.
 
+import 'utils.dart';
+
 /// Resmî sonuç kuralı: hem 1/X/2 hem skor gelmiş olmalı.
 ///
 /// JS'te `!!(m.result && m.score)` — boş dizge de FALSY sayılır.
@@ -31,11 +33,12 @@ bool isOfficial(Map? m) {
   return rDolu && sDolu;
 }
 
-int? _toTime(Object? v) {
-  if (v == null) return null;
-  final t = DateTime.tryParse('$v');
-  return t?.millisecondsSinceEpoch;
-}
+/// Maç saatini GERÇEK ana çevirir.
+///
+/// Bülten saati saat dilimi EKSİZ Türkiye duvar saatidir. Ham `DateTime.parse`
+/// bunu CİHAZIN saatinde yorumlar; cihaz TSİ değilse bildirim YANLIŞ ANDA
+/// çalardı (ofset kadar erken/geç). Tek tanım: utils.macAni.
+int? _toTime(Object? v) => macAni(v)?.millisecondsSinceEpoch;
 
 String _saatMetni(int ms) {
   final d = DateTime.fromMillisecondsSinceEpoch(ms).toLocal();

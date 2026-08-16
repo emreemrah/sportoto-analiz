@@ -30,11 +30,23 @@ Map _mac({
   Map? score,
 }) => {
   'no': no,
+  // BÜLTEN SAATİ = TÜRKİYE DUVAR SAATİ (saat dilimi eki YOK).
+  //
+  // Eskiden tarih, makinenin YEREL saatinden üretiliyordu
+  // (fromMillisecondsSinceEpoch(...).toIso8601String()). Bu, testi makinenin
+  // TARİHSEL ofsetine bağlıyordu: 2001 tarihli sabit _now için makine
+  // +04:00 veriyor, oysa üretimde gelen saat her zaman Türkiye duvar saatidir
+  // (kalıcı UTC+3). Kurgu üretimle uyuşmadığı için gerçek davranış test
+  // edilemiyordu — ölçüldü, 1 saat sapma.
   'date': dakikaSonra == null
       ? null
       : DateTime.fromMillisecondsSinceEpoch(
-          _now + dakikaSonra * _dk,
-        ).toIso8601String(),
+              _now + dakikaSonra * _dk,
+              isUtc: true,
+            )
+            .add(const Duration(hours: 3))
+            .toIso8601String()
+            .replaceFirst('Z', ''),
   'home': {'name': home},
   'away': {'name': away},
   'status': ?status,

@@ -1248,3 +1248,53 @@ yakaladı.
 sayıyor, gün anahtarının TÜRKİYE gününü verdiğini (UTC gününü değil)
 doğruluyor, gidiş-dönüş tutarlılığını ve ofset sabitini sınıyor. Mutasyonla
 doğrulandı: ikinci tanım eklenince test düşüyor.
+
+## TUR 35 — 16 Ağu, ~18:10 · SAAT DİLİMİ SINIFI TARANDI
+
+| Kontrol | Sonuç |
+|---|---|
+| `flutter analyze lib test` | temiz |
+| `flutter test` | **883** |
+| `backend npm test` | **1111** |
+
+### 🔴 BULGU 33 — Saat dilimi hatası ÜÇ yerde daha (DÜZELTİLDİ)
+Kullanıcı "yaklaşan maçlarda başlamış maçlar var" dedi. Kök neden bulundu ve
+düzeltildi (2 yer), ardından bu tur AYNI SINIF sistematik tarandı — **üç yer
+daha** çıktı:
+
+| # | yer | etkisi |
+|---|---|---|
+| 1 | `yaklasan_maclar` | başlamış maç "yaklaşan" görünüyordu ✅ |
+| 2 | `bulletin_screen._isStarted` | başladı/başlamadı yanlış ✅ |
+| 3 | **`live_logic`** | canlı/başlamadı sınıflandırması kayıyordu |
+| 4 | **`notifications`** | bildirim YANLIŞ ANDA çalardı |
+| 5 | **`push_planner`** | planlanan bildirim yanlış ana kurulurdu |
+
+Hepsinin kökü tek: bülten maç saati saat dilimi EKSİZ **Türkiye duvar
+saatidir**; kod onu CİHAZIN yerel saatinde yorumluyordu.
+
+**Ölçüm:** emülatör GMT, cihaz 17:35 · gerçek 20:35 TSİ. 19:00'da başlamış maç
+"1,5 saat sonra" görünüyordu.
+
+**Kapsam dürüstçe:** Türkiye'deki cihazda beşi de DOĞRU çalışıyordu; sapma
+yalnız cihaz TSİ değilken oluşuyor. Ama 4 ve 5 numaralı yerler **bildirim
+zamanlaması** — yurt dışındaki ya da saati farklı bir kullanıcıda bildirim
+yanlış anda çalar.
+
+**Düzeltme:** `core/utils.dart` → `macAni()` / `macBasladi()` TEK TANIM.
+
+### ⚠ TEST KURGUSU ÜRETİMLE UYUŞMUYORDU (kendi payım)
+Düzeltmeden sonra 4 bildirim testi düştü. Testleri körü körüne güncellemek
+yerine ölçtüm: kurgu tarihi **makinenin yerel saatinden** üretiyordu
+(`fromMillisecondsSinceEpoch(...).toIso8601String()`), ve 2001 tarihli sabit
+`_now` için makine **+04:00** veriyor. Yani test, üretimde hiç gerçekleşmeyen
+bir varsayımı (cihaz-yerel gidiş-dönüş) kodluyordu — bu yüzden gerçek
+davranışı sınayamıyordu.
+
+Kurgu üretime sadık hâle getirildi: tarih artık Türkiye duvar saati olarak
+üretiliyor. **Kod değil kurgu yanlıştı** — ilk içgüdüm "testi güncelle" olsaydı
+hatayı gizlemiş olurdum; ölçüm bunu ayırt etti.
+
+**Koruma:** `saat_dilimi_tek_tanim_test.dart` — çözümün tek tanımlı kaldığını
+VE maç saatini karşılaştıran beş dosyanın hepsinin o tanımı kullandığını
+tarıyor. Altıncı bir yer eklenirse test düşer.

@@ -24,6 +24,8 @@
 //  7) Sonucu ÖNCEDEN bildiren bildirim kurulmaz — sonuç gelecekte oluşur,
 //     zamanlanmış metin onu bilemez (bilirmiş gibi yazmak sahtelik olurdu).
 
+import 'utils.dart';
+
 import 'notifications.dart';
 
 /// Varsayılan: maç başlamadan 60 dk önce (bildirim merkeziyle aynı pencere).
@@ -34,10 +36,11 @@ const int kVarsayilanOnceDk = 60;
 // beklenmedik veride sessiz kayıp yaşanmasın (atılanlar raporlanır).
 const int kEnFazlaBildirim = 32;
 
-int? _toTime(Object? v) {
-  if (v == null) return null;
-  return DateTime.tryParse('$v')?.millisecondsSinceEpoch;
-}
+/// Maç saatini GERÇEK ana çevirir (bkz. utils.macAni).
+///
+/// Bülten saati Türkiye duvar saatidir; cihaz saatinde yorumlanırsa planlanan
+/// bildirim yanlış anda çalar.
+int? _toTime(Object? v) => macAni(v)?.millisecondsSinceEpoch;
 
 String _saatMetni(int ms) {
   final d = DateTime.fromMillisecondsSinceEpoch(ms).toLocal();
