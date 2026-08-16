@@ -6,6 +6,8 @@
 // içine gömülüydü — yani filtre/sıralama/sayaç mantığı yalnız ekranı çizerek
 // test edilebiliyordu. Buradaki işlevler widget bilmez, doğrudan sınanır.
 
+import '../../core/utils.dart';
+
 class DnaPeriod {
   const DnaPeriod(this.k, this.label);
   final String k;
@@ -296,7 +298,8 @@ String? num1(Object? v) {
 }
 
 String fmtClock(Object? iso) {
-  final d = iso is String ? DateTime.tryParse(iso)?.toLocal() : null;
+  // TÜRKİYE saati (bkz. utils.trAlanlari).
+  final d = trAlanlari(iso);
   if (d == null) return '';
   String p(int n) => n.toString().padLeft(2, '0');
   return '${p(d.hour)}:${p(d.minute)}';

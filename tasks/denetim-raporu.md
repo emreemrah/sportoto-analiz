@@ -1298,3 +1298,55 @@ hatayı gizlemiş olurdum; ölçüm bunu ayırt etti.
 **Koruma:** `saat_dilimi_tek_tanim_test.dart` — çözümün tek tanımlı kaldığını
 VE maç saatini karşılaştıran beş dosyanın hepsinin o tanımı kullandığını
 tarıyor. Altıncı bir yer eklenirse test düşer.
+
+## TUR 38 — 16 Ağu, ~18:35
+
+| Kontrol | Sonuç |
+|---|---|
+| `flutter analyze lib test` | temiz |
+| `flutter test` | **893** |
+| `backend npm test` | **1111** |
+| Üretim | health 200 · radar 200 · bülten 503 (bilinen soğuk açılış) |
+
+### 🟡 BULGU 34 — Maç detayında yakınlık filtresi YOKTU (kullanıcı bildirdi · DÜZELTİLDİ)
+Kullanıcı: "2. hafta maçının içine girdim, bülten sırasına geldim, oynanma
+yüzdesi ve oran yok."
+
+**Önce ölçüldü — ikisi farklı şey:**
+* oynanma yüzdesi verisi **VARDI**: 15/15 maçta, günlük hücrelerde gerçek
+  değerlerle (`{1:%12, X:%14, 2:%74}`),
+* oran verisi **gerçekten yok**: 13/15 maçta hücreler `null` — orada "veri yok"
+  demek doğru davranış,
+* eksik olan **SÜZGEÇTİ**: panel `radarPositionDna`'yı toleranssız çağırıyordu.
+
+Bu, 11 Ağustos'ta bilinçli alınmış "maç detayında yakınlık filtresi yok"
+kararının tersine dönmesi; dosya başlığındaki not da güncellendi.
+
+Kopya arayüz yazılmadı: Radar ekranının kendi bileşeni (`DnaDonemFiltresi`) ve
+aynı istek biçimi kullanıldı, panelin kendi dönem çipleri silindi.
+**Kanıt:** `f3.png` — Yakınlık (Birebir · ±3 · ±5 · ±10), maç penceresi
+(Tümü · Son 5/10/15) ve dürüst özet: "Oynanması bilinen geçmiş maç: 45/45 ·
+süzgeci geçen: 0 — süzgeci genişletmeyi deneyebilirsiniz."
+
+### 🟡 BULGU 35 — AYNI MAÇA İKİ FARKLI SAAT (DÜZELTİLDİ)
+Radar taranırken görüldü ve ölçüldü:
+
+| ekran | gösterilen | kaynak |
+|---|---|---|
+| Bülten | **21:30** | `date` — Türkiye duvar saati, olduğu gibi |
+| Radar | **18:30** | `kickoffAt` — gerçek an, CİHAZ saatine çevrilmiş |
+
+Aynı maç, aynı an, iki farklı saat. İkisi de kendi mantığında doğruydu; ama
+uygulama tek maça iki saat yazamaz. **Türkiye'deki telefonda ikisi de 21:30
+olduğu için fark görünmüyordu** — bu yüzden uzun süre fark edilmedi.
+
+Kural netleştirildi: resmî bülten saati TÜRKİYE saatidir, uygulama her ekranda
+onu gösterir. `utils.trAlanlari()` tek tanım; radar biçimlendiricileri ona
+bağlandı.
+
+**Kanıt:** `tk1.png` — radar artık `21.08 21:30` ve `22.08 19:00` yazıyor
+(bültenle birebir aynı), cihaz GMT olmasına rağmen.
+
+**Koruma:** `tek_saat_gosterimi_test.dart` (5 test) — duvar saati ile gerçek
+anın AYNI saati göstermesi, gün sınırı (00:30 TSİ ertesi gün), cihaz
+bağımsızlığı, uydurma yokluğu ve radar dosyalarının tek tanımı kullanması.

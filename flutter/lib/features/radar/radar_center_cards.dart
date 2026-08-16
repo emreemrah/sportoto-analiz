@@ -5,6 +5,7 @@
 // durumları AÇIKÇA yazılır (uydurma yok).
 
 import 'package:flutter/material.dart';
+import '../../core/utils.dart';
 
 import '../../core/theme/takim_paleti.dart' show kimlikTonu;
 import '../../core/theme/tokens.dart';
@@ -85,7 +86,9 @@ String? usedDataLine(Map? radars) {
 }
 
 String? _fmtTime(Object? iso) {
-  final d = iso is String ? DateTime.tryParse(iso)?.toLocal() : null;
+  // TÜRKİYE saati gösterilir; cihaz saat dilimi ekranı değiştirmez
+  // (bkz. utils.trAlanlari — bülten ile radar aynı saati yazsın).
+  final d = trAlanlari(iso);
   if (d == null) return null;
   String p(int n) => n.toString().padLeft(2, '0');
   return '${p(d.day)}.${p(d.month)} ${p(d.hour)}:${p(d.minute)}';

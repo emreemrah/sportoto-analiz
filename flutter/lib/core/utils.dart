@@ -252,3 +252,21 @@ bool macBasladi(Object? iso, {DateTime? simdi}) {
   if (t == null) return false;
   return !t.isAfter(simdi ?? DateTime.now());
 }
+
+/// Gerçek anı TÜRKİYE duvar saatine çevirir — GÖSTERİM içindir.
+///
+/// SORUN (16 Ağustos 2026 denetimi): aynı maç iki ekranda İKİ FARKLI saat
+/// gösteriyordu. Bülten `date` alanını olduğu gibi basıyor (Türkiye duvar
+/// saati, hep 21:30); Radar ise `kickoffAt`'i (gerçek an) CİHAZ saatine
+/// çeviriyordu — GMT emülatörde 18:30 çıkıyordu. Ölçüldü:
+///   bülten 21:30 · radar 18:30 · aynı maç, aynı an.
+///
+/// Türkiye'deki telefonda ikisi de 21:30 olduğu için fark görünmüyordu; yine
+/// de uygulama tek maça iki saat yazamaz. Resmî bülten saati TÜRKİYE saatidir;
+/// uygulama her ekranda onu gösterir.
+///
+/// Dönen değerin ALANLARI (`hour`, `minute`, `day`, `month`) okunduğunda
+/// Türkiye saatini verir; karşılaştırma için değil, yazdırmak içindir
+/// (karşılaştırma [macAni] ile yapılır).
+DateTime? trAlanlari(Object? iso) =>
+    macAni(iso)?.toUtc().add(const Duration(hours: 3));
