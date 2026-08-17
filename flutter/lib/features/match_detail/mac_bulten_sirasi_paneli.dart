@@ -30,6 +30,23 @@
 //
 // Dönem çipleri DURUYOR, çünkü yüzdenin hangi döneme ait olduğu yazılmazsa
 // sayı doğrulanamaz.
+//
+// 17 AĞUSTOS 2026 — SÜZGEÇ BAĞLANMAMIŞTI (kullanıcı: "filtre çalışmıyor").
+// Çipler geldi ama süzgecin ALT KATMANI ekrana bağlı değildi. Beş kopuk uç:
+//   1. `_macPenceresi` ölü durumdu — çip basılıyor, hiçbir yerde okunmuyordu.
+//      Yüzde her zaman `_donem`den okunuyordu. İki katman aynı anahtarları
+//      (allTime/last5/last10/last15) taşıdığı için HATA VERMEDİ: çip seçili
+//      görünür, sayı hiç değişmez. Radar ekranındaki `etkinPencere` ayrımı
+//      buraya taşındı.
+//   2. Satır açılımı süzgeçsizdi (`_siraMaclariProvider` anahtarında mod/tol
+//      yoktu) — üstteki yüzde süzülü, alttaki maç listesi süzülmemişti.
+//   3. `filtreAktif` hiç hesaplanmıyordu: "istek attım" ile "uç uyguladı"
+//      ayrımı yoktu, mühürlü haftada süzgeç uygulanmış sayılıyordu.
+//   4. Satır etiketi süzgeci söylemiyordu ("Tüm Haftalar" yazıyordu).
+//   5. Oran modunda şerit hâlâ oynanma yüzdesi basıyordu; günün gerçek 1/X/2
+//      oranı (Radar 4 günlük verisi) hiç istenmiyordu.
+// Ders: "çipi göster" ile "süzgeci uygula" ayrı işlerdir; birincisi ikincisi
+// olmadan sessizce yanlış görünür.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -75,11 +92,32 @@ final _dailyPlayedProvider = FutureProvider.autoDispose
       return Map<String, dynamic>.from(d as Map);
     });
 
+/// Günün 1/X/2 oranları (Radar 4'ün günlük verisi) — ORAN modunda şerit
+/// oynanma yüzdesi yerine bunu yazar. Radar ekranındaki sağlayıcının aynısı.
+final _dailyOddsProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>, Object>(
+      (ref, rid) async =>
+          Map<String, dynamic>.from(await api.radarDailyOdds(rid) as Map),
+    );
+
 /// Satır açılımı: bu SIRANIN geçmiş maçları.
+///
+/// ANAHTAR SÜZGECİ DE İÇERİR: liste ile üstteki yüzde AYNI süzgeci kullanmak
+/// zorunda. Süzgeç yalnız yüzdeye uygulanırsa altta süzülmemiş maçlar
+/// listelenir ve kullanıcı ekrandaki sayıyı doğrulayamaz.
 final _siraMaclariProvider = FutureProvider.autoDispose
-    .family<Map<String, dynamic>, ({Object rid, Object no})>(
+    .family<
+      Map<String, dynamic>,
+      ({Object rid, Object no, String? mod, num? tol})
+    >(
       (ref, k) async => Map<String, dynamic>.from(
-        await api.radarPositionMatches(k.no, roundId: k.rid) as Map,
+        await api.radarPositionMatches(
+              k.no,
+              roundId: k.rid,
+              oynanmaTol: k.mod == 'oynanma' ? k.tol : null,
+              oranTol: k.mod == 'oran' ? k.tol : null,
+            )
+            as Map,
       ),
     );
 
@@ -159,19 +197,42 @@ class _MacBultenSirasiPaneliState extends ConsumerState<MacBultenSirasiPaneli> {
     final master = macKaydi['match'];
 
     // SÜZGEÇ İSTEĞİ: mod seçiliyse tolerans da gönderilir.
-    final istekTol = _filtreMod == 'oran' ? _oranTol : _oynanmaTol;
+    final filtreIstegi = _filtreMod != null;
+    final num? istekTol = !filtreIstegi
+        ? null
+        : (_filtreMod == 'oran' ? _oranTol : _oynanmaTol);
     final dnaAsync = ref.watch(
-      _positionDnaProvider((rid: roundId, mod: _filtreMod, tol: _filtreMod == null ? null : istekTol)),
+      _positionDnaProvider((rid: roundId, mod: _filtreMod, tol: istekTol)),
     );
     final positionDna = dnaAsync.valueOrNull;
+    final filtreOzet = positionDna?['filtre'] as Map?;
+
+    // İSTEK ile UYGULANDI AYRIDIR (Radar ekranındaki ayrımın aynısı): canlı
+    // haftada süzgeç her zaman uygulanır, mühürlü haftada ancak o kırılım
+    // mühürde varsa. Ekran neyin uygulandığını YANITTAN öğrenir.
+    final filtreAktif =
+        filtreIstegi && (!muhurluHafta || filtreOzet?['uygulanmadi'] == false);
+    final num? filtreTol = filtreAktif ? istekTol : null;
+    final filtreYukleniyor = filtreIstegi && dnaAsync.isLoading;
+    final filtreHatasi = filtreIstegi && dnaAsync.hasError;
+
+    // PENCERE SÜZGEÇTEN GELİR — ATLANMASI SESSİZ HATA OLAN NOKTA (bu bir
+    // hataydı, 17 Ağustos 2026): süzgeç açıkken pencere `_macPenceresi`dir ve
+    // birimi MAÇtır ("süzgece uyan son 5 maç"); kapalıyken `_donem`dir ve
+    // birimi HAFTAdır. İki katmanın anahtarları aynı adları taşıdığı için
+    // (allTime/last5/last10/last15) yanlış olanı okumak hata vermez: çip
+    // seçili görünür, istek yeniden atılmaz, ekrandaki sayı hiç değişmez.
+    final etkinPencere = filtreAktif ? _macPenceresi : _donem;
 
     final dna = dnaByPosition(
-      muhurluHafta: muhurluHafta,
+      // Süzgeç uygulandıysa değer de uçtan gelir (mühürlü haftada mühürden
+      // OKUNMUŞ hâliyle — yeniden hesap değil).
+      muhurluHafta: muhurluHafta && !filtreAktif,
       // Mühürlü haftada kaynak SNAPSHOT'tur ve bu maçın kaydı yeter; canlı
       // haftada bu liste zaten kullanılmaz.
       masterMatches: master is Map ? [master] : const [],
       positionDna: positionDna,
-      dnaPeriod: _donem,
+      dnaPeriod: etkinPencere,
     );
 
     // Günün oynanma yüzdesi satırın yanında durur (Radar 5'in kendi dili).
@@ -190,10 +251,42 @@ class _MacBultenSirasiPaneliState extends ConsumerState<MacBultenSirasiPaneli> {
         (bugunGunu?['weekday'] as String?);
     final bugunler = bugunPctByNo(dailyPlayed, bugunTarih);
 
+    // ORAN MODUNDA GÜNÜN ORANI — şerit oynanma yüzdesi yerine o günün gerçek
+    // 1/X/2 oranını yazar (Radar ekranıyla aynı kural). İki birim yan yana
+    // basılmaz: oynanma yüzdesi oran DEĞİLDİR. Mühürlü haftada da çalışır —
+    // arşivlenmiş gözlemi göstermek yeniden hesap değildir.
+    final oranModu = _filtreMod == 'oran' && (filtreAktif || muhurluHafta);
+    final oddsAsync = oranModu ? ref.watch(_dailyOddsProvider(roundId)) : null;
+    final dailyOdds = oddsAsync?.valueOrNull;
+    final oranTarih = varsayilanGun(
+      dailyOdds?['days'] as List?,
+      dailyOdds?['matches'] as List?,
+    );
+    final oranGunu = ((dailyOdds?['days'] as List?) ?? const [])
+        .cast<Map>()
+        .where((g) => g['date'] == oranTarih)
+        .firstOrNull;
+    final oranGunKisa =
+        kKisaGun['${oranGunu?['weekday']}'] ??
+        (oranGunu?['weekday'] as String?);
+    final bugunOranlar = bugunOranByNo(dailyOdds, oranTarih);
+
+    // ETİKET SÜZGECİ DE SÖYLER: "Oynanma ±5 · Son 5 maç". Süzgeç açıkken
+    // "Tüm Haftalar" yazmak, yüzdenin hangi kümeden geldiği konusunda yanlış
+    // bilgi olurdu.
+    final donemEtiketi = filtreAktif
+        ? '${_filtreMod == 'oran' ? 'Oran' : 'Oynanma'} '
+              '${tolEtiketi(_filtreMod!, filtreTol ?? 0)} · '
+              '${kDnaMacPencereLabels[_macPenceresi]}'
+        : (muhurluHafta ? null : kDnaPeriodLabels[_donem]);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (muhurluHafta)
+        // Mühürlü haftada süzgeç şeridi kendi açıklamasını yazıyor (dna yoksa).
+        // Dna VARSA şerit çipleri çiziyor; mühür durumu o zaman burada söylenir
+        // — aynı cümle iki kez yazılmaz.
+        if (muhurluHafta && positionDna?['dna'] != null)
           Padding(
             padding: const EdgeInsets.only(bottom: Spacing.sm),
             child: Text(
@@ -204,9 +297,15 @@ class _MacBultenSirasiPaneliState extends ConsumerState<MacBultenSirasiPaneli> {
                         'sonuçlar bu ekranı değiştirmez.',
               style: kMacRadarBos,
             ),
-          )
-        else
-          _filtrePaneli(positionDna, dnaAsync, muhurluHafta, dna),
+          ),
+        _filtrePaneli(
+          positionDna,
+          muhurluHafta,
+          dna,
+          macKaydi['sealedAt'],
+          filtreAktif: filtreAktif,
+          filtreYukleniyor: filtreYukleniyor,
+        ),
         // Yüzde HENÜZ gelmediyse satır "yok" demez: dağılım isteği uçarken
         // pct null geçmek "bu dönemde geçmiş sonuç yok" cümlesini bastırırdı.
         if (!muhurluHafta && dnaAsync.isLoading)
@@ -220,16 +319,32 @@ class _MacBultenSirasiPaneliState extends ConsumerState<MacBultenSirasiPaneli> {
           MemoryRow(
             item: satir,
             pct: birOndalik(_sirayiBul(dna.byPosition, no)),
-            bugunKaynaklar: bugunler[no],
-            bugunGunKisa: bugunGunKisa,
+            bugunKaynaklar: oranModu ? null : bugunler[no],
+            bugunGunKisa: oranModu ? oranGunKisa : bugunGunKisa,
+            bugunOran: oranModu ? bugunOranlar[no] : null,
             acik: _acik,
             onToggle: () => setState(() => _acik = !_acik),
             muhurluRadar5Yok: dna.muhurluRadar5Yok,
-            kayit: _acik ? _siraKaydi(roundId, no) : null,
-            donemEtiketi: muhurluHafta ? null : kDnaPeriodLabels[_donem],
-            // Liste seçili dönemle sınırlanır — üstteki yüzdeyle uyuşmayan bir
-            // liste gösterilmez.
-            limit: kDonemMacSayisi[_donem],
+            kayit: _acik
+                ? _siraKaydi(
+                    roundId,
+                    no,
+                    filtreAktif: filtreAktif,
+                    filtreTol: filtreTol,
+                  )
+                : null,
+            donemEtiketi: donemEtiketi,
+            // Liste ETKİN pencereyle sınırlanır — üstteki yüzdeyle uyuşmayan
+            // bir liste gösterilmez.
+            limit: kDonemMacSayisi[etkinPencere],
+            // Boş sonucun SEBEBİ: "güncel veri yok" ile "yakın maç yok" farklı
+            // şeylerdir; özet olmadan satır yanlış sebep yazardı.
+            filtreMod: filtreAktif ? _filtreMod : null,
+            filtreSira: filtreAktif
+                ? ((filtreOzet?['positions'] as Map?)?['$no'] as Map?)
+                : null,
+            filtreYukleniyor: filtreYukleniyor,
+            filtreHatasi: filtreHatasi,
           ),
       ],
     );
@@ -251,8 +366,20 @@ class _MacBultenSirasiPaneliState extends ConsumerState<MacBultenSirasiPaneli> {
     return null;
   }
 
-  SiraKaydi _siraKaydi(Object rid, Object no) {
-    final a = ref.watch(_siraMaclariProvider((rid: rid, no: no)));
+  SiraKaydi _siraKaydi(
+    Object rid,
+    Object no, {
+    bool filtreAktif = false,
+    num? filtreTol,
+  }) {
+    final a = ref.watch(
+      _siraMaclariProvider((
+        rid: rid,
+        no: no,
+        mod: filtreAktif ? _filtreMod : null,
+        tol: filtreAktif ? filtreTol : null,
+      )),
+    );
     return a.when(
       loading: () => (yukleniyor: true, hata: null, liste: null),
       error: (e, _) => (yukleniyor: false, hata: '$e', liste: null),
@@ -272,10 +399,12 @@ class _MacBultenSirasiPaneliState extends ConsumerState<MacBultenSirasiPaneli> {
   /// basınca hiçbir şey değişmeyen bir seçenek kullanıcıyı yanıltırdı.
   Widget _filtrePaneli(
     Map? positionDna,
-    AsyncValue<Map<String, dynamic>> dnaAsync,
     bool muhurluHafta,
     ({bool muhurluRadar5Yok, Map? byPosition}) dna,
-  ) {
+    Object? sealedAt, {
+    required bool filtreAktif,
+    required bool filtreYukleniyor,
+  }) {
     final secilebilir = <String>{
       ...((positionDna?['muhurluFiltreler'] as List?) ?? const []).map((e) => '$e'),
       ...((positionDna?['turevFiltreler'] as List?) ?? const []).map((e) => '$e'),
@@ -288,7 +417,11 @@ class _MacBultenSirasiPaneliState extends ConsumerState<MacBultenSirasiPaneli> {
         onSelect: (k) => setState(() => _donem = k),
         muhurluHafta: muhurluHafta,
         muhurluRadar5Yok: dna.muhurluRadar5Yok,
-        filtreMod: _filtreMod,
+        sealedAt: sealedAt,
+        // Mühürlü haftada çip SEÇİLİ görünmeli: orada süzgeç mühre yazılmamış
+        // olsa bile GÖRÜNÜM modu çalışıyor (bkz. oranModu). `filtreAktif`e
+        // bağlansaydı seçim hiç işaretlenmezdi.
+        filtreMod: (filtreAktif || muhurluHafta) ? _filtreMod : null,
         muhurluFiltreler: secilebilir,
         turevGorunum: positionDna?['turev'] == true,
         onFiltreModSec: (mod) => setState(() {
@@ -313,7 +446,7 @@ class _MacBultenSirasiPaneliState extends ConsumerState<MacBultenSirasiPaneli> {
         }),
         macPenceresi: _macPenceresi,
         onMacPencereSec: (k) => setState(() => _macPenceresi = k),
-        filtreYukleniyor: _filtreMod != null && dnaAsync.isLoading,
+        filtreYukleniyor: filtreYukleniyor,
       ),
     );
   }

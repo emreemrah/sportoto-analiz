@@ -101,6 +101,21 @@ void main() {
 //
 // Ekran görüntüsü yerine kartı doğrudan çizip okuyoruz: deterministik ve
 // gezinme kazalarına bağımlı değil.
+//
+// KART TARİHLERİ GÖRELİDİR — SABİT TARİH TESTİ ÇÜRÜTÜR. Yukarıdaki
+// `ertelendiMi` testleri saf mantıktır ve sabit tarihle doğrudur; ama kart
+// etiketi ŞU ANA göre hesaplanır (`deriveStatus` → `macAni(tarih)` şimdiyle
+// karşılaştırılır). 17 Ağustos 2026'da "Başlamadı" testi tam bu yüzden
+// kırıldı: fikstür `2026-08-16T21:45:00` yazılıydı, o saat geçince maç
+// başlamış sayıldı ve kart "Sonuç bekleniyor" dedi. Ürün doğru davrandı,
+// çürüyen fikstürdü.
+
+/// Türkiye duvar saatiyle N gün sonrası (`macAni` bunu TSİ kabul eder).
+String _ileriDuvarSaati(int gun, [int saat = 21, int dakika = 30]) {
+  final n = DateTime.now().add(Duration(days: gun));
+  final d = DateTime(n.year, n.month, n.day, saat, dakika);
+  return d.toIso8601String().split('.').first;
+}
 
 void kartTestleri() {
   testWidgets('ertelenen maç kartı "Ertelendi" yazar', (t) async {
@@ -110,7 +125,7 @@ void kartTestleri() {
           body: HistoryMatchCard(
             item: {
               'no': 15,
-              'date': '2026-08-27T21:30:00',
+              'date': _ileriDuvarSaati(10),
               'home': {'name': 'Celta Vigo'},
               'away': {'name': 'Osasuna'},
               'league': 'Spain La Liga',
@@ -133,7 +148,7 @@ void kartTestleri() {
           body: HistoryMatchCard(
             item: {
               'no': 11,
-              'date': '2026-08-16T21:45:00',
+              'date': _ileriDuvarSaati(2, 21, 45),
               'home': {'name': 'Lens'},
               'away': {'name': 'Paris St Germain'},
               'league': 'France Ligue 1',
