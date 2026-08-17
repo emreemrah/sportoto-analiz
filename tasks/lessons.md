@@ -351,3 +351,87 @@ maskeleme `p.providerId`'yi kodluyordu ama gelen nesne `{id, name}` şeklindeydi
 `kaynakKodu(undefined)` 'k0'a düşüyor, marka spread ile aynen geçiyordu. Ders:
 **maskeleme/temizleme kodu, beslendiği ŞEKLİ doğrulamalı** — var olmayan bir
 alanı temizlemek sessizce başarısız olur ve iki taraf da "maskelendi" sanır.
+
+---
+
+## 17. Bir ekranı başka ekrana taşırken KOPUK UÇ kalır — "çipi göster" ile "süzgeci uygula" ayrı işlerdir
+
+**Kural:** Bir özelliği ikinci bir ekrana taşırken kaynak ekranın **davranış
+zincirinin tamamı** çıkarılır ve tek tek bağlanır: durum alanı → istek
+parametresi → görüntülenen değer → alt liste → etiket → boş sonucun sebebi.
+Arayüzü (çipleri) taşımak, işi taşımak DEĞİLDİR. Taşımadan sonra her çipe
+**gerçekten dokunulur** ve ekranda **ölçülebilir bir şeyin değiştiği** görülür.
+
+**Neden (17 Ağustos 2026):** Maç detayına Radar 5 yakınlık süzgeci taşındı.
+Çipler geldi, kullanıcı "filtre çalışmıyor" dedi. Beş kopuk uç vardı; en
+sinsisi şu: pencere çipi `_macPenceresi` alanına yazıyordu ama **o alan
+hiçbir yerde okunmuyordu** — yüzde hep hafta dönemi (`_donem`) üzerinden
+hesaplanıyordu. İki katman aynı anahtarları taşıdığı için (`allTime`, `last5`,
+`last10`, `last15`) yanlış olanı okumak **hiç hata vermedi**: çip seçili
+görünüyor, istek yeniden atılmıyor, sayı hiç değişmiyor.
+
+**Ölü durum belirtisi:** bir alan yalnız `setState` içinde ATANIYOR, hiçbir
+`build`/istek/hesap onu OKUMUYOR. Bunu aramak bedavadır: alanın adını dosyada
+ara, sayaç 1 ise (yalnız atama) o çip yalandır.
+
+**Nasıl uygulanır:**
+1. Taşıma bittiğinde kaynak ekranın gövdesiyle hedef gövdeyi **yan yana**
+   oku; kaynakta türetilen her ara değişkenin (`filtreAktif`, `etkinPencere`,
+   `filtreTol`, `donemEtiketi`, `limit`, `oranModu`) hedefte karşılığı var mı?
+2. **Alt liste de aynı süzgeci istemeli.** Üstteki yüzde süzülü, alttaki
+   liste süzülmemişse ekran kendi kendini yalanlar (bu hatada tam olarak
+   böyleydi: satır "bu yakınlıkta maç yok" derken altta 3 maç listeleniyordu).
+3. **Boş sonucun SEBEBİ taşınmalı.** "Güncel veri yok" ile "yakın maç yok"
+   farklı şeylerdir; süzgeç özeti satıra geçirilmezse ekran yanlış sebep yazar.
+
+**Test dersi (aynı hatanın ikinci yarısı):** bu özelliğin ilk testleri
+KAYNAK METNİNDE dizge arıyordu — `"_macPenceresi = 'allTime'" var mı?`.
+Alanın **atandığını** doğrulamak, **okunduğunu** doğrulamaz; ölü durum da o
+testi yeşil bırakır. Dizge testi ancak "iki ekran aynı bileşeni kullanıyor mu"
+gibi YAPISAL bir kuralı korumak için ek olarak yazılır; davranışın kanıtı
+render testidir (çipe dokun, sayının değiştiğini gör). Bkz. ders 16/madde 2:
+düzeltmeyi geri al, testin kırmızı olduğunu gör.
+
+**Yan bulgu — SABİT TARİHLİ FİKSTÜR ÇÜRÜR.** Aynı gün iki test ürün hiç
+değişmediği hâlde kırmızıydı: fikstürlerdeki "gelecek maç" tarihleri
+(`2026-08-16T21:45:00`, `2026-08-17T16:00:00Z`) takvim ilerleyince geçmişe
+düştü. Kart etiketi/liste süzmesi **şu ana** göre hesaplanıyorsa fikstür de
+`DateTime.now()`'a göre üretilir; yoksa test bir gece içinde kendi kendine
+bozulur ve gerçek regresyonun sesini bastırır.
+
+---
+
+## 18. Takım temasında `primary` ile `accent` AYNI RENKTİR — iki dolguyu onlarla ayırma
+
+**Kural:** İki yüzeyi renkle ayırmak gerekiyorsa, ayrımın takım temasında da
+DURDUĞU ölçülür. `takimGorunumunuUygula` içinde `primary` ve `accent` İKİSİ DE
+`p.vurgu`ya yazılır — yani varsayılan temada lacivert/kırmızı olarak ayrışan iki
+rozet, takım temasında TEK RENGE düşer ve bilgi taşımaz.
+
+**Neden (17 Ağustos 2026):** Ana sayfadaki hafta rozetleri "geçen hafta =
+`accent`, güncel hafta = sabit marka laciverti" idi. Kullanıcı takım temasında
+laciverdin tema dışına düştüğünü bildirdi. Laciverdi `primary`ye çevirmek tek
+satırlık düzeltme gibi görünüyordu — ama `accent == primary` olduğu için iki
+hafta ayırt edilemez hâle gelecekti. Üçüncü bir yüzey (`primarySoft`) gerekti.
+
+**Aday yüzeyler ÖLÇÜLDÜ (150 palet), göz kararı seçilmedi:**
+
+| Aday (geçen hafta) | En kötü çift kontrastı | Yazı AA |
+|---|---|---|
+| `primarySoft` (dolgu) | 2.59 | 150/150 tutar |
+| `onBackgroundAccent` (dolgu) | **1.54** (Levante UD) | — |
+| çerçeveli (yazı = `primary`) | biçimle ayrılır | **63/150 takımda 4.5 altı** (en kötü 3.00) |
+
+Seçilen: `primarySoft`. Galatasaray'da koyu hardal (#4D3701) veriyor — hoş
+değil ama hue KORUNUYOR (takımın sarısının koyu tonu) ve yazı her palette
+okunuyor. **Okunmayan yazının telafisi yok; çirkin tonun var.**
+
+**Nasıl uygulanır:** Rozet/çip yüzeyi ararken iki kısıt BİRLİKTE çözülür —
+"karttan ayrış" + "üstündeki yazı AA". `ayrisanYuzey` yalnız birincisini bilir
+ve yüzeyi iterken yazının kontrastını düşürebilir (Arsenal FC'de 4.49'da
+kalmıştı); ikisini birden çözen `okunurAyrisanYuzey` kullanılır.
+
+**Marka kimliği taşıyan SABİT renkler için:** `AppColors.takimTemasiEtkin`
+bayrağı okunur. Bayrağı TERCİH değil UYGULAMA yazar (`gorunumuUygula` false,
+`takimGorunumunuUygula` true) — kullanıcı 'takım' seçmiş olsa bile takım yoksa
+varsayılan açık uygulanır ve tercihe bakan kod yanlış rengi basar.

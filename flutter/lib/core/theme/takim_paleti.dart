@@ -247,6 +247,49 @@ Color ayrisanYuzey(Color istenen, Color zemin, {double ayrimEsigi = 1.4}) {
   return istenen; // ayrışan ton bulunamadı — sessizce bozmaktansa aynen kalsın
 }
 
+/// [ayrisanYuzey] + ÜSTÜNDEKİ YAZI DA AA OKUNUR.
+///
+/// NEDEN AYRI BİR FONKSİYON (17 Ağustos 2026): `ayrisanYuzey` TEK kısıt bilir —
+/// yüzey zeminden ayrışsın. Yazısı `okunurMetin` ile o yüzeyden hesaplanan bir
+/// rozette ikinci bir zorunluluk var ve o kısıt ilkinden bağımsız değil: yüzeyi
+/// karttan ayrışacak kadar itmek, yazının kontrastını DÜŞÜREBİLİR. Ölçüldü
+/// (150 takım paleti): tek kısıtla Arsenal FC'de yazı 4.4895'te kalıyordu —
+/// eşiğin hemen altı, yani gözle fark edilmeyecek ama kuralı bozan bir sapma.
+///
+/// Hue KORUNUR (bkz. `tonla` notu: krem/pembe/kahverengi üretilmez); yalnız
+/// parlaklık, İKİ kısıtı BİRDEN sağlayan en yakın tona kaydırılır. Tarama
+/// sırası ve adımları [ayrisanYuzey] ile AYNIDIR: yazı kısıtı hiç bağlayıcı
+/// olmadığı yüzeylerde ikisi aynı rengi döndürür.
+///
+/// HİÇBİR TON İKİSİNİ BİRDEN TUTMAZSA yazının okunması önce gelir: görünmeyen
+/// bir rozetin telafisi vardır (kenarlık, biçim, konum), okunmayan yazının
+/// yoktur.
+Color okunurAyrisanYuzey(
+  Color istenen,
+  Color zemin, {
+  double ayrimEsigi = 1.4,
+}) {
+  bool yaziOkunur(Color c) => kontrastOrani(okunurMetin(c), c) >= kAaEsigi;
+  bool tamam(Color c) =>
+      kontrastOrani(c, zemin) >= ayrimEsigi && yaziOkunur(c);
+
+  if (tamam(istenen)) return istenen;
+
+  final h = HSLColor.fromColor(istenen);
+  final zeminAcik = HSLColor.fromColor(zemin).lightness > 0.5;
+  Color? yalnizYazi; // ayrımı tutmasa da yazısı okunan en yakın ton
+  for (var adim = 2; adim <= 60; adim++) {
+    for (final yon in zeminAcik ? const [-1, 1] : const [1, -1]) {
+      final l = h.lightness + yon * adim / 100;
+      if (l < 0 || l > 1) continue;
+      final aday = h.withLightness(l).toColor();
+      if (tamam(aday)) return aday;
+      yalnizYazi ??= yaziOkunur(aday) ? aday : null;
+    }
+  }
+  return yalnizYazi ?? istenen;
+}
+
 /// ARA YÜZEY ile KART METNİNİ birlikte çözer.
 ///
 /// Ara yüzey karttan (≥1.25) ve zeminden (≥1.25) ayrışmalı; AYNI ZAMANDA

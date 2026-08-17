@@ -23,7 +23,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/brand.dart';
 import '../../core/network/api_client.dart';
-import '../../core/theme/takim_paleti.dart' show ayrisanYuzey, okunurMetin;
+import '../../core/theme/takim_paleti.dart'
+    show ayrisanYuzey, okunurAyrisanYuzey, okunurMetin;
 import '../../core/theme/tokens.dart';
 import '../../core/ulke_seridi.dart' show macUlkesiEn;
 import '../../core/utils.dart';
@@ -1355,26 +1356,78 @@ class _KickoffCard extends StatelessWidget {
     //   • GÜNCEL hafta, uygulamanın ANA rengiyle (marka koyu mavisi) dolar.
     //
     // Marka mavisi SABİT bir kimliktir (#0B1B3A) ama körü körüne basılamaz:
-    // takım temasında kart da koyu olabilir (ör. Galatasaray bordosu) ve rozet
-    // kartın içinde erir. `ayrisanYuzey` hue'yu KORUYARAK yalnız kart'tan
-    // ayrışacak kadar ton iter — mavi yine mavi, ama rozet hep görünür.
-    // Yazı da o son yüzeyden türetilir (bugün altı kez yaşanan "yazı başka
-    // yüzeyin renginden geliyor" hatasına düşmemek için).
-    final yuzey = oncekiHafta
-        ? AppColors.accent
-        : ayrisanYuzey(kMarkaMavisi, AppColors.card);
+    // kart da koyu olabilir ve rozet kartın içinde erir. `ayrisanYuzey` hue'yu
+    // KORUYARAK yalnız kart'tan ayrışacak kadar ton iter — mavi yine mavi, ama
+    // rozet hep görünür. Yazı da o son yüzeyden türetilir (bugün altı kez
+    // yaşanan "yazı başka yüzeyin renginden geliyor" hatasına düşmemek için).
+    //
+    // TAKIM TEMASINDA RENK TAKIMDAN GELİR (kullanıcı isteği, 17 Ağustos 2026).
+    //
+    // 16 Ağustos'ta marka lacivertinin takım temasında da KORUNMASI kararı
+    // alınmıştı (hue kaymasını sınırlayan test dâhil). Kullanıcı bunu tersine
+    // çevirdi: "açık/koyu modda güzel oldu ama takım teması modunda takım
+    // temasına uyum sağlaması lazım." Doğru gerekçe: o modda uygulamanın zemini,
+    // kartı, metni, butonu — HEPSİ takımın iki rengine dönüyor; ortada duran tek
+    // lacivert blok tema dışına düşüyor.
+    //
+    // AÇIK/KOYU GÖRÜNÜM DEĞİŞMEDİ: aşağıdaki iki dal aynen korundu. Yalnız
+    // takım paleti UYGULANMIŞSA (tercih değil, uygulama — bkz.
+    // AppColors.takimTemasiEtkin) rozet takımın vurgu ailesine geçer.
+    //
+    // İKİ HAFTA AYRIMI TAKIM TEMASINDA BİÇİMLEDİR (kullanıcı kararı,
+    // 17 Ağustos 2026): güncel hafta DOLGULU vurgu, geçen hafta ÇERÇEVELİ.
+    //
+    // NEDEN RENKLE DEĞİL: takım temasında `accent` ile `primary` AYNI değere
+    // (`p.vurgu`) yazılır — iki dolgu renkle ayrılamaz, üçüncü bir yüzey
+    // gerekir. Üç aday 150 palette ölçüldü:
+    //   primarySoft dolgu       → ayrım 2.59, yazı 150/150 AA, ama Galatasaray'da
+    //                             koyu hardal (#4D3701) veriyor — kullanıcının
+    //                             daha önce reddettiği "çamurlu ton" ailesi,
+    //   onBackgroundAccent      → ayrım Levante UD'de 1.54'e düşüyor, yetersiz,
+    //   ÇERÇEVE (seçilen)       → ayrım BİÇİMDEN gelir, paletten bağımsızdır.
+    //
+    // ÇERÇEVELİ ROZETİN YAZISI `primary` DEĞİL: yazı artık kartın üstünde
+    // duruyor ve `primary`yi yazı yapmak ölçüldüğünde 150 takımın 63'ünde AA
+    // altında kalıyor (en kötü Alanyaspor 3.00) — 9 punto bir etiket için
+    // yetersiz. KİMLİK ÇERÇEVEDEN, OKUNURLUK KARTIN KENDİ METİN RENGİNDEN.
+    //
+    // `okunurAyrisanYuzey` — `ayrisanYuzey` DEĞİL: yüzeyi karttan ayrışacak
+    // kadar itmek yazının kontrastını düşürebiliyor (Arsenal FC'de 4.49'da
+    // kalmıştı). O fonksiyon iki kısıtı birden çözer.
+    final cerceveli = AppColors.takimTemasiEtkin && oncekiHafta;
+
+    final Color? dolgu;
+    final Color yazi;
+    if (cerceveli) {
+      dolgu = null;
+      yazi = AppColors.text;
+    } else if (AppColors.takimTemasiEtkin) {
+      dolgu = okunurAyrisanYuzey(AppColors.primary, AppColors.card);
+      yazi = okunurMetin(dolgu);
+    } else if (oncekiHafta) {
+      dolgu = AppColors.accent;
+      yazi = AppColors.onAccent;
+    } else {
+      dolgu = ayrisanYuzey(kMarkaMavisi, AppColors.card);
+      yazi = okunurMetin(dolgu);
+    }
     final stil = TextStyle(
-      color: oncekiHafta ? AppColors.onAccent : okunurMetin(yuzey),
+      color: yazi,
       fontSize: 9,
       fontWeight: AppFont.black,
     );
     return Container(
+      // ANAHTAR TESTİN ROZETİ TAM OLARAK BULMASI İÇİN: ekranda "N. Hafta"
+      // metni birden fazla yerde geçiyor, metinle arama yanlış kutuyu okuyabilir
+      // (`radar5-satir-*` ile aynı gerekçe).
+      key: ValueKey('hafta-rozeti-${match['no']}'),
       margin: const EdgeInsets.only(bottom: 5),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        // İKİSİ DE DOLGULU: ayrım artık renkle (vurgu / marka mavisi).
-        color: yuzey,
+        // Takım temasında geçen hafta DOLGUSUZ — ayrım biçimden gelir.
+        color: dolgu,
         borderRadius: AppRadius.smR,
+        border: cerceveli ? Border.all(color: AppColors.primary) : null,
       ),
       child: Text(
         '${match['haftaAdi']}',

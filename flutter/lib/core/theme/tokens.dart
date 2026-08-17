@@ -38,6 +38,20 @@ import 'takim_paleti.dart' show kimlikTonu, okunurMetin;
 
 /// `theme.js` → `colors`
 abstract final class AppColors {
+  /// EN SON UYGULANAN görünüm TAKIM PALETİ miydi? (17 Ağustos 2026)
+  ///
+  /// NEDEN GEREKLİ: neredeyse tüm yüzeyler zaten rol tokenlarından geldiği için
+  /// hangi modda olduğumuzu sormaya gerek kalmıyor. Tek istisna MARKA KİMLİĞİ
+  /// taşıyan sabit renkler (ör. hafta rozetinin marka laciverti): bunlar
+  /// açık/koyu görünümde kasıtlı olarak sabittir, ama takım temasında uygulamanın
+  /// her yüzeyi takımın iki rengine dönerken tema dışında kalırlar.
+  ///
+  /// Bayrağı TERCİH DEĞİL UYGULAMA yazar: `gorunumuUygula` false,
+  /// `takimGorunumunuUygula` true. Tercih ('takim') ile gerçek aynı şey
+  /// değildir — takım seçilmemişse tercih 'takim' kalır ama varsayılan açık
+  /// uygulanır. Ekran gerçeği okumalı.
+  static bool takimTemasiEtkin = false;
+
   static Color background = Color(0xFFF3F5F9);
   static Color surface = Color(0xFFFFFFFF);
   static Color surfaceSoft = Color(0xFFF8FAFC);

@@ -19,6 +19,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:masteranaliz/core/network/api_client.dart';
+import 'package:masteranaliz/core/theme/gorunum.dart';
+import 'package:masteranaliz/core/theme/takim_gorunumu.dart';
+import 'package:masteranaliz/core/theme/takim_paleti.dart';
+import 'package:masteranaliz/core/theme/tokens.dart';
 import 'package:masteranaliz/features/home/home_screen.dart';
 
 // ───────────────────────────── Sahte taşıyıcı ─────────────────────────────
@@ -71,6 +75,19 @@ late _SahteTasiyici _tasiyici;
 // Şekil backend'in gerçek `/api/bulletin` yükünden alındı: takımlar NESNE
 // (name + logo), analiz `analysis` altında, ihtimaller `probabilities`.
 
+/// TARİHLER GÖRELİDİR — SABİT TARİH TESTİ ÇÜRÜTÜR.
+///
+/// 17 Ağustos 2026'da tam bu yaşandı: fikstürdeki "1. Hafta" maçı
+/// `2026-08-17T16:00:00Z` yazılıydı, o saat geçince maç GEÇMİŞE düştü,
+/// "Yaklaşan Maçlar" listesinden çıktı ve hafta rozeti testi ürün hiç
+/// değişmediği hâlde kırmızıya döndü. Ölçülen davranış tarihe bağlı olduğunda
+/// fikstür de tarihe göre üretilir.
+String _ileri(int gun, [int saat = 18]) {
+  final n = DateTime.now().toUtc().add(Duration(days: gun));
+  final d = DateTime.utc(n.year, n.month, n.day, saat);
+  return '${d.toIso8601String().split('.').first}Z';
+}
+
 Map<String, dynamic> _takim(String ad, String armaUlkesi) => {
   'name': ad,
   'mediumName': ad,
@@ -105,14 +122,14 @@ Map<String, dynamic> _bulten() => {
   'matches': [
     _mac(
       1,
-      tarih: '2026-08-21T18:30:00Z',
+      tarih: _ileri(4),
       analiz: {
         'surpriseScore': 20,
         'probabilities': {'1': 40, 'X': 30, '2': 30},
         'comment': 'Tartışmalı.',
       },
     ),
-    _mac(2, tarih: '2026-08-22T16:00:00Z', analiz: {'surpriseScore': 10}),
+    _mac(2, tarih: _ileri(5, 16), analiz: {'surpriseScore': 10}),
   ],
 };
 
@@ -127,7 +144,9 @@ Map<String, Object?> _uclar() => {
   },
   '/api/history/1528': {
     'matches': [
-      _mac(9, tarih: '2026-08-17T16:00:00Z', lig: 'Spain La Liga', ulkeOnEki: 'spain'),
+      // Geçen haftadan HENÜZ OYNANMAMIŞ maç — rozet testinin kurulumu bu:
+      // listede iki farklı haftanın kartı yan yana durur.
+      _mac(9, tarih: _ileri(2, 16), lig: 'Spain La Liga', ulkeOnEki: 'spain'),
     ],
   },
 };
@@ -228,6 +247,82 @@ void main() {
       },
     );
 
+    // ── TAKIM TEMASINDA ROZET TEMANIN İÇİNDE KALIR ────────────────────────
+    // KULLANICI BİLDİRDİ (17 Ağustos 2026): "açık koyu modda güzel yaptık ama
+    // takım teması modunda takım temasına uyum sağlaması lazım."
+    //
+    // Renk kısıtlarının kendisi hafta_rozeti_renk_test'te 150 palet üzerinde
+    // ölçülüyor. BU test farklı bir şeyi tutuyor: ekranın o hesabı GERÇEKTEN
+    // KULLANDIĞINI. Renk testi ekranın mantığını kopyaladığı için kopya
+    // kayabilir; buradaki ölçüm çizilen widget'ın kendisinden okunur.
+    testWidgets('takım temasında hafta rozeti TAKIM renginden gelir', (
+      t,
+    ) async {
+      addTearDown(() => gorunumuUygula(Brightness.light));
+      takimGorunumunuUygula(
+        paletUret(
+          takim: 'Galatasaray',
+          ana: const Color(0xFFFDB912),
+          ikincil: const Color(0xFFA90432),
+        ),
+      );
+      await _ekraniAc(t);
+
+      // `KayanSerit` dikişsiz döngü için çocukların İKİ KOPYASINI çizer
+      // (home_screen.dart'taki not) — her anahtar iki kez bulunur, ilki okunur.
+      BoxDecoration? rozet(int no) {
+        final f = find.byKey(ValueKey('hafta-rozeti-$no'));
+        if (f.evaluate().isEmpty) return null;
+        return t.widget<Container>(f.first).decoration as BoxDecoration?;
+      }
+
+      // 1. maç GÜNCEL haftadan, 9. maç GEÇEN haftadan (fikstür).
+      final guncel = rozet(1);
+      final gecen = rozet(9);
+      expect(guncel, isNotNull, reason: 'güncel hafta rozeti çizilmemiş');
+      expect(gecen, isNotNull, reason: 'geçen hafta rozeti çizilmemiş');
+
+      // GÜNCEL HAFTA: takımın vurgusuyla DOLGULU.
+      expect(
+        guncel!.color,
+        equals(okunurAyrisanYuzey(AppColors.primary, AppColors.card)),
+        reason: 'ekran takım vurgusunu kullanmıyor',
+      );
+      // ASIL ŞİKÂYET: tema dışı lacivert blok.
+      expect(
+        guncel.color,
+        isNot(equals(ayrisanYuzey(kMarkaMavisi, AppColors.card))),
+        reason: 'rozet hâlâ marka lacivertini basıyor — tema dışında kalır',
+      );
+
+      // GEÇEN HAFTA: ÇERÇEVELİ (kullanıcı kararı) — dolgu YOK, sınır vurgudan.
+      expect(
+        gecen!.color,
+        isNull,
+        reason: 'geçen hafta rozeti dolgulu çizilmiş — çerçeveli olmalı',
+      );
+      expect(
+        (gecen.border as Border?)?.top.color,
+        equals(AppColors.primary),
+        reason: 'çerçeve takım vurgusundan gelmiyor',
+      );
+    });
+
+    // Açık/koyu görünüm ONAYLANDI — takım teması düzeltmesi oraya sızmamalı.
+    testWidgets('açık görünümde hafta rozeti MARKA lacivertinde kalır', (
+      t,
+    ) async {
+      gorunumuUygula(Brightness.light);
+      await _ekraniAc(t);
+
+      final f = find.byKey(const ValueKey('hafta-rozeti-1'));
+      expect(f, findsWidgets); // KayanSerit iki kopya çizer
+      final d = t.widget<Container>(f.first).decoration as BoxDecoration;
+      expect(d.color, equals(ayrisanYuzey(kMarkaMavisi, AppColors.card)));
+      // Çerçeve YALNIZ takım temasına ait — onaylanmış görünüme sızmamalı.
+      expect(d.border, isNull);
+    });
+
     testWidgets('"kolay/zor yanıltıcı": hero ZORLUK etiketi göstermez', (
       t,
     ) async {
@@ -246,7 +341,7 @@ void main() {
           'matches': [
             _mac(
               1,
-              tarih: '2026-08-21T18:30:00Z',
+              tarih: _ileri(4),
               lig: 'Final',
               ulkeOnEki: 'germany',
               analiz: {'surpriseScore': 10},

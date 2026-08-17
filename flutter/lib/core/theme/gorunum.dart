@@ -158,6 +158,10 @@ Brightness gorunumuKur(GorunumModu modu, Brightness cihaz, TakimPaleti? palet) {
 /// green / yellow / red / gold / field `const`tur ve burada hiç geçmez.
 /// "Hata kırmızısı" koyu görünümde de kırmızıdır.
 void gorunumuUygula(Brightness p) {
+  // Takım paleti UYGULANMADI — marka kimliği taşıyan sabit renkler (hafta
+  // rozetinin laciverti) bu iki modda kasıtlı olarak sabit kalır.
+  AppColors.takimTemasiEtkin = false;
+
   if (p == Brightness.dark) {
     AppColors.background = KoyuRenkler.background;
     AppColors.surface = KoyuRenkler.surface;

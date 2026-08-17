@@ -41,6 +41,10 @@ Brightness takimParlakligi(TakimPaleti p) =>
 ///
 /// İdempotenttir: aynı palet iki kez uygulanabilir.
 void takimGorunumunuUygula(TakimPaleti p) {
+  // MARKA KİMLİĞİ TAŞIYAN SABİT RENKLER İÇİN İŞARET (bkz.
+  // AppColors.takimTemasiEtkin). Tercihe değil UYGULAMAYA bakan tek kayıt.
+  AppColors.takimTemasiEtkin = true;
+
   // ── ZEMİN VE KART ────────────────────────────────────────────────────────
   AppColors.background = p.zemin;
   AppColors.bg = p.zemin;
