@@ -1380,3 +1380,16 @@ yetmiyor — ölçüldü:
 
 Eksik veriyle torba göstermek "uydurma sayı" olurdu. Kullanıcı kararı:
 şimdilik bırakıldı, noter karar verince yalnız SONUÇ girilecek.
+
+---
+
+## GÜNCELLEME (19 Ağustos 2026) — noter kararı artık PANELDEN girilir
+
+Yukarıdaki bekleyen iş (1. Hafta 15. maç) için curl gerekmiyor:
+/yonetim → Genel → **"Noter Kararı Bekleyen Maçlar"** kartı. Kilitli +
+programı bitmiş haftaların sonuçsuz maçları karar girilene kadar bu kartta
+durur; 1/X/2 düğmesi aynı audit'li uca bağlıdır (skor NULL kalır, radar
+karnesine sayılmaz — güvenceler değişmedi). Ayrıca uygulama tarafı da artık
+susmuyor: bildirim merkezi "Maç ertelendi" diyor, hafta durum satırları ve
+ikramiye bölümü "noter kararı bekleniyor" sebebini yazıyor. Ayrıntı:
+tasks/todo.md → "Ertelenen maç senaryosu — KALICI ÖNLEM PAKETİ".

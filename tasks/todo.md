@@ -619,3 +619,77 @@ türev modda satırlar gelir ve mühürlü olmadığı yazılır.
 
 **Not:** bugünkü değişiklikler canlı hafta akışını DEĞİŞTİRMEDİ; mühürlü
 haftada da hiçbir şey kaldırılmadı, yalnız eklendi.
+
+## Görev: Ertelenen maç senaryosu — KALICI ÖNLEM PAKETİ (2026-08-19)
+
+**Kullanıcı tıkanması:** "Her ertelenen maçta aynı senaryo: kullanıcı ertelemeyi
+bilmiyor, hafta neden kesinleşmedi anlaşılmıyor, önlem alamıyoruz."
+
+**Teşhis — senaryonun 4 kopuk noktası:**
+1. Erteleme yalnız maç kartında yazıyor; bildirim merkezi haber vermiyor.
+2. Geçmiş hafta durumu "Resmi sonuçlar bekleniyor · 14/15" diyor ama NEDEN
+   kesinleşmediğini (hangi maç, ne bekliyor) söylemiyor. İkramiye bölümü de öyle.
+3. Noter kararı ucu var ama /yonetim panelinde ARAYÜZÜ YOK (curl gerekiyor) ve
+   bekleyen karar operatöre hiçbir yerde hatırlatılmıyor.
+4. notifications.isOfficial viaNotary'yi tanımıyor → noter kararıyla kapanan
+   haftada "Hafta kapandı" bildirimi HİÇ atılmaz (sessiz, tekrarlayacak hata).
+
+**Plan:**
+- [x] Flutter: ertelendiMi + eşik core/erteleme.dart'a (tek tanım korunur,
+      bulletin_format yeniden dışa aktarır — mevcut import'lar bozulmaz)
+- [x] Flutter: notifications.dart — 'match-postponed' bildirimi (güncel +
+      geçmiş hafta) ve isOfficial'a viaNotary (bilinçli sapma, belgelenir)
+- [x] Flutter: bulletin_screen geçmiş hafta alt başlığı ertelenen maçı ve
+      noter beklemesini SÖYLER
+- [x] Flutter: prize_section — bekleyen maç ertelenmişse ikramiye açıklaması
+      bunu söyler
+- [x] Backend: src/ertelenen.js saf modül (aynı 7 gün kuralı; admin tarafı)
+- [x] Backend: /api/admin/ozet → noterBekleyen listesi (arşiv: locked +
+      programı bitmiş + resmî sonuçsuz maçlar)
+- [x] Panel: "Noter Kararı Bekleyen Maçlar" kartı + 1/X/2 girişi (mevcut uca)
+- [x] Testler: backend (ertelenen, noter akışı) + Flutter (bildirim, ekran)
+- [x] Doğrulama: backend süitleri + flutter analyze + flutter test
+
+### İnceleme — önlem paketi bitti (2026-08-19)
+
+**Senaryonun dört aktörü de artık aydınlık:**
+1. **Kullanıcı:** bildirim merkezine 'Maç ertelendi' düşer (`match-postponed`,
+   kimlik `postponed:hafta:no` — bir kez kapatılan yeniden doğmaz). Geçmiş
+   haftada "hafta sonucu bu maçın noter kararıyla kesinleşecek", güncel
+   bültende "yeni tarih: g.aa ss:dd" yazar.
+2. **Hafta durumu:** bülten alt başlığı ve Haftalık Başarı durum satırı
+   "… · 15. maç ertelendi — noter kararı bekleniyor" der; ikramiye bölümü de
+   sebebi yazar. Metin TEK yerden gelir (`core/erteleme.ertelemeDurumEki`) —
+   iki ekran aynı durumu farklı anlatamaz.
+3. **Operatör:** /yonetim GENEL sekmesinde "Noter Kararı Bekleyen Maçlar"
+   kartı. Kilitli + programı bitmiş haftaların sonuçsuz maçları karar
+   girilene kadar orada durur; 1/X/2 düğmesi mevcut audit'li uca bağlı —
+   curl bitti. Kaynak: /api/admin/ozet → noterBekleyen (saf kural
+   src/ertelenen.js; arşiv okunamazsa null → panel "bilinmiyor" der).
+4. **Bildirim motoru:** `isOfficial` artık viaNotary'yi resmî sayıyor — noter
+   kararıyla kapanan haftada "Hafta kapandı" bildirimi ATILIYOR (53. Haftada
+   sessizce atlanmıştı, her ertelemede tekrarlayacaktı).
+
+**Tek tanım korundu:** tespit kuralı (ilk maçtan 7+ gün kopma)
+`flutter/lib/core/erteleme.dart` ↔ `backend/src/ertelenen.js`; iki dosya
+birbirine yorumla bağlı, eşik iki tarafta da testle 7'ye sabitlendi.
+`ertelendiMi` bulletin_format'tan yeniden dışa aktarılır — import'lar bozulmadı.
+
+**Yanlış alarm önlendi:** hafta programı bitmeden (son normal maç + 24 saat)
+hiçbir maç "noter bekliyor" sayılmaz; ertelenen maç bekleme penceresini
+UZATAMAZ (yoksa panel, ertelenen maçın yeni tarihi geçene dek susardı — asıl
+yaşanan senaryo tam buydu). Karar girilmiş (viaNotary) maç bir daha
+"bekliyor" görünmez.
+
+**Doğrulama:** backend 1117 geçti / 0 kaldı (32 atlandı — canlı DB isteyenler;
+yeni ertelenen.test.mjs 6 test) · flutter analyze temiz · flutter test 914
+geçti (yeni 12: bildirim 4, Haftalık Başarı 1, ikramiye 3, saf yardımcı 4) ·
+uçtan uca kanıt: gerçek dosya deposunda 1. Hafta senaryosu kuruldu → ozet kod
+yolu {roundId:1528, maclar:[{orderNo:15, ev:'Celta Vigo', ertelendi:true}]}
+döndürdü · panel.js node --check temiz · admin.js import OK · panel bekçi
+testi yeni id'yi doğruladı.
+
+**Dürüstlük sınırı:** sunucu push altyapısı yok; kullanıcı bildirimi uygulama
+AÇILINCA düşer (bildirim merkezi). Uygulama kapalıyken telefona "maç
+ertelendi" gitmez — önceden zamanlanamayan olay yerel bildirimle yapılamaz;
+sunucu push ayrı bir karardır (kapsam dışı bırakıldı).

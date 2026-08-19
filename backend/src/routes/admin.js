@@ -45,6 +45,7 @@ import { adayOku } from '../archive/adayMuhur.js';
 import { freezeBulletinFromData, firstKickoffMs, computeFreezeAt } from '../archive/snapshotService.js';
 import { getArchiveStore } from '../archive/store.js';
 import { recordNotaryResult } from '../archive/resultsService.js';
+import { noterBekleyenMaclar } from '../ertelenen.js';
 
 const router = Router();
 router.use(uyelikKapisi(supabaseEnabled));
@@ -92,6 +93,33 @@ router.get('/ozet', async (req, res) => {
       return count ?? null;
     }) : null;
 
+    // NOTER KARARI BEKLEYEN MAÇLAR (2026-08-19) — her ertelenen maçta aynı
+    // senaryonun (hafta kesinleşmiyor, kimse hatırlamıyor) kalıcı önlemi:
+    // kilitli ama tamamlanmamış haftaların sonuçsuz maçları panele BEKLEYEN İŞ
+    // olarak düşer ve karar girilene kadar orada kalır. Saf kural src/
+    // ertelenen.js'te; arşiv okunamazsa null döner, panel "bilinmiyor" yazar
+    // (uydurma yok). Yalnız en yeni 8 kilitli haftaya bakılır: daha eskisi
+    // zaten completed/cancelled olur, sınır ucu sayfalanmış taramadan korur.
+    const noterBekleyen = await sayimDene(async () => {
+      const store = getArchiveStore();
+      const kilitli = (await store.listBulletins())
+        .filter((b) => b?.status === 'locked')
+        .sort((a, b) => Number(b.roundId) - Number(a.roundId))
+        .slice(0, 8);
+      const out = [];
+      for (const b of kilitli) {
+        const [maclar, sonuclar] = await Promise.all([
+          store.getMatches(b.id),
+          store.listOfficialResults(b.id),
+        ]);
+        const bekleyen = noterBekleyenMaclar(maclar, sonuclar);
+        if (bekleyen.length) {
+          out.push({ roundId: b.roundId, hafta: b.week || null, maclar: bekleyen });
+        }
+      }
+      return out;
+    });
+
     res.json({
       zaman: new Date().toISOString(),
       sistem: {
@@ -110,6 +138,8 @@ router.get('/ozet', async (req, res) => {
       },
       kota: { kalan: kota.kalan, limit: kota.limit, sonGuncelleme: kota.sonGuncelleme },
       sayim: { kullanici, yorum, bekleyenBildirim },
+      // null = arşiv okunamadı (bilinmiyor) · [] = bekleyen iş yok.
+      noterBekleyen,
     });
   } catch (e) {
     safeError(res, e, 'Yönetim özeti okunamadı.');

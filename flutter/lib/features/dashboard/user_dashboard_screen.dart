@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/coupon/coupon_store.dart';
+import '../../core/erteleme.dart';
 import '../../core/live_logic.dart';
 import '../../core/network/api_client.dart';
 import '../../core/prefs.dart';
@@ -378,7 +379,12 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     if (resolved.isEmpty) {
       status = 'Sonuçlar bekleniyor';
     } else if (!fullyResolved) {
-      status = 'Resmi sonuçlar bekleniyor · ${resolved.length}/$total geldi';
+      // Bekleten maç ERTELENMİŞSE sebep söylenir (19 Ağustos 2026 — kullanıcı
+      // tıkanması: "hafta neden hâlâ kesinleşmedi"). Bülten ekranındaki alt
+      // başlıkla AYNI tek tanım ve AYNI metin: core/erteleme.dart.
+      status =
+          'Resmi sonuçlar bekleniyor · ${resolved.length}/$total geldi'
+          '${ertelemeDurumEki(bekleyenErtelenenNolar(wm, _officialResolved))}';
     } else if (!hasPrize) {
       status = 'Maç sonuçları tamamlandı · İkramiye bekleniyor';
     } else {

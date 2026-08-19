@@ -25,6 +25,7 @@ class PrizeSection extends StatelessWidget {
     required this.totalM,
     required this.fullyResolved,
     this.selMetaCloseDate,
+    this.ertelenenNolar = const [],
   });
 
   final Map? prize;
@@ -32,6 +33,12 @@ class PrizeSection extends StatelessWidget {
   final int totalM;
   final bool fullyResolved;
   final String? selMetaCloseDate;
+
+  /// Sonuçsuz kalan ERTELENMİŞ maçların sıra numaraları (ekran hesaplar,
+  /// tek tanım: bulletin_format.ertelendiMi). Doluysa "tüm sonuçlar
+  /// tamamlanınca" cümlesi SEBEBİ de söyler: bekleyen şey normal skor değil,
+  /// ertelenen maçın noter kararıdır. (Kullanıcı tıkanması, 19 Ağustos 2026.)
+  final List<int> ertelenenNolar;
 
   @override
   Widget build(BuildContext context) {
@@ -58,12 +65,16 @@ class PrizeSection extends StatelessWidget {
           const SizedBox(height: 10),
           if (!fullyResolved)
             _bos(
-              resolvedCount == 0
-                  ? 'Resmi sonuçlar bekleniyor. Tüm maçlar tamamlanınca '
-                        'ikramiye burada görünecek.'
-                  : 'Şu ana kadar $resolvedCount/$totalM '
-                        'resmi sonuç geldi. Tüm sonuçlar tamamlanınca ikramiye '
-                        'görünecek.',
+              (resolvedCount == 0
+                      ? 'Resmi sonuçlar bekleniyor. Tüm maçlar tamamlanınca '
+                            'ikramiye burada görünecek.'
+                      : 'Şu ana kadar $resolvedCount/$totalM '
+                            'resmi sonuç geldi. Tüm sonuçlar tamamlanınca '
+                            'ikramiye görünecek.') +
+                  (ertelenenNolar.isEmpty
+                      ? ''
+                      : '\n${ertelenenNolar.length == 1 ? '${ertelenenNolar.first}. maç ertelendi' : '${ertelenenNolar.length} maç ertelendi'} — '
+                            'ikramiye, noter kararı girilince kesinleşecek.'),
             )
           else if (!hasPrize)
             _bos(

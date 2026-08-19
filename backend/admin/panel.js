@@ -159,8 +159,59 @@
         kutu('Maç', o.bulten.var ? esc(o.bulten.macSayisi) : null) +
         kutu('Analizli maç', o.bulten.var ? esc(o.bulten.analizliMac) + ' <span class="kucuk">/ ' + esc(o.bulten.macSayisi) + '</span>' : null) +
         kutu('Son güncelleme', tarih(o.bulten.guncellendi) ? '<span style="font-size:15px">' + esc(tarih(o.bulten.guncellendi)) + '</span>' : null);
+      noterCiz(o.noterBekleyen);
     });
   }
+
+  // ——— NOTER KARARI BEKLEYEN ———
+  // Her ertelenen maçta aynı senaryo yaşanıyordu: hafta "kesinleşmemiş"
+  // kalıyor, kararı girecek operatöre hiçbir şey hatırlatmıyordu (uç vardı
+  // ama arayüzü yoktu — curl gerekiyordu). Bu kart, kilitli ama tamamlanmamış
+  // haftaların sonuçsuz maçlarını karar girilene kadar BEKLEYEN İŞ olarak
+  // tutar. Kaynak: /api/admin/ozet → noterBekleyen (saf kural src/ertelenen.js).
+  function noterCiz(liste) {
+    var el = $('noterBekleyen');
+    if (liste == null) { el.innerHTML = '<p class="kucuk">' + yok + ' Arşiv okunamadı.</p>'; return; }
+    if (!liste.length) {
+      el.innerHTML = '<p class="kucuk"><span class="rozet ok">bekleyen yok</span> Kilitli haftalarda sonuçsuz maç yok.</p>';
+      return;
+    }
+    var h = '';
+    liste.forEach(function (r) {
+      h += '<p style="margin:8px 0 4px"><b>' + esc(r.hafta || ('Hafta ' + r.roundId)) + '</b> <span class="kucuk">roundId ' + esc(r.roundId) + '</span></p>';
+      h += '<table><thead><tr><th>Sıra</th><th>Maç</th><th>Bülten tarihi</th><th>Durum</th><th>Noter kararını gir</th></tr></thead><tbody>';
+      r.maclar.forEach(function (m) {
+        h += '<tr><td>' + esc(m.orderNo) + '</td>' +
+          '<td>' + esc((m.ev || '?') + ' – ' + (m.dep || '?')) + '</td>' +
+          '<td>' + (tarih(m.tarih) ? esc(tarih(m.tarih)) : yok) + '</td>' +
+          '<td>' + (m.ertelendi ? '<span class="rozet uyari">ertelendi</span>' : '<span class="rozet notr">sonuç yayımlanmadı</span>') + '</td>' +
+          '<td>' + ['1', 'X', '2'].map(function (s) {
+            return '<button class="ikincil ufak noterBtn" data-round="' + esc(r.roundId) + '" data-no="' + esc(m.orderNo) + '" data-sonuc="' + s + '">' + s + '</button>';
+          }).join(' ') + '</td></tr>';
+      });
+      h += '</tbody></table>';
+    });
+    h += '<p class="kucuk">Yalnız Spor Toto\'nun AÇIKLADIĞI resmî noter kararını gir — tahmin girilmez. ' +
+      'Kayıt audit\'e yazılır; skor NULL kalır, radar karnesine motor isabeti olarak sayılmaz.</p>';
+    el.innerHTML = h;
+  }
+
+  $('noterBekleyen').addEventListener('click', function (ev) {
+    var b = ev.target && ev.target.classList && ev.target.classList.contains('noterBtn') ? ev.target : null;
+    if (!b) return;
+    var round = b.getAttribute('data-round');
+    var no = Number(b.getAttribute('data-no'));
+    var sonuc = b.getAttribute('data-sonuc');
+    if (!window.confirm(no + '. sıraya NOTER KARARI olarak "' + sonuc + '" yazılacak (hafta ' + round + ').\n' +
+      'Bu resmî kayıttır, audit\'e yazılır ve mevcut sonuç varsa sunucu reddeder. Emin misin?')) return;
+    b.disabled = true;
+    istek('/api/admin/bulten/' + round + '/noter-sonucu', { method: 'POST', body: { orderNo: no, sonuc: sonuc } })
+      .then(function (r) {
+        bilgi('noterBekleyen', (r.not || 'Kayıt alındı.') + ' Liste yenileniyor…');
+        return ozetYukle();
+      })
+      .catch(function (e) { hataGoster(e); b.disabled = false; });
+  });
 
   // ——— MÜHÜR ALARMI ———
   // Bir haftanın mührü ilk maçtan sonra atılırsa o hafta başarı karnesine ASLA

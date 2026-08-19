@@ -5,7 +5,12 @@
 // modül bölmenin maliyeti yoktu; burada ayırmak davranışı değiştirmez, yalnız
 // test edilebilir kılar.
 
-import '../../core/utils.dart';
+// ERTELENMİŞ MAÇ TESPİTİ buradan `core/erteleme.dart`'a taşındı (2026-08-19):
+// bildirim merkezi (`core/notifications.dart`) de aynı kurala muhtaç ve core,
+// features'a bakamaz. Yeniden dışa aktarım, bu dosyayı import eden herkesi
+// (ekranlar + testler) değiştirmeden TEK TANIMI korur.
+export '../../core/erteleme.dart'
+    show ertelendiMi, kErtelemeEsigiGun, bekleyenErtelenenNolar, ertelemeDurumEki;
 
 /// Resmi sonuç 1/X/2 (sadece resmi skordan). false → henüz yok.
 ///
@@ -139,38 +144,3 @@ String? kapanisResmi(String? iso) {
       '${d.year} ${iki(d.hour)}:${iki(d.minute)}';
 }
 
-/// ERTELENMİŞ MAÇ TESPİTİ — ÇIKARIMDIR, resmî bir alan DEĞİLDİR.
-///
-/// KULLANICI KARARI (16 Ağustos 2026): 1. Haftanın 15. maçı (Celta Vigo –
-/// Osasuna) ertelendi ve noter karar verecek. Kart yalnız "Başlamadı" diyordu;
-/// kullanıcı ertelemenin görünmesini istedi.
-///
-/// NEDEN ÇIKARIM: resmî Spor Toto ucu bu maçı hâlâ `status: "upcoming"` olarak
-/// veriyor — "ertelendi" diye bir alan YOK. Erteleme yalnız TARİHİN bültenin
-/// geri kalanından kopmasıyla belli oluyor. Bu yüzden etiket, resmî veriyi
-/// aktarmaz; ölçülen bir aykırılığı bildirir ve yanında YENİ TARİH de yazar
-/// (kanıt ekranda kalır).
-///
-/// EŞİK ÖLÇÜMLE SEÇİLDİ (1. Hafta, gerçek veri): normal maçlar ilk maçtan
-/// 0,0–3,0 gün sonra; ertelenen maç 13,0 gün sonra. 7 gün ikisinin ortasında
-/// güvenle durur — Spor Toto haftası birkaç güne yayılır, 7 günü aşan bir
-/// sapma normal takvimle açıklanamaz.
-const int kErtelemeEsigiGun = 7;
-
-/// [mac], aynı bültendeki diğer maçlardan belirgin biçimde sonraya alınmış mı?
-///
-/// Karşılaştırma bültenin İLK maçına göredir; böylece birden fazla maç
-/// ertelenirse hepsi yakalanır (birbirlerine göre bakılsaydı ikisi de
-/// "normal" görünürdü).
-bool ertelendiMi(Map? mac, List? tumMaclar) {
-  final t = macAni(mac?['date']);
-  if (t == null) return false;
-  DateTime? ilk;
-  for (final m in (tumMaclar ?? const []).cast<Map>()) {
-    final d = macAni(m['date']);
-    if (d == null) continue;
-    if (ilk == null || d.isBefore(ilk)) ilk = d;
-  }
-  if (ilk == null) return false;
-  return t.difference(ilk).inDays >= kErtelemeEsigiGun;
-}

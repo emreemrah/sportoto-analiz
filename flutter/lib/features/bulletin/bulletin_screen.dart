@@ -295,7 +295,16 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
     final fullyResolved = totalM > 0 && resolvedCount == totalM;
     final allAnnounced = fullyResolved && hasPrize;
 
-    final subtitle = viewingCurrent
+    // ERTELENEN + SONUÇSUZ maçlar — haftanın kesinleşmesini bekleten NEDEN.
+    // (Kullanıcı tıkanması, 19 Ağustos 2026: "14/15 geldi" yazıyordu ama
+    // hangi maçın neden beklettiği hiçbir yerde söylenmiyordu; her ertelenen
+    // maçta aynı soru yaşanıyordu.) Tespit kartla AYNI tek tanım: ertelendiMi.
+    final bekleyenErtelenen = bekleyenErtelenenNolar(
+      histMatches,
+      officialResolved,
+    );
+
+    var subtitle = viewingCurrent
         ? (data['pending'] == true
               ? 'güncel resmi bülten bekleniyor'
               : upcomingCount > 0
@@ -324,6 +333,16 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
               ? 'Yeni resmi sonuç bulunamadı · $resolvedCount/$totalM geldi'
               : 'Resmi sonuçlar bekleniyor'
                     '${resolvedCount > 0 ? ' · $resolvedCount/$totalM geldi' : ''}');
+
+    // Bekleten maç ertelenmişse SEBEP alt başlıkta söylenir — kullanıcı
+    // "neden hâlâ kesinleşmedi" sorusunu ekranda cevapsız bırakmaz. Yalnız
+    // gerçek bekleme hâlinde (yüklenme/hata/kapanmış hafta değilken) eklenir.
+    if (!viewingCurrent &&
+        !hist.loading &&
+        hist.error == null &&
+        !allAnnounced) {
+      subtitle += ertelemeDurumEki(bekleyenErtelenen);
+    }
 
     // Resmi teyit rozeti — sadece güncel + teyit edilmiş bültende.
     final verification = data['verification'] as Map?;
@@ -365,6 +384,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
         totalM: totalM,
         fullyResolved: fullyResolved,
         selMetaCloseDate: selMeta?['closeDate'] as String?,
+        ertelenenNolar: bekleyenErtelenen,
       );
     }
 
@@ -469,6 +489,9 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
     required int totalM,
     required bool fullyResolved,
     required String? selMetaCloseDate,
+    // Sonuçsuz kalan ERTELENMİŞ maçlar — ikramiye bölümü sebebi yazsın diye
+    // (19 Ağustos 2026; hesap build'de, tek tanım core/erteleme.dart).
+    List<int> ertelenenNolar = const [],
   }) {
     if (hist.loading) {
       return Column(
@@ -572,6 +595,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                   totalM: totalM,
                   fullyResolved: fullyResolved,
                   selMetaCloseDate: selMetaCloseDate,
+                  ertelenenNolar: ertelenenNolar,
                 ),
                 // Güncel bültenle BİREBİR AYNI sade başlık.
                 ScoreLegend(),

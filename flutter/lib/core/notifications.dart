@@ -19,17 +19,26 @@
 //  5) Kimliği belirleyen alan yok — bildirim metninde e-posta, telefon,
 //     belirteç veya başka kullanıcının verisi bulunmaz.
 
+import 'erteleme.dart';
 import 'utils.dart';
 
 /// Resmî sonuç kuralı: hem 1/X/2 hem skor gelmiş olmalı.
 ///
 /// JS'te `!!(m.result && m.score)` — boş dizge de FALSY sayılır.
+///
+/// KAYNAKTAN BİLİNÇLİ SAPMA (2026-08-19): ertelenen maçın NOTER KARARI da
+/// resmî sonuçtur ama SKORU YOKTUR (maç oynanmadı; skor uydurulmaz).
+/// `bulletin_format.officialResolved` bunu 2026-08-10'dan beri tanıyordu ama
+/// BU dosya tanımıyordu — sonuç: noter kararıyla kapanan haftada "Hafta
+/// kapandı" bildirimi HİÇ atılmıyordu (53. Hafta 14. maçta sessizce yaşandı,
+/// her ertelemede tekrarlayacaktı). viaNotary işaretli satır skorsuz da
+/// resmî sayılır.
 bool isOfficial(Map? m) {
   if (m == null) return false;
   final r = m['result'];
   final s = m['score'];
   final rDolu = r != null && r != false && '$r'.isNotEmpty && r != 0;
-  final sDolu = s != null && s != false;
+  final sDolu = (s != null && s != false) || m['viaNotary'] == true;
   return rDolu && sDolu;
 }
 
@@ -44,6 +53,14 @@ String _saatMetni(int ms) {
   final d = DateTime.fromMillisecondsSinceEpoch(ms).toLocal();
   String p(int n) => n.toString().padLeft(2, '0');
   return '${p(d.hour)}:${p(d.minute)}';
+}
+
+/// Gün.ay + saat — ertelenen maçın YENİ tarihi için (yıl aynı sezondadır,
+/// bildirimi uzatmaz).
+String _gunSaatMetni(int ms) {
+  final d = DateTime.fromMillisecondsSinceEpoch(ms).toLocal();
+  String p(int n) => n.toString().padLeft(2, '0');
+  return '${p(d.day)}.${p(d.month)} ${p(d.hour)}:${p(d.minute)}';
 }
 
 /// Kupon deposundaki son sürümün seçimleri (yoksa boş dizi).
@@ -193,6 +210,61 @@ typedef NotifItem = ({
     }
   }
 
+  // 2,5) ERTELENEN MAÇ — tarihi bültenin geri kalanından kopan maç. Tespit
+  //      ÇIKARIMDIR ve kartla AYNI tek tanımdır (core/erteleme.ertelendiMi).
+  //      NEDEN VAR (kullanıcı tıkanması, 19 Ağustos 2026): erteleme yalnız
+  //      maç kartında yazıyordu; kartı açmayan kullanıcı haftanın neden
+  //      kesinleşmediğini hiç öğrenemiyordu. Kimlik maç başına sabittir
+  //      ('postponed:hafta:no') — bir kez kapatılan bildirim yeniden doğmaz.
+  //      Karar/sonuç gelmiş maça (viaNotary dahil) "bekliyor" denmez.
+  void ertelenenleriEkle(
+    Object? roundId,
+    List? ms, {
+    required bool gecmis,
+    String? haftaAdi,
+  }) {
+    if (roundId == null || ms == null) return;
+    for (final raw in ms) {
+      final m = raw as Map?;
+      if (m == null || isOfficial(m)) continue;
+      if (!ertelendiMi(m, ms)) continue;
+      final no = int.tryParse('${m['no']}');
+      final ev = _ad(m['home']);
+      final dep = _ad(m['away']);
+      if (no == null || ev.isEmpty || dep.isEmpty) continue;
+      final t = _toTime(m['date']); // ertelendiMi geçtiyse tarih parse edilebilir
+      ekle((
+        id: 'postponed:$roundId:$no',
+        kind: 'match-postponed',
+        icon: '📅',
+        title: 'Maç ertelendi',
+        // Geçmiş hafta: sonuç sağlayıcıdan gelmeyecek — Spor Toto kuralı
+        // gereği noter kararı beklenir (bkz. backend noter katmanı). Güncel
+        // bülten: yalnız ölçülen gerçek söylenir (yeni tarih).
+        body: gecmis
+            ? '$no. $ev – $dep · ${haftaAdi ?? 'Hafta'} sonucu bu maçın '
+                  'noter kararıyla kesinleşecek.'
+            : '$no. $ev – $dep · yeni tarih: '
+                  '${t == null ? 'bültende' : _gunSaatMetni(t)}',
+        at: now,
+        target: (tab: 'BulletinTab', screen: 'Bulletin', params: null),
+      ));
+    }
+  }
+
+  ertelenenleriEkle(
+    gRound,
+    maclar is List ? maclar : null,
+    gecmis: false,
+    haftaAdi: gAd,
+  );
+  ertelenenleriEkle(
+    history?['roundId'],
+    history?['matches'] is List ? history!['matches'] as List : null,
+    gecmis: true,
+    haftaAdi: history?['roundName'] == null ? null : '${history!['roundName']}',
+  );
+
   // 3) RESMÎ SONUÇ — kapanan haftada kaç maç resmîleşti. Kısmî de olsa haber
   //    verilir ama sayı GERÇEKTİR; "hepsi bitti" denmez.
   final hMaclar = history?['matches'];
@@ -223,7 +295,12 @@ typedef NotifItem = ({
   //      edilir ama artık hiçbir bildirim üretmez.
 
   // En yeni üstte; eşitlikte kararlı sıra (tür önceliği).
-  const oncelik = {'match-starting': 0, 'result-official': 1, 'new-round': 2};
+  const oncelik = {
+    'match-starting': 0,
+    'match-postponed': 1,
+    'result-official': 2,
+    'new-round': 3,
+  };
   items.sort((a, b) {
     final z = b.at.compareTo(a.at);
     if (z != 0) return z;

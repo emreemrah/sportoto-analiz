@@ -230,6 +230,36 @@ void main() {
     expect(_metin('Genel Özet'), findsNothing);
   });
 
+  testWidgets('bekleten maç ertelenmişse durum satırı SEBEBİ söyler', (
+    t,
+  ) async {
+    // Sonuçsuz 3. maçın tarihi haftanın kalanından 13 gün kopuk → ertelendi.
+    // Durum satırı artık yalnız "3/4 geldi" demez; NEDEN bekletildiğini yazar
+    // (19 Ağustos 2026 kullanıcı tıkanması). Metin core/erteleme.dart'tan
+    // gelir — bülten ekranı alt başlığıyla AYNI tek tanım.
+    final maclar = ((kUclar['/api/history/1600'] as Map)['matches'] as List)
+        .cast<Map>();
+    await _ekraniAc(
+      t,
+      uclar: {
+        ...kUclar,
+        '/api/history/1600': {
+          'matches': [
+            for (final m in maclar)
+              if (m['no'] == 3) {...m, 'date': '2026-08-14T17:00:00Z'} else m,
+          ],
+        },
+      },
+    );
+    expect(
+      _metin(
+        'Resmi sonuçlar bekleniyor · 3/4 geldi'
+        ' · 3. maç ertelendi — noter kararı bekleniyor',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('Maçlar sekmesi: gerçek sayılı filtreler, tam takım adı, '
       'tik/çarpı/bekliyor işaretleri', (t) async {
     await _ekraniAc(t);

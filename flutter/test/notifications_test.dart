@@ -271,6 +271,115 @@ void main() {
       expect(r.items.single.title, 'Hafta kapandı');
     });
 
+    // ERTELENEN MAÇ BİLDİRİMİ (19 Ağustos 2026 — kullanıcı tıkanması: "her
+    // ertelenen maçta aynı senaryo; kullanıcı ertelemeyi bilmiyor"). Tespit
+    // kartla AYNI tek tanımdır (core/erteleme.ertelendiMi): tarihi haftanın
+    // İLK maçından 7+ gün kopan maç.
+    test('geçmiş haftada sonuçsuz + ertelenen maç BİLDİRİLİR (noter dili)', () {
+      final r = buildNotifications(
+        now: _now,
+        history: {
+          'roundId': 1528,
+          'roundName': '1. Hafta',
+          'matches': [
+            _mac(
+              no: 1,
+              dakikaSonra: -14 * 1440,
+              result: '1',
+              score: {'home': 2, 'away': 0},
+            ),
+            _mac(
+              no: 15,
+              dakikaSonra: -14 * 1440 + 13 * 1440, // ilk maçtan 13 gün sonra
+              home: 'Celta Vigo',
+              away: 'Osasuna',
+            ),
+          ],
+        },
+        state: const {
+          'knownRoundIds': ['1528'],
+        },
+      );
+      final ertelenen = r.items.where((i) => i.kind == 'match-postponed');
+      expect(ertelenen.length, 1);
+      expect(ertelenen.single.id, 'postponed:1528:15');
+      expect(ertelenen.single.body, contains('Celta Vigo – Osasuna'));
+      expect(ertelenen.single.body, contains('noter kararıyla kesinleşecek'));
+      expect(ertelenen.single.body, contains('1. Hafta'));
+    });
+
+    test('noter kararı girilmiş maça "bekliyor" DENMEZ ve hafta KAPANIR', () {
+      // viaNotary satırın SKORU YOKTUR (maç oynanmadı) ama resmî sayılır —
+      // isOfficial bunu tanımazsa "Hafta kapandı" bildirimi HİÇ atılmaz
+      // (53. Haftada sessizce yaşanan hata).
+      final r = buildNotifications(
+        now: _now,
+        history: {
+          'roundId': 1528,
+          'roundName': '1. Hafta',
+          'matches': [
+            _mac(
+              no: 1,
+              dakikaSonra: -14 * 1440,
+              result: '1',
+              score: {'home': 2, 'away': 0},
+            ),
+            {
+              ..._mac(no: 15, dakikaSonra: -14 * 1440 + 13 * 1440),
+              'result': 'X',
+              'viaNotary': true,
+            },
+          ],
+        },
+        state: const {
+          'knownRoundIds': ['1528'],
+        },
+      );
+      expect(r.items.where((i) => i.kind == 'match-postponed'), isEmpty);
+      final resmi = r.items.singleWhere((i) => i.kind == 'result-official');
+      expect(resmi.title, 'Hafta kapandı');
+      expect(resmi.body, contains('2/2'));
+    });
+
+    test('güncel bültende ertelenen maç YENİ TARİHİYLE bildirilir', () {
+      final r = buildNotifications(
+        now: _now,
+        bulletin: {
+          'roundId': 1529,
+          'round': '2. Hafta',
+          'matches': [
+            _mac(no: 1, dakikaSonra: 2 * 1440),
+            _mac(no: 7, dakikaSonra: 2 * 1440 + 13 * 1440),
+          ],
+        },
+        state: const {
+          'knownRoundIds': ['1529'],
+        },
+      );
+      final it = r.items.single;
+      expect(it.kind, 'match-postponed');
+      expect(it.id, 'postponed:1529:7');
+      expect(it.body, contains('yeni tarih'));
+    });
+
+    test('kapatılan erteleme bildirimi TEKRAR doğmaz (kimlik sabit)', () {
+      final r = buildNotifications(
+        now: _now,
+        bulletin: {
+          'roundId': 1529,
+          'matches': [
+            _mac(no: 1, dakikaSonra: 2 * 1440),
+            _mac(no: 7, dakikaSonra: 2 * 1440 + 13 * 1440),
+          ],
+        },
+        state: const {
+          'knownRoundIds': ['1529'],
+          'dismissed': ['postponed:1529:7'],
+        },
+      );
+      expect(r.items, isEmpty);
+    });
+
     test('okunmuş kimlikler 200 ile sınırlanır', () {
       final s = nextState(
         now: _now,

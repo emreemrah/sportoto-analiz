@@ -95,6 +95,74 @@ void main() {
     // 14 Ağu 21:30 TSİ ile 27 Ağu 21:30 TSİ arası tam 13 gün.
     expect(ertelendiMi(_gercekHafta[14], _gercekHafta), isTrue);
   });
+
+  // HAFTA DURUMU SEBEBİ SÖYLER (19 Ağustos 2026 — kullanıcı tıkanması:
+  // "hafta neden hâlâ kesinleşmedi" sorusu ekranda cevapsızdı). Bülten alt
+  // başlığı ile Haftalık Başarı durum satırı bu iki yardımcıdan beslenir.
+  group('bekleyenErtelenenNolar + ertelemeDurumEki', () {
+    bool cozuldu(Map? m) =>
+        m?['result'] != null &&
+        (m?['score'] != null || m?['viaNotary'] == true);
+
+    test('sonuçsuz + ertelenmiş maç bekleten sebep olarak listelenir', () {
+      final hafta = [
+        for (final m in _gercekHafta)
+          if (m['no'] == 15)
+            m // 15. maç sonuçsuz — bekleten sebep
+          else
+            {
+              ...m,
+              'result': '1',
+              'score': {'home': 1, 'away': 0},
+            },
+      ];
+      expect(bekleyenErtelenenNolar(hafta, cozuldu), [15]);
+      expect(
+        ertelemeDurumEki([15]),
+        ' · 15. maç ertelendi — noter kararı bekleniyor',
+      );
+    });
+
+    test('noter kararı girilmiş maç bir daha "bekliyor" görünmez', () {
+      final hafta = [
+        for (final m in _gercekHafta)
+          if (m['no'] == 15)
+            {...m, 'result': 'X', 'viaNotary': true} // skor YOK, karar VAR
+          else
+            {
+              ...m,
+              'result': '1',
+              'score': {'home': 1, 'away': 0},
+            },
+      ];
+      expect(bekleyenErtelenenNolar(hafta, cozuldu), isEmpty);
+      expect(ertelemeDurumEki(const []), '');
+    });
+
+    test('ertelenmemiş sonuçsuz maç bu listeye GİRMEZ (etiket uydurulmaz)', () {
+      // 3. maç sonuçsuz ama tarihi normal — "ertelendi" damgası vurulmaz;
+      // hafta durumu ondan bahsetmez (yalnız n/15 sayısı düşük kalır).
+      final hafta = [
+        for (final m in _gercekHafta)
+          if (m['no'] == 3 || m['no'] == 15)
+            m
+          else
+            {
+              ...m,
+              'result': '1',
+              'score': {'home': 1, 'away': 0},
+            },
+      ];
+      expect(bekleyenErtelenenNolar(hafta, cozuldu), [15]);
+    });
+
+    test('birden fazla erteleme sayıyla anlatılır', () {
+      expect(
+        ertelemeDurumEki([3, 15]),
+        ' · 2 maç ertelendi — noter kararı bekleniyor',
+      );
+    });
+  });
 }
 
 // ——— KART GERÇEKTEN "Ertelendi" YAZIYOR MU ———

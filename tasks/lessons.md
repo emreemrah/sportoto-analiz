@@ -435,3 +435,23 @@ kalmıştı); ikisini birden çözen `okunurAyrisanYuzey` kullanılır.
 bayrağı okunur. Bayrağı TERCİH değil UYGULAMA yazar (`gorunumuUygula` false,
 `takimGorunumunuUygula` true) — kullanıcı 'takım' seçmiş olsa bile takım yoksa
 varsayılan açık uygulanır ve tercihe bakan kod yanlış rengi basar.
+
+## Ders — Tekrarlayan olaya NOKTA düzeltmesi değil, SENARYO kapatması yapılır (2026-08-19)
+
+**Neden:** Ertelenen maç olayı ÜÇ ayrı oturumda üç ayrı nokta düzeltmesi aldı:
+karta "Ertelendi" yazıldı (16 Ağu), noter ucu yazıldı (10 Ağu), denetim
+raporuna "bekleyen iş" notu düşüldü (16 Ağu). Buna rağmen kullanıcı 19
+Ağustos'ta "her hafta aynı şeyi yaşıyoruz, önlem alamıyoruz" dedi — haklıydı,
+çünkü her düzeltme olayın TEK aktörünü görüyordu. Senaryonun dört aktörü vardı
+ve üçü karanlıktaydı: kullanıcı (bildirim yok), hafta durumu (sebep yazmıyor),
+operatör (bekleyen iş listesi yok, uç curl'süz kullanılamıyor), bildirim
+motoru (noter kaydını resmî saymıyor → "Hafta kapandı" hiç atılmıyordu).
+
+**Nasıl uygulanır:** "Bunu daha önce de yaşadık" cümlesi geçen HER işte durup
+senaryonun aktörlerini listele: kim öğrenmeli? · ekran sebebi söylüyor mu? ·
+işi yapacak kişiye ne hatırlatıyor? · olayın İKİNCİ yarısı (karar girildikten
+sonrası) da çalışıyor mu? Bir aktör karanlıkta kaldıkça olay geri gelir.
+Düzeltme paketi: bildirim (match-postponed) + durum satırı sebebi
+(ertelemeDurumEki) + panel bekleyen iş kartı (noterBekleyen) + isOfficial'a
+viaNotary. Tespit kuralı TEK tanımda tutuldu: `core/erteleme.dart` ↔
+`backend/src/ertelenen.js` (eşik 7 gün, ikisi birden değişir).
