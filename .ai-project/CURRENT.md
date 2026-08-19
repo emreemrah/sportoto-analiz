@@ -3,40 +3,47 @@
 - Proje: sportoto-analiz-karar-motoru-test
 - Proje kimliği: b8a31f25-5aed-40b4-ac7f-1fc81f1419ed
 - Durum: IN_PROGRESS (olgun ürün — Flutter uygulaması + Node backend canlı)
-- Aktif özellik/görev: Yok — bugünkü iki iş bitti ve commit'lendi:
-  1. Ertelenen maç senaryosu önlem paketi (a0f4382 + fd930d9, emülatörde
-     canlı veriyle doğrulandı).
-  2. Noter kararının resmî API'den OTOMATİK işlenmesi (3d11f6f): webapi'nin
-     `noterWin` alanı bulundu ve bağlandı; 1. Hafta 15. maç (Celta Vigo –
-     Osasuna) kura sonucu **1** ile 15/15 kesinleşti; emülatörde doğrulandı.
-- Son doğrulanmış commit: 760aea7 (kupon gerçeği sabitlendi) — backend 1126/0, Flutter 916/0, analyze temiz.
-- Son başarılı küçük adım: /api/history/1528 canlıda 15/15 · fullyResolved ·
-  15. maç result=1 viaNotary; ekranda "Sonuçlar açıklandı" + ikramiye tablosu.
-- Değişen dosyalar: Çalışma ağacında yalnız süreklilik sistemi dosyaları
-  commit'siz (.ai-project/, .claude/rules/, .claude/skills/project-continuity/,
-  .gitignore'daki 3 satır) — kullanıcı kararı bekliyor.
-- Son test sonucu: backend 1126 geçti / 0 kaldı · Flutter 916 geçti / 0 kaldı.
-- Bekleyen işler:
-  1. YAYIN: TAMAMLANDI (2026-08-19 gece) — adf0718 push edildi, Render deploy
-     doğrulandı: üretimde /api/history/1528 → 15/15 · fullyResolved · 15. maç
-     result=1 viaNotary · ikramiye tablosu dolu.
-  2. 21 Ağustos — 2. Hafta mühürü. Radar 5 süzgeç kırılımları ilk kez gerçek
-     veriyle o mühürde dolacak.
-  3. Küçük/eski: yönetim panelinin tarayıcıda görsel doğrulaması (7 Ağustos'ta
-     eklenti düşmüştü; bugün eklenen "Noter Kararı Bekleyen Maçlar" kartı da
-     testle doğrulandı, gözle görülmedi).
-- Engel (Project Worker güvenilir doğrulama kapısı): başlangıç çizgisi
-  kurulmadı — eksikler:
-  * FEATURES.json boş: özellik kataloğu yok (ID + kabul ölçütleri +
-    verification_task_id gerekiyor), `requirements_locked` false,
-    `ui_project` null (JSON boolean olmalı).
-  * VERIFICATION_PLAN.json `commands` boş: gerçek doğrulama komutları
-    (backend: `npm test` · flutter: `flutter analyze` + `flutter test`)
-    henüz plana yazılmadı.
-  KESİN SONRAKİ ADIM: kullanıcıyla özellik kataloğunu (olgun ürünün mevcut
-  yetenekleri) onaylayıp FEATURES.json + TASKS.json doğrulama görevlerini
-  doldurmak, VERIFICATION_PLAN.json'a gerçek komutları yazmak, `ui_project`
-  ve `requirements_locked` alanlarını true yapmak, sonra SessionStart'ta
-  verilen güvenilir doğrulayıcıyı çalıştırmak. Kilit GERİ DÖNÜŞSÜZ olduğu
-  için katalog kapsamı kullanıcı onayı olmadan kilitlenmeyecek.
-- Güncelleme: 2026-08-19 (gece)
+- Son doğrulanmış commit: 5437c57 (yayın paketine INTERNET izni) —
+  backend 1126/0 · Flutter 920/0 · analyze temiz.
+- Bugün (19 Ağustos) bitenler — hepsi commit'li:
+  1. Ertelenen maç senaryosu önlem paketi (a0f4382) — 4 yüzey: bildirim,
+     hafta durumu sebebi, ikramiye açıklaması, /yonetim bekleyen iş kartı.
+  2. Otomatik noter: resmî API'nin `noterWin` alanı keşfedildi ve bağlandı
+     (3d11f6f). 1. Hafta kura=1 ile 15/15 kesinleşti; üretimde doğrulandı.
+  3. Ana sayfa: noterle kesinleşen maç "Yaklaşan"dan düşüyor (5388d9b).
+  4. Kupon gerçeği: 27 Ağustos'ta maç oynanınca gelen skor kurayı EZEMEZ —
+     3 katman koruma (760aea7).
+  5. Hafta Kapanışı 15/15 sayıyor + ikramiye devir satırı resmî yazımla:
+     "OLMADIĞINDAN 30.149.380,57 ₺ önümüzdeki haftaya devretti" (216edf4).
+  6. Release APK'da INTERNET izni yoktu → telefonda "veriler gelmiyor";
+     manifest düzeltildi + bekçi test (5437c57). Masaüstündeki
+     sportoto-analiz-19agu.apk İZİNLİ yeni derlemeyle güncellendi.
+- Yayın durumu: 216edf4'e kadar origin/main'de ve Render'da doğrulandı.
+  5437c57 (+bu kayıt commit'i) HENÜZ PUSH'LANMADI — kullanıcı onayı bekliyor
+  (üretimi etkilemez, Flutter tarafı; depo eşitliği için gönderilmeli).
+
+## YARIN İLK İŞ
+1. Kullanıcı masaüstündeki YENİ sportoto-analiz-19agu.apk'yı telefona kurup
+   veri geliyor mu doğrulayacak (dünkü kurulum izinsiz eski paketti).
+   Veri gelmezse: ekrandaki hata metnini al; Render soğuk açılışını (ilk
+   açılışta ~60 sn) hesaba kat.
+2. Push onayı al → 5437c57 + kayıt commit'ini gönder.
+
+## Takvimli işler
+- 21 Ağustos ~18:25: 2. Hafta mührü — Radar 5 süzgeç kırılımları ilk kez
+  gerçek veriyle dolacak (1. Hafta boş mühürlüydü, TÜREV görünümle çalışıyor).
+- 27 Ağustos gecesi: Celta Vigo – Osasuna GERÇEKTEN oynanacak — kupon
+  gerçeği korumasının saha sınavı. Beklenti: 1. Hafta kaydı ve ekranı
+  KILINI KIPIRDATMAZ (skor kurayı ezemez; testli ama sahada da bakılmalı).
+- Küçük/eski: /yonetim panelinin gözle doğrulaması (testler yeşil).
+
+## Engel (Project Worker güvenilir doğrulama kapısı)
+Başlangıç çizgisi kurulmadı — eksikler:
+* FEATURES.json boş (özellik kataloğu: ID + kabul ölçütleri +
+  verification_task_id), `requirements_locked` false, `ui_project` null.
+* VERIFICATION_PLAN.json `commands` boş (gerçekler: backend `npm test` ·
+  flutter `flutter analyze` + `flutter test`).
+KESİN ADIM: katalog kullanıcı onayıyla doldurulup kilitlenecek — kilit geri
+dönüşsüz olduğundan onaysız kilitlenmeyecek.
+
+- Güncelleme: 2026-08-19 (gece kapanışı)

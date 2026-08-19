@@ -34,3 +34,14 @@
   doğrulandı: /api/history/1528 → 15/15, fullyResolved, 15. maç result=1
   viaNotary, ikramiye tablosu dolu. 27 Ağustos koruması (kupon gerçeği)
   artık yayında.
+- 2026-08-19 (gece 5): Emülatör turunda iki bulgu kapatıldı — Hafta Kapanışı
+  noter haftasını 14/15 sayıyordu (son resmî-tanım da viaNotary'ye hizalandı)
+  ve ikramiye devir satırı tutarsızdı (resmî yazımla "OLMADIĞINDAN … ₺
+  önümüzdeki haftaya devretti"). Flutter 919/0. Push bekliyor.
+- 2026-08-19 (gece 6, kapanış): Kullanıcı release APK'yı telefona kurdu, veri
+  gelmedi. aapt ile ölçüldü: pakette INTERNET izni YOKTU (yalnız debug
+  manifest'indeydi — emülatörde bu yüzden görünmedi). Manifest düzeltildi,
+  bekçi test eklendi (manifest_izin_test), APK yeniden derlendi ve
+  masaüstündeki kopya İZİNLİ paketle güncellendi (aapt doğrulamalı).
+  Commit: 5437c57 (push onayı yarına). YARIN İLK İŞ: kullanıcı yeni APK'yı
+  kurup telefonda veri akışını doğrulayacak. Flutter 920/0.
