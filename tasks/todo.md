@@ -693,3 +693,16 @@ testi yeni id'yi doğruladı.
 AÇILINCA düşer (bildirim merkezi). Uygulama kapalıyken telefona "maç
 ertelendi" gitmez — önceden zamanlanamayan olay yerel bildirimle yapılamaz;
 sunucu push ayrı bir karardır (kapsam dışı bırakıldı).
+
+**Emülatörde doğrulandı (19 Ağustos 2026, canlı veri — 1. Hafta 14/15):**
+- Bülten geçmiş hafta alt başlığı: "Yeni resmi sonuç bulunamadı · 14/15 geldi
+  · 15. maç ertelendi — noter kararı bekleniyor" ✓
+- İkramiye bölümü: "…Tüm sonuçlar tamamlanınca ikramiye görünecek. 15. maç
+  ertelendi — ikramiye, noter kararı girilince kesinleşecek." ✓
+- Bildirim merkezi: "📅 Maç ertelendi · 15. Celta Vigo – Osasuna · 1. Hafta
+  sonucu bu maçın noter kararıyla kesinleşecek." (okunmamış, en üstte) ✓
+- Haftalık Başarı durum satırı: "Resmi sonuçlar bekleniyor · 14/15 geldi ·
+  15. maç ertelendi — noter kararı bekleniyor" ✓
+/yonetim panelindeki "Noter Kararı Bekleyen Maçlar" kartı cihaz kapsamı
+dışında (masaüstü + operatör girişi) — testleri yeşil, görsel doğrulaması
+operatör girişiyle yapılacak.
