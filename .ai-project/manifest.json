@@ -1,0 +1,71 @@
+{
+    "schema_version":  2,
+    "worker_version":  "1.1.2",
+    "project_id":  "b8a31f25-5aed-40b4-ac7f-1fc81f1419ed",
+    "project_name":  "sportoto-analiz-karar-motoru-test",
+    "origin_project_root_sha256":  "c20b054326171e70249407d93d5f58b5808629edfaa1d3dc3d89a35af6ab72d1",
+    "installed_at_utc":  "2026-08-19T16:24:19.8619753Z",
+    "files":  [
+                  {
+                      "path":  ".ai-project/CURRENT.md",
+                      "sha256":  "1bf50daf611d0bfc45ad9da39c6b011d04bc13c731669174e20753e113782be6",
+                      "created":  true
+                  },
+                  {
+                      "path":  ".ai-project/DECISIONS.md",
+                      "sha256":  "e94c97ec2ab5a42e3bdd644fb8cb34bb0da4441f5b6bb99769f748e7ce3a02c5",
+                      "created":  true
+                  },
+                  {
+                      "path":  ".ai-project/FEATURES.json",
+                      "sha256":  "84957f4cb2918e1950959c55aa031e0236b1f1a15948bed410b74b3dc5a88d9b",
+                      "created":  true
+                  },
+                  {
+                      "path":  ".ai-project/PROGRESS.md",
+                      "sha256":  "6cff1ac8a2c339aff4e65ad832069da893bd95f377f9483a13e5ceed08b1ff6c",
+                      "created":  true
+                  },
+                  {
+                      "path":  ".ai-project/STATUS.json",
+                      "sha256":  "d2b52c6524826c500c9eb60a0654232eee33e36eac98b97703c8f1ead5ec78e9",
+                      "created":  true
+                  },
+                  {
+                      "path":  ".ai-project/SYSTEM.md",
+                      "sha256":  "b9a7021f81b3b6ddb8fc30c4708e3d5abdc7a119ab02c5b6675177ac41a5fe02",
+                      "created":  true
+                  },
+                  {
+                      "path":  ".ai-project/TASKS.json",
+                      "sha256":  "2c64cc5d5e0800c7829f8784506d36224f4ec583a4348457055288824c37b45b",
+                      "created":  true
+                  },
+                  {
+                      "path":  ".ai-project/VERIFICATION.json",
+                      "sha256":  "259ba16507bd4b21510dbd6220d9eb6c345ab21d7e1c05f27ec9e67b8186c695",
+                      "created":  true
+                  },
+                  {
+                      "path":  ".ai-project/VERIFICATION_PLAN.json",
+                      "sha256":  "a3004d3f18bfd3d0c7d029629f9ff73884c4f68c433c4c541bbf57f8189d2c82",
+                      "created":  true
+                  },
+                  {
+                      "path":  ".ai-project/evidence/.gitkeep",
+                      "sha256":  "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+                      "created":  true
+                  },
+                  {
+                      "path":  ".claude/rules/00-project-worker.md",
+                      "sha256":  "33ec16afddbace929ce664b0850d03353943548720e7d514e3a6ef72ba5561e8",
+                      "created":  true
+                  },
+                  {
+                      "path":  ".claude/skills/project-continuity/SKILL.md",
+                      "sha256":  "c7f480a0e4708f7085683b8a3b0614c7d551cc0bb0177930f9ebe52ec2479cf3",
+                      "created":  true
+                  }
+              ],
+    "gitignore_block_added":  true
+}

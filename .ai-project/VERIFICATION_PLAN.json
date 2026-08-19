@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "commands": [],
+  "ui_evidence_paths": [],
+  "ui_evidence_required_when_applicable": true,
+  "require_clean_worktree_for_project_completion": true
+}

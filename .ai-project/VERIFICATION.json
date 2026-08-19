@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "last_run_at_utc": null,
+  "git_commit": null,
+  "source_fingerprint": null,
+  "requirements_sha256": null,
+  "plan_sha256": null,
+  "task_id": null,
+  "passed": false,
+  "external_attestation_id": null,
+  "evidence": []
+}

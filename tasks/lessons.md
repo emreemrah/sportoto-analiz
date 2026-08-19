@@ -455,3 +455,20 @@ Düzeltme paketi: bildirim (match-postponed) + durum satırı sebebi
 (ertelemeDurumEki) + panel bekleyen iş kartı (noterBekleyen) + isOfficial'a
 viaNotary. Tespit kuralı TEK tanımda tutuldu: `core/erteleme.dart` ↔
 `backend/src/ertelenen.js` (eşik 7 gün, ikisi birden değişir).
+
+## Ders — Sağlayıcı alanına anlam yüklemeden önce ÜÇ durumda ölç (2026-08-19)
+
+**Neden:** Resmî API'nin `noterWin` alanı keşfedildiğinde ilk kod "alan doluysa
+kuradır" varsayacaktı. Ölçüm üç FARKLI hâl gösterdi: oynanmamış maçta `null`,
+oynanmış normal maçta `0` (varsayılan dolgu — kura DEĞİL), kura kararlı maçta
+gerçek karar (`1`). `0` hem "değer yok" hem "X kurası" olabiliyor; tek örnekle
+yazılan kod ya her oynanmamış maçı noter yapardı ya da X kurasını kaçırırdı.
+
+**Nasıl uygulanır:** Yeni bir sağlayıcı alanı bağlanırken en az üç durumun ham
+verisi ölçülür: (1) olay hiç yokken, (2) olay olmuş ama alan İLGİSİZKEN,
+(3) olay tam alanın anlattığı şeyken. Ayrım yapılamayan durumda hüküm
+VERİLMEZ; karar, kesin kaynağı olan katmana bırakılır (burada: arşivdeki
+notary_decision kaydı koşulsuz kazanır). Ve alan sonradan değişebilecekse
+"kupon gerçeği" gibi geri alınamaz değerlendirmeler İLK resmî karara
+sabitlenir — sonradan gelen veri (27 Ağustos'ta oynanacak maçın skoru) onu
+ezemez.

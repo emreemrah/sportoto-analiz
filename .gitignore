@@ -38,3 +38,6 @@ app/.audit-web-*/
 !backend/.env.example
 *.zip
 *.tar.gz
+# BEGIN CLAUDE PROJECT WORKER
+.ai-project/runtime/
+# END CLAUDE PROJECT WORKER
