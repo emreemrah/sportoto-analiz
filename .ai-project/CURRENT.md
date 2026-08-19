@@ -17,9 +17,9 @@
   .gitignore'daki 3 satır) — kullanıcı kararı bekliyor.
 - Son test sonucu: backend 1126 geçti / 0 kaldı · Flutter 916 geçti / 0 kaldı.
 - Bekleyen işler:
-  1. YAYIN: otomatik noter işleme + önlem paketi henüz Render'a çıkmadı;
-     üretimdeki uygulama 1. Haftayı hâlâ 14/15 gösterir. Push/deploy dışa
-     dönük iş — kullanıcı onayı bekleniyor (kural: sorulmadan push yok).
+  1. YAYIN: TAMAMLANDI (2026-08-19 gece) — adf0718 push edildi, Render deploy
+     doğrulandı: üretimde /api/history/1528 → 15/15 · fullyResolved · 15. maç
+     result=1 viaNotary · ikramiye tablosu dolu.
   2. 21 Ağustos — 2. Hafta mühürü. Radar 5 süzgeç kırılımları ilk kez gerçek
      veriyle o mühürde dolacak.
   3. Küçük/eski: yönetim panelinin tarayıcıda görsel doğrulaması (7 Ağustos'ta

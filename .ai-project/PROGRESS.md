@@ -30,3 +30,7 @@
   Ağustos'ta oynandığında skor kurayı EZEMEZ (3 katman: sportoto.js eşleme,
   arşiv ingest koruması, /api/history koşulsuz noter katmanı). noterWin alan
   davranışı 30 satırla ölçüldü (null/0-dolgu/karar ayrımı). Backend 1126/0.
+- 2026-08-19 (gece 4): Kullanıcı onayıyla push + Render deploy. Üretimde
+  doğrulandı: /api/history/1528 → 15/15, fullyResolved, 15. maç result=1
+  viaNotary, ikramiye tablosu dolu. 27 Ağustos koruması (kupon gerçeği)
+  artık yayında.
