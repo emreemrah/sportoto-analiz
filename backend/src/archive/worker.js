@@ -13,7 +13,7 @@ import {
   registerBulletinFromData, recordObservationsFromData, freezeBulletinFromData, computeFreezeAt,
   firstKickoffMs,
 } from './snapshotService.js';
-import { ingestOfficialResults, maybeCompleteAndEvaluate } from './resultsService.js';
+import { ingestOfficialResults, ingestNotaryResults, maybeCompleteAndEvaluate } from './resultsService.js';
 
 const DEFAULT_TICK_MS = 30 * 1000;
 const RESULTS_EVERY_TICKS = 10;            // 30sn × 10 = 5 dk'da bir sonuç kontrolü
@@ -121,6 +121,10 @@ async function resultsPass({ store, fetchRoundResults, log }) {
       const official = await fetchRoundResults(b.roundId);
       if (official?.matches?.length) {
         await ingestOfficialResults(b.id, official.matches, { store, actor: 'worker' });
+        // Ertelenen maçın resmî noter kararı (viaNotary) — skorlu akışın
+        // yapısal olarak dışladığı satırlar buradan, aynı güvencelerle girer
+        // (2026-08-20; 1. Hafta 15. maç noterWin=1 ile ölçüldü).
+        await ingestNotaryResults(b.id, official.matches, { store });
         await maybeCompleteAndEvaluate(b.id, { store });
       }
     } catch (e) {

@@ -85,6 +85,17 @@ function normalizeMatch(row, index) {
   const finished = score.homeRegular != null && score.awayRegular != null
     && m.fullTimeWin != null;
 
+  // NOTER KARARI RESMÎ API'DE VARMIŞ (2026-08-20 canlı bulgu, 1. Hafta 15.
+  // maç): ertelenen maçın kura sonucu `noterWin` alanında yayımlanıyor —
+  // 1528'de ölçüldü: üst satırda noterWin null, iç `match` nesnesinde 1.
+  // "Ertelenen maçın sonucu sağlayıcıdan ASLA gelmez" varsayımı (10 Ağustos,
+  // resultsService) bu alanla çürüdü; elle giriş artık yalnız API'nin de
+  // yayımlamadığı durumlar için yedek. Skor UYDURULMAZ (maç oynanmadı);
+  // satır viaNotary taşır: ekran "Ertelendi · Noter Kararı" basar, radar
+  // karnesi motor isabeti SAYMAZ, kupon değerlendirmesi Spor Toto kuralı
+  // gereği işareti sayar.
+  const noterSonuc = finished ? null : winToSymbol(m.noterWin ?? row.noterWin);
+
   return {
     no: index + 1,
     sportotoMatchId: m.id || row.id,
@@ -107,7 +118,8 @@ function normalizeMatch(row, index) {
       ? { home: score.homeRegular, away: score.awayRegular }
       : null,
     // 1 / X / 2 sonucu (bilen için): fullTimeWin 1=ev, 0=beraberlik, 2=deplasman
-    result: finished ? winToSymbol(m.fullTimeWin) : null,
+    result: finished ? winToSymbol(m.fullTimeWin) : noterSonuc,
+    ...(noterSonuc ? { viaNotary: true } : {}),
   };
 }
 

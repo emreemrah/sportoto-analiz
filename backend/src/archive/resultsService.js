@@ -72,10 +72,16 @@ export async function ingestOfficialResults(bulletinId, officialMatches, {
 // --------------------------------------------------------------------------
 // NOTER KARARI — ertelenen/oynanmayan maçın resmî işareti (2026-08-10).
 //
-// NEDEN VAR: ertelenen maçın sonucu sağlayıcıdan ASLA gelmez (yukarıdaki skor
+// NEDEN VAR: ertelenen maçın SKORU sağlayıcıdan asla gelmez (yukarıdaki skor
 // şartı yapısal olarak dışlar) ve hafta sonsuza dek 'locked' kalıyordu
 // (53. Hafta 14. maç, Raków–Zagłębie ile yaşandı). Spor Toto böyle maçları
 // noter kararıyla sonuçlandırır; bu kayıt o resmî kararı sisteme taşır.
+//
+// GÜNCELLEME (2026-08-20, 1. Hafta 15. maç ile ölçüldü): resmî API kararın
+// KENDİSİNİ `noterWin` alanında yayımlıyormuş (sportoto.js bunu viaNotary
+// olarak işaretler). Aşağıdaki ingestNotaryResults o alanı otomatik işler;
+// elle giriş (recordNotaryResult üzerinden operatör ucu) API'nin de
+// yayımlamadığı durumlar için YEDEK olarak durur.
 //
 // SINIRLAR (resmî sonuçlara dokunmama kuralının ruhu korunur):
 //  • YALNIZ sonucu OLMAYAN maça yazılabilir — mevcut sonucu değiştiremez.
@@ -85,6 +91,38 @@ export async function ingestOfficialResults(bulletinId, officialMatches, {
 //    Spor Toto kuralı gereği işareti sayar ve satır viaNotary ile işaretlenir.
 //  • Her giriş audit'e yazılır.
 // --------------------------------------------------------------------------
+/**
+ * Resmî API'nin yayımladığı noter kararlarını OTOMATİK işler (worker'dan).
+ *
+ * Yalnız sportoto.js'in viaNotary işaretlediği satırlar okunur: resmî
+ * `noterWin` alanı var, skor YOK. Kayıt recordNotaryResult üzerinden gider —
+ * bütün güvenceler aynen: yalnız sonuçsuz maça yazılır, skor NULL kalır,
+ * resultType='notary_decision' (radar karnesi saymaz), audit'e yazılır,
+ * 15/15'e ulaşınca tamamlama + değerlendirme tetiklenir. İdempotenttir:
+ * kayıtlı sıra ikinci geçişte atlanır (uç curl'lenmiş ya da operatör panelden
+ * girmiş olabilir — mevcut kayıt ASLA ezilmez).
+ */
+export async function ingestNotaryResults(bulletinId, officialMatches, {
+  store = getArchiveStore(), actor = 'sportoto-webapi',
+} = {}) {
+  const id = String(bulletinId);
+  let added = 0;
+  let sonDurum = null;
+  const kayitli = new Set(
+    (await store.listOfficialResults(id)).map((r) => Number(r.orderNo)),
+  );
+  for (const m of officialMatches || []) {
+    if (m?.viaNotary !== true) continue;             // yalnız resmî noter alanı
+    if (m.score) continue;                           // skorlu satır noter değildir
+    if (!VALID_RESULTS.has(m.result)) continue;
+    const no = Number(m.no);
+    if (!(no >= 1 && no <= 15) || kayitli.has(no)) continue;
+    sonDurum = await recordNotaryResult(id, { orderNo: no, sonuc: m.result }, { store, actor });
+    added += 1;
+  }
+  return { added, durum: sonDurum };
+}
+
 export async function recordNotaryResult(bulletinId, { orderNo, sonuc }, {
   store = getArchiveStore(), actor = 'operator', now = Date.now(),
 } = {}) {

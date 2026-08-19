@@ -1393,3 +1393,19 @@ karnesine sayılmaz — güvenceler değişmedi). Ayrıca uygulama tarafı da ar
 susmuyor: bildirim merkezi "Maç ertelendi" diyor, hafta durum satırları ve
 ikramiye bölümü "noter kararı bekleniyor" sebebini yazıyor. Ayrıntı:
 tasks/todo.md → "Ertelenen maç senaryosu — KALICI ÖNLEM PAKETİ".
+
+## KAPANIŞ (19 Ağustos 2026 gecesi) — 1. Hafta noter kararı SİSTEME GİRDİ
+
+Kura çekildi; resmî webapi kararı `match.noterWin = 1` alanında yayımladı
+(torba: 1→8 top, X→1, 2→1; çekilen: **1**). ÖNEMLİ BULGU: "ertelenen maçın
+sonucu sağlayıcıdan asla gelmez" varsayımı yanlışmış — API `noterWin` alanını
+yayımlıyor ama istemcimiz okumuyordu. Artık okuyor (sportoto.js) ve worker
+arşive otomatik işliyor (ingestNotaryResults, resultType=notary_decision,
+skor NULL, audit'li, idempotent — operatör kaydını asla ezmez). Elle giriş
+(panel kartı) API'nin de yayımlamadığı durumlar için YEDEK olarak duruyor.
+
+Doğrulandı: /api/history/1528 → 15/15 · fullyResolved · 15. maç result=1,
+viaNotary, skor null. Emülatörde: kart "NOTER · 1 · Ertelendi · Noter
+Kararı", hafta başlığı "Sonuçlar açıklandı", ikramiye tablosu dolu
+(15 bilen 0 — devir; 14 bilen 8 × 2.153.527,18 ₺). Sistem tahmini 1-X ✅
+kupon kuralına göre sayıldı; radar karnesi bu maçı saymaz (notary_decision).
