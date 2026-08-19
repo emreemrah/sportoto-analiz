@@ -82,19 +82,35 @@ function normalizeMatch(row, index) {
   const home = m.homeTeam || {};
   const away = m.awayTeam || {};
   const score = m.score || {};
-  const finished = score.homeRegular != null && score.awayRegular != null
+  const skorVar = score.homeRegular != null && score.awayRegular != null
     && m.fullTimeWin != null;
 
   // NOTER KARARI RESMÎ API'DE VARMIŞ (2026-08-20 canlı bulgu, 1. Hafta 15.
-  // maç): ertelenen maçın kura sonucu `noterWin` alanında yayımlanıyor —
-  // 1528'de ölçüldü: üst satırda noterWin null, iç `match` nesnesinde 1.
+  // maç): ertelenen maçın kura sonucu `noterWin` alanında yayımlanıyor.
   // "Ertelenen maçın sonucu sağlayıcıdan ASLA gelmez" varsayımı (10 Ağustos,
   // resultsService) bu alanla çürüdü; elle giriş artık yalnız API'nin de
-  // yayımlamadığı durumlar için yedek. Skor UYDURULMAZ (maç oynanmadı);
-  // satır viaNotary taşır: ekran "Ertelendi · Noter Kararı" basar, radar
-  // karnesi motor isabeti SAYMAZ, kupon değerlendirmesi Spor Toto kuralı
-  // gereği işareti sayar.
-  const noterSonuc = finished ? null : winToSymbol(m.noterWin ?? row.noterWin);
+  // yayımlamadığı durumlar için yedek.
+  //
+  // ALAN DAVRANIŞI ÖLÇÜLDÜ (1528 + 1529, 15+15 satır):
+  //   oynanmamış maç        → noterWin NULL (0 bile değil)
+  //   oynanmış normal maç   → noterWin 0 (varsayılan dolgu — kura DEĞİL)
+  //   kura kararlı maç      → noterWin 1 (skor yok)
+  //
+  // KUPON GERÇEĞİ KURALI: kura kararı verilmiş maç SONRADAN OYNANSA BİLE
+  // (Celta Vigo – Osasuna 27 Ağustos'ta oynanacak) Spor Toto haftayı KURAYLA
+  // değerlendirdi ve ikramiye ona göre dağıtıldı — bu bültende o maçın kupon
+  // sonucu sonsuza dek kuradır, maç skoru değil. Bu yüzden skorlu satırda
+  // noterWin 1/2 ise NOTER kazanır (skor bu bültenin verisi değildir, null
+  // kalır). Skorlu satırda 0, normal maçların varsayılan dolgusundan ayırt
+  // EDİLEMEZ → burada karar verilmez; X kurası çekilmiş-sonra-oynanmış maçı
+  // /api/history'deki arşiv katmanı düzeltir (notary kaydı koşulsuz kazanır).
+  // Satır viaNotary taşır: ekran "Ertelendi · Noter Kararı" basar, radar
+  // karnesi motor isabeti SAYMAZ, kupon değerlendirmesi işareti sayar.
+  const noterKarar = winToSymbol(m.noterWin ?? row.noterWin);
+  const noterSonuc = skorVar
+    ? (noterKarar === '1' || noterKarar === '2' ? noterKarar : null)
+    : noterKarar;
+  const finished = skorVar && !noterSonuc;
 
   return {
     no: index + 1,

@@ -71,10 +71,12 @@ test('(a) noterWin=0 → X; geçersiz değer → sonuç YOK (uydurma yok)', asyn
   assert.equal(b.matches[2].result, null);
 });
 
-test('(a) BİTMİŞ maç viaNotary taşımaz — normal sonuç akışı değişmedi', async () => {
+test('(a) NORMAL bitmiş maç (noterWin=0 dolgu) skorlu akışta — viaNotary YOK', async () => {
+  // Ölçülen gerçek biçim (1528, 14 normal maç): bitmiş maçta noterWin 0
+  // gelir ve bu KURA DEĞİL, varsayılan dolgudur — skorlu akış kazanır.
   const b = await fetchIleBulten([
     hamSatir({}, {
-      fullTimeWin: 2, noterWin: 1, // ikisi de dolu olsa bile skor kazanır
+      fullTimeWin: 2, noterWin: 0,
       score: { homeRegular: 0, awayRegular: 2 },
     }),
   ]);
@@ -83,6 +85,21 @@ test('(a) BİTMİŞ maç viaNotary taşımaz — normal sonuç akışı değişm
   assert.equal(m.viaNotary, undefined);
   assert.deepEqual(m.score, { home: 0, away: 2 });
   assert.equal(m.status, 'finished');
+});
+
+test('(a) KUPON GERÇEĞİ: kura kararlı maç SONRADAN OYNANSA bile kura kazanır', async () => {
+  // Celta Vigo – Osasuna 27 Ağustos'ta oynanacak. Spor Toto haftayı KURAYLA
+  // değerlendirdi ve ikramiyeyi dağıttı — skor bu bültenin verisi değildir.
+  const b = await fetchIleBulten([
+    hamSatir({}, {
+      fullTimeWin: 2, noterWin: 1,                  // maç 0-2 bitti ama kura '1'
+      score: { homeRegular: 0, awayRegular: 2 },
+    }),
+  ]);
+  const m = b.matches[0];
+  assert.equal(m.result, '1', 'kupon sonucu KURA kalmalı, maç skoru değil');
+  assert.equal(m.viaNotary, true);
+  assert.equal(m.score, null, 'kurayla değerlendirilen bültende skor basılmaz');
 });
 
 // ---- (b) arşive otomatik işleme -------------------------------------------
@@ -128,6 +145,22 @@ test('(b) viaNotary İŞARETSİZ skorsuz satır alınmaz — uydurma kapısı yo
   ], { store });
   assert.equal(r.added, 0);
   assert.equal((await store.listOfficialResults(RID)).some((x) => x.orderNo === 1), false);
+});
+
+test('(b) SKORLU resmî satır noter kaydını EZEMEZ — kupon gerçeği sabittir', async () => {
+  // Maç 27 Ağustos'ta oynanınca worker'a skorlu satır gelecek; düzeltme
+  // mekanizması kuranın üstüne maç skorunu yazsaydı karne/kupon geriye
+  // dönük değişirdi (ikramiye kuraya göre dağıtılmışken).
+  const { ingestOfficialResults } = await import('../src/archive/resultsService.js');
+  const r = await ingestOfficialResults(RID, [
+    { no: 15, sportotoMatchId: 'n15', result: '2', score: { home: 0, away: 2 } },
+  ], { store });
+  assert.equal(r.corrected, 0);
+  assert.equal(r.resolved, 0, 'noterli sıra skorlu akışta hiç işlenmez');
+  const kayit = (await store.listOfficialResults(RID)).find((x) => x.orderNo === 15);
+  assert.equal(kayit.officialResult, '1', 'kura kaydı maç skoruyla değişmedi');
+  assert.equal(kayit.resultType, 'notary_decision');
+  assert.equal(kayit.fullTimeScore, null);
 });
 
 test('(b) elle giriş yedeği hâlâ çalışır ve otomatik geçiş onu da ezmez', async () => {

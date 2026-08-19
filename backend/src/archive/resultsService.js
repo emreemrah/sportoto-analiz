@@ -36,7 +36,18 @@ export async function ingestOfficialResults(bulletinId, officialMatches, {
 } = {}) {
   const id = String(bulletinId);
   let added = 0, corrected = 0, resolved = 0;
+  // NOTER KAYDI SKORLA EZİLEMEZ (2026-08-20): kura kararı verilmiş maç
+  // SONRADAN OYNANIRSA resmî uca skor düşer; düzeltme mekanizması o skoru
+  // kuranın üstüne yazardı. Oysa Spor Toto haftayı KURAYLA değerlendirdi ve
+  // ikramiye dağıtıldı — kupon gerçeği değişmez. Noter kimliği taşıyan sıra
+  // bu akışta atlanır (Celta Vigo – Osasuna, 27 Ağustos'ta oynanacak).
+  const noterli = new Set(
+    (await store.listOfficialResults(id))
+      .filter((r) => r.resultType === 'notary_decision')
+      .map((r) => String(r.matchId)),
+  );
   for (const m of officialMatches || []) {
+    if (noterli.has(String(m.sportotoMatchId ?? m.no))) continue;
     const result = m.result ?? null;
     const score = m.score ?? null;
     if (result == null && score == null) continue;                    // sonuç yok → yazma (uydurma yok)

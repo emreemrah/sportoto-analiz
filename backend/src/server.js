@@ -545,19 +545,28 @@ app.get('/api/history/:roundId', async (req, res) => {
         getRoundResult(roundId),
       ]);
       // NOTER KARARI KATMANI (2026-08-10): resmî Spor Toto API'si ertelenen
-      // maçın noter kararını HİÇ dönmez (53. Hafta 14. maç, Raków–Zagłębie
-      // ile yaşandı — ekran sonsuza dek 'Resmi sonuç bekliyor' gösteriyordu).
-      // Arşivdeki resmî noter kaydı (operatör girişli, audit'li) görüntüye
+      // maçın noter kararını sonuç akışında dönmez (53. Hafta 14. maç,
+      // Raków–Zagłębie ile yaşandı — ekran sonsuza dek 'Resmi sonuç
+      // bekliyor' gösteriyordu). Arşivdeki resmî noter kaydı görüntüye
       // eklenir: işaret VAR, skor YOK (uydurulmaz), viaNotary açık yazılır.
       // Kural bozulmaz: arşive buradan hiçbir şey YAZILMAZ, yalnız okunur.
+      //
+      // KOŞULSUZ KAZANIR (2026-08-20): eskiden yalnız sonuçsuz maça
+      // uygulanıyordu. Kura kararlı maç SONRADAN OYNANIRSA (Celta Vigo –
+      // Osasuna, 27 Ağustos) resmî uç skor döndürür ve görüntü maç skorunu
+      // basardı — oysa hafta KURAYLA değerlendirildi, ikramiye ona göre
+      // dağıtıldı; skoru basmak ekranı ikramiye tablosuyla çeliştirir.
+      // Kupon gerçeği: notary kaydı varsa sonuç KURA, skor bu bültenin
+      // verisi değil (null'a çekilir).
       try {
         const noter = (await getArchiveStore().listOfficialResults(String(roundId)))
           .filter((r) => r.resultType === 'notary_decision');
         for (const r of noter) {
           const mm = bulletin.matches.find((m) => m.no === r.orderNo);
-          if (mm && !(mm.result && mm.score)) {
+          if (mm) {
             mm.result = r.officialResult;
             mm.viaNotary = true;
+            mm.score = null;
           }
         }
       } catch { /* arşiv okunamazsa görüntü eski davranışında kalır */ }
