@@ -105,11 +105,24 @@ class PrizeSection extends StatelessWidget {
 
     return [
       // LİSTE — RESMÎ yazımda: "9 ADET 4.035.942,42 ₺".
+      //
+      // DEVİR SATIRI RESMÎ YAZIMLA (19 Ağustos 2026, kullanıcı bulgusu):
+      // sportoto.gov.tr "OLMADIĞINDAN 30.149.380,57 ₺ ÖNÜMÜZDEKİ HAFTAYA
+      // DEVRETTİ." yazar; bizde yalnız "0 ADET · Devretti" vardı — devreden
+      // TUTAR eldeyken gösterilmiyordu. Tutar yoksa eski kısa yazım kalır
+      // (uydurulmaz).
       for (final t in tiers.cast<Map>())
         _satir(
           hit: '${t['hit']} Bilen',
-          count: '${fmtCount(t['count'] as num?)} ADET',
-          amt: t['count'] == 0 ? 'Devretti' : fmtTLResmi(t['prize'] as num?),
+          count: t['count'] == 0
+              ? 'OLMADIĞINDAN'
+              : '${fmtCount(t['count'] as num?)} ADET',
+          amt: t['count'] == 0
+              ? (t['prize'] == null
+                    ? 'Devretti'
+                    : '${fmtTLResmi(t['prize'] as num?)} önümüzdeki '
+                          'haftaya devretti')
+              : fmtTLResmi(t['prize'] as num?),
           devretti: t['count'] == 0,
         ),
 
@@ -215,13 +228,20 @@ class PrizeSection extends StatelessWidget {
               ),
             ),
           ),
-          Text(
-            amt,
-            style: TextStyle(
-              color: devretti ? AppColors.textMuted : AppColors.green,
-              fontSize: 13,
-              fontWeight: devretti ? AppFont.bold : AppFont.heavy,
-              fontStyle: devretti ? FontStyle.italic : FontStyle.normal,
+          // Devir cümlesi uzundur ("… ₺ önümüzdeki haftaya devretti") —
+          // esnek kutu olmadan dar ekranda satır taşardı; gerekirse alt
+          // satıra sarar. Expanded + sağa hizalama: kısa tutarlar eskisi
+          // gibi sağ kenarda kalır (Flexible gevşek yerleşimde koparırdı).
+          Expanded(
+            child: Text(
+              amt,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: devretti ? AppColors.textMuted : AppColors.green,
+                fontSize: 13,
+                fontWeight: devretti ? AppFont.bold : AppFont.heavy,
+                fontStyle: devretti ? FontStyle.italic : FontStyle.normal,
+              ),
             ),
           ),
         ],

@@ -22,13 +22,21 @@ String? normResult(Object? r) {
 }
 
 /// RESMÎ ÇÖZÜLMÜŞ maç: hem resmî sonuç hem skor gelmiş olmalı.
+///
+/// KAYNAKTAN BİLİNÇLİ SAPMA (2026-08-19, emülatörde yakalandı): ertelenen
+/// maçın NOTER KARARI da resmî sonuçtur ama SKORU YOKTUR (maç oynanmadı;
+/// skor uydurulmaz). Bu dosya viaNotary'yi tanımayınca 1. Hafta kurayla
+/// 15/15 kesinleştiği hâlde Hafta Kapanışı "14/15 resmî sonuç" diyordu —
+/// resmî ikramiye tablosu dağıtılmışken. Kupon/sistem işareti Spor Toto
+/// kuralı gereği kura sonucuyla değerlendirilir (bülten kartıyla aynı);
+/// motor KARNESİ ayrıdır ve backend'de noter maçını zaten saymaz.
 bool isOfficiallyResolved(Map? m) {
   if (m == null) return false;
   // JS'te `!!(m.result && m.score && ...)` — boş dizge/0 da FALSY sayılır.
   final r = m['result'];
   final s = m['score'];
   final rDolu = r != null && r != false && '$r'.isNotEmpty && r != 0;
-  final sDolu = s != null && s != false;
+  final sDolu = (s != null && s != false) || m['viaNotary'] == true;
   return rDolu && sDolu && normResult(r) != null;
 }
 

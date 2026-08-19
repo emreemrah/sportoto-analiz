@@ -262,6 +262,34 @@ void main() {
       expect(r.head2head!.winner, 'tie');
     });
 
+    test('NOTER kararı resmî sayılır: hafta 15/15 kapanır, skor uydurulmaz', () {
+      // Emülatörde yakalandı (19 Ağustos 2026): 1. Hafta kurayla kesinleşip
+      // ikramiye dağıtılmışken Hafta Kapanışı "14/15" diyordu — bu dosyanın
+      // resmî tanımı viaNotary'yi tanımıyordu. Kupon/sistem işareti Spor
+      // Toto kuralı gereği kura sonucuyla değerlendirilir.
+      final r = buildWeekRecap(
+        matches: [
+          ...mac([(no: 1, result: '1', sys: '1')]),
+          {
+            'no': 15,
+            'home': 'Celta Vigo',
+            'away': 'Osasuna',
+            'result': '1', // kura sonucu
+            'viaNotary': true, // skor YOK — maç oynanmadı
+            'prediction': {'symbol': '1X'},
+          },
+        ],
+      );
+      expect(r.official.resolved, 2);
+      expect(r.official.complete, isTrue);
+      final noter = r.rows.singleWhere((x) => x.no == 15);
+      expect(noter.score, isNull, reason: 'oynanmamış maça skor uydurulmaz');
+      expect(noter.actual, '1');
+      expect(noter.system!.hit, isTrue, reason: 'kura işareti kupon kuralıyla sayılır');
+      expect(r.system!.made, 2);
+      expect(r.system!.correct, 2);
+    });
+
     test('çoklu seçim tutarsa isabet sayılır', () {
       final r = buildWeekRecap(
         matches: mac([(no: 1, result: 'X', sys: '2')]),
