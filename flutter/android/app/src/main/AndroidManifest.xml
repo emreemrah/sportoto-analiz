@@ -2,9 +2,18 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- KAYNAK: app/app.json → android.permissions
-         Uygulamanın istediği TEK izin budur: maç hatırlatması bildirimi.
+         Kullanıcıya sorulan TEK izin budur: maç hatırlatması bildirimi.
          Konum, kamera, kişiler, mikrofon, depolama İSTENMEZ. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- İNTERNET (2026-08-19, telefonda canlı yakalandı): uygulama bülteni
+         backend'den çeker — bu izin olmadan YAYIN paketi hiçbir ağ isteği
+         atamaz ve ekran "veriler gelmiyor" hâlinde kalır. Debug'da sorun
+         görünmüyordu çünkü izni debug manifest'i ekliyor (hot reload için);
+         ilk gerçek telefon kurulumunda ortaya çıktı. INTERNET "normal"
+         izindir: kullanıcıya sorulmaz, mağaza sayfasında izin olarak
+         listelenmez — yukarıdaki "tek izin bildirim" sözü bozulmaz. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
 
     <!-- KAYNAK: app/app.json → android.blockedPermissions
          Bir bağımlılık bu izinleri kendi manifestine eklerse birleştirme
