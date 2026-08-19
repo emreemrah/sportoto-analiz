@@ -103,6 +103,54 @@ void main() {
       reason: 'önceki haftanın başlamış maçı da elenmeli',
     );
   });
+
+  // NOTER KARARIYLA KAPANAN MAÇ (kullanıcı bulgusu, 19 Ağustos 2026):
+  // 1. Hafta 15. maç kura '1' ile kesinleşti ama resmî uçta durumu 'upcoming',
+  // tarihi ileride kaldı — ana sayfada "yaklaşan" diye durmaya devam etti.
+  // Resmî sonucu olan maç (skor VEYA viaNotary) yaklaşan DEĞİLDİR.
+  test('noter kararıyla kesinleşen ertelenmiş maç listeye GİRMEZ', () {
+    final liste = yaklasanMaclar(
+      _hafta([_mac(9, '2026-08-22T19:00:00')]),
+      {
+        'roundId': 1528,
+        'round': '1. Hafta',
+        'matches': [
+          {
+            ..._mac(15, '2026-08-27T21:30:00'), // ileride ama karar KESİN
+            'result': '1',
+            'viaNotary': true,
+          },
+        ],
+      },
+      10,
+      3,
+      _an,
+    );
+
+    expect(
+      liste.map((m) => m['no']),
+      [9],
+      reason: 'sonucu noterle kesinleşmiş maç "yaklaşan" sayıldı',
+    );
+  });
+
+  test('kararı HENÜZ verilmemiş ertelenen maç listede KALIR (davranış korunur)', () {
+    final liste = yaklasanMaclar(
+      _hafta([_mac(9, '2026-08-22T19:00:00')]),
+      {
+        'roundId': 1528,
+        'round': '1. Hafta',
+        'matches': [
+          _mac(15, '2026-08-27T21:30:00'), // sonuç yok — gerçekten yaklaşan
+        ],
+      },
+      10,
+      3,
+      _an,
+    );
+
+    expect(liste.map((m) => m['no']).toList()..sort(), [9, 15]);
+  });
 }
 
 // ——— SAAT DİLİMİ BAĞIMSIZLIĞI (kullanıcı bildirdi, 16 Ağustos 2026) ———

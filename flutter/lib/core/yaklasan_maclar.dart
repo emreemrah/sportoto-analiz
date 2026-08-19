@@ -18,6 +18,7 @@
 // aynı numaradaki BAŞKA bir maçı açardı. Önceki hafta kartları o haftanın
 // bülten detayına gider.
 
+import 'notifications.dart' show isOfficial;
 import 'utils.dart';
 
 /// Sonucu belli olmayan durumlar. 'void_no_result' resmî sonucu hiç
@@ -97,6 +98,14 @@ List<Map<String, dynamic>> yaklasanMaclar(
 
   bool uygun(Map m) {
     if (!_bitmemis(m) || !_tarihGecerli(m)) return false;
+    // RESMÎ SONUCU OLAN MAÇ "YAKLAŞAN" DEĞİLDİR (19 Ağustos 2026, kullanıcı
+    // bulgusu): noter kararıyla kapanan ertelenmiş maçın durumu resmî uçta
+    // 'upcoming' kalır ve tarihi ileridedir — 1. Hafta 15. maç (Celta Vigo –
+    // Osasuna) kura '1' ile kesinleştiği hâlde ana sayfada durmaya devam
+    // etti. Sonuç kesinse beklenecek bir şey yok; maçın yeri geçmiş bülten
+    // kartıdır ("Ertelendi · Noter Kararı"). Tek tanım: notifications.
+    // isOfficial (skor VEYA viaNotary — noter kaydının skoru yoktur).
+    if (isOfficial(m)) return false;
     final t = _tarih(m['date'])!;
     // Başlama saati GELMİŞ maç listeye girmez (bkz. `_canliPay`).
     return t.isAfter(esik);
