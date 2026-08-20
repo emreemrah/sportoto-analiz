@@ -39,12 +39,21 @@ void main() {
       expect(manifest, contains('android:label="Sportoto Master Analiz"'));
     });
 
-    test('TEK izin istenir: bildirim', () {
-      // KAYNAK: app.json → android.permissions
+    test('izin listesi TAM: bildirim (runtime) + internet (normal)', () {
+      // KAYNAK: app.json → android.permissions.
+      // INTERNET 20 Ağustos 2026'da eklendi (5437c57): yayın paketinde
+      // YOKTU ve telefonda "veriler gelmiyor" yaşandı (debug manifest'inde
+      // olduğundan emülatörde görünmedi). Kullanıcıdan İSTENEN (runtime)
+      // tek izin hâlâ bildirimdir — INTERNET normal izindir, kurulumda
+      // kendiliğinden verilir, kullanıcıya sorulmaz.
+      // Ayrıntılı bekçi: manifest_izin_test.dart.
       final istenen = RegExp(
         r'<uses-permission android:name="([^"]+)"\s*/>',
       ).allMatches(manifest).map((m) => m.group(1)).toList();
-      expect(istenen, ['android.permission.POST_NOTIFICATIONS']);
+      expect(istenen, [
+        'android.permission.POST_NOTIFICATIONS',
+        'android.permission.INTERNET',
+      ]);
     });
 
     test('mahremiyet izinleri birleştirmede SÖKÜLÜR', () {
