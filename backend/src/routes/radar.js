@@ -460,6 +460,24 @@ router.get('/played-dna', async (req, res) => {
 // ÖĞRENME SINIRI: yalnız güncel haftadan ÖNCEKİ turlar (roundId < güncel).
 // Mühürlü geçmiş analizler ellenmez; burada yalnız RESMÎ SONUÇ okunur.
 const ARCHIVE_DNA_MAX_ROUNDS = 60;
+// SEÇİLEN HAFTANIN GERÇEK SEZONU — ARŞİVDEN (2026-08-21).
+// Statik geçmiş depo donmuş bir içe aktarımdır ve YENİ sezonu bilmez. Yeni
+// sezonun ilk haftalarında oradaki arama boş düşünce sezon, "son tamamlanmış
+// statik turun sezonu"na — yani GEÇEN sezona — kayıyordu: 2. Hafta'nın (1529,
+// 2026/2027) Radar 5'i 2025/2026 ile hesaplanıyor, arşivde sonuçlanmış
+// 1. Hafta (1528, 2026/2027) sezon süzgecine takılıp SESSİZCE düşüyordu
+// (21 Ağustos bildirimi: "Radar 5'e 1. Hafta sonuçları yansımamış").
+// Arşiv bülteni haftanın kendi sezonunu bilir; statik depo bilmiyorsa ona
+// sorulur. Okunamazsa null döner — çağıran kendi yedeğine düşer.
+async function arsivSezonu(store, roundId) {
+  if (roundId == null) return null;
+  try {
+    const b = ((await store.listBulletins()) || [])
+      .find((x) => String(x?.roundId ?? x?.id) === String(roundId));
+    return b?.season ?? b?.seasonYear ?? null;
+  } catch { return null; }
+}
+
 export async function archivePositionMatches(store, { beforeRoundId = null, knownRoundIds = new Set(), seasonYear = null } = {}) {
   const bulletins = await store.listBulletins();
   const ust = beforeRoundId == null ? null : Number(beforeRoundId);
@@ -677,7 +695,12 @@ router.get('/position-matches', async (req, res) => {
       const hs = getHistoryStore();
       const allRounds = await hs.listRounds();
       const secilen = allRounds.find((r) => String(r.roundId) === String(cutRoundId));
+      // Sezon çözümü /position-dna (siraDnaTabani) İLE AYNI: statik depoda
+      // olmayan yeni sezon haftası için ARŞİV bülteninin sezonu esastır.
+      // Ayrışırsa liste ile yüzde farklı sezon kümesinden gelir — bu ekranın
+      // en tehlikeli hata sınıfı (sayı doğrulanamaz).
       const aktifSezon = secilen?.seasonYear
+        || (await arsivSezonu(store, cutRoundId))
         || allRounds.filter((r) => r.status === 'completed')
           .sort((a, b) => String(b.roundCloseAt || '').localeCompare(String(a.roundCloseAt || '')))[0]?.seasonYear
         || null;
@@ -1085,7 +1108,12 @@ async function siraDnaTabani({ store, cutRoundId, cutFreezeAt, sig = '' }) {
     const selectedRound = allRounds.find((r) => String(r.roundId) === String(cutRoundId));
     const eligibleRounds = allRounds.filter((r) => r.status === 'completed'
       && (!cutFreezeAt || (r.roundCloseAt && String(r.roundCloseAt) < String(cutFreezeAt))));
+    // Sezon SEÇİLEN haftanın kendi sezonudur: önce statik depo, orada yoksa
+    // ARŞİV bülteni (yeni sezonun haftaları statik depoda hiç yoktur — bkz.
+    // arsivSezonu). "Son tamamlanmış turun sezonu" yalnız son çare yedektir;
+    // ilk sıradayken yeni sezonda GEÇEN sezonu seçiyordu.
     activeSeason = selectedRound?.seasonYear
+      || (await arsivSezonu(store, cutRoundId))
       || eligibleRounds.sort((a, b) => String(b.roundCloseAt || '').localeCompare(String(a.roundCloseAt || '')))[0]?.seasonYear
       || null;
     if (activeSeason != null) histMatches = histMatches.filter((m) => String(m.seasonYear) === String(activeSeason));
