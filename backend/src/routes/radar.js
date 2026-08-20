@@ -697,24 +697,24 @@ router.get('/position-matches', async (req, res) => {
       const secilen = allRounds.find((r) => String(r.roundId) === String(cutRoundId));
       // Sezon çözümü /position-dna (siraDnaTabani) İLE AYNI: statik depoda
       // olmayan yeni sezon haftası için ARŞİV bülteninin sezonu esastır.
-      // Ayrışırsa liste ile yüzde farklı sezon kümesinden gelir — bu ekranın
-      // en tehlikeli hata sınıfı (sayı doğrulanamaz).
+      // aktifSezon yalnız yanıttaki `season` üst verisidir — SÜZMEZ:
+      // "Tüm Haftalar" tüm sezonları kapsar (kullanıcı kararı, 21 Ağustos
+      // 2026; /position-dna ile aynı kural — liste ile yüzde aynı küme).
       const aktifSezon = secilen?.seasonYear
         || (await arsivSezonu(store, cutRoundId))
         || allRounds.filter((r) => r.status === 'completed')
           .sort((a, b) => String(b.roundCloseAt || '').localeCompare(String(a.roundCloseAt || '')))[0]?.seasonYear
         || null;
 
-      let hist = (await hs.listAllMatches())
+      const hist = (await hs.listAllMatches())
         .filter(historyLearningFilter({ currentRoundId: cutRoundId, currentFreezeAt: null }));
-      if (aktifSezon != null) hist = hist.filter((m) => String(m.seasonYear) === String(aktifSezon));
 
       let arsiv = [];
       try {
         arsiv = await archivePositionMatches(store, {
           beforeRoundId: cutRoundId,
           knownRoundIds: new Set(hist.map((m) => String(m.roundId))),
-          seasonYear: aktifSezon,
+          seasonYear: null,          // tüm sezonlar (kullanıcı kararı, 21 Ağu)
         });
       } catch { /* arşiv okunamazsa yalnız statik geçmiş */ }
 
@@ -1110,13 +1110,19 @@ async function siraDnaTabani({ store, cutRoundId, cutFreezeAt, sig = '' }) {
       && (!cutFreezeAt || (r.roundCloseAt && String(r.roundCloseAt) < String(cutFreezeAt))));
     // Sezon SEÇİLEN haftanın kendi sezonudur: önce statik depo, orada yoksa
     // ARŞİV bülteni (yeni sezonun haftaları statik depoda hiç yoktur — bkz.
-    // arsivSezonu). "Son tamamlanmış turun sezonu" yalnız son çare yedektir;
-    // ilk sıradayken yeni sezonda GEÇEN sezonu seçiyordu.
+    // arsivSezonu). "Son tamamlanmış turun sezonu" yalnız son çare yedektir.
     activeSeason = selectedRound?.seasonYear
       || (await arsivSezonu(store, cutRoundId))
       || eligibleRounds.sort((a, b) => String(b.roundCloseAt || '').localeCompare(String(a.roundCloseAt || '')))[0]?.seasonYear
       || null;
-    if (activeSeason != null) histMatches = histMatches.filter((m) => String(m.seasonYear) === String(activeSeason));
+    // SEZON SÜZGECİ YOK (kullanıcı kararı, 21 Ağustos 2026): "Tüm Haftalar"
+    // TÜM sezonları kapsar — 1 Ağustos'taki sezon sınırı kararının YERİNE
+    // geçer. O günkü kaygı (150 haftalık dört sezonun tek ortalamada
+    // seyrelmesi) bugün yapısal olarak imkânsız: eskiHaftalariAt zaten 1525
+    // başlangıcından keser, elde yalnız o pencere var. Sezon devrinde yeni
+    // sezonun 1. haftasında ekranın n=1'e düşmesi kullanıcı tarafından
+    // reddedildi ("tüm sezonlar olacak"). activeSeason artık yalnız cut
+    // üst verisidir (bakılan haftanın kendi sezonu) — süzmez.
   } catch { /* geçmiş arşiv yoksa yalnız ileri-test verisi kalır */ }
 
   // ARŞİVDE TAMAMLANAN HAFTALAR da sıra geçmişine girer. Statik geçmiş dosyası
@@ -1129,7 +1135,7 @@ async function siraDnaTabani({ store, cutRoundId, cutFreezeAt, sig = '' }) {
       beforeRoundId: cutRoundId,     // yalnız SEÇİLEN haftadan önceki turlar
       // Statik geçmişte zaten olan tur ÇİFT SAYILMAZ.
       knownRoundIds: new Set(histMatches.map((m) => String(m.roundId))),
-      seasonYear: activeSeason,
+      seasonYear: null,              // tüm sezonlar (kullanıcı kararı, 21 Ağu)
     });
   } catch { /* arşiv okunamazsa yalnız statik geçmişle devam edilir */ }
 
@@ -1140,8 +1146,9 @@ async function siraDnaTabani({ store, cutRoundId, cutFreezeAt, sig = '' }) {
   // AYNI kesimi kullanmazsa kullanıcı ekrandaki sayıyı doğrulayamaz.
   const kaynakArr = eskiHaftalariAt([...histMatches, ...arsivMaclari]);
   // Filtresiz DNA da süzgeçten bağımsızdır: hem filtresiz yanıtın kendisi hem
-  // de filtre özetindeki "aday" sayacı bunu kullanır.
-  const ham = computePositionDna(kaynakArr, { excludeRoundId: cutRoundId, seasonYear: activeSeason });
+  // de filtre özetindeki "aday" sayacı bunu kullanır. seasonYear verilmez —
+  // tüm sezonlar hesaba girer (kullanıcı kararı, 21 Ağustos 2026).
+  const ham = computePositionDna(kaynakArr, { excludeRoundId: cutRoundId });
 
   let combined = null;
   try {
@@ -1178,10 +1185,10 @@ export async function hesaplaSiraDnasi({ store, cur, cutRoundId, cutFreezeAt, gu
     }
 
     // Süzgeçsiz istekte taban zaten hesapladı — ikinci kez koşulmaz.
+    // seasonYear verilmez: tüm sezonlar (kullanıcı kararı, 21 Ağustos 2026).
     const dna = filtre
       ? computePositionDna(kaynakArr, {
         excludeRoundId: cutRoundId,
-        seasonYear: activeSeason,
         sec,
       })
       : taban.ham;
@@ -1196,7 +1203,6 @@ export async function hesaplaSiraDnasi({ store, cur, cutRoundId, cutFreezeAt, gu
       const { ham } = taban;   // süzgeçten bağımsız — tabandan gelir
       const verili = computePositionDna(kaynakArr, {
         excludeRoundId: cutRoundId,
-        seasonYear: activeSeason,
         sec: (m) => filtreKaynak.gecmisDeger(
           filtreKaynak.gecmisIx.get(`${m.roundId}|${Number(m.position)}`),
         ) != null,

@@ -1,18 +1,21 @@
-// RADAR 5 — SEZON DEVRİNDE YENİ SEZONUN İLK HAFTALARI KAYBOLMAZ.
+// RADAR 5 — SEZON DEVRİNDE HİÇBİR HAFTA KAYBOLMAZ: NE YENİ NE ESKİ.
 //
-// DOĞRULANMIŞ HATA (21 Ağustos 2026, kullanıcı bildirdi: "Radar 5'e 1. Hafta
-// sonuçları yansımamış"): sezon, yalnız STATİK geçmiş deposunun tur
-// listesinden çözülüyordu. Statik depo donmuş bir içe aktarımdır ve yeni
-// sezonu bilmez; yeni sezonun ilk haftalarında arama boş düşünce sezon "son
-// tamamlanmış statik turun sezonu"na — yani GEÇEN sezona — kayıyordu.
-// Sonuç: 2. Hafta'nın (2026/2027) Radar 5'i 2025/2026 ile hesaplanıyor,
-// arşivde 15/15 sonuçlanmış 1. Hafta sezon süzgecine takılıp SESSİZCE
-// düşüyordu (üretimde ölçüldü: archiveMatches=0, cut.season=2025/2026).
+// İKİ AŞAMADA DOĞRULANMIŞ HATA + KARAR (21 Ağustos 2026, kullanıcı):
+// 1) "1. Hafta sonuçları yansımamış": sezon yalnız STATİK geçmiş deposundan
+//    çözülüyordu; yeni sezon orada olmadığından sezon GEÇEN sezona kayıyor,
+//    arşivde 15/15 sonuçlu 1528 sezon süzgecine takılıp düşüyordu (üretimde
+//    ölçüldü: archiveMatches=0). Düzeltme: sezon önce arşiv bülteninden
+//    çözülür (arsivSezonu).
+// 2) Sezon doğru çözülünce bu kez GEÇEN sezonun haftaları (1525-1527) sabit
+//    pencerelerden düştü ve ekran n=1'e indi. Kullanıcı reddetti: "TÜM
+//    SEZONLAR OLACAK". Sezon süzgeci kaldırıldı — 1 Ağustos'taki sezon sınırı
+//    kararının YERİNE geçer. O günkü kaygı (150 haftalık dört sezonun tek
+//    ortalamada seyrelmesi) bugün yapısal olarak imkânsız: eskiHaftalariAt
+//    zaten 1525 başlangıcından keser.
 //
-// SÖZLEŞME: sezon SEÇİLEN haftanın kendi sezonudur — statik depo bilmiyorsa
-// ARŞİV bültenine sorulur. Sabit pencerelerin aktif sezona bağlanması
-// (1 Ağustos 2026 kullanıcı kararı: iki sezonun lig bileşimi tek ortalamada
-// toplanmaz) DEĞİŞMEZ; yalnız "aktif sezon" doğru çözülür.
+// SÖZLEŞME: "Tüm Haftalar" = 1525 kesimi içindeki TÜM sezonlar. `season`
+// alanı yalnız bakılan haftanın kendi sezonunu söyleyen üst veridir, süzmez.
+// Liste (/position-matches) ile yüzde (/position-dna) aynı kümeyi kullanır.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
@@ -56,7 +59,7 @@ const mkRow = (position, result) => ({
   }
 
   // YENİ sezonun 1. Haftası (1528) yalnız ARŞİVDE: 15/15 sonuçlu, hepsi '2'
-  // (statik '1'lerden ayrışsın — sızma/dahil olma tek bakışta görünür).
+  // (statik '1'lerden ayrışsın — iki sezonun da sayıldığı tek bakışta görünür).
   const store = getArchiveStore();
   await store.upsertBulletin({
     id: '1528', roundId: 1528, week: '1. Hafta', status: 'active',
@@ -92,35 +95,40 @@ async function kur() {
   return { server, base: `http://127.0.0.1:${server.address().port}` };
 }
 
-test('sezon devrinde 1. Hafta sonuçları Radar 5 yüzdesine GİRER', async () => {
+test('sezon devrinde ESKİ + YENİ sezon birlikte sayılır', async () => {
   const { server, base } = await kur();
   try {
     const dna = await (await fetch(`${base}/api/radar/position-dna`)).json();
     assert.equal(dna.hasData, true, 'veri var');
 
-    // Sezon SEÇİLEN haftanın (1529) kendi sezonu — geçen sezona kaymaz.
+    // Üst veri: bakılan haftanın (1529) kendi sezonu — geçen sezona kaymaz.
+    // (Süzgeç DEĞİL; yalnız doğru etiket.)
     assert.equal(dna.cut.season, YENI_SEZON,
-      'sezon arşivden çözülmeli; statik deponun son sezonuna düşerse 1. Hafta kaybolur');
+      'season üst verisi arşivden çözülmeli — statik deponun son sezonuna düşmemeli');
 
-    // Yeni sezonda tek tamamlanmış hafta: 1528 → 15 maç, hepsi arşivden.
-    assert.equal(dna.dna.totalMatches, 15, '1. Haftanın 15 maçı sayılmalı');
-    assert.deepEqual(dna.cut.archiveRounds ?? [], ['1528']);
+    // TÜM SEZONLAR: 1525 + 1526 (eski, 30 maç) + 1528 (yeni, 15 maç) = 45.
+    // Sezon süzgeci geri gelirse bu 15'e (yalnız yeni) ya da 30'a (yalnız
+    // eski) düşer — ikisi de kullanıcı kararına aykırı.
+    assert.equal(dna.dna.totalMatches, 45, 'eski + yeni sezon birlikte sayılmalı');
+    assert.deepEqual(dna.cut.archiveRounds ?? [], ['1528'], '1. Hafta arşivden geldi');
+    assert.equal(dna.cut.historyMatches, 30, 'statik geçmiş sezonsuz sayılmalı');
 
-    // 1. sıra: 1528'de '2' bitti; geçen sezonun '1'leri sabit pencereye girmez
-    // (1 Ağustos kararı: sezonlar tek ortalamada toplanmaz).
+    // 1. sıra: 1525 '1', 1526 '1', 1528 '2' → n=3, 1 %66.7 · 2 %33.3.
     const p1 = dna.dna.positions.find((p) => p.position === 1);
-    assert.equal(p1.windows.allTime.sample, 1);
-    assert.equal(Number(p1.windows.allTime.pct['2']), 100);
+    assert.equal(p1.windows.allTime.sample, 3);
+    assert.equal(p1.windows.allTime.counts['1'], 2);
+    assert.equal(p1.windows.allTime.counts['2'], 1);
   } finally { server.close(); }
 });
 
-test('LİSTE de aynı sezon kesimini kullanır — 1. Hafta satırı açılır', async () => {
+test('LİSTE de aynı kümeyi kullanır — iki sezonun haftaları birlikte açılır', async () => {
   const { server, base } = await kur();
   try {
     const r = await (await fetch(`${base}/api/radar/position-matches?position=1`)).json();
-    assert.equal(r.season, YENI_SEZON);
-    assert.deepEqual((r.matches || []).map((m) => m.roundId), ['1528'],
-      'listede yalnız yeni sezonun 1. Haftası olmalı — yüzdeyle aynı küme');
+    assert.equal(r.season, YENI_SEZON, 'season üst verisi bakılan haftanın sezonu');
+    // Yeniden → eskiye: 1. Hafta (14 Ağu) → 1526 (27 Tem) → 1525 (20 Tem).
+    assert.deepEqual((r.matches || []).map((m) => m.roundId), ['1528', '1526', '1525'],
+      'liste yüzdeyle aynı kümeden gelmeli — sezon süzgeci liste tarafına da dönmemeli');
     assert.equal(r.matches[0].week, '1. Hafta');
     assert.equal(r.matches[0].result, '2');
   } finally { server.close(); }
