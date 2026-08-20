@@ -23,21 +23,20 @@
      bekçi "yalnız bildirim" bekliyordu — tam paketteki tek kırmızı kapandı.
 - Masaüstünde YENİ APK: sportoto-analiz-21agu.apk (1+2 düzeltmelerini içerir,
   aapt ile INTERNET doğrulandı). 19agu paketi eski — kullanıcı 21agu'yu kurmalı.
-- Yayın durumu: origin/main HÂLÂ 216edf4'te. Bekleyen push: 5437c57, f58d97d
-  + bugünkü 5 commit. ÖNEMLİ: 3 no'lu backend düzeltmesi Render'a deploy
-  edilmeden telefonda 1. Hafta yüzdeleri GÖRÜNMEZ ve bu akşamki mühür yanlış
-  sezon tabanıyla donar (aşağıya bak).
+- Yayın durumu: KULLANICI ONAYIYLA PUSH + DEPLOY YAPILDI (21 Ağu gece ~00:40,
+  216edf4..62de166). Üretimde doğrulandı: /api/radar/position-dna →
+  cut.season=2026/2027, archiveRounds=["1528"], totalMatches=15; 1. sıra =
+  Galatasaray–Çorum FK 2-2 → X %100, n=1, "Yalnız bilgi" katmanı (dürüst).
+  /position-matches?position=1 listesi de aynı kümeyi veriyor. Akşamki
+  2. Hafta mührü artık DOĞRU sezon tabanıyla donacak.
 
 ## BUGÜN İLK İŞ (21 Ağustos)
-1. PUSH ONAYI AL ve gönder — kritik zaman sınırı: 2. Hafta mührü bu akşam
-   18:25 UTC (21:25 TSİ). Mühür, Radar 5 süzgeç kırılımlarını O ANKİ hesapla
-   dondurur; sezon düzeltmesi yayında değilse kırılımlar 2025/2026 tabanıyla
-   (1. Hafta'sız) MÜHÜRLENİR ve mühür sonradan değiştirilemez.
-2. Kullanıcı masaüstündeki sportoto-analiz-21agu.apk'yı telefona kursun:
+1. Kullanıcı masaüstündeki sportoto-analiz-21agu.apk'yı telefona kursun:
    - Soğuk açılışta artık "Sunucu uyanıyor" + kendiliğinden toparlama beklenir
      (~1-1,5 dk içinde veri gelmeli, elle dokunmadan).
    - Radar 5'te '2' rozeti alta kaymamalı.
-   - 1. Hafta yüzdeleri için AYRICA backend deploy şart (madde 1).
+   - Radar 5'te 1. Hafta yüzdeleri ESKİ APK'da da görünür (sunucu düzeltmesi
+     yayında) — ekran başına n=1 "yalnız bilgi" beklenir.
 
 ## Takvimli işler
 - 21 Ağustos 18:25 UTC: 2. Hafta mührü — süzgeç kırılımları ilk kez gerçek

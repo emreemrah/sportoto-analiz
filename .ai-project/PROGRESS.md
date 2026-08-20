@@ -60,3 +60,9 @@
   temiz. Yeni APK masaüstünde: sportoto-analiz-21agu.apk (aapt doğrulamalı).
   KRİTİK: sezon düzeltmesi 21 Ağustos 18:25 UTC'deki 2. Hafta mühründen ÖNCE
   deploy edilmeli — mühür yanlış sezon tabanıyla donmasın. Push onayı bekliyor.
+- 2026-08-21 (gece 2): Kullanıcı onayıyla push + Render deploy
+  (216edf4..62de166). Üretimde doğrulandı: position-dna cut.season=2026/2027,
+  archiveRounds=["1528"], totalMatches=15; 1. sıra GS–Çorum 2-2 → X %100 n=1
+  "yalnız bilgi"; position-matches listesi aynı küme. 2. Hafta mührü (bu akşam
+  18:25 UTC) doğru sezon tabanıyla donacak. Kalan: kullanıcı 21agu APK'yı
+  kurup soğuk açılış toparlamasını ve rozet hizasını telefonda doğrulayacak.
