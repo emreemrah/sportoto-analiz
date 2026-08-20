@@ -66,3 +66,9 @@
   "yalnız bilgi"; position-matches listesi aynı küme. 2. Hafta mührü (bu akşam
   18:25 UTC) doğru sezon tabanıyla donacak. Kalan: kullanıcı 21agu APK'yı
   kurup soğuk açılış toparlamasını ve rozet hizasını telefonda doğrulayacak.
+- 2026-08-21 (gece 3): Kullanıcı kararı — "tüm sezonlar olacak": Radar 5
+  sezon süzgeci kaldırıldı (1 Ağu kararının yerine geçer; 1525 kesimi
+  seyrelmeyi zaten engelliyor). season alanı artık yalnız üst veri. Bekçi
+  iki yönlü korur: 1. Hafta da geçen sezon da kaybolamaz. Backend 1128/0.
+  Commit: acb7fc9 — push/deploy onayı bekliyor (mühür 18:25 UTC'den önce
+  yayında olmalı ki kırılımlar 4 haftalık tabanla donsun).
