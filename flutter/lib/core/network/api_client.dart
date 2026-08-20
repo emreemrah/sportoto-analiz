@@ -19,11 +19,20 @@ class ApiException implements Exception {
     this.status,
     this.needsVerification = false,
     this.gecici = false,
+    this.zamanAsimi = false,
   });
 
   final String message;
   final int? status;
   final bool needsVerification;
+
+  /// TAŞIMA KATMANI ZAMAN AŞIMI (2026-08-21): bağlantı kuruldu ama HTTP yanıtı
+  /// süresinde gelmedi. Barındırma planı servisi uyuttuğu için soğuk açılışın
+  /// İLK evresinde istekler tam bu şekilde ölür (vekil isteği tutar, örnek
+  /// ayağa kalkana dek yanıt gelmez) — 503 evresi ancak ondan SONRA başlar.
+  /// `sunucuHazirlaniyor` bu bayrağı 503 ile aynı "bekleme" durumuna sayar;
+  /// ham DioException metni kullanıcıya arıza gibi gösterilmez.
+  final bool zamanAsimi;
 
   /// HATA GEÇİCİ Mİ? (2026-08-09'da eklendi)
   ///
@@ -71,14 +80,35 @@ class ApiClient {
     required String method,
     Object? body,
     bool hasBody = false,
-  }) {
+  }) async {
     final headers = _baseHeaders();
     if (hasBody) headers['Content-Type'] = 'application/json';
-    return _dio.request<dynamic>(
-      '$apiBase$path',
-      data: hasBody ? body : null,
-      options: Options(method: method, headers: headers),
-    );
+    try {
+      return await _dio.request<dynamic>(
+        '$apiBase$path',
+        data: hasBody ? body : null,
+        options: Options(method: method, headers: headers),
+      );
+    } on DioException catch (e) {
+      // HTTP YANITI YOK — ham DioException yukarı SIZMAZ (2026-08-21).
+      // `validateStatus: true` yüzünden buraya yalnız taşıma hataları düşer:
+      // zaman aşımı, bağlantı reddi, DNS. Ekranlar `ApiException` bekliyor;
+      // ham Dio metni kullanıcıya "arıza" gibi görünüyordu. İki durum ayrılır:
+      //   • zaman aşımı → sunucu büyük olasılıkla UYANIYOR (soğuk açılış);
+      //   • bağlantı kurulamadı → telefonda internet yok ya da sunucuya yol yok.
+      // İkisi de `gecici` — oturum kararı verilemez (bkz. ApiException.gecici).
+      final zamanAsimi =
+          e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout;
+      throw ApiException(
+        zamanAsimi
+            ? 'Sunucu yanıt vermedi. Uyanıyor olabilir — birazdan tekrar dene.'
+            : 'Sunucuya bağlanılamadı. İnternet bağlantını kontrol et.',
+        gecici: true,
+        zamanAsimi: zamanAsimi,
+      );
+    }
   }
 
   /// Kaynaktaki `req(path, { method, body })`.

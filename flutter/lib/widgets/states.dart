@@ -4,6 +4,8 @@
 // Kaynakta üç ayrı dosyaydı; burada tek dosyada durur çünkü üçü de aynı işin
 // parçası (bekleme / hata durumu) ve Dart'ta dosya başına bir sınıf kuralı yok.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/network/api_client.dart' show ApiException;
@@ -238,7 +240,7 @@ class ErrorState extends StatelessWidget {
 /// DÜRÜSTLÜK: sunucunun KENDİ söylediği şey yazılır; "birazdan gelecek" diye
 /// söz verilmez, tahmini süre "genelde" diye verilir. Veri varmış gibi
 /// gösterilmez — sayı uydurulmaz.
-class HazirlaniyorState extends StatelessWidget {
+class HazirlaniyorState extends StatefulWidget {
   // `const` DEĞİL — tema çalışma zamanında değişiyor (bkz. diğer durumlar).
   // ignore: prefer_const_constructors_in_immutables
   HazirlaniyorState({super.key, this.onRetry, this.otomatikYenileme = true});
@@ -247,7 +249,64 @@ class HazirlaniyorState extends StatelessWidget {
 
   /// Ekran kendiliğinden tekrar deniyorsa kullanıcıya söylenir — boşuna
   /// beklemesin ya da gereksiz yere düğmeye basmasın.
+  ///
+  /// SÖZÜNÜ KENDİSİ TUTAR (2026-08-21): bu bayrak açıkken widget 15 sn'de bir
+  /// [onRetry] çağırır. Eskiden söz ekrana bırakılıyordu; ana sayfada
+  /// zamanlayıcı olmadığı için bayrak kapatılmıştı ve soğuk açılışta kullanıcı
+  /// elle basmazsa uygulama SONSUZA DEK bu ekranda kalıyordu ("sunucuya bir
+  /// daha bağlanmadı" bildirimi, 21 Ağustos). Sunucu toparlanınca sağlayıcı
+  /// veri döndürür ve bu widget ağaçtan düşer — zamanlayıcı da onunla ölür.
   final bool otomatikYenileme;
+
+  @override
+  State<HazirlaniyorState> createState() => _HazirlaniyorStateState();
+}
+
+class _HazirlaniyorStateState extends State<HazirlaniyorState> {
+  Timer? _zamanlayici;
+
+  @override
+  void initState() {
+    super.initState();
+    _zamanlayiciKur();
+  }
+
+  /// Aynı konumdaki widget yeni yapılandırmayla güncellenirse `initState`
+  /// TEKRAR ÇALIŞMAZ — zamanlayıcı burada hizalanmazsa bayrak kapatılsa bile
+  /// eski zamanlayıcı yaşar ve YENİ onRetry'ı çağırırdı (testte yakalandı).
+  /// Kıyas null'lık üzerinden: onRetry her build'de yeni closure'dır; kimlik
+  /// kıyası zamanlayıcıyı her build'de sıfırlar ve hiç ateşlenmezdi.
+  @override
+  void didUpdateWidget(HazirlaniyorState eski) {
+    super.didUpdateWidget(eski);
+    if (eski.otomatikYenileme != widget.otomatikYenileme ||
+        (eski.onRetry == null) != (widget.onRetry == null)) {
+      _zamanlayiciKur();
+    }
+  }
+
+  void _zamanlayiciKur() {
+    _zamanlayici?.cancel();
+    _zamanlayici = null;
+    if (widget.otomatikYenileme && widget.onRetry != null) {
+      // 15 sn: bülten ekranının canlı yenileme aralığıyla aynı tempo.
+      // Soğuk açılış ölçümü 61–90 sn → toparlanma en geç ~15 sn gecikmeyle
+      // yakalanır; 503 cevabı ucuzdur (sunucu yalnız cache var mı diye bakar).
+      // Çağrı anında GÜNCEL widget'ın onRetry'ı okunur (closure tazelenir).
+      _zamanlayici = Timer.periodic(const Duration(seconds: 15), (_) {
+        if (mounted) widget.onRetry!();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _zamanlayici?.cancel();
+    super.dispose();
+  }
+
+  VoidCallback? get onRetry => widget.onRetry;
+  bool get otomatikYenileme => widget.otomatikYenileme;
 
   @override
   Widget build(BuildContext context) => Center(
@@ -317,5 +376,12 @@ class HazirlaniyorState extends StatelessWidget {
 /// Backend bu durumda **503** + gövdede kendi açıklaması ile yanıtlar
 /// (`server.js`: "Veri henüz hazır değil, birkaç saniye sonra tekrar dene").
 /// Başka hiçbir 5xx bu şekilde yorumlanmaz — gerçek arıza gizlenmez.
+///
+/// ZAMAN AŞIMI DA BU DURUMDUR (2026-08-21, telefonda ölçüldü): soğuk açılışın
+/// İLK evresinde vekil isteği tutar, örnek ayağa kalkana dek HTTP yanıtı hiç
+/// gelmez ve istek zaman aşımıyla ölür — 503 evresi ancak ondan sonra başlar.
+/// O pencerede ham hata basmak kullanıcıya "sunucuya bir daha bağlanmadı"
+/// dedirtiyordu. Bağlantının hiç KURULAMAMASI ise bu duruma sayılmaz — orada
+/// sorun büyük olasılıkla telefonun kendi bağlantısıdır ve gerçek hata yazılır.
 bool sunucuHazirlaniyor(Object? hata) =>
-    hata is ApiException && hata.status == 503;
+    hata is ApiException && (hata.status == 503 || hata.zamanAsimi);

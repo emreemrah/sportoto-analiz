@@ -287,13 +287,22 @@ class HomeScreen extends ConsumerWidget {
                   )
                 // SUNUCU UYANIYORSA HATA DEĞİL, BEKLEME (16 Ağustos 2026).
                 // Uç 503 + "veri henüz hazır değil" dönüyor; ham hata metnini
-                // basmak kullanıcıya arıza var sandırıyordu. Ana sayfada
-                // zamanlayıcı yok, o yüzden otomatik yenileme SÖZ VERİLMEZ —
-                // düğme ve aşağı çekme var.
+                // basmak kullanıcıya arıza var sandırıyordu.
+                //
+                // OTOMATİK YENİLEME AÇIK (2026-08-21): zamanlayıcıyı artık
+                // HazirlaniyorState kendisi taşıyor. Eskiden kapalıydı ve ana
+                // sayfa AÇILIŞ EKRANI olduğu için soğuk açılışta (61-90 sn)
+                // elle basmayan kullanıcı hep hata görüp çıkıyordu — "sunucuya
+                // bir daha bağlanmadı" bildirimi buradan geliyordu. Önceki
+                // hafta sağlayıcısı da tazelenir; yoksa bülten gelince
+                // "Yaklaşan Maçlar" geçen haftasız kalırdı (aşağı çekme
+                // yenilemesiyle aynı çift tazeleme).
                 else if (sunucuHazirlaniyor(bulletinAsync.error))
                   HazirlaniyorState(
-                    otomatikYenileme: false,
-                    onRetry: () => ref.invalidate(bulletinProvider),
+                    onRetry: () {
+                      ref.invalidate(bulletinProvider);
+                      ref.invalidate(_oncekiHaftaProvider);
+                    },
                   )
                 else if (error != null || matches.isEmpty)
                   Padding(
