@@ -23,20 +23,22 @@
      bekçi "yalnız bildirim" bekliyordu — tam paketteki tek kırmızı kapandı.
 - Masaüstünde YENİ APK: sportoto-analiz-21agu.apk (1+2 düzeltmelerini içerir,
   aapt ile INTERNET doğrulandı). 19agu paketi eski — kullanıcı 21agu'yu kurmalı.
-- Yayın durumu: KULLANICI ONAYIYLA PUSH + DEPLOY YAPILDI (21 Ağu gece ~00:40,
-  216edf4..62de166). Üretimde doğrulandı: /api/radar/position-dna →
-  cut.season=2026/2027, archiveRounds=["1528"], totalMatches=15; 1. sıra =
-  Galatasaray–Çorum FK 2-2 → X %100, n=1, "Yalnız bilgi" katmanı (dürüst).
-  /position-matches?position=1 listesi de aynı kümeyi veriyor. Akşamki
-  2. Hafta mührü artık DOĞRU sezon tabanıyla donacak.
+- Yayın durumu: iki tur kullanıcı onaylı push + deploy (21 Ağu gece).
+  Tur 1 (62de166): sezon devri düzeltmesi — 1. Hafta arşivden hesaba girdi.
+  Tur 2 (acb7fc9+e0e5635): KULLANICI KARARI "tüm sezonlar olacak" — sezon
+  süzgeci kaldırıldı (1 Ağu kararının yerine geçer; DECISIONS.md'de).
+  Üretimde doğrulandı: position-dna totalMatches=59, totalBulletins=4;
+  1. sıra n=4 → X %75 · 1 %25; /position-matches?position=1 listesi
+  1. Hafta (GS–Çorum 2-2 X) + 53. + 52. + 51. Hafta'yı birlikte veriyor.
+  Akşamki 2. Hafta mührü 4 haftalık tabanla donacak.
 
 ## BUGÜN İLK İŞ (21 Ağustos)
 1. Kullanıcı masaüstündeki sportoto-analiz-21agu.apk'yı telefona kursun:
    - Soğuk açılışta artık "Sunucu uyanıyor" + kendiliğinden toparlama beklenir
      (~1-1,5 dk içinde veri gelmeli, elle dokunmadan).
    - Radar 5'te '2' rozeti alta kaymamalı.
-   - Radar 5'te 1. Hafta yüzdeleri ESKİ APK'da da görünür (sunucu düzeltmesi
-     yayında) — ekran başına n=1 "yalnız bilgi" beklenir.
+   - Radar 5'te 1. Hafta + 51-53. Hafta yüzdeleri ESKİ APK'da da görünür
+     (sunucu düzeltmesi yayında) — sıra başına n=4 beklenir.
 
 ## Takvimli işler
 - 21 Ağustos 18:25 UTC: 2. Hafta mührü — süzgeç kırılımları ilk kez gerçek

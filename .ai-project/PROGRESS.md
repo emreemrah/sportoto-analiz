@@ -72,3 +72,9 @@
   iki yönlü korur: 1. Hafta da geçen sezon da kaybolamaz. Backend 1128/0.
   Commit: acb7fc9 — push/deploy onayı bekliyor (mühür 18:25 UTC'den önce
   yayında olmalı ki kırılımlar 4 haftalık tabanla donsun).
+- 2026-08-21 (gece 4): Kullanıcı onayıyla tur-2 push + deploy (acb7fc9,
+  e0e5635). Üretimde doğrulandı (ısınma sonrası, cut.roundId=1529):
+  totalMatches=59, totalBulletins=4; 1. sıra n=4 → X %75 · 1 %25; liste
+  1528+1527+1526+1525'i yeniden→eskiye veriyor. Radar 5 artık tüm sezonları
+  sayıyor; akşamki mühür 4 haftalık tabanla donacak. Kalan: kullanıcı 21agu
+  APK'yı kurup soğuk açılış + rozet hizasını telefonda doğrulayacak.
