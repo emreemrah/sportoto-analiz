@@ -420,7 +420,8 @@ class MemoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // DAR EKRAN: "Geçmiş N. sıra" rozetleri alt düzene geçer (mevcut kural).
+    // DAR EKRAN: rozet bloğunun sol girintisi kalkar (rozetler artık HER
+    // genişlikte alt düzende — bkz. aşağıdaki taşmaz düzen açıklaması).
     final darEkran = MediaQuery.of(context).size.width < 360;
 
     // Günün değeri var mı? (oynanma ya da oran modu). Gün adı yalnız değerle
@@ -534,42 +535,36 @@ class MemoryRow extends StatelessWidget {
           if (pct != null)
             Padding(
               padding: EdgeInsets.only(top: 6, left: darEkran ? 0 : 34),
-              // DAR EKRAN TAŞMASI: etiket + üç rozet 360px'e sığmıyordu.
-              // Çözüm: dar ekranda etiket kendi satırında, üç rozet ALTTA eşit
-              // genişlikte; FittedBox rozeti pay dar gelirse ORANLI küçültür —
-              // basamak sayısı ne olursa olsun taşmaz (320px kanıtı testte).
-              // Geniş dalda rozetler Wrap'ın AYRI öğeleridir: tek kırılamaz
-              // Row olsalardı uç değerlerde ('%100.0'×3) 360-390px taşardı.
-              child: darEkran
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _pctEtiketi(),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            for (final k in const ['1', 'X', '2']) ...[
-                              Expanded(
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: _rozet(k),
-                                ),
-                              ),
-                              if (k != '2') const SizedBox(width: 6),
-                            ],
-                          ],
+              // TAŞMAZ DÜZEN — HER GENİŞLİKTE (2026-08-21): etiket kendi
+              // satırında, üç rozet ALTTA eşit genişlikte; FittedBox rozeti
+              // pay dar gelirse ORANLI küçültür — basamak sayısı ne olursa
+              // olsun taşmaz (320px kanıtı testte). Eskiden bu yalnız 360px
+              // altındaydı; geniş dalda rozetler Wrap'ın ayrı öğeleriydi ve
+              // 360-400dp telefonlarda gerçek yüzdelerle ('%54.5' gibi) yer
+              // bitince '2' rozeti ALT SATIRA kayıyordu (2. Hafta mührüyle
+              // yüzdeler ilk kez gerçek veriyle dolunca telefonda görüldü).
+              // Sığmayınca alta atmak Wrap'ın tanımıdır; "asla kaymasın"
+              // isteniyorsa tek doğru düzen zaten dar ekrandaki bu düzendir.
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _pctEtiketi(),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      for (final k in const ['1', 'X', '2']) ...[
+                        Expanded(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: _rozet(k),
+                          ),
                         ),
+                        if (k != '2') const SizedBox(width: 6),
                       ],
-                    )
-                  : Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        _pctEtiketi(),
-                        for (final k in const ['1', 'X', '2']) _rozet(k),
-                      ],
-                    ),
+                    ],
+                  ),
+                ],
+              ),
             )
           else
             Padding(

@@ -1458,6 +1458,30 @@ void main() {
       expect(metin('KARŞILAŞMA'), findsOneWidget);
       expect(metinIceren('Club Brugge 1-1 Union SG'), findsOneWidget);
     });
+
+    // 390px TELEFON (21 Ağustos 2026 bildirimi): 2. Hafta mührüyle yüzdeler
+    // ilk kez GERÇEK veriyle dolunca ('%54.5' gibi) geniş daldaki Wrap yer
+    // bitince '2' rozetini ALT SATIRA atıyordu. Düzen artık her genişlikte
+    // tek tip: etiket üstte, üç rozet altta AYNI hizada. Test üç rozetin
+    // dikey hizasını ölçer — '2' aşağı kayarsa kırmızıya döner.
+    testWidgets("390px: 1/X/2 rozetleri AYNI hizada — '2' alta kaymaz", (
+      t,
+    ) async {
+      await radar5(t, {'/api/radar/daily-played': gunlukOynanma});
+      t.view.physicalSize = const Size(390, 800);
+      t.view.devicePixelRatio = 1.0;
+      addTearDown(t.view.reset);
+      await _tur(t);
+      final bir = t.getTopLeft(find.text('%54.5').first).dy;
+      final iks = t.getTopLeft(find.text('%13.6').first).dy;
+      final iki = t.getTopLeft(find.text('%31.9').first).dy;
+      expect(iks, moreOrLessEquals(bir, epsilon: 0.5));
+      expect(
+        iki,
+        moreOrLessEquals(bir, epsilon: 0.5),
+        reason: "'2' rozeti alt satıra kaymamalı",
+      );
+    });
   });
 
   // FİLTRE ŞERİDİ YAPIŞIK — kaynakta stickyHeaderIndices prop'uydu; burada
