@@ -3,38 +3,48 @@
 - Proje: sportoto-analiz-karar-motoru-test
 - Proje kimliği: b8a31f25-5aed-40b4-ac7f-1fc81f1419ed
 - Durum: IN_PROGRESS (olgun ürün — Flutter uygulaması + Node backend canlı)
-- Son doğrulanmış commit: 5437c57 (yayın paketine INTERNET izni) —
-  backend 1126/0 · Flutter 920/0 · analyze temiz.
-- Bugün (19 Ağustos) bitenler — hepsi commit'li:
-  1. Ertelenen maç senaryosu önlem paketi (a0f4382) — 4 yüzey: bildirim,
-     hafta durumu sebebi, ikramiye açıklaması, /yonetim bekleyen iş kartı.
-  2. Otomatik noter: resmî API'nin `noterWin` alanı keşfedildi ve bağlandı
-     (3d11f6f). 1. Hafta kura=1 ile 15/15 kesinleşti; üretimde doğrulandı.
-  3. Ana sayfa: noterle kesinleşen maç "Yaklaşan"dan düşüyor (5388d9b).
-  4. Kupon gerçeği: 27 Ağustos'ta maç oynanınca gelen skor kurayı EZEMEZ —
-     3 katman koruma (760aea7).
-  5. Hafta Kapanışı 15/15 sayıyor + ikramiye devir satırı resmî yazımla:
-     "OLMADIĞINDAN 30.149.380,57 ₺ önümüzdeki haftaya devretti" (216edf4).
-  6. Release APK'da INTERNET izni yoktu → telefonda "veriler gelmiyor";
-     manifest düzeltildi + bekçi test (5437c57). Masaüstündeki
-     sportoto-analiz-19agu.apk İZİNLİ yeni derlemeyle güncellendi.
-- Yayın durumu: 216edf4'e kadar origin/main'de ve Render'da doğrulandı.
-  5437c57 (+bu kayıt commit'i) HENÜZ PUSH'LANMADI — kullanıcı onayı bekliyor
-  (üretimi etkilemez, Flutter tarafı; depo eşitliği için gönderilmeli).
+- Son doğrulanmış commit: a630634 — backend 1128 geçti/0 hata ·
+  Flutter 926/0 · analyze temiz.
+- Bugün (21 Ağustos, gece) bitenler — hepsi commit'li, PUSH BEKLİYOR:
+  1. Soğuk açılış paketi (1630826): telefonda "sunucuya bir daha bağlanmadı"
+     bildirimi. Ölçüldü: uyanış ~90 sn (ilk evre yanıtsız → Dio zaman aşımı,
+     sonra 503, sonra 200). Dio taşıma hataları ApiException'a sarıldı
+     (zamanAsimi/gecici), zaman aşımı da "Sunucu uyanıyor" sayılıyor,
+     HazirlaniyorState kendi 15 sn zamanlayıcısını taşıyor — ana sayfada da
+     otomatik yeniden deneme var artık.
+  2. Radar 5 rozet hizası (278ca8d): '2' yüzdesi 360-400dp'de alt satıra
+     kayıyordu (Wrap). Taşmaz düzen her genişlikte; 390px gerileme testi.
+  3. Radar 5 sezon devri (1385498, BACKEND): "1. Hafta sonuçları yansımamış"
+     bildirimi. Sezon statik depodan çözülünce GEÇEN sezona kayıyor, arşivdeki
+     1528 (2026/2027) süzgece takılıyordu. Sezon artık önce arşiv bülteninden
+     çözülüyor; /position-dna + /position-matches aynı çözüm. Üretimde ölçülen
+     belirti: cut.season=2025/2026, archiveMatches=0 (arşivde 1528 15/15 dolu).
+  4. İzin bekçisi hizası (a630634): 5437c57'nin INTERNET ekine rağmen eski
+     bekçi "yalnız bildirim" bekliyordu — tam paketteki tek kırmızı kapandı.
+- Masaüstünde YENİ APK: sportoto-analiz-21agu.apk (1+2 düzeltmelerini içerir,
+  aapt ile INTERNET doğrulandı). 19agu paketi eski — kullanıcı 21agu'yu kurmalı.
+- Yayın durumu: origin/main HÂLÂ 216edf4'te. Bekleyen push: 5437c57, f58d97d
+  + bugünkü 5 commit. ÖNEMLİ: 3 no'lu backend düzeltmesi Render'a deploy
+  edilmeden telefonda 1. Hafta yüzdeleri GÖRÜNMEZ ve bu akşamki mühür yanlış
+  sezon tabanıyla donar (aşağıya bak).
 
-## YARIN İLK İŞ
-1. Kullanıcı masaüstündeki YENİ sportoto-analiz-19agu.apk'yı telefona kurup
-   veri geliyor mu doğrulayacak (dünkü kurulum izinsiz eski paketti).
-   Veri gelmezse: ekrandaki hata metnini al; Render soğuk açılışını (ilk
-   açılışta ~60 sn) hesaba kat.
-2. Push onayı al → 5437c57 + kayıt commit'ini gönder.
+## BUGÜN İLK İŞ (21 Ağustos)
+1. PUSH ONAYI AL ve gönder — kritik zaman sınırı: 2. Hafta mührü bu akşam
+   18:25 UTC (21:25 TSİ). Mühür, Radar 5 süzgeç kırılımlarını O ANKİ hesapla
+   dondurur; sezon düzeltmesi yayında değilse kırılımlar 2025/2026 tabanıyla
+   (1. Hafta'sız) MÜHÜRLENİR ve mühür sonradan değiştirilemez.
+2. Kullanıcı masaüstündeki sportoto-analiz-21agu.apk'yı telefona kursun:
+   - Soğuk açılışta artık "Sunucu uyanıyor" + kendiliğinden toparlama beklenir
+     (~1-1,5 dk içinde veri gelmeli, elle dokunmadan).
+   - Radar 5'te '2' rozeti alta kaymamalı.
+   - 1. Hafta yüzdeleri için AYRICA backend deploy şart (madde 1).
 
 ## Takvimli işler
-- 21 Ağustos ~18:25: 2. Hafta mührü — Radar 5 süzgeç kırılımları ilk kez
-  gerçek veriyle dolacak (1. Hafta boş mühürlüydü, TÜREV görünümle çalışıyor).
-- 27 Ağustos gecesi: Celta Vigo – Osasuna GERÇEKTEN oynanacak — kupon
-  gerçeği korumasının saha sınavı. Beklenti: 1. Hafta kaydı ve ekranı
-  KILINI KIPIRDATMAZ (skor kurayı ezemez; testli ama sahada da bakılmalı).
+- 21 Ağustos 18:25 UTC: 2. Hafta mührü — süzgeç kırılımları ilk kez gerçek
+  veriyle dolacak. Sezon düzeltmesi yayındaysa taban = 2026/2027 (yalnız
+  1. Hafta, n=1, "yalnız bilgi" katmanı — DÜRÜST davranış; sezonlar karışmaz).
+- 27 Ağustos gecesi: Celta Vigo – Osasuna gerçekten oynanacak — kupon gerçeği
+  korumasının saha sınavı (skor kurayı ezemez; 1. Hafta kaydı kıpırdamamalı).
 - Küçük/eski: /yonetim panelinin gözle doğrulaması (testler yeşil).
 
 ## Engel (Project Worker güvenilir doğrulama kapısı)
@@ -46,4 +56,4 @@ Başlangıç çizgisi kurulmadı — eksikler:
 KESİN ADIM: katalog kullanıcı onayıyla doldurulup kilitlenecek — kilit geri
 dönüşsüz olduğundan onaysız kilitlenmeyecek.
 
-- Güncelleme: 2026-08-19 (gece kapanışı)
+- Güncelleme: 2026-08-21 (gece ~00:30)

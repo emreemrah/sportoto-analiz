@@ -45,3 +45,18 @@
   masaüstündeki kopya İZİNLİ paketle güncellendi (aapt doğrulamalı).
   Commit: 5437c57 (push onayı yarına). YARIN İLK İŞ: kullanıcı yeni APK'yı
   kurup telefonda veri akışını doğrulayacak. Flutter 920/0.
+- 2026-08-21 (gece): Üç telefon bildirimi kapatıldı. (1) "Sunucuya bir daha
+  bağlanmadı" = Render soğuk açılışı; ölçüldü: uyanış ~90 sn (önce yanıtsız
+  evre → Dio zaman aşımı ham hata basılıyordu, sonra 503; ana sayfada
+  otomatik yenileme yoktu). Düzeltme: taşıma hataları ApiException'a sarıldı,
+  zaman aşımı "Sunucu uyanıyor" sayılıyor, HazirlaniyorState 15 sn'de bir
+  kendiliğinden deniyor (1630826). (2) Radar 5'te '2' rozeti 360-400dp'de
+  alta kayıyordu — taşmaz düzen her genişlikte (278ca8d). (3) "Radar 5'e
+  1. Hafta yansımamış" = sezon devri hatası: sezon statik depodan çözülüp
+  GEÇEN sezona kayıyor, arşivdeki 1528 süzgece takılıyordu (üretimde ölçüldü:
+  archiveMatches=0). Sezon artık önce arşiv bülteninden çözülüyor (1385498,
+  gerileme testi radar5-sezon-devri.test.mjs). Ek: eski izin bekçisi INTERNET
+  gerçeğine hizalandı (a630634). Backend 1128/0 · Flutter 926/0 · analyze
+  temiz. Yeni APK masaüstünde: sportoto-analiz-21agu.apk (aapt doğrulamalı).
+  KRİTİK: sezon düzeltmesi 21 Ağustos 18:25 UTC'deki 2. Hafta mühründen ÖNCE
+  deploy edilmeli — mühür yanlış sezon tabanıyla donmasın. Push onayı bekliyor.
