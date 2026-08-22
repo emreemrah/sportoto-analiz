@@ -315,3 +315,20 @@ bitince "ben web sitesi yapmak istiyordum" dedi ve iş geri alındı.
 - Geri alma yolu: yeni dosyalar silinir, düzenlenen dosyalar edit'lerin tersiyle
   (git checkout DEĞİL — başka oturumların commit'lenmemiş işi ezilebilir)
   eski hâline getirilir, git diff ile birebir doğrulanır.
+
+
+## Ders — "Uygulamada veri yok" önce SUNUCU, sonra YENİLEME hatasıdır (2026-08-22)
+Kullanıcı "uygulamada veri yok" dedi. Sıra şuydu ve bu sıra korunmalı:
+1. **Süreçler ayakta mı?** :4000 ve :8081 kapalıydı → veri gelmemesinin ilk sebebi.
+2. **Cache tazeliği:** `cache/bulletin.json` 8 Ağustos/hafta 1528te donmuştu.
+3. **Asıl kök neden:** `cache/autoRefreshStatus.json` içinde sessiz duran hata —
+   `Cannot read properties of null (reading surpriseScore)`. Yenileme her
+   açılışta çöküyor, eski cache servis edilmeye devam ediyordu.
+- **Kalıp:** proje kuralı gereği "başlamış + donmuş anlık görüntü yok" olan maçta
+  `analysis` BİLEREK `null`dur (refresh.js). Bu maçları okuyan her yer
+  `?.` ile korunmalı; `buildRadar` filtresi korumasızdı ve TÜM yenilemeyi
+  çökertiyordu. Yeni hafta açıldığında (geçen haftanın maçları oynanmış olur)
+  bu yol kaçınılmaz olarak tetiklenir — yani hata haftalık olarak geri gelirdi.
+- **Kural:** `analysis/stats/prediction` alanlarını okuyan yeni kodda daima
+  `?.` kullan; teşhise `cache/autoRefreshStatus.json` + `/api/health`
+  (`updatedAt`) ile başla — sunucu "saglikli" derken bile yenileme ölü olabilir.

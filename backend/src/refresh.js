@@ -712,8 +712,11 @@ export async function refreshAll() {
     if (h.standing?.position != null && a.standing?.position != null) sig.position = { home: h.standing.position, away: a.standing.position };
     return Object.keys(sig).length ? sig : null;
   };
+  // NOT: donmuş hâli olmayan BAŞLAMIŞ maçlarda `analysis` bilerek NULLdur
+  // (yukarı bkz. başlamış + snapshot yok → tahmin üretilmez). Radar bu maçları
+  // filtrede eler; korumasız okuma tüm yenilemeyi çökertiyordu.
   const buildRadar = (includeStarted) => analyzedMatches
-    .filter((m) => (includeStarted || !m.started) && m.analysis.surpriseScore != null)
+    .filter((m) => (includeStarted || !m.started) && m.analysis?.surpriseScore != null)
     .sort((a, b) => b.analysis.surpriseScore - a.analysis.surpriseScore)
     .map((m) => ({
       no: m.no,
