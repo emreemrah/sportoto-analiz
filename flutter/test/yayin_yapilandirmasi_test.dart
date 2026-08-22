@@ -368,5 +368,28 @@ void main() {
             'güncelleme telefona kurulamaz',
       );
     });
+
+    test('ekranda gösterilen sürüm pubspec ile AYNI', () {
+      // brand.dart'taki kAppVersion, 'Hakkında' ekranında gösterilen
+      // sürümdür ve pubspec'ten AYRI bir sabittir. Yorumu "pubspec ile aynı
+      // kalmalıdır" diyordu ama hiçbir şey bunu denetlemiyordu — 22 Ağustos
+      // 2026'da pubspec 1.0.1'e çıkarıldığında sabit 1.0.0'da kaldı ve
+      // kullanıcı yeni sürümü kurduğu hâlde ekranda eskisini gördü.
+      // Kurulu sürümü doğrulamanın tek yolu Android ayarları kalmıştı.
+      final pubspec = File('pubspec.yaml').readAsLinesSync();
+      final satir = pubspec.firstWhere(
+        (l) => l.startsWith('version:'),
+        orElse: () => '',
+      );
+      final surumAdi = satir.substring('version:'.length).trim().split('+')[0];
+
+      final brand = _oku('lib/core/brand.dart');
+      expect(
+        brand.contains("kAppVersion = '$surumAdi'"),
+        isTrue,
+        reason: 'brand.dart kAppVersion pubspec sürümüyle ($surumAdi) '
+            'uyuşmuyor — kullanıcı ekranda yanlış sürüm görür',
+      );
+    });
   });
 }

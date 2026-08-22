@@ -59,7 +59,7 @@ const String kOfficialResultNotice =
     'sayılmaz.';
 
 /// Uygulama sürümü — pubspec.yaml içindeki "version" ile AYNI kalmalıdır.
-const String kAppVersion = '1.0.0';
+const String kAppVersion = '1.0.1';
 
 // YASAL SAYFA YOLLARI — sunucu bunları statik HTML olarak servis eder
 // (backend/legal/). Google Play, gizlilik politikasının ve hesap silme
