@@ -1,5 +1,39 @@
 # Güncel Çalışma Durumu
 
+## 22 AĞUSTOS (gece) — GÜNÜN SONU DURUMU
+
+Gün "uygulamaya veri gelmiyor" bildirimiyle başladı; kök neden zinciri açıldı
+ve altı iş kapandı. Hepsi yayında ve doğrulandı.
+
+| İş | Durum | Kanıt |
+|---|---|---|
+| Bülten hiç üretilmiyordu (radar null çökmesi) | KAPANDI | üretim /api/bulletin 200 |
+| Mühürlü tahminler kayboluyordu | KAPANDI | 5 maç arşivden geri yüklendi |
+| Tahmin yokken sebep yazılmıyordu | KAPANDI | APK v1.0.1 |
+| Kilit/başlama 3 saat geç tetikleniyordu | KAPANDI | başlamış maç 3 → 5 |
+| Mühür anında sunucu uyuyordu | BEKÇİ KURULDU | cron koştu, doğrulandı |
+| Geç mühür karneye giriyor mu | ZATEN KORUNUYORDU | 1529 karnede yok |
+
+- Backend 1189 test · Flutter 930 test · ikisi de 0 hata.
+- Son commit: 3b62870. main yerel = uzak.
+- APK: masaüstünde sportoto-analiz-v1.0.1-arm64.apk (+arm32).
+
+### KULLANICININ YAPACAKLARI
+1. Telefondaki eski uygulamayı KALDIR, v1.0.1'i kur (imza değişti — bu son
+   kaldır-kur; sonrakiler üzerine kurulur).
+2. `flutter/android/masteranaliz.jks` + key.properties'i depo DIŞINA yedekle.
+   Kaybolursa aynı sorun tekrarlanır.
+
+### AÇIK TEK DOĞRULAMA (takvimli)
+Bekçinin "pencere AÇIK" yolu gerçek mühür anında sınanmadı. Önümüzdeki
+haftanın mühür anında GitHub Actions log'unda aranacak satır:
+    [bekçi] ✅ mühür ZAMANINDA atıldı — hafta karneye girebilir.
+Görülürse 3 haftadır süren karne kaybı durur (late_unverified=3).
+Görülmezse bekçi işe yaramamış demektir; pencere/zamanlama yeniden ele alınır.
+Ölçülen cron gecikmesi 19 dk, pencere 40 dk — pay ~21 dk. Gecikme 40 dk'yı
+aşarsa pencere büyütülmeli.
+
+
 ## 22 AĞUSTOS (akşam) — mühür kalıcılığı YAYINDA
 Kullanıcı kararı "2 ve 3'ü birlikte yap" → sonuç:
 - MADDE 3 zaten kuruluydu, KOD YAZILMADI (provenance.js `late_lock`).

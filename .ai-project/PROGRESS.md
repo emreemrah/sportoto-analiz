@@ -170,3 +170,32 @@
   HÂLÂ DOĞRULANMADI: "pencere AÇIK" yolu gerçek bir mühür anında —
   ping döngüsü + archive.snapshot.late denetimi + `late=false` sonucu.
   Bunun sınavı önümüzdeki haftanın mühür anıdır.
+- 2026-08-22 (17:48 UTC): CRON KENDİLİĞİNDEN KOŞTU — mühür bekçisinin
+  zamanlanmış tetiklemesi doğrulandı (run 32588871200, event=schedule,
+  conclusion=success). Çıktı: "mühür penceresi geçti — sunucuya dokunulmadı."
+  ÖLÇÜLEN GECİKME: koşu 17:30 yuvasına aitti, 17:48:59'da başladı → GitHub
+  ~19 dk geciktirdi. Pencere 40 dk olduğu için mühür anı kaçmaz; kalan pay
+  ~21 dk. (Testte 15 dk'ya kadar tarama yapılmıştı; gerçek gecikme onun
+  üstünde ama pencerenin içinde. Gecikme 40 dk'yı aşarsa mühür kaçar —
+  pencere o zaman büyütülmeli.)
+  Böylece bekçinin şu yolları DOĞRULANDI: YAML geçerli · npm ci CI'da çalışır ·
+  script koşar · Spor Toto runner'dan erişilebilir · mühür anı doğru hesaplanır ·
+  bütçe koruması çalışır (Render'a dokunulmaz) · cron otomatik tetikler.
+  TEK KALAN: "pencere AÇIK" yolu — ping döngüsü + archive.snapshot.late
+  denetimi + `late=false` sonucu. Sınavı önümüzdeki haftanın mühür anıdır.
+- 2026-08-22 (18:08 UTC): APK v1.0.1 derlendi ve masaüstüne kondu
+  (sportoto-analiz-v1.0.1-arm64.apk / -arm32.apk). Sürüm 1.0.0+1 → 1.0.1+2
+  (Android güncellemenin kurulabilmesi için versionCode artışı ŞART).
+  YENİ YAYIN ANAHTARI üretildi: flutter/android/masteranaliz.jks +
+  key.properties (ikisi de gitignore'da, commit'e girmediği doğrulandı).
+  Eski anahtar formatla kaybolmuştu → telefonda BİR KEZ kaldır-kur gerekir;
+  sonraki güncellemeler üzerine kurulur. ANAHTAR YEDEKLENMELİ: kaybolursa
+  aynı sorun tekrarlanır, Play Store'a çıkılırsa kalıcı kimlik olur.
+  Sürüm artışı iki yayın bekçisini kırdı; ikisi de YANLIŞ ÖLÇÜYORDU ve gerçek
+  invariant'a bağlandı (ayrıntı: commit 3b62870):
+   * key.properties'in diskte OLMAMASINI şart koşan kural imzalı derlemeyi
+     imkânsız kılıyordu → artık "varsa git tarafından yoksayılmalı".
+   * Sürümü 1.0.0+1'e sabitleyen kural güncellemeyi imkânsız kılıyordu →
+     artık "biçim geçerli + port tabanına (1) geri düşmemeli". Negatif
+     doğrulandı: sürüm 1.0.0+1'e çekilince test kırmızı oluyor.
+  Flutter 930 test · 0 hata · analyze temiz.
