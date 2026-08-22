@@ -61,3 +61,34 @@ test('mühür anı bilinmiyorsa karar verilmez', () => {
   assert.equal(pencereDurumu(Date.now(), NaN, secenek), 'bilinmiyor');
   assert.equal(pencereDurumu(Date.now(), null, secenek), 'bilinmiyor');
 });
+
+// ---------------------------------------------------------------------------
+// HÜKÜM → ÇIKIŞ KODU.
+//
+// Bekçinin sonucu eskiden yalnız iş akışı LOG'unda duruyordu. Log okumak
+// kimlik doğrulaması ister; ölçüldü (22 Ağu 2026): bulut ortamı sunucunun
+// adresine hiç çıkamıyor, yalnız GitHub API'sini okuyabiliyor. Yani mührün
+// tutup tutmadığını dışarıdan görmenin TEK yolu koşunun `conclusion` alanı —
+// o da çıkış kodundan geliyor. Bu eşleme kırılırsa arıza SESSİZ kalır.
+// ---------------------------------------------------------------------------
+import { hukumKodu } from '../scripts/muhur-bekcisi.mjs';
+
+test('mühür zamanında atıldıysa YEŞİL', () => {
+  assert.equal(hukumKodu('tamam'), 0);
+});
+
+test('yapılacak iş yoksa YEŞİL (pencere kapalı boşuna kırmızı yakmaz)', () => {
+  assert.equal(hukumKodu('bilgi'), 0);
+});
+
+test('mühür zamanında atılmadıysa KIRMIZI', () => {
+  // Kırmızı koşu GitHub'ın kendi bildirimini tetikler; ayrıca izleme gerekmez.
+  assert.equal(hukumKodu('dikkat'), 1);
+});
+
+test('BİLİNMEYEN hüküm de KIRMIZI sayılır', () => {
+  // Sessiz yeşil, kaçırılmış mühür demektir. Bilinmezlikte alarm çal.
+  assert.equal(hukumKodu('yeni-bir-durum'), 1);
+  assert.equal(hukumKodu(undefined), 1);
+  assert.equal(hukumKodu(null), 1);
+});

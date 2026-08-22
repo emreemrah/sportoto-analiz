@@ -199,3 +199,27 @@
      artık "biçim geçerli + port tabanına (1) geri düşmemeli". Negatif
      doğrulandı: sürüm 1.0.0+1'e çekilince test kırmızı oluyor.
   Flutter 930 test · 0 hata · analyze temiz.
+- 2026-08-22 (18:31-18:40 UTC): Mühür günü hatırlatması kuruldu — ve deneme
+  koşusu CİDDİ BİR TASARIM HATASI ortaya çıkardı.
+  Kurulan iki tek seferlik bulut görevi:
+   * trig_01L9gkkE8j8JytDorb5kDCRR — 28 Ağu 15:00Z, mühür öncesi hatırlatma.
+   * trig_01SvoYiESm1y8ULwCg3WhEEM — 29 Ağu 06:00Z, mühür doğrulaması.
+  DENEME KOŞUSU BULGUSU (cse_01Rm42E1M9ajdzuYyG2SbzcR): bulut ortamı
+  sportoto-analiz.onrender.com adresine ÇIKAMIYOR — hem curl (CONNECT tunnel
+  failed 403) hem WebFetch (EGRESS_BLOCKED). api.github.com'a ise yalnız
+  WebFetch ile erişilebiliyor (curl 403). Yani görevlerin asıl ölçüsü
+  (/api/bulletin → archive.snapshot.late) ULAŞILAMAZDI; hatırlatma sessizce
+  yarım çalışırdı. Test edilmeseydi 28 Ağustos'ta öğrenilecekti.
+  DÜZELTME (kod): bekçi hükmünü artık ÇIKIŞ KODUNA yazıyor —
+  `hukumKodu()` saf fonksiyonu: 'tamam'/'bilgi' → 0, 'dikkat' ve BİLİNMEYEN
+  → 1. Kazanç iki katlı: (a) GitHub başarısız zamanlanmış iş akışı için
+  KENDİSİ bildirim yollar, ayrıca izleme gerekmez; (b) koşunun `conclusion`
+  alanı herkese açık API'den okunur, log'a erişemeyen denetçi de mührün tutup
+  tutmadığını görebilir. Bilinmeyen hüküm kırmızı sayılır: sessiz yeşil,
+  kaçırılmış mühür demektir.
+  Uçtan uca doğrulandı: pencere dışı → exit 0; pencere zorla açılıp 1529'un
+  GEÇ mührü okutulduğunda → "SONUÇ: DİKKAT" + exit 1.
+  Görev komutları da gerçeğe uyduruldu: artık Render'a hiç dokunmuyorlar,
+  hükmü GitHub Actions `conclusion` alanından ve koşu süresinden okuyorlar
+  (pencerede çalışan koşu UZUN sürer, diğerleri saniyeler).
+  Backend 1193 test · 0 hata (1189 + 4).
