@@ -706,3 +706,68 @@ sunucu push ayrı bir karardır (kapsam dışı bırakıldı).
 /yonetim panelindeki "Noter Kararı Bekleyen Maçlar" kartı cihaz kapsamı
 dışında (masaüstü + operatör girişi) — testleri yeşil, görsel doğrulaması
 operatör girişiyle yapılacak.
+
+## 22 Ağustos 2026 — Mühür kalıcılığı (kullanıcı kararı: "2 ve 3'ü birlikte yap")
+
+Bağlam: Render diski geçici. 2. Hafta'da önbellek silinince başlamış maçların
+(#1, #11, #13) MAÇ ÖNCESİ mühürlenmiş tahminleri kayboldu; geriye dönük tahmin
+yasağı da — doğru davranarak — yenisini üretmeyi reddetti. Kullanıcı bunu
+"tahminler kayboldu" olarak gördü.
+
+### Madde 3 — geç mühür karneye girmesin
+- [x] DENETLENDİ: ZATEN KURULU. `scorecards/provenance.js` → `late === true`
+      olan kayıt `late_lock` sebebiyle `official_forward` DIŞI kalıyor
+      (`LATE_UNVERIFIED`). Sistem/Radar/Kriter karnelerinin üçü de aynı kapıyı
+      kullanıyor. Üretim kanıtı: /api/system-scorecard →
+      exclusionBreakdown {"late_unverified":3,"unknown":1}, 1529 karnede YOK.
+      YENİ KOD YAZILMADI — çalışan koruma tekrar yazılmaz.
+
+### Madde 2 — mühür kalıcı olsun (asıl iş)
+Keşif: `recordObservationsFromData` maç öncesi tahmini ZATEN Supabase'e
+yazıyor (`statsSummary.prediction/probabilities/surpriseScore/label` + `odds`),
+ve yalnız freezeAt'ten ÖNCE yazıyor. 1529 için 15 maç × 2050 gözlem duruyor.
+#1'in son maç-öncesi gözlemi: 2026-08-21T16:42:30Z → tahmin "2", BANKO,
+1:%16 X:%21 2:%64. Yani kayıp veri GERİ GETİRİLEBİLİR ve bu geriye dönük
+üretim DEĞİLDİR — maç öncesi kaydın kendisidir.
+
+- [x] `src/archive/gozlemGeriYukleme.js` (saf modül):
+      - `macOncesiGozlemSec(gozlemler, { sinirMs })` → sınırdan önceki SON
+        kullanılabilir gözlem (yoksa null).
+      - `gozlemdenAnaliz(gozlem)` → refresh.js'in beklediği
+        `{ analysis, prediction, preOdds }` şekli. Kayıtta OLMAYAN alan
+        (favorite, factors, comment) UYDURULMAZ; null kalır.
+      - labelColor label'dan türetilir (surprise.js ile aynı eşikler).
+- [x] `refresh.js`: kilitli haftada gözlemler BİR KEZ okunur; başlamış +
+      dosya önbelleğinde mührü olmayan maçta gözlemden geri yüklenir.
+      Sınır = min(freezeAt, maçın kendi başlama anı).
+- [x] Geri yüklenen kayıt KENDİNİ BELLİ EDER: `analysisRestored` alanı
+      (kaynak + gerçek gözlem anı). Dürüstlük: bu bir maç-öncesi kayıttır ama
+      canlı hesap değildir; provenance kapısı DEĞİŞMEZ (geç mühür yine karne dışı).
+- [x] Geri yükleme başarısızsa mevcut davranış aynen korunur (analysis null +
+      `analysisAbsence` sebebi).
+- [x] Testler: gözlem seçimi (sınır sonrası gözlem ASLA seçilmez), şekil
+      dönüşümü, uydurma alan yok, refresh dalının bağlanması.
+- [x] backend `npm test` + flutter analyze/test yeşil.
+
+### İnceleme
+(iş bitince doldurulacak)
+
+**Ek bulgu (planda yoktu, iş sırasında ölçüldü):** geri yüklenen mühürlü tahmin
+`applyRadarGuardsToBulletin` tarafından SONRADAN genişletiliyordu — #1'in
+mührü "2" iken ekranda "X2" çıkıyordu. Sebep: koruma `isLocked && sameBulletin`
+ile kapatılıyor, önbellek boşken `sameBulletin` false oluyor. Düzeltme:
+`analysisRestored` taşıyan maç korumanın DIŞINDA (radarGuards.js). Koruma
+diğer maçlarda aynen çalışıyor — testte kontrol maçıyla kanıtlandı.
+
+### İnceleme
+- Madde 3 için KOD YAZILMADI: koruma zaten kuruluydu ve çalışıyordu
+  (üretim kanıtı: exclusionBreakdown late_unverified=3, 1529 karnede yok).
+  Çalışan korumayı yeniden yazmak, ikinci bir doğruluk kaynağı üretirdi.
+- Madde 2 uçtan uca doğrulandı: boş önbellekle refresh → 2050 gözlem okundu,
+  5 maç arşivden geri yüklendi, 5/5 tahmin mühürdeki değerle BİREBİR aynı.
+- Backend 1178 test · 0 hata (önceki 1163 + 15 yeni).
+- SINIR: geri yükleme yalnız gözlemde KAYITLI olanı döndürür. `stats` gövdesi,
+  favori, gerekçe ve yorum gözlemde tutulmuyor — bunlar null kalır, uydurulmaz.
+  Bu maçlarda İstatistik sekmesi boş görünür; dürüst davranış budur.
+- DEĞİŞMEYEN: provenance kapısı. Geç mühürlü hafta karneye GİRMEZ; geri
+  yükleme kullanıcının ekranındaki boşluğu doldurur, karne uygunluğunu değil.

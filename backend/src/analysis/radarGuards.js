@@ -163,6 +163,15 @@ export function applyRadarGuardsToBulletin(result, { isLocked = false } = {}) {
   let degisen = 0;
   for (const m of result.matches) {
     if (!m?.prediction) continue;
+    // MÜHÜRLÜ DEĞERE DOKUNULMAZ.
+    //
+    // `analysisRestored` taşıyan maçın tahmini maç ÖNCESİ mühürlenmiş ve
+    // kalıcı arşivden geri okunmuştur (bkz. archive/gozlemGeriYukleme.js).
+    // Koruma normalde kilitsiz haftada öneriyi genişletir; ama geri yüklenen
+    // kayıt zaten donmuş bir geçmiştir — genişletmek onu DEĞİŞTİRMEK olur.
+    // ÖLÇÜLDÜ (22 Ağu 2026): mühürdeki "2" ekranda "X2" olarak çıkıyordu;
+    // önbellek boşken `sameBulletin` false olduğu için koruma çalışıyordu.
+    if (m.analysisRestored) continue;
     const rc = byNo.get(Number(m.no));
     if (!rc) continue;
     const yeni = applyRadarGuards(m.prediction, rc, { isLocked });

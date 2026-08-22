@@ -24,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { attachAiComments, aiEnabled } from './analysis/aiComment.js';
 import { save, load } from './cache.js';
 import { archiveOnRefresh, archivePreSave } from './archive/worker.js';
+import { macOncesiGozlemSec, gozlemdenAnaliz, gozlemleriGrupla } from './archive/gozlemGeriYukleme.js';
 import { kaynakTakimKimlikleri, fiksturIndeksi } from './takimFikstur.js';
 import { eslesenSayisi, kapsamGerilemesi } from './kapsamKorumasi.js';
 
@@ -397,6 +398,40 @@ export async function refreshAll() {
   let frozenReused = 0; // kilit nedeniyle yeniden hesaplanmayıp donmuş halinden alınan maç sayısı
   // Başlamış ama donmuş hâli olmayan maç sayısı — tahmin ÜRETİLMEDİ (bkz. aşağıdaki gerekçe).
   let gecmisTahminUretilmedi = 0;
+  // Kalıcı arşivden geri yüklenen maç sayısı (aşağıdaki gerekçeye bakınız).
+  let muhurGeriYuklendi = 0;
+
+  // MÜHRÜN KALICI KOPYASI — dosya önbelleği tek dayanak DEĞİLDİR.
+  //
+  // Donmuş analiz yalnız `previousBulletin` (dosya önbelleği) üzerinden
+  // taşınıyordu. Render diski geçici olduğu için önbellek silindiğinde maç
+  // öncesi mühürlenmiş tahminler yok oluyordu; aşağıdaki "başlamış maça
+  // tahmin üretme" kuralı da — doğru davranarak — yenisini üretmiyordu.
+  // Sonuç: kullanıcı ekranında analiz boş kalıyordu (bildirim, 22 Ağu 2026).
+  //
+  // Oysa `recordObservationsFromData` maç öncesi tahmini HER yenilemede kalıcı
+  // arşive yazıyor ve bunu YALNIZ freezeAt'ten önce yapıyor. Yani kayıt zaten
+  // var; eksik olan onu geri OKUMAKTI. Bu bir yeniden hesap DEĞİLDİR.
+  //
+  // Kilitli hafta değilse tek satır bile okunmaz: gözlemler yalnız donmuş
+  // hafta için anlamlıdır ve kilitsiz haftada analiz zaten canlı hesaplanır.
+  let gozlemHaritasi = null;
+  let muhurSiniriMs = null;
+  if (isLocked) {
+    try {
+      const { getArchiveStore } = await import('./archive/store.js');
+      const { computeFreezeAt } = await import('./archive/snapshotService.js');
+      const gozlemler = await getArchiveStore().listObservations(String(bulletin.roundId));
+      gozlemHaritasi = gozlemleriGrupla(gozlemler);
+      const fz = computeFreezeAt(bulletin.matches);
+      muhurSiniriMs = fz ? new Date(fz).getTime() : null;
+      console.log(`[refresh] kalıcı arşiv gözlemleri okundu: ${gozlemler.length} kayıt · ${gozlemHaritasi.size} maç`);
+    } catch (e) {
+      // Arşiv okunamazsa akış BOZULMAZ: eski davranış (analiz boş + sebep).
+      console.warn(`[refresh] kalıcı arşiv gözlemleri okunamadı: ${e.message}`);
+      gozlemHaritasi = null;
+    }
+  }
   const getExtras = createExtrasCache(matchesBySeason, teamsBySeason);
   const analyzedMatches = [];
   for (const bm of bulletin.matches) {
@@ -492,6 +527,46 @@ export async function refreshAll() {
     // görünür) ama analiz/tahmin BOŞTUR ve sebebi yazılır. Uydurma yerine
     // boşluk; projenin "veri yoksa sebebini yaz" kuralı.
     if (started) {
+      // ÖNCE KALICI ARŞİV: dosya önbelleğinde mühür yoksa, maç öncesi kayıt
+      // Supabase'de duruyor olabilir. Sınır ZORUNLU ve İKİ KATLI: hem bültenin
+      // mühür anı (freezeAt) hem MAÇIN KENDİ başlama anı. Hangisi önceyse o
+      // geçerlidir — böylece maç başladıktan sonraki hiçbir gözlem seçilemez.
+      // Bu sınır, "geriye dönük tahmin üretilmez" kuralının aynısıdır; kayıt
+      // geri okunur, yeniden hesaplanmaz.
+      // macAniMs: saat dilimi EKSİZ resmî saatler Türkiye duvar saatidir.
+      // Ham new Date(...) sunucuda (UTC) 3 saat İLERİ okur ve sınırı maçın
+      // içine kaydırırdı — tam da engellemeye çalıştığımız şey.
+      const macAni = macAniMs(bm.date);
+      const sinirlar = [muhurSiniriMs, macAni].filter((x) => Number.isFinite(x));
+      const geri = (gozlemHaritasi && sinirlar.length)
+        ? gozlemdenAnaliz(macOncesiGozlemSec(
+          gozlemHaritasi.get(String(bm.sportotoMatchId)),
+          { sinirMs: Math.min(...sinirlar) },
+        ))
+        : null;
+
+      if (geri) {
+        muhurGeriYuklendi++;
+        analyzedMatches.push({
+          ...bm,
+          started,
+          live: isLive,
+          score,
+          resmiSkor,
+          analysis: geri.analysis,
+          // İstatistik gövdesi gözlemde tutulmaz (yalnız özet) — uydurulmaz.
+          stats: null,
+          prediction: geri.prediction,
+          preOdds: geri.preOdds,
+          analysisRestored: geri.analysisRestored,
+          footyMatchId: fm?.footyMatchId ?? null,
+          footySwapped: found?.swapped ?? false,
+          footySeasonId: fm?.seasonId ?? null,
+          coverage,
+        });
+        continue;
+      }
+
       gecmisTahminUretilmedi++;
       analyzedMatches.push({
         ...bm,
@@ -602,7 +677,7 @@ export async function refreshAll() {
   matched = eslesenSayisi({ matches: analyzedMatches });
 
   const upcomingCount = analyzedMatches.filter((m) => !m.started).length;
-  console.log(`[refresh] başlamamış maç: ${upcomingCount}/${bulletin.matchCount} · eşleşen: ${matched}${frozenReused ? ` · donmuş (kilit): ${frozenReused}` : ''}${gecmisTahminUretilmedi ? ` · tahmin üretilmedi (başlamış, mühür yok): ${gecmisTahminUretilmedi}` : ''}`);
+  console.log(`[refresh] başlamamış maç: ${upcomingCount}/${bulletin.matchCount} · eşleşen: ${matched}${frozenReused ? ` · donmuş (kilit): ${frozenReused}` : ''}${gecmisTahminUretilmedi ? ` · tahmin üretilmedi (başlamış, mühür yok): ${gecmisTahminUretilmedi}` : ''}${muhurGeriYuklendi ? ` · arşivden geri yüklendi: ${muhurGeriYuklendi}` : ''}`);
 
   // KAPSAM RAPORU — eşleşmeyen maçları sebebiyle kaydet + logla (kontrol mekanizması).
   const uncovered = analyzedMatches
