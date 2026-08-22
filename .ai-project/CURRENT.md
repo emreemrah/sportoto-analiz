@@ -1,6 +1,6 @@
 # Güncel Çalışma Durumu
 
-## 22 AĞUSTOS — üretimde bülten üretilemiyordu → DÜZELTİLDİ ve YAYINDA (VERIFIED)
+## 22 AĞUSTOS — üretimde bülten üretilemiyordu → DÜZELTİLDİ, YAYINDA, KABUL EDİLDİ (ACCEPTED)
 Kullanıcı bildirimi: "uygulamaya veri gelmiyor". Sebep uygulamada veya
 kullanıcının bilgisayarında değildi (format sonrası yerel kurulum sağlamdı);
 canlı sunucuda refresh her soğuk açılışta çöküyor, bülten hiç kaydedilmiyordu.
@@ -32,6 +32,9 @@ canlı sunucuda refresh her soğuk açılışta çöküyor, bülten hiç kaydedi
   analizi boş (başlamış-mühürsüz) = 3 → geriye dönük tahmin kuralı DELİNMEDİ.
   #1 Erzurumspor FK–Galatasaray başlamış, skor 0-4 görünüyor (gerçek skor var,
   uydurma tahmin yok). /api/surprise-radar · /api/rounds · /api/match/1 = 200.
+
+- KULLANICI KABULÜ: telefonda kontrol edildi — "veri geldi, çalışıyor".
+  Durum ACCEPTED. Bu iş kapandı.
 
 ## Önceki durum (21 Ağustos gecesi)
 - Proje: sportoto-analiz-karar-motoru-test

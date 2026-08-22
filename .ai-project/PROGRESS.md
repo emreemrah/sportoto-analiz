@@ -112,3 +112,5 @@
   Başlamış-mühürsüz 3 maçın analizi BOŞ kaldı → geriye dönük tahmin kuralı
   delinmedi; #1 Erzurumspor FK–Galatasaray gerçek skoruyla (0-4) görünüyor.
   /api/surprise-radar · /api/rounds · /api/match/1 = 200. Durum: VERIFIED.
+- 2026-08-22 (16:1x UTC): KULLANICI KABULÜ — telefonda kontrol edildi,
+  "veri geldi, çalışıyor". Radar/bülten arızası kapandı. Durum: ACCEPTED.
