@@ -157,3 +157,16 @@
   AÇIK DOĞRULAMA: workflow'un gerçekten koştuğu ve asıl sınavı — önümüzdeki
   haftanın mühür anında `late=false` üretmesi. Actions sekmesinden elle
   tetiklenebilir (workflow_dispatch açık).
+- 2026-08-22 (17:41 UTC): Mühür bekçisi GitHub Actions'ta ELLE TETİKLENDİ ve
+  uçtan uca DOĞRULANDI (run 32588492533, conclusion=success).
+  Bekçi log'u: "2026/2027 2. Hafta (round 1529) · mühür 2026-08-21T18:25:00Z ·
+  kalan -1397 dk" → "mühür penceresi geçti — sunucuya dokunulmadı."
+  Bu tek koşu şunları kanıtladı: YAML geçerli · npm ci CI'da çalışıyor ·
+  script CI'da koşuyor · Spor Toto GitHub runner'ından erişilebiliyor ·
+  mühür anı doğru hesaplanıyor · BÜTÇE KORUMASI çalışıyor (Render'a hiç
+  dokunulmadı). Zamanlanmış (cron) koşu hâlâ kendiliğinden çalışmadı; elle
+  tetikleme git kimlik yöneticisindeki token ile workflow_dispatch üzerinden
+  yapıldı (HTTP 204).
+  HÂLÂ DOĞRULANMADI: "pencere AÇIK" yolu gerçek bir mühür anında —
+  ping döngüsü + archive.snapshot.late denetimi + `late=false` sonucu.
+  Bunun sınavı önümüzdeki haftanın mühür anıdır.
