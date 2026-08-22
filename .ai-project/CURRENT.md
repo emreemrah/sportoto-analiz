@@ -1,5 +1,27 @@
 # Güncel Çalışma Durumu
 
+## 22 AĞUSTOS — ACİL: üretimde bülten üretilemiyordu (düzeltildi, YAYINDA DEĞİL)
+Kullanıcı bildirimi: "uygulamaya veri gelmiyor". Sebep uygulamada değil, canlı
+sunucuda: refresh her soğuk açılışta çöküyor, bülten hiç kaydedilmiyordu.
+- Belirti (ölçüldü): /api/health hasData=false · updatedAt=null (15+ dk sabit),
+  /api/bulletin 503. /api/rounds 200 (currentRoundId=1529) — sunucu ayaktaydı,
+  çöken şey bültenin kendisiydi.
+- Kök neden: refresh.js buildRadar süzgeci `m.analysis.surpriseScore` okuyordu.
+  Başlamış ama mührü olmayan maç dalı (geriye dönük tahmin kapısı) bilerek
+  `analysis: null` yazar → TypeError → refreshAll `save('bulletin')` satırına
+  HİÇ ULAŞMIYORDU. Yerelde dolu önbellek yüzünden görünmüyordu (her başlamış
+  maç donmuş snapshot yolundan geçiyor); Render diski geçici olduğu için
+  üretimde haftanın ilk maçından sonraki HER uyanışta çöküyordu.
+- Düzeltme: `m.analysis?.surpriseScore` — backend/src/refresh.js, tek satır.
+- Kanıt: CACHE_DIR ile boş önbellekte önce exit 1 (birebir üretim), yamadan
+  sonra exit 0 · bulletin.json 1,03 MB · round 1529 · eşleşen 14/15 · radar
+  11 maç (3 başlamış-mühürsüz maç doğru şekilde dışarıda).
+  Yeni gerileme testi: backend/test/radar-bos-analiz.test.mjs (3 test).
+  Tam paket: 1163 test · 1131 geçti · 0 hata · 32 atlandı.
+- SONRAKİ KESİN ADIM: kullanıcı onayıyla push + Render deploy. Onaya kadar
+  uygulama BOŞ KALIR — düzeltme yalnız yerelde duruyor.
+
+
 - Proje: sportoto-analiz-karar-motoru-test
 - Proje kimliği: b8a31f25-5aed-40b4-ac7f-1fc81f1419ed
 - Durum: IN_PROGRESS (olgun ürün — Flutter uygulaması + Node backend canlı)

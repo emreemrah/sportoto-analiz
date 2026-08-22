@@ -713,8 +713,14 @@ export async function refreshAll() {
     if (h.standing?.position != null && a.standing?.position != null) sig.position = { home: h.standing.position, away: a.standing.position };
     return Object.keys(sig).length ? sig : null;
   };
+  // ANALİZİ OLMAYAN MAÇ RADARA GİRMEZ (m.analysis null olabilir).
+  // Başlamış + mührü yok dalı bilerek analysis:null yazar (yukarısı). Önbellek
+  // boşken (Render'da disk geçici — her uyanış boş cache) kilitten sonraki İLK
+  // yenilemede bu dal çalışır ve buradaki m.analysis.surpriseScore okuması
+  // TypeError atıp refresh'i çökertiyordu: bülten hiç kaydedilmediği için
+  // /api/bulletin kalıcı 503 veriyordu. Boş analiz artık sessizce elenir.
   const buildRadar = (includeStarted) => analyzedMatches
-    .filter((m) => (includeStarted || !m.started) && m.analysis.surpriseScore != null)
+    .filter((m) => (includeStarted || !m.started) && m.analysis?.surpriseScore != null)
     .sort((a, b) => b.analysis.surpriseScore - a.analysis.surpriseScore)
     .map((m) => ({
       no: m.no,

@@ -78,3 +78,26 @@
   1528+1527+1526+1525'i yeniden→eskiye veriyor. Radar 5 artık tüm sezonları
   sayıyor; akşamki mühür 4 haftalık tabanla donacak. Kalan: kullanıcı 21agu
   APK'yı kurup soğuk açılış + rozet hizasını telefonda doğrulayacak.
+- 2026-08-22: Kullanıcı bildirimi "uygulamaya veri gelmiyor" — ÜRETİM ARIZASI
+  bulundu ve düzeltildi. Belirti: https://sportoto-analiz.onrender.com
+  /api/health hasData=false · updatedAt=null (kesintisiz 15+ dk),
+  /api/bulletin HTTP 503. /api/rounds sağlamdı (currentRoundId=1529), yani
+  sunucu ayakta ve resmî kaynak erişilebilirdi — çöken şey bültenin kendisiydi.
+  KÖK NEDEN: refresh.js buildRadar süzgeci `m.analysis.surpriseScore` diyordu.
+  Başlamış ama mührü olmayan maç dalı (gecmise-donuk-tahmin kapısı) bilerek
+  `analysis: null` yazar; süzgeç bunu okuyunca TypeError atıyor ve refreshAll
+  `save('bulletin')` satırına HİÇ ULAŞMIYORDU. Yerelde görünmüyordu: dolu
+  önbellekte her başlamış maç donmuş snapshot yolundan geçiyor, kapı hiç
+  çalışmıyor. Üretimde Render diski geçici — her uyanışta önbellek boş, bu
+  yüzden haftanın ilk maçı başladıktan sonraki HER soğuk açılış çöküyordu.
+  ÜRETİM: CACHE_DIR ile boş önbellekte birebir üretildi
+  ("[refresh] HATA: Cannot read properties of null (reading 'surpriseScore')",
+  exit 1, bulletin.json yazılmadı).
+  DÜZELTME: süzgeç `m.analysis?.surpriseScore` (tek satır + gerekçe yorumu).
+  KANIT: aynı boş önbellek koşusu exit 0, bulletin.json 1,03 MB yazıldı,
+  round 1529 · eşleşen 14/15 · radar 11 maç (3 başlamış-mühürsüz maç doğru
+  şekilde radar dışı). Yeni gerileme testi test/radar-bos-analiz.test.mjs (3
+  test). Tam paket: 1163 test · 1131 geçti · 0 hata · 32 atlandı.
+  DURUM: IMPLEMENTED_UNVERIFIED (üretimde) — düzeltme YAYINDA DEĞİL; push +
+  deploy kullanıcı onayı bekliyor. Onay gelene dek uygulama boş kalmaya
+  devam eder.
