@@ -101,3 +101,14 @@
   DURUM: IMPLEMENTED_UNVERIFIED (üretimde) — düzeltme YAYINDA DEĞİL; push +
   deploy kullanıcı onayı bekliyor. Onay gelene dek uygulama boş kalmaya
   devam eder.
+- 2026-08-22 (16:04 UTC): Radar düzeltmesi YAYINDA ve ÜRETİMDE DOĞRULANDI.
+  Push: ec14bcd (GitHub GH007 e-posta gizliliği engeli — kullanıcı kararıyla
+  commit yazarı noreply adresine çevrildi; depo-yerel user.email artık
+  216948603+emreemrah@users.noreply.github.com). Render otomatik deploy
+  16:03:17'de yeni instance açtı, refresh 75 sn'de tamamlandı.
+  Kanıt: /api/health durum=saglikli · hasData=true ·
+  updatedAt=2026-08-22T16:04:32Z. /api/bulletin 200 · 838 KB · round 1529
+  2026/2027 2. Hafta · matchCount=15 · matched=14 · upcoming=12 · radar=11.
+  Başlamış-mühürsüz 3 maçın analizi BOŞ kaldı → geriye dönük tahmin kuralı
+  delinmedi; #1 Erzurumspor FK–Galatasaray gerçek skoruyla (0-4) görünüyor.
+  /api/surprise-radar · /api/rounds · /api/match/1 = 200. Durum: VERIFIED.

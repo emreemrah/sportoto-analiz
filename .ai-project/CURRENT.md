@@ -1,27 +1,39 @@
 # Güncel Çalışma Durumu
 
-## 22 AĞUSTOS — ACİL: üretimde bülten üretilemiyordu (düzeltildi, YAYINDA DEĞİL)
-Kullanıcı bildirimi: "uygulamaya veri gelmiyor". Sebep uygulamada değil, canlı
-sunucuda: refresh her soğuk açılışta çöküyor, bülten hiç kaydedilmiyordu.
+## 22 AĞUSTOS — üretimde bülten üretilemiyordu → DÜZELTİLDİ ve YAYINDA (VERIFIED)
+Kullanıcı bildirimi: "uygulamaya veri gelmiyor". Sebep uygulamada veya
+kullanıcının bilgisayarında değildi (format sonrası yerel kurulum sağlamdı);
+canlı sunucuda refresh her soğuk açılışta çöküyor, bülten hiç kaydedilmiyordu.
 - Belirti (ölçüldü): /api/health hasData=false · updatedAt=null (15+ dk sabit),
   /api/bulletin 503. /api/rounds 200 (currentRoundId=1529) — sunucu ayaktaydı,
-  çöken şey bültenin kendisiydi.
+  çöken şey bültenin üretimiydi.
 - Kök neden: refresh.js buildRadar süzgeci `m.analysis.surpriseScore` okuyordu.
   Başlamış ama mührü olmayan maç dalı (geriye dönük tahmin kapısı) bilerek
   `analysis: null` yazar → TypeError → refreshAll `save('bulletin')` satırına
-  HİÇ ULAŞMIYORDU. Yerelde dolu önbellek yüzünden görünmüyordu (her başlamış
-  maç donmuş snapshot yolundan geçiyor); Render diski geçici olduğu için
-  üretimde haftanın ilk maçından sonraki HER uyanışta çöküyordu.
+  HİÇ ULAŞMIYORDU. İki koruma birbirini vurdu. Yerelde dolu önbellek yüzünden
+  görünmüyordu (her başlamış maç donmuş snapshot yolundan geçiyor); Render
+  diski geçici olduğu için üretimde haftanın ilk maçından (21 Ağu akşamı)
+  sonraki HER uyanışta çöküyor, backoff ile tekrar deneyip yalnız FootyStats
+  kotasını yakıyordu.
 - Düzeltme: `m.analysis?.surpriseScore` — backend/src/refresh.js, tek satır.
-- Kanıt: CACHE_DIR ile boş önbellekte önce exit 1 (birebir üretim), yamadan
-  sonra exit 0 · bulletin.json 1,03 MB · round 1529 · eşleşen 14/15 · radar
-  11 maç (3 başlamış-mühürsüz maç doğru şekilde dışarıda).
+- Yerel kanıt: CACHE_DIR ile boş önbellekte önce exit 1 (birebir üretim),
+  yamadan sonra exit 0 · bulletin.json 1,03 MB · round 1529 · eşleşen 14/15.
   Yeni gerileme testi: backend/test/radar-bos-analiz.test.mjs (3 test).
   Tam paket: 1163 test · 1131 geçti · 0 hata · 32 atlandı.
-- SONRAKİ KESİN ADIM: kullanıcı onayıyla push + Render deploy. Onaya kadar
-  uygulama BOŞ KALIR — düzeltme yalnız yerelde duruyor.
+- YAYIN: kullanıcı onayıyla push + Render deploy (commit ec14bcd).
+  NOT: GitHub push'u önce GH007 (e-posta gizliliği) ile reddetti — kullanıcı
+  kararıyla commit yazarı noreply adresine çevrildi ve depo-yerel
+  `user.email` = 216948603+emreemrah@users.noreply.github.com yapıldı.
+  Bundan sonraki commit'ler bu adresle görünür.
+- ÜRETİM DOĞRULAMASI (16:04 UTC, deploy 16:03:17 · refresh 75 sn):
+  /api/health durum=saglikli · hasData=true · updatedAt=2026-08-22T16:04:32Z.
+  /api/bulletin 200 · 838 KB · round 1529 2026/2027 2. Hafta ·
+  matchCount=15 · matched=14 · upcoming=12 · radar=11 maç ·
+  analizi boş (başlamış-mühürsüz) = 3 → geriye dönük tahmin kuralı DELİNMEDİ.
+  #1 Erzurumspor FK–Galatasaray başlamış, skor 0-4 görünüyor (gerçek skor var,
+  uydurma tahmin yok). /api/surprise-radar · /api/rounds · /api/match/1 = 200.
 
-
+## Önceki durum (21 Ağustos gecesi)
 - Proje: sportoto-analiz-karar-motoru-test
 - Proje kimliği: b8a31f25-5aed-40b4-ac7f-1fc81f1419ed
 - Durum: IN_PROGRESS (olgun ürün — Flutter uygulaması + Node backend canlı)
