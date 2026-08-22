@@ -365,6 +365,35 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen>
       children: [
         MatchInfoCard(m: m),
 
+        // ── SİSTEM TAHMİNİ YOKSA SEBEBİ ──
+        // Backend, tahmin üretmediği maçta sebebini `analysisAbsence` ile
+        // yazar. Bülten kartında olduğu gibi burada da yazılmazsa ekran
+        // sessizce boş kalıyor ve "tahmin kayboldu" gibi okunuyordu
+        // (kullanıcı bildirimi, 22 Ağustos 2026). Uyarı değil bilgi:
+        // maç başladıktan sonra tahmin üretilmemesi kuralın kendisidir.
+        if (((m['analysisAbsence'] as Map?)?['text'] as String?)
+                ?.trim()
+                .isNotEmpty ==
+            true)
+          Container(
+            margin: const EdgeInsets.only(bottom: Spacing.md),
+            padding: const EdgeInsets.all(Spacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.bgAlt,
+              borderRadius: AppRadius.mdR,
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(
+              'ⓘ ${(m['analysisAbsence'] as Map)['text']}',
+              style: TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 12,
+                fontWeight: AppFont.bold,
+                height: 16 / 12,
+              ),
+            ),
+          ),
+
         // ── MAÇ ÖZETİ ──
         Container(
           margin: const EdgeInsets.only(bottom: Spacing.md),

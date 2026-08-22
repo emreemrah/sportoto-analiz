@@ -184,6 +184,14 @@ class _LiveMatchCardState extends State<LiveMatchCard>
 
     final coverage = m['coverage'] as Map?;
 
+    // SİSTEM TAHMİNİ NEDEN YOK — backend, tahmin üretmediği maçta sebebini
+    // `analysisAbsence` ile yazar (ör. maç başladıktan sonra tahmin
+    // üretilmez: mühürlü analizi olmayan başlamış maç). Sebep çizilmediği
+    // sürece kartta yalnız "Sistem —" kalıyordu ve kullanıcıya "tahminler
+    // kayboldu / uygulama bozuk" gibi görünüyordu (bildirim, 22 Ağu 2026).
+    final absenceText = ((m['analysisAbsence'] as Map?)?['text'] as String?)
+        ?.trim();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -463,6 +471,35 @@ class _LiveMatchCardState extends State<LiveMatchCard>
                   )
                 else
                   _tahminSatiri(p, uMark, sMark, st),
+
+                // ── SİSTEM TAHMİNİ YOKSA SEBEBİ ──
+                // Uyarı değil bilgi: bu bir arıza değil, kuralın kendisi
+                // (maç başladıktan sonra tahmin üretilmez). Bu yüzden nötr
+                // kutu; kapsam uyarısı sarı kalır.
+                if (!hidePicks && absenceText != null && absenceText.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgAlt,
+                      borderRadius: AppRadius.smR,
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Text(
+                      'ⓘ $absenceText',
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 10.5,
+                        fontWeight: AppFont.bold,
+                        height: 14 / 10.5,
+                      ),
+                    ),
+                  ),
 
                 // ── KAPSAM UYARISI ──
                 if (coverage != null && coverage['ok'] == false)
