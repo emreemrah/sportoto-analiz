@@ -38,3 +38,19 @@
   `1.0.0+1`e sabitleyen kural (Expo kaynağıyla port eşitliği) güncellemeyi
   imkânsız kılıyordu; Android versionCode artışı şarttır → artık "biçim
   geçerli + port tabanına (1) geri düşmemeli", negatif olarak doğrulandı.
+- 2026-08-22: Bekçinin hükmü ÇIKIŞ KODUNA yazılır (`hukumKodu`):
+  'tamam'/'bilgi' → 0, 'dikkat' ve BİLİNMEYEN → 1. Gerekçe: sonuç yalnız iş
+  akışı log'unda dururken dışarıdan okunamıyordu — log okumak kimlik
+  doğrulaması ister. Çıkış kodu koşunun `conclusion` alanına yansır ve
+  herkese açık API'den okunur; ayrıca GitHub başarısız zamanlanmış iş akışı
+  için KENDİSİ bildirim yollar, yani ayrı bir izleme kurmaya gerek kalmaz.
+  BİLİNMEYEN hüküm bilerek kırmızı sayılır: sessiz yeşil, kaçırılmış mühür
+  demektir. Bekçi: test/muhur-bekcisi.test.mjs.
+- 2026-08-22 (ölçülen kısıt, karar değil ama bağlayıcı): Anthropic bulut
+  ortamı (scheduled routines) `sportoto-analiz.onrender.com` adresine
+  ÇIKAMIYOR — curl "CONNECT tunnel failed 403", WebFetch "EGRESS_BLOCKED".
+  `api.github.com` yalnız WebFetch ile okunur (curl 403). Bu yüzden bulut
+  görevleri uygulamanın kendi durumunu doğrudan denetleyemez; hüküm GitHub
+  Actions üzerinden okunur. Bu kısıt, yukarıdaki çıkış-kodu kararının
+  sebebidir. Yeni bir bulut görevi yazılırken bu varsayılmalı — aksi hâlde
+  görev sessizce yarım çalışır (deneme koşusunda tam bu yaşandı).

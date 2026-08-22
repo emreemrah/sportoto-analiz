@@ -24,15 +24,30 @@ ve altı iş kapandı. Hepsi yayında ve doğrulandı.
 2. `flutter/android/masteranaliz.jks` + key.properties'i depo DIŞINA yedekle.
    Kaybolursa aynı sorun tekrarlanır.
 
-### AÇIK TEK DOĞRULAMA (takvimli)
-Bekçinin "pencere AÇIK" yolu gerçek mühür anında sınanmadı. Önümüzdeki
-haftanın mühür anında GitHub Actions log'unda aranacak satır:
-    [bekçi] ✅ mühür ZAMANINDA atıldı — hafta karneye girebilir.
-Görülürse 3 haftadır süren karne kaybı durur (late_unverified=3).
-Görülmezse bekçi işe yaramamış demektir; pencere/zamanlama yeniden ele alınır.
-Ölçülen cron gecikmesi 19 dk, pencere 40 dk — pay ~21 dk. Gecikme 40 dk'yı
-aşarsa pencere büyütülmeli.
+### AÇIK TEK DOĞRULAMA (takvimli — hatırlatma KURULDU)
+Bekçinin "pencere AÇIK" yolu gerçek bir mühür anında sınanmadı. Sınav
+28 Ağustos Cuma akşamı (mühür beklentisi ~21:25 TSİ / 18:25 UTC).
 
+Kurulmuş bulut görevleri (claude.ai/code/routines):
+ * trig_01L9gkkE8j8JytDorb5kDCRR — 28 Ağu 15:00Z: mühür öncesi hatırlatma
+   (bekçi etkin mi, cron düzenli mi, gecikme 40 dk pencereye yaklaşıyor mu).
+ * trig_01SvoYiESm1y8ULwCg3WhEEM — 29 Ağu 06:00Z: sonucun doğrulanması.
+
+HÜKÜM NASIL OKUNUR: bekçi sonucu ÇIKIŞ KODUNA yazar, yani koşunun
+`conclusion` alanına. success = ya yapılacak iş yoktu ya da mühür ZAMANINDA
+atıldı. failure = mühür zamanında atılmadı ya da doğrulanamadı. Pencerede
+çalışan koşu UZUN sürer (created_at ↔ updated_at > 10 dk); diğerleri
+saniyeler. GitHub, başarısız zamanlanmış iş akışı için kendisi bildirim
+yollar — bulut görevleri düşse bile alarm çalar.
+
+ÖLÇÜLEN KISIT: bulut ortamı sportoto-analiz.onrender.com adresine ÇIKAMIYOR
+(EGRESS_BLOCKED; curl da WebFetch de). api.github.com yalnız WebFetch ile
+okunur. Bu yüzden bulut görevleri uygulamanın kendi durumunu GÖREMEZ; tek
+okunabilir sinyal GitHub Actions `conclusion` alanıdır. `late=false`
+kesinliğini görmek için yerelden /api/bulletin okunmalı.
+
+Ölçülen cron gecikmesi 19 dk, pencere 40 dk — pay ~21 dk. Gecikme 40 dk’ya
+yaklaşırsa pencere (ONCE_DK) büyütülmeli.
 
 ## 22 AĞUSTOS (akşam) — mühür kalıcılığı YAYINDA
 Kullanıcı kararı "2 ve 3'ü birlikte yap" → sonuç:
