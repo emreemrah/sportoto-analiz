@@ -140,3 +140,20 @@
   NOT: gözlem yazımı (`recordObservationsFromData` → `computeFreezeAt`)
   macAniMs kullandığı için DOĞRU anda duruyor; bu yüzden geri yükleme
   sınırı sağlam, etkilenmiyor.
+- 2026-08-22 (17:08 UTC): Saat dilimi düzeltmesi + mühür bekçisi YAYINDA
+  (a4f4f1c). Deploy 17:07:22, veri 17:08:41.
+  SAAT DİLİMİ — üretimde doğrulandı ve etkisi ÖLÇÜLDÜ: düzeltme öncesi 3 maç
+  "başlamış" sayılıyordu, sonrasında 5. #2 (Ç.Rizespor–Samsunspor) ve #3
+  (Çorum–Kasımpaşa) fiilen başlamıştı ama üretim onları 3 saat boyunca
+  "başlamamış" sayıyordu; artık anında tanınıyor. Beşinin de tahmini arşivden
+  geri yüklendi, analizi boş maç YOK. Canlı skorlar akıyor (#11 4-0, #13 1-0).
+  MÜHÜR BEKÇİSİ — workflow GitHub'a kaydedildi ve state=active (YAML geçerli;
+  yerelde ayrıştırıcı yoktu, gerçek doğrulama buydu). ANCAK ilk zamanlanmış
+  koşu 17:33 itibarıyla HENÜZ ÇALIŞMADI (toplam koşu 0), 17:30 yuvası geçmiş
+  olmasına rağmen. GitHub yeni eklenen cron'ları geciktirebiliyor; bu
+  beklenen ama DOĞRULANMAMIŞ durum. Bekçinin kendisi yerelde uçtan uca
+  çalıştırıldı ve doğru davrandı (pencere dışı → dokunmadı; pencere içi →
+  ping + "mühür GEÇ atılmış" teşhisi, gerçekle uyumlu).
+  AÇIK DOĞRULAMA: workflow'un gerçekten koştuğu ve asıl sınavı — önümüzdeki
+  haftanın mühür anında `late=false` üretmesi. Actions sekmesinden elle
+  tetiklenebilir (workflow_dispatch açık).
