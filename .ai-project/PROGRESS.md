@@ -114,3 +114,29 @@
   /api/surprise-radar · /api/rounds · /api/match/1 = 200. Durum: VERIFIED.
 - 2026-08-22 (16:1x UTC): KULLANICI KABULÜ — telefonda kontrol edildi,
   "veri geldi, çalışıyor". Radar/bülten arızası kapandı. Durum: ACCEPTED.
+- 2026-08-22 (16:43 UTC): Mühür kalıcılığı YAYINDA ve üretimde doğrulandı.
+  Push f98eff5 (3a61a79 Flutter sebep-notu ile birlikte), deploy 16:41:45.
+  MADDE 3 (geç mühür karne dışı): kod YAZILMADI — zaten kuruluydu.
+  provenance.js `late` kaydını `late_lock` ile official_forward dışında
+  tutuyor. Üretim kanıtı (deploy sonrası da aynı): karne haftaları
+  [1528,1527,1526], exclusionBreakdown {"late_unverified":3,"unknown":1},
+  1529 karnede YOK. Geri yükleme bu kapıyı DEĞİŞTİRMEDİ.
+  MADDE 2 (mühür kalıcı): üretimde /api/bulletin → 3 maç arşivden geri
+  yüklendi (#1 "2", #11 "1", #13 "10" — hepsi mühürdeki değerin birebir
+  aynısı, gözlem anı 2026-08-21T16:42:30Z, yani maç öncesi). Analizi boş
+  maç kalmadı (#10 hariç: fikstür eşleşmiyor, ayrı ve dürüst boşluk).
+  Yerelde 5, üretimde 3 geri yüklendi — fark, aşağıdaki saat dilimi
+  bulgusundan kaynaklanıyor (sunucu TZ'sine göre "başlamış" tanımı kayıyor).
+- 2026-08-22: AÇIK BULGU (düzeltilmedi, kullanıcı kararı bekliyor) —
+  `refresh.js:439` "başlamış maç" tanımı ham `new Date(bm.date)` kullanıyor;
+  aynı şekilde `isLocked` (satır ~263) ham `new Date(bulletin.closeDate)`.
+  Resmî saatler saat dilimi EKSİZ gelir ve Türkiye duvar saatidir. Üretim
+  UTC olduğu için 21:30 TSİ maç, sunucuda 21:30Z sanılıyor: "başlamış" ve
+  "kilitli" durumları ÜRETİMDE 3 SAAT GEÇ tetikleniyor. Doğru okuyucu
+  (`macAniMs`) dosyada zaten var ve başka yerlerde kullanılıyor.
+  Etki sınırlı ama gerçek: maç fiilen başladıktan sonraki ~3 saat boyunca
+  bülten kilitsiz sayılıyor ve analiz yeniden hesaplanabiliyor. Bu, projenin
+  "maç başladıktan sonra tahmin üretilmez" kuralını yumuşatıyor.
+  NOT: gözlem yazımı (`recordObservationsFromData` → `computeFreezeAt`)
+  macAniMs kullandığı için DOĞRU anda duruyor; bu yüzden geri yükleme
+  sınırı sağlam, etkilenmiyor.

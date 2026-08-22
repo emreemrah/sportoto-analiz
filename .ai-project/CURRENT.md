@@ -1,5 +1,28 @@
 # Güncel Çalışma Durumu
 
+## 22 AĞUSTOS (akşam) — mühür kalıcılığı YAYINDA
+Kullanıcı kararı "2 ve 3'ü birlikte yap" → sonuç:
+- MADDE 3 zaten kuruluydu, KOD YAZILMADI (provenance.js `late_lock`).
+  Üretim kanıtı: karne [1528,1527,1526], 1529 YOK, late_unverified=3.
+- MADDE 2 yapıldı ve yayında: maç öncesi mühür kalıcı arşivden (Supabase
+  gözlemleri) geri yükleniyor. Üretimde 3 maç geri geldi (#1 "2", #11 "1",
+  #13 "10"), hepsi mühürdeki değerin birebir aynısı; gözlem anı
+  2026-08-21T16:42:30Z (maç öncesi). Yeni modül: archive/gozlemGeriYukleme.js.
+  Yol boyunca çıkan tuzak: radar koruması geri yüklenen mührü genişletiyordu
+  ("2" → "X2"); mühürlü kayıtlar korumanın DIŞINA alındı (radarGuards.js).
+- Backend 1178 test · 0 hata. Flutter 930 test · analyze temiz.
+- Commit'ler: 3a61a79 (Flutter sebep notu), f98eff5 (arşiv geri yükleme).
+  Deploy 16:41:45 UTC, üretimde doğrulandı 16:43.
+
+### SIRADAKİ İŞ (kullanıcıya soruldu, karar bekliyor)
+1. Mühür anında sunucuyu dışarıdan uyandırma (cron ping). Tahminler artık
+   kaybolmuyor AMA karne hâlâ hafta kaybediyor: 3 hafta late_unverified.
+2. AÇIK BULGU: refresh.js:439 `started` ve ~263 `isLocked` ham `new Date`
+   kullanıyor → üretimde (UTC) 3 saat GEÇ tetikleniyor; `macAniMs` dosyada
+   zaten var ve başka yerlerde kullanılıyor. Etki ve sınırı PROGRESS.md'de.
+   (Gözlem yazımı macAniMs kullandığı için geri yükleme sınırı SAĞLAM.)
+
+
 ## 22 AĞUSTOS — üretimde bülten üretilemiyordu → DÜZELTİLDİ, YAYINDA, KABUL EDİLDİ (ACCEPTED)
 Kullanıcı bildirimi: "uygulamaya veri gelmiyor". Sebep uygulamada veya
 kullanıcının bilgisayarında değildi (format sonrası yerel kurulum sağlamdı);
