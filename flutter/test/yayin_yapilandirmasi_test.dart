@@ -169,14 +169,32 @@ void main() {
     });
 
     test('anahtar deposu ve parolalar sürüm kontrolüne GİRMEZ', () {
+      // KORUNAN KURAL: imza anahtarı ve parolası ASLA depoya girmez.
+      //
+      // ESKİ HÂLİ dosyanın diskte VAR OLMAMASINI şart koşuyordu. Bu, kuralı
+      // korumuyordu (gitignore zaten koruyor) ama imzalı yayın derlemesini
+      // İMKÂNSIZ kılıyordu: `flutter build apk --release` anahtarı bu
+      // dosyadan okur, yoksa sessizce hata ayıklama anahtarına düşer.
+      // Proje 22 Ağustos 2026'da ilk gerçek yayın anahtarını üretti ve test
+      // o an kırıldı — kırılan kural değil, kuralın yanlış ölçüsüydü.
+      //
+      // YENİ ÖLÇÜ: dosya varsa git tarafından YOKSAYILIYOR olmalı. Bu hem
+      // anahtarı olan geliştiricide hem temiz kopyada doğru sonuç verir.
       final ignore = _oku('.gitignore');
       expect(ignore, contains('android/key.properties'));
       expect(ignore, contains('*.jks'));
-      expect(
-        File('android/key.properties').existsSync(),
-        isFalse,
-        reason: 'parola dosyası depoda bulunmamalı',
-      );
+
+      const gizliler = ['android/key.properties', 'android/masteranaliz.jks'];
+      for (final yol in gizliler) {
+        if (!File(yol).existsSync()) continue;
+        final r = Process.runSync('git', ['check-ignore', '-q', yol]);
+        expect(
+          r.exitCode,
+          0,
+          reason: '$yol diskte var ama gitignore kapsamında DEĞİL — '
+              'imza anahtarı/parolası depoya sızabilir',
+        );
+      }
     });
   });
 
@@ -310,13 +328,44 @@ void main() {
   });
 
   group('Sürüm', () {
-    test('pubspec sürümü kaynaktaki sürüm + versionCode ile aynı', () {
-      // KAYNAK: app.json → expo.version "1.0.0" + android.versionCode 1
-      final p = _oku('pubspec.yaml');
+    test('pubspec sürümü geçerli ve port tabanından İLERİ', () {
+      // ESKİ HÂLİ sürümü `1.0.0+1`e SABİTLİYORDU — Expo kaynağındaki
+      // (app.json) değere birebir eşitlik. Port sırasında doğruydu: iki
+      // uygulamanın aynı sürümü göstermesi isteniyordu.
+      //
+      // 22 Ağustos 2026'da uygulama kendi güncellemelerini dağıtmaya
+      // başladı ve sabit anlamını yitirdi: Android, güncellemenin
+      // kurulabilmesi için versionCode'un ARTMASINI şart koşar. Sabit
+      // kalsaydı hiçbir güncelleme telefona kurulamazdı.
+      //
+      // KORUNAN KURAL: biçim geçerli olmalı ve port tabanına (build 1)
+      // geri DÜŞMEMELİ — yanlışlıkla geri alınırsa burada yakalanır.
+      // Regex yerine düz ayrıştırma: kaçış karakteri yok, okunur ve
+      // hata mesajları hangi parçanın bozuk olduğunu tek tek söyler.
+      final satirlar = File('pubspec.yaml').readAsLinesSync();
+      final satir = satirlar.firstWhere(
+        (l) => l.startsWith('version:'),
+        orElse: () => '',
+      );
+      expect(satir, isNotEmpty, reason: 'pubspec.yaml içinde version: satırı yok');
+
+      final deger = satir.substring('version:'.length).trim();
+      final parca = deger.split('+');
+      expect(parca.length, 2, reason: 'sürüm biçimi X.Y.Z+N olmalı: $deger');
+
+      final surum = parca[0].split('.');
+      expect(surum.length, 3, reason: 'sürüm adı X.Y.Z olmalı: $deger');
+      for (final s in surum) {
+        expect(int.tryParse(s), isNotNull, reason: 'sürüm parçası sayı değil: $deger');
+      }
+
+      final build = int.tryParse(parca[1]);
+      expect(build, isNotNull, reason: 'versionCode sayı değil: $deger');
       expect(
-        RegExp(r'^version:\s*1\.0\.0\+1\s*$', multiLine: true).hasMatch(p),
-        isTrue,
-        reason: 'sürüm kaynakla uyuşmuyor',
+        build!,
+        greaterThanOrEqualTo(2),
+        reason: 'versionCode port tabanına (1) geri düşmüş — '
+            'güncelleme telefona kurulamaz',
       );
     });
   });

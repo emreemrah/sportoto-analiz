@@ -49,7 +49,7 @@ android {
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         // KAYNAK: app.json → android.versionCode = 1, expo.version = "1.0.0".
-        // Değerler pubspec.yaml'daki `version: 1.0.0+1` satırından gelir.
+        // Değerler pubspec.yaml'daki `version:` satırından gelir.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
