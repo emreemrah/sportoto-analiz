@@ -1,0 +1,58 @@
+# MÜHÜR UYANDIRMA — sunucuyu mühür anında ayakta tutar.
+#
+# NEDEN VAR: mühür (bültenin maç-öncesi kilidi) sunucunun freezeAt anında
+# ÇALIŞIYOR olmasına bağlı. Render ücretsiz planda 15 dakika hareketsizlikte
+# uyuyor; maç akşamı uygulamayı kimse açmazsa mühür hiç atılmıyor, açılışta
+# telafi eden mühür de maçtan sonra atılmış oluyor ve karneye giremiyor
+# (provenance kapısı: late_lock). Üretimde ölçülen bilanço: 3 hafta kayıp.
+#
+# NASIL: bekçi ÖNCE Spor Toto'ya sorar — Render'a DOKUNMADAN. Mühür yaklaşmadıysa
+# hiçbir şey yapmadan çıkar. Yalnız pencere açıkken (varsayılan 40 dk kala)
+# sunucuyu dakikada bir uyandırır ve mühür geçtikten sonra GERÇEKTEN zamanında
+# atılıp atılmadığını doğrular. Böylece Render'ın 750 saat/ay bütçesi yenmez:
+# uyandırma ayda ~1 saat tutar.
+#
+# Depo public olduğu için Actions dakikaları ücretsizdir; kısıt Render tarafındadır.
+name: Mühür uyandırma
+
+on:
+  schedule:
+    # Her 30 dakikada bir kontrol. Bekçinin penceresi 40 dk olduğu için,
+    # GitHub'ın zamanlayıcısı gecikse bile mühür anı kaçmaz.
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      once_dk:
+        description: 'Mühürden kaç dk önce pencere açılsın'
+        required: false
+        default: '40'
+
+concurrency:
+  # Uzun süren bir pencere koşusu varken ikincisi başlamasın.
+  group: muhur-uyandirma
+  cancel-in-progress: false
+
+jobs:
+  bekci:
+    runs-on: ubuntu-latest
+    # Pencere en fazla ~50 dk sürer; üstüne kurulum payı.
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Bağımlılıklar
+        working-directory: backend
+        run: npm ci --omit=dev
+
+      - name: Mühür bekçisi
+        working-directory: backend
+        env:
+          API_URL: https://sportoto-analiz.onrender.com
+          ONCE_DK: ${{ github.event.inputs.once_dk || '40' }}
+        run: node scripts/muhur-bekcisi.mjs

@@ -143,8 +143,12 @@ test('sınır İKİ KATLI: mühür anı VE maçın kendi başlama anı', () => {
   const i = kodRefresh.indexOf('if (started) {', kodRefresh.indexOf('const prevSnap'));
   const blok = kodRefresh.slice(i, kodRefresh.indexOf('gecmisTahminUretilmedi++', i));
   assert.match(blok, /muhurSiniriMs/, 'mühür anı sınırı yok');
-  assert.match(blok, /macAniMs\(bm\.date\)/,
-    'maç anı ham new Date ile okunuyor — sunucuda 3 saat ileri kayar ve sınır maçın içine düşer');
+  assert.match(blok, /baslamaMs/, 'macin kendi baslama ani siniri yok');
+  // `baslamaMs` macAniMs'ten gelmeli: resmi saatler saat dilimi EKSIZ gelir
+  // ve Turkiye duvar saatidir. Ham new Date sunucuda (UTC) 3 saat ileri okur
+  // ve siniri macin ICINE dusururdu - tam da engellemeye calistigimiz sey.
+  assert.ok(kodRefresh.includes('const baslamaMs = macAniMs(bm.date)'),
+    'baslama ani ham new Date ile okunuyor - uretimde (UTC) 3 saat kayar');
   assert.match(blok, /Math\.min\(/, 'iki sınırın küçüğü alınmıyor');
 });
 

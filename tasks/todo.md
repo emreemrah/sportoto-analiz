@@ -771,3 +771,40 @@ diğer maçlarda aynen çalışıyor — testte kontrol maçıyla kanıtlandı.
   Bu maçlarda İstatistik sekmesi boş görünür; dürüst davranış budur.
 - DEĞİŞMEYEN: provenance kapısı. Geç mühürlü hafta karneye GİRMEZ; geri
   yükleme kullanıcının ekranındaki boşluğu doldurur, karne uygunluğunu değil.
+
+## 22 Ağustos 2026 (gece) — kullanıcı kararı: "ikisini de yap"
+
+### A) Saat dilimi düzeltmesi
+- [x] `refresh.js` `isLocked` → `macAniMs(bulletin.closeDate)`.
+- [x] `refresh.js` `started` → `macAniMs(bm.date)`.
+- [x] Geri yükleme sınırı aynı okumayı (`baslamaMs`) kullanıyor.
+- [x] Test: `test/saat-dilimi-kilit.test.mjs` (5 test) — macAniMs sözleşmesi,
+      ham `new Date` kalıntısı yok, kilit ile başlama AYNI okumayı kullanır.
+ETKİ: üretim UTC olduğu için 21:30 TSİ maç 21:30Z sanılıyordu; kilit ve
+"başlamış" durumu 3 SAAT GEÇ tetikleniyordu. O aralıkta bülten kilitsiz
+sayılıp maç fiilen başlamışken analiz yeniden hesaplanabiliyordu.
+
+### B) Mühür uyandırma (karne hafta kaybetmesin)
+- [x] `backend/scripts/muhur-bekcisi.mjs` — ÖNCE Spor Toto'ya sorar,
+      Render'a DOKUNMADAN. Pencere kapalıysa hiç uyandırmaz. Pencerede
+      dakikada bir /api/health, sonra mührün ZAMANINDA atılıp atılmadığını
+      /api/bulletin → archive.snapshot.late ile DOĞRULAR.
+- [x] `.github/workflows/muhur-uyandirma.yml` — 30 dk'da bir, 40 dk'lık pencere.
+- [x] Test: `test/muhur-bekcisi.test.mjs` (6 test) — sınırlar + "cron 15 dk
+      gecikse bile pencere yakalanır" taraması + bilinmezlikte uyandırma yok.
+- [x] `pencereDurumu` saf fonksiyona çıkarıldı; script doğrudan çalıştırılmadan
+      `main()` koşmuyor (test import'u gerçek ağ isteği atıyordu).
+BÜTÇE: Render ücretsiz plan 750 instance-saat/ay. 7/24 ping (~730 saat)
+bütçeyi bitirip servisi askıya aldırabilirdi — bu yüzden uyandırma yalnız
+pencerede. Beklenen maliyet: haftada ~50 dk, ayda ~1 saat.
+Depo public → GitHub Actions dakikaları ücretsiz.
+
+### İnceleme
+- Backend 1189 test · 0 hata (1178 → +11).
+- Bekçi uçtan uca denendi: pencere dışı → sunucuya dokunmadı; pencere içi →
+  4 ping + arşiv doğrulaması, 1529 için "mühür GEÇ atılmış" teşhisini
+  doğru verdi (gerçekle uyumlu).
+- AÇIK: workflow YAML'ı yerelde ayrıştırılamadı (yaml paketi yok) — yapı
+  denetimi yapıldı, gerçek doğrulama GitHub'a push sonrası Actions listesinden.
+- Bekçi mührü GARANTİ ETMEZ, sunucunun uyanık olmasını sağlar. Mührü asıl atan
+  archive/worker.js'tir; bekçi onun çalışabileceği koşulu kurar.

@@ -261,7 +261,17 @@ export async function refreshAll() {
   const previousCache = load('bulletin');
   const previousBulletin = previousCache?.data || null;
   const sameBulletin = !!(previousBulletin && previousBulletin.roundId === bulletin.roundId);
-  const isLocked = !!(bulletin.closeDate && new Date(bulletin.closeDate).getTime() <= Date.now());
+  // RESMÎ SAATLER SAAT DİLİMİ EKSİZ GELİR VE TÜRKİYE DUVAR SAATİDİR.
+  //
+  // Ham `new Date(...)` bu değeri SUNUCUNUN diliminde okur: üretim UTC
+  // olduğu için 21:30 TSİ kapanış, 21:30Z sanılıyordu — kilit ÜRETİMDE 3
+  // SAAT GEÇ tetikleniyordu. O aralıkta bülten kilitsiz sayılıyor ve maç
+  // fiilen başlamışken analiz yeniden hesaplanabiliyordu; bu, projenin
+  // "maç başladıktan sonra tahmin üretilmez" kuralını yumuşatıyordu.
+  // `macAniMs` bu dosyada zaten var ve başka satırlarda kullanılıyor.
+  // (Ölçüldü 22 Ağu 2026: yerelde 5, üretimde 3 maç "başlamış" sayıldı.)
+  const kapanisMs = macAniMs(bulletin.closeDate);
+  const isLocked = Number.isFinite(kapanisMs) && kapanisMs <= Date.now();
   const prevByMatchId = new Map(
     (sameBulletin ? previousBulletin.matches : []).map((m) => [m.sportotoMatchId, m])
   );
@@ -436,8 +446,11 @@ export async function refreshAll() {
   const analyzedMatches = [];
   for (const bm of bulletin.matches) {
     // Başlamış maç = resmi sonuç/skoru var VEYA maç saati geçti.
+    // Maç saati de saat dilimi eksiz gelir — yukarıdaki kapanış ile AYNI
+    // tuzak. Ham okuma üretimde maçı 3 saat geç "başlamış" sayıyordu.
+    const baslamaMs = macAniMs(bm.date);
     const started = bm.status === 'finished'
-      || (bm.date && new Date(bm.date).getTime() <= Date.now());
+      || (Number.isFinite(baslamaMs) && baslamaMs <= Date.now());
 
     // CANLI/final skoru (başlamış maç için) — analizle KARIŞTIRILMAZ.
     const found = findFootyMatch(bm, footyMatches);
@@ -533,11 +546,11 @@ export async function refreshAll() {
       // geçerlidir — böylece maç başladıktan sonraki hiçbir gözlem seçilemez.
       // Bu sınır, "geriye dönük tahmin üretilmez" kuralının aynısıdır; kayıt
       // geri okunur, yeniden hesaplanmaz.
-      // macAniMs: saat dilimi EKSİZ resmî saatler Türkiye duvar saatidir.
-      // Ham new Date(...) sunucuda (UTC) 3 saat İLERİ okur ve sınırı maçın
-      // içine kaydırırdı — tam da engellemeye çalıştığımız şey.
-      const macAni = macAniMs(bm.date);
-      const sinirlar = [muhurSiniriMs, macAni].filter((x) => Number.isFinite(x));
+      // Sınır, yukarıdaki `baslamaMs` ile AYNI okumadır (macAniMs): saat
+      // dilimi eksiz resmî saat Türkiye duvar saatidir. Ham new Date(...)
+      // sunucuda 3 saat İLERİ okuyup sınırı maçın içine kaydırırdı — tam da
+      // engellemeye çalıştığımız şey.
+      const sinirlar = [muhurSiniriMs, baslamaMs].filter((x) => Number.isFinite(x));
       const geri = (gozlemHaritasi && sinirlar.length)
         ? gozlemdenAnaliz(macOncesiGozlemSec(
           gozlemHaritasi.get(String(bm.sportotoMatchId)),
