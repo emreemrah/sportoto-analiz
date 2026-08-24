@@ -5,12 +5,12 @@ import cors from 'cors';
 // (node-cron kaldırıldı — zamanlama artık autoRefresh scheduler'ında.)
 import path from 'path';
 import { macAniMs } from './time/turkiyeSaati.js';
-import { arsivdenTamamla, defterdenArmaTamamla } from './archive/gecmisTamamlama.js';
+import { arsivdenTamamla, defterdenArmaTamamla, arsivdenPickBirlestir } from './archive/gecmisTamamlama.js';
 import { indexRegistry } from './crestRegistry.js';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
-import { load, has, listSnapshotRounds, listRadarRounds, CACHE_DIR } from './cache.js';
+import { load, save, has, listSnapshotRounds, listRadarRounds, CACHE_DIR } from './cache.js';
 import { crestTargetOf, crestFileNameOf, crestContentTypeOf, fetchCrest } from './crestProxy.js';
 import { takimFiksturunuGetir } from './takimFikstur.js';
 import { yanitOptimizasyonu, paketHazirla, paketiYolla } from './yanitOptimizasyonu.js';
@@ -528,6 +528,49 @@ app.get('/api/rounds', async (req, res) => {
 // İkramiye gelmişse (yayınlanmış) sonuç değişmez → 24 saat; değilse kısa TTL.
 const histFreshAt = new Map();  // roundId -> son taze sorgu zamanı (resmi API'yi korur)
 const liveFootyAt = new Map();  // roundId -> son CANLI footy skoru tazeleme zamanı (throttle)
+const arsivPickAt = new Map();  // roundId -> son arşivden pick geri yükleme denemesi (throttle)
+
+// SİSTEM TAHMİNİ GERİ YÜKLEME — MÜHÜRLÜ ARŞİVDEN (24 Ağustos 2026).
+//
+// GERÇEK OLAY (2. Hafta / 1529): geçmiş bültenin "Sistem tahmini" ve geçici
+// skor kimlikleri YALNIZ yerel `cache/snapshot-<roundId>.json` dosyasından
+// okunuyordu. Render'ın diski kalıcı değil — her deploy/yeniden başlatma bu
+// dosyayı SİLİYOR. Sonuç: tahminler ekrandan kayboluyor, kullanıcı elle
+// düzeltiyor, sonraki restart yine siliyor; footyMatchId de aynı dosyada
+// olduğu için geçici skor akışı ölüyor ("sonuçlar gelmiyor").
+//
+// Aynı bilgi mühürlü arşivde (veritabanı) KALICI duruyor: systemPrediction
+// (symbol/label), armalar ve externalIds.footyMatchId/footySwapped. Lig adı +
+// arma için bu yol zaten kullanılıyordu (arsivdenTamamla) — tahmin için
+// kullanılmıyordu; bu fonksiyon o eksiği kapatır.
+//
+// KURALLAR (gecmisTamamlama.js ile aynı):
+//  * Arşive HİÇBİR ŞEY YAZILMAZ — yalnız okunur. Yerel cache dosyası mührün
+//    KOPYASI olarak yeniden yazılır (restoredFromArchive işaretiyle) — bu
+//    üretim değil, kilit anında yazılmış kaydın geri yüklenmesidir.
+//  * Uydurma yok: arşivde tahmin yoksa alan null kalır, ekran boş gösterir.
+//  * Yereldeki DOLU değer EZİLMEZ: yalnız eksik/null alan arşivden dolar.
+//    (symbol '-' = "VERİ YOK" mührü, DOLU sayılır; null = kayıp/hasar.)
+//
+// Birleştirme kuralları SAF fonksiyondadır (arsivdenPickBirlestir,
+// gecmisTamamlama.js) — düz Node testinde ağsız doğrulanır.
+async function arsivdenPickGeriYukle(roundId, yerel) {
+  const snap = await getArchiveStore().getSnapshot(String(roundId));
+  const picks = arsivdenPickBirlestir(yerel?.picks, snap?.payload?.matches);
+  if (!picks) return null; // arşiv de boş → dosya yazılmaz, eski davranış sürer
+
+  const data = {
+    roundId,
+    round: yerel?.round ?? snap?.payload?.bulletin?.week ?? null,
+    savedAt: yerel?.savedAt ?? null,
+    restoredFromArchive: true,
+    restoredAt: new Date().toISOString(),
+    archiveSnapshotId: snap?.id ?? null,
+    picks,
+  };
+  try { save(`snapshot-${roundId}`, data); } catch { /* disk yazılamazsa bellekte kullanılır */ }
+  return data;
+}
 // (snapshotJobs kaldırıldı — geçmişe otomatik backfill üretimi tamamen kapalı.)
 app.get('/api/history/:roundId', async (req, res) => {
   try {
@@ -633,7 +676,23 @@ app.get('/api/history/:roundId', async (req, res) => {
     // Geçmiş hafta: kayıtlı SİSTEM TAHMİNİ + maç-öncesi donmuş kayıt/arma
     // (snapshot) + resmi sonuç YOKSA FootyStats'tan GEÇİCİ skor (rate-limitsiz,
     // her refresh'te tazelenir; resmi Spor Toto sonucu gelince o esas alınır).
-    const snap = load(`snapshot-${roundId}`)?.data;
+    //
+    // YEREL DOSYA EKSİK/HASARLIYSA MÜHÜRLÜ ARŞİVDEN GERİ YÜKLENİR (24 Ağustos
+    // 2026, "2. Hafta tahminleri kayboluyor" düzeltmesi — gerekçe:
+    // arsivdenPickGeriYukle). Throttle: hafta başına en fazla 10 dk'da bir
+    // denenir; arşivde kayıt yoksa eski davranış aynen sürer.
+    let snap = load(`snapshot-${roundId}`)?.data;
+    const pickKayip = !snap?.picks?.length || snap.picks.some((p) => p?.symbol == null);
+    if (pickKayip && Date.now() - (arsivPickAt.get(roundId) || 0) > 10 * 60 * 1000) {
+      arsivPickAt.set(roundId, Date.now()); capMap(arsivPickAt);
+      try {
+        const geri = await arsivdenPickGeriYukle(roundId, snap);
+        if (geri) {
+          snap = geri;
+          console.log(`[history] snapshot-${roundId} mühürlü arşivden geri yüklendi (${geri.picks.filter((x) => x.symbol != null).length}/${geri.picks.length} tahmin)`);
+        }
+      } catch (e) { console.warn(`[history] arşivden geri yükleme olmadı (${roundId}): ${e.message}`); }
+    }
     if (snap?.picks?.length) {
       const byNo = new Map(snap.picks.map((p) => [p.no, p]));
       // CANLI YANSIMA: başlamış ama resmi sonucu gelmemiş maçların skorunu

@@ -87,6 +87,63 @@ export function arsivdenTamamla(maclar, arsivMaclar) {
 }
 
 // ————————————————————————————————————————————————————————————————————————
+// SİSTEM TAHMİNİ (PICK) GERİ YÜKLEME — SAF BİRLEŞTİRME (24 Ağustos 2026).
+//
+// GERÇEK OLAY (2. Hafta / 1529): geçmiş bültenin "Sistem tahmini" ve geçici
+// skor kimliği (footyMatchId) YALNIZ yerel `cache/snapshot-<roundId>.json`
+// dosyasından okunuyordu. O dosya kalıcı değil (Render diski her deploy'da
+// silinir; yerelde de cache temizliği/bozuk refresh aynı sonucu doğurur).
+// Mühürlü arşiv aynı bilgiyi KALICI taşır: systemPrediction (symbol/label),
+// armalar ve externalIds.footyMatchId/footySwapped.
+//
+// KURALLAR (dosyanın geri kalanıyla aynı):
+//  * Uydurma yok: yalnız arşivde GERÇEKTEN duran değer taşınır.
+//  * Yereldeki DOLU değer EZİLMEZ: yalnız eksik/null alan arşivden dolar.
+//    symbol '-' = "VERİ YOK" mührü → DOLU sayılır, üstüne yazılmaz;
+//    symbol null = kayıp/hasarlı kayıt → mühürden dolar.
+//  * footySwapped, kimliğin geldiği KAYNAĞI izler (yerel id → yerel swap,
+//    arşiv id → arşiv swap) — id ile swap ayrışırsa skor ters basılır.
+
+/// Yerel snapshot picks'i ile mühürlü arşiv maçlarını birleştirir.
+/// Kullanılabilir pick listesi döner; arşiv de boşsa null (dosya yazılmasın).
+export function arsivdenPickBirlestir(yerelPicks, arsivMaclar) {
+  if (!Array.isArray(arsivMaclar) || !arsivMaclar.length) return null;
+
+  const arsivByNo = new Map(
+    arsivMaclar.filter((m) => m && m.no != null).map((m) => [m.no, m]),
+  );
+  const yerelByNo = new Map(
+    (yerelPicks || []).filter((p) => p && p.no != null).map((p) => [p.no, p]),
+  );
+  const nolar = [...new Set([...arsivByNo.keys(), ...yerelByNo.keys()])]
+    .sort((a, b) => a - b);
+
+  const picks = nolar.map((no) => {
+    const p = yerelByNo.get(no) || {};
+    const a = arsivByNo.get(no);
+    const sp = a?.systemPrediction;
+    return {
+      ...p,
+      no,
+      symbol: p.symbol != null ? p.symbol : (sp?.symbol ?? null),
+      // Etiket tahminle birlikte gelir: yerel tahmin duruyorsa yerel etiket,
+      // tahmin arşivden geldiyse arşiv etiketi (karışık çift oluşmaz).
+      label: p.symbol != null ? (p.label ?? null) : (sp?.label ?? null),
+      homeLogo: p.homeLogo || a?.home?.logo || '',
+      awayLogo: p.awayLogo || a?.away?.logo || '',
+      homeRec: p.homeRec ?? null,
+      awayRec: p.awayRec ?? null,
+      footyMatchId: p.footyMatchId ?? a?.externalIds?.footyMatchId ?? null,
+      footySwapped: p.footyMatchId != null
+        ? (p.footySwapped ?? false)
+        : (a?.externalIds?.footyMatchId != null ? (a?.externalIds?.footySwapped ?? false) : false),
+      criteria: p.criteria ?? a?.criteria?.signals ?? null,
+    };
+  });
+  return picks.some((x) => x.symbol != null) ? picks : null;
+}
+
+// ————————————————————————————————————————————————————————————————————————
 // İKİNCİ AŞAMA: ARŞİVİ OLMAYAN HAFTALAR İÇİN AD EŞLEŞTİRMESİ
 //
 // `arsivdenTamamla` yalnız MÜHÜRLÜ kaydı olan haftayı kurtarabilir. Arşivde

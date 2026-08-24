@@ -992,23 +992,46 @@ export async function refreshAll() {
   save('bulletin', result);
   // Bu haftanın maç-başı SİSTEM TAHMİNİ snapshot'ı (roundId ile) — hafta geçmişe
   // düşünce /api/history buradan "Sistem tahmini"ni gösterir (güncelle aynı satır).
+  //
+  // GERİLEME KORUMASI (24 Ağustos 2026): sunucu boş cache ile açılıp (Render
+  // restart) başlamış maçlara mühür/gözlem bulamazsa prediction null kalır ve
+  // bu satır DOLU snapshot dosyasını null'larla EZİYORDU — "tahminler
+  // kayboluyor" döngüsünün yazma ayağı. Kural: dosyadaki NULL OLMAYAN symbol,
+  // null ile ASLA değiştirilmez (symbol '-' = "VERİ YOK" dolu sayılır; normal
+  // tahmin değişimi 1→X gibi null olmayan → null olmayan akıştır, etkilenmez).
   try {
+    const eskiSnap = load(`snapshot-${bulletin.roundId}`)?.data;
+    const eskiByNo = new Map(
+      (eskiSnap?.picks || []).filter((p) => p && p.no != null).map((p) => [p.no, p]),
+    );
     save(`snapshot-${bulletin.roundId}`, {
       roundId: bulletin.roundId, round: bulletin.round, savedAt: nowIso,
       picks: analyzedMatches.map((m) => {
         const hs = m.stats?.home?.standing, as = m.stats?.away?.standing;
         const beforeUnix = unixOf(m.date);   // MAÇ-ÖNCESİ (bu maçtan önce) donmuş kayıt
         const seasonMatches = matchesBySeason.get(m.footySeasonId) || [];
+        const eski = eskiByNo.get(m.no);
+        // Yeni symbol null + eskisi dolu → eski tahmin (ve etiketi) KORUNUR.
+        const symbol = m.prediction?.symbol ?? eski?.symbol ?? null;
+        const label = m.prediction?.symbol != null
+          ? (m.prediction?.label ?? null)
+          : (eski?.symbol != null ? (eski?.label ?? null) : null);
         return {
-          no: m.no, symbol: m.prediction?.symbol ?? null, label: m.prediction?.label ?? null,
+          no: m.no, symbol, label,
           // Arma: önce maçın kendi eşleşmesi, yoksa arma kayıt defteri (m.home.logo).
-          homeLogo: m.stats?.home?.logo || m.home?.logo || '', awayLogo: m.stats?.away?.logo || m.away?.logo || '',
-          homeRec: recordBefore(hs?.teamId, seasonMatches, beforeUnix),
-          awayRec: recordBefore(as?.teamId, seasonMatches, beforeUnix),
-          footyMatchId: m.footyMatchId ?? null,
-          footySwapped: m.footySwapped ?? false,
+          // Boş/null alanlarda AYNI gerileme koruması: dosyadaki dolu değer kalır.
+          homeLogo: m.stats?.home?.logo || m.home?.logo || eski?.homeLogo || '',
+          awayLogo: m.stats?.away?.logo || m.away?.logo || eski?.awayLogo || '',
+          homeRec: recordBefore(hs?.teamId, seasonMatches, beforeUnix) ?? eski?.homeRec ?? null,
+          awayRec: recordBefore(as?.teamId, seasonMatches, beforeUnix) ?? eski?.awayRec ?? null,
+          // footySwapped, kimliğin geldiği KAYNAĞI izler (yeni id → yeni swap,
+          // eski id → eski swap) — id ile swap ayrışırsa skor ters basılır.
+          footyMatchId: m.footyMatchId ?? eski?.footyMatchId ?? null,
+          footySwapped: m.footyMatchId != null
+            ? (m.footySwapped ?? false)
+            : (eski?.footyMatchId != null ? (eski?.footySwapped ?? false) : false),
           // Kriter karnesi: her kriterin maç-öncesi sinyali (yoksa null).
-          criteria: evaluateCriteriaSignals(m.stats),
+          criteria: evaluateCriteriaSignals(m.stats) ?? eski?.criteria ?? null,
         };
       }),
     });

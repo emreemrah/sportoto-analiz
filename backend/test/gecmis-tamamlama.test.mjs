@@ -13,7 +13,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { arsivdenTamamla } from '../src/archive/gecmisTamamlama.js';
+import { arsivdenTamamla, arsivdenPickBirlestir } from '../src/archive/gecmisTamamlama.js';
 
 const arsiv = [
   {
@@ -225,4 +225,85 @@ test('defterden dolar; BELİRSİZ eşleşmede arma UYDURULMAZ', async () => {
 test('bozuk girdi akışı bozmaz', () => {
   assert.equal(defterdenArmaTamamla(null, {}).arma, 0);
   assert.equal(defterdenArmaTamamla([null, undefined, {}], {}).arma, 0);
+});
+
+// ————————————————————————————————————————————————————————————————————————
+// SİSTEM TAHMİNİ GERİ YÜKLEME (24 Ağustos 2026, "2. Hafta tahminleri
+// kayboluyor"): yerel snapshot-<id> dosyası silinir/hasar görürse tahmin +
+// footyMatchId mühürlü arşivden birleştirilir. Kurallar: uydurma yok, yereldeki
+// dolu değer ezilmez, '-' (VERİ YOK) dolu sayılır, swap kimliğin kaynağını izler.
+
+const arsivPickli = [
+  {
+    no: 1,
+    home: { name: 'Erzurumspor FK', logo: 'https://cdn/erzurum.png' },
+    away: { name: 'Galatasaray', logo: 'https://cdn/gs.png' },
+    systemPrediction: { symbol: '2', label: 'BANKO' },
+    externalIds: { footyMatchId: 9001, footySwapped: true },
+    criteria: { signals: { odds: '2' } },
+  },
+  {
+    no: 2,
+    home: { name: 'Rizespor' },
+    away: { name: 'Samsunspor' },
+    systemPrediction: { symbol: '10', label: 'ÇİFTE' },
+    externalIds: { footyMatchId: 9002, footySwapped: false },
+  },
+  {
+    no: 10,
+    home: { name: 'Dortmund' },
+    away: { name: 'Bayern' },
+    systemPrediction: null, // mühürde de tahmin yok → uydurulmaz
+    externalIds: { footyMatchId: null, footySwapped: null },
+  },
+];
+
+test('yerel dosya YOKKEN pick listesi arşivden kurulur', () => {
+  const picks = arsivdenPickBirlestir(undefined, arsivPickli);
+  assert.ok(picks);
+  const byNo = new Map(picks.map((p) => [p.no, p]));
+  assert.equal(byNo.get(1).symbol, '2');
+  assert.equal(byNo.get(1).label, 'BANKO');
+  assert.equal(byNo.get(1).footyMatchId, 9001);
+  assert.equal(byNo.get(1).footySwapped, true);
+  assert.equal(byNo.get(1).homeLogo, 'https://cdn/erzurum.png');
+  assert.equal(byNo.get(2).symbol, '10');
+  // Mühürde tahmin olmayan maç: null kalır, uydurulmaz.
+  assert.equal(byNo.get(10).symbol, null);
+  assert.equal(byNo.get(10).footyMatchId, null);
+});
+
+test('hasarlı yerel kayıt (symbol null) mühürden dolar, DOLU değer ezilmez', () => {
+  const yerel = [
+    // Hasar: null'lanmış tahmin → arşivden dolmalı.
+    { no: 1, symbol: null, label: null, footyMatchId: null, footySwapped: false },
+    // Dolu ve arşivden FARKLI: yerel korunmalı (etiketiyle birlikte).
+    { no: 2, symbol: '1', label: 'TEMKİNLİ', footyMatchId: 8888, footySwapped: true },
+  ];
+  const picks = arsivdenPickBirlestir(yerel, arsivPickli);
+  const byNo = new Map(picks.map((p) => [p.no, p]));
+  assert.equal(byNo.get(1).symbol, '2');
+  assert.equal(byNo.get(1).label, 'BANKO');
+  assert.equal(byNo.get(1).footyMatchId, 9001);
+  assert.equal(byNo.get(1).footySwapped, true); // swap, arşiv kimliğini izler
+  assert.equal(byNo.get(2).symbol, '1');
+  assert.equal(byNo.get(2).label, 'TEMKİNLİ');
+  assert.equal(byNo.get(2).footyMatchId, 8888);
+  assert.equal(byNo.get(2).footySwapped, true); // swap, yerel kimliği izler
+});
+
+test("'-' (VERİ YOK) mührü DOLU sayılır — arşiv üstüne yazmaz", () => {
+  const yerel = [{ no: 1, symbol: '-', label: 'VERİ YOK' }];
+  const picks = arsivdenPickBirlestir(yerel, arsivPickli);
+  const p1 = picks.find((p) => p.no === 1);
+  assert.equal(p1.symbol, '-');
+  assert.equal(p1.label, 'VERİ YOK');
+});
+
+test('arşiv boş/tahminsizse null döner — dosya yazılmaz, uydurma yok', () => {
+  assert.equal(arsivdenPickBirlestir([{ no: 1, symbol: null }], []), null);
+  assert.equal(arsivdenPickBirlestir([{ no: 1, symbol: null }], null), null);
+  // Arşivde maç var ama hiçbirinde tahmin yok → yine null.
+  const tahminsiz = [{ no: 1, systemPrediction: null }];
+  assert.equal(arsivdenPickBirlestir([], tahminsiz), null);
 });
