@@ -40,6 +40,10 @@ test('Lille – PSG fikstürü bulunur ve aynı gün Lille – Paris FC ile KARI
 });
 
 test('kapsama koruması diğer kulüpleri BOZMAZ (Genk ⊂ KRC Genk, sponsor öneki)', () => {
+  // GERÇEK YAN ETKİ (29 Ağu 2026): koruma AMBIGUOUS_TOKENS'ın tamamıyla
+  // kurulunca 4. Hafta "Inter" ↔ "Inter Milan" eşleşmesi düştü. Kapsama
+  // engeli yalnız KAPSAMA_DISI ("paris") için geçerlidir.
+  assert.equal(sideMatches({ name: 'Inter' }, 'Inter Milan', 'teams/italy-fc-internazionale-milano.png'), 'name');
   assert.equal(sideMatches({ name: 'Genk' }, 'KRC Genk'), 'name');
   assert.equal(sideMatches({ name: 'KGHM Zaglebie Lubin' }, 'Zagłębie Lubin'), 'name');
   assert.equal(sideMatches({ name: 'Marsilya' }, 'Olympique Marseille'), 'name');

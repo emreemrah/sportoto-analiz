@@ -131,10 +131,15 @@ export const AMBIGUOUS_TOKENS = new Set([
   'paris',
 ]);
 
-// KAPSAMA (içerme) ve LOGO katmanlarında kısa tarafın kanıt sayılabilmesi:
-// tek başına belirsiz bir ad OLMAMALI. Birebir eşitlik bu kuraldan etkilenmez
+// KAPSAMA (içerme) ve LOGO katmanlarında kısa tarafın kanıt sayılamayacağı
+// adlar: kaynakta BAŞKA bir kulübün TAM adı olan kelimeler. "paris" tek başına
+// Paris FC'dir; "Paris St Germain"in içinde geçmesi PSG'yi Paris FC'ye
+// yapıştırıyordu. Liste DAR tutulur: AMBIGUOUS_TOKENS'ın tamamı kullanılsaydı
+// bülten "Inter" ↔ kaynak "Inter Milan" kapsaması da düşerdi (29 Ağu 2026,
+// 4. Hafta 13. maç böyle eşleşmedi). Birebir eşitlik bu kuraldan etkilenmez
 // (bülten "Paris FC" ↔ kaynak "Paris" yine eşleşir).
-export const kapsamaKaniti = (kisa) => !AMBIGUOUS_TOKENS.has(kisa);
+export const KAPSAMA_DISI = new Set(['paris']);
+export const kapsamaKaniti = (kisa) => !KAPSAMA_DISI.has(kisa);
 // Kulüp tipi ekleri (kelime düzeyinde ayıklanır; normalizeName ile uyumlu + geniş).
 export const GENERIC_SUFFIX = new Set([
   'fc', 'cf', 'sk', 'afc', 'if', 'bk', 'sc', 'ac', 'utd', 'united', 'fk',
