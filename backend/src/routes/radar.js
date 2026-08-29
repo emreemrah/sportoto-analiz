@@ -24,7 +24,7 @@ import {
   pctText, MATCH_FILTERS, TOLERANCE_FILTERS, DEFAULT_TOLERANCE,
 } from '../radar/playedDna.js';
 import {
-  collectPlayedDnaRecords, weekdayOf, dayKeyOf, DNA_START_ROUND_ID,
+  collectPlayedDnaRecords, buildBandHistoryDetails, weekdayOf, dayKeyOf, DNA_START_ROUND_ID,
 } from '../radar/playedDnaArchive.js';
 import { PUBLIC_BANDS } from '../radar/config.js';
 import { kaynakKodu, kaynakId, anahtarlariKodla } from '../providers/kaynakKodu.js';
@@ -814,6 +814,74 @@ router.get('/position-matches', async (req, res) => {
       playedCount: yuzdeliSayi,
       matches,
       note: matches.length ? null : 'Bu sıra için doğrulanmış geçmiş sonuç yok.',
+    });
+  } catch (e) { fail(res, e); }
+});
+
+// RADAR 3 — BANT MAÇLARI. Kartta "Bu bantta geçmiş 19 maçta favori %63
+// kazandı" yazan sayının ARKASINDAKİ maçlar (kullanıcı isteği, 30 Ağustos:
+// "bu 19 maçı görmek istiyorum"). Yanıt /position-matches ile AYNI satır
+// biçimindedir ({ roundId, week, home, away, score, result, played }) — istemci
+// aynı tabloyu kullanır. Sayım radardaki bandStats ile aynı fonksiyondan
+// (buildBandHistoryDetails) geçer; liste ile kart sayısı ayrışamaz.
+// Kesim: yalnız bakılan haftadan ÖNCEKİ turlar (gelecekten sızıntı yok).
+router.get('/band-matches', async (req, res) => {
+  try {
+    const min = Number(req.query.min);
+    const max = Number(req.query.max);
+    const band = PUBLIC_BANDS.bands.find((b) => b.min === min && b.max === max);
+    if (!band) return res.status(400).json({ error: 'Bant tanınmadı (min/max).' });
+
+    const cur = load('bulletin')?.data;
+    const store = getArchiveStore();
+    const cutRoundId = req.query.roundId != null ? Number(req.query.roundId)
+      : (cur?.roundId != null ? Number(cur.roundId) : null);
+
+    const records = await collectPlayedDnaRecords(store, { beforeRoundId: cutRoundId, now: new Date() });
+    const rows = buildBandHistoryDetails(records)
+      .filter((r) => r.favoritePct >= band.min && r.favoritePct <= band.max && r.officialResult);
+
+    // Skor ve hafta adı geçmiş deposundan (roundId+sıra ile) iliştirilir;
+    // bulunamazsa null — "0-0" uydurulmaz.
+    const hs = getHistoryStore();
+    const [allRounds, hist] = await Promise.all([hs.listRounds(), hs.listAllMatches()]);
+    const adlar = Object.fromEntries(allRounds.map((r) => [String(r.roundId), r.weekName || null]));
+    const histIx = new Map(hist.map((m) => [`${m.roundId}|${Number(m.position)}`, m]));
+
+    const matches = rows
+      .sort((a, b) => (Number(b.roundId) || 0) - (Number(a.roundId) || 0) || (a.position || 0) - (b.position || 0))
+      .map((r) => {
+        const h = histIx.get(`${r.roundId}|${Number(r.position)}`);
+        return {
+          roundId: r.roundId != null ? String(r.roundId) : null,
+          position: r.position,
+          week: r.roundLabel ?? h?.weekName ?? adlar[String(r.roundId)] ?? null,
+          home: r.home ?? h?.homeTeam ?? null,
+          away: r.away ?? h?.awayTeam ?? null,
+          score: (h?.scoreHome != null && h?.scoreAway != null) ? `${h.scoreHome}-${h.scoreAway}` : null,
+          result: r.officialResult,
+          played: { gun: r.dayKey, pct: r.pct, favori: r.favoriteSymbol, favoriPct: r.favoritePct },
+        };
+      });
+
+    const results = { '1': 0, X: 0, '2': 0 };
+    let favoriteWon = 0;
+    for (const m of matches) {
+      results[m.result] = (results[m.result] || 0) + 1;
+      if (m.played.favori === m.result) favoriteWon += 1;
+    }
+    res.json({
+      hasData: matches.length > 0,
+      band: band.label,
+      min: band.min,
+      max: band.max,
+      roundId: cutRoundId,
+      count: matches.length,
+      playedCount: matches.length,
+      favoriteWinRate: matches.length ? Math.round((favoriteWon / matches.length) * 100) : null,
+      results,
+      matches,
+      note: matches.length ? null : 'Bu bantta doğrulanmış geçmiş maç yok.',
     });
   } catch (e) { fail(res, e); }
 });

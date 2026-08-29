@@ -153,12 +153,18 @@ export function buildRoundDnaRecords({
 // değişir ve kıyas bozulur.
 // Maç başına TEK satır: her kaynağın SON mühürlü günü alınır, ortalanır,
 // en yüksek seçenek favori sayılır. Sonucu olmayan maç satır üretmez.
-export function buildBandHistoryRows(records) {
+// BANT GEÇMİŞİNİN MAÇ MAÇ HÂLİ. Sayım [buildBandHistoryRows] ile AYNI
+// gruplamadan geçer (maç başına kaynakların son mühürlü günü, kaynak
+// ortalaması, en yüksek işaret = favori). Böylece "/band-matches" ucunun
+// döndürdüğü liste ile radardaki `bandStats.sample` sayısı asla ayrışmaz.
+// Kaynak KİMLİĞİ dışarı verilmez (marka adı ekrana ulaşamaz); yalnız
+// ortalama yüzdeler döner.
+export function buildBandHistoryDetails(records) {
   const byMatch = new Map();
   for (const r of records || []) {
     if (!r?.result || !validPct(r.pct)) continue;
     const mk = `${r.roundId}|${r.matchKey}`;
-    if (!byMatch.has(mk)) byMatch.set(mk, { result: r.result, bySource: new Map() });
+    if (!byMatch.has(mk)) byMatch.set(mk, { ilk: r, result: r.result, bySource: new Map() });
     const grup = byMatch.get(mk);
     const onceki = grup.bySource.get(r.source);
     // Kaynağın SON mühürlü günü (gün anahtarı en büyük olan).
@@ -174,13 +180,36 @@ export function buildBandHistoryRows(records) {
       ort[k] = list.reduce((s, r) => s + r.pct[k], 0) / list.length;
     }
     const top = ['1', 'X', '2'].reduce((a, b) => (ort[b] > ort[a] ? b : a), '1');
+    const son = list.reduce((a, b) => (String(b.dayKey) > String(a.dayKey) ? b : a), list[0]);
+    const { ilk } = grup;
     rows.push({
+      roundId: ilk.roundId,
+      roundLabel: ilk.roundLabel ?? null,
+      matchKey: ilk.matchKey,
+      position: ilk.position ?? null,
+      home: ilk.home ?? null,
+      away: ilk.away ?? null,
+      kickoffAt: ilk.kickoffAt ?? null,
+      dayKey: son?.dayKey ?? null,
+      pct: {
+        '1': Math.round(ort['1'] * 10) / 10,
+        X: Math.round(ort.X * 10) / 10,
+        '2': Math.round(ort['2'] * 10) / 10,
+      },
       favoritePct: Math.round(ort[top] * 10) / 10,
       favoriteSymbol: top,
       officialResult: grup.result,
     });
   }
   return rows;
+}
+
+export function buildBandHistoryRows(records) {
+  return buildBandHistoryDetails(records).map((r) => ({
+    favoritePct: r.favoritePct,
+    favoriteSymbol: r.favoriteSymbol,
+    officialResult: r.officialResult,
+  }));
 }
 
 // --- Arşivden toplama (I/O) + kısa ömürlü bellek önbelleği -----------------
