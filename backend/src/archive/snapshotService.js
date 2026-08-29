@@ -38,6 +38,7 @@ export function displaySymbol(sym) {
 // Bültendeki İLK maçın resmî başlama zamanı (UTC ms). Maç saati yoksa null.
 export function firstKickoffMs(matches) {
   const times = (matches || [])
+    .filter((m) => m?.kickoffTimeKnown !== false) // saati girilmemiş maç sayılmaz
     .map((m) => macAniMs(m.date ?? m.kickoffAt) ?? 0)
     .filter((t) => Number.isFinite(t) && t > 0);
   return times.length ? Math.min(...times) : null;

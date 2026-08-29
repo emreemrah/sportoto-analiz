@@ -151,6 +151,7 @@ export async function computeRadarCenterForData(data, { store = getArchiveStore(
         away: m.away?.mediumName || m.away?.name || '',
         league: m.league || null,
         kickoffAt: macAniIso(m.date),
+        kickoffTimeKnown: m.kickoffTimeKnown !== false,
         master,
         radars,
       };

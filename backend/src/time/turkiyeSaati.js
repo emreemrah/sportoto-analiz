@@ -101,3 +101,18 @@ export function istanbulTimeToUtcMs(dayKey, hour, minute) {
   const [y, m, d] = String(dayKey).split('-').map(Number);
   return Date.UTC(y, m - 1, d, hour, minute, 0) - TR_OFFSET_MS;
 }
+
+// MAÇ SAATİ GİRİLMİŞ Mİ? Spor Toto yeni haftayı bazen saat girmeden yayınlar:
+// tarih doğru, saat "00:00:00" yer tutucu (4. Hafta, 29 Ağu 2026 — 9 Süper Lig
+// maçı TFF saatleri açıklamadan bültene girdi). Bu "gece yarısı" gerçek bir
+// başlama anı gibi işlenirse maç o gün 00:00'da "başladı" sayılır, kilit ve
+// dondurma bir gün erkene kayar, kart 00:00 basar. Kural: saat bileşeni tam
+// 00:00:00 ise saat BİLİNMİYOR sayılır; gerçek bir gece yarısı maçı (nadir)
+// eşleşen kaynak fikstürüyle refresh'te geri açılır (bkz. refresh.js).
+export function saatBilinir(deger) {
+  if (deger == null || deger === '') return false;
+  if (typeof deger !== 'string') return macAniMs(deger) != null;
+  const s = deger.trim();
+  if (SADECE_TARIH.test(s)) return false;
+  return !/T00:00(:00(\.0+)?)?$/.test(s);
+}

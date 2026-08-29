@@ -126,7 +126,7 @@ export async function observePlayedPercentages({
   observeInFlight = true;
   try {
     const bulletinId = String(bulletinData.roundId);
-    const kickoffs = bulletinData.matches.map((m) => macAniMs(m.date)).filter(Number.isFinite);
+    const kickoffs = bulletinData.matches.filter((m) => m?.kickoffTimeKnown !== false).map((m) => macAniMs(m.date)).filter(Number.isFinite);
     const freezeAtMs = kickoffs.length ? Math.min(...kickoffs) - 5 * 60e3 : null;
     const publishedAtMs = bulletinData.publishedAt ? new Date(bulletinData.publishedAt).getTime()
       : bulletinData.updatedAt ? new Date(bulletinData.updatedAt).getTime() : null;

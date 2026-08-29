@@ -4,6 +4,7 @@
 //   api/GameRound/GetGameRoundNamesByYear?year=YYYY/YYYY
 //   api/GameMatch/GetGameMatches/?gameRoundId=<id>
 import { createHash } from 'node:crypto';
+import { saatBilinir } from '../time/turkiyeSaati.js';
 import { config } from '../config.js';
 // Dış servis çağrılarında zaman aşımı — takılan kaynak akışı kilitlemesin.
 import { zamanAsimliFetch } from './zamanAsimi.js';
@@ -116,6 +117,9 @@ function normalizeMatch(row, index) {
     no: index + 1,
     sportotoMatchId: m.id || row.id,
     date: m.date || row.date,
+    // Saat girilmemiş (00:00 yer tutucu) maç: ekran "saat açıklanmadı" yazar,
+    // başlama/kilit/dondurma hesapları bu maçı saymaz (bkz. turkiyeSaati).
+    kickoffTimeKnown: saatBilinir(m.date || row.date),
     league: (m.stage && m.stage.name) || '',
     home: {
       name: home.name || '',

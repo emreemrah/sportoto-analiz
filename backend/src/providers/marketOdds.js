@@ -124,6 +124,7 @@ export function collectKnownFixtureIds(observations, providerId) {
 // Bülten verisinden freeze anı — snapshotService ile AYNI kural (ilk maç −5 dk).
 export function freezeMsOf(bulletinData) {
   const ks = (bulletinData?.matches || [])
+    .filter((m) => m?.kickoffTimeKnown !== false) // saati girilmemiş maç sayılmaz
     .map((m) => macAniMs(m.date)).filter(Number.isFinite);
   return ks.length ? Math.min(...ks) - 5 * 60e3 : null;
 }
