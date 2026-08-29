@@ -150,8 +150,10 @@ export async function computeRadarCenterForData(data, { store = getArchiveStore(
         home: m.home?.mediumName || m.home?.name || '',
         away: m.away?.mediumName || m.away?.name || '',
         league: m.league || null,
-        kickoffAt: macAniIso(m.date),
+        // Resmî saat yoksa tahminî an (kaynak fikstürü) — bayrak ayrıca taşınır.
+        kickoffAt: macAniIso(m.kickoffTimeKnown === false && m.kickoffEstimate ? m.kickoffEstimate : m.date),
         kickoffTimeKnown: m.kickoffTimeKnown !== false,
+        kickoffEstimate: m.kickoffEstimate ?? null,
         master,
         radars,
       };

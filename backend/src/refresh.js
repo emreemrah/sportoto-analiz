@@ -4,7 +4,7 @@
 // 3) Her bülten maçını FootyStats maçıyla eşleştirip analiz eder
 // 4) Sonucu cache'e yazar (mobil uygulama buradan okur)
 import { config, usingExampleKey } from './config.js';
-import { macAniMs } from './time/turkiyeSaati.js';
+import { macAniMs, baslamaAniMs, tahminiBaslama } from './time/turkiyeSaati.js';
 import { getLatestBulletin, getBulletinByRoundId } from './sources/sportoto.js';
 import { fetchSeason, fetchMatches, fetchLeagueInfo, fetchTeamVenue, fetchMatchScore } from './sources/footystats.js';
 import { discoverSeasonIds } from './seasonDiscovery.js';
@@ -451,18 +451,22 @@ export async function refreshAll() {
     // CANLI/final skoru (başlamış maç için) — analizle KARIŞTIRILMAZ.
     const found = findFootyMatch(bm, footyMatches);
     const fm = found?.match;
-    // SAAT GİRİLMEMİŞ MAÇ (00:00 yer tutucu) "başladı" SAYILMAZ: 6 Eylül
-    // 00:00'da 9 Süper Lig maçı gün boyu "Sonuç bekleniyor" olurdu. Gerçek bir
-    // gece yarısı maçı (nadir) eşleşen kaynak fikstürü de 00:00 diyorsa geri
-    // açılır — bayrak veriye dayanır, varsayıma değil.
-    if (bm.kickoffTimeKnown === false && fm?.dateUnix) {
-      const trSaat = new Date(fm.dateUnix * 1000).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit' });
-      if (trSaat === '00:00') bm.kickoffTimeKnown = true;
+    // RESMÎ SAAT YOKSA KAYNAĞIN SAATİ TAHMİNÎ OLARAK TAŞINIR (kullanıcı,
+    // 29 Ağustos: "maç saatleri API'mizde yok mu?"). Eşleşen fikstürün anı
+    // `kickoffEstimate` olur; ekran "≈" ile basar, başladı/kilit/dondurma bu
+    // anı okur. Kaynağın kendi yer tutucusu (00:00 UTC) tahmin sayılmaz.
+    // Resmî `date` DEĞİŞMEZ — Spor Toto saati girince resmî olan kazanır.
+    if (bm.kickoffTimeKnown === false) {
+      const tahmin = fm?.dateUnix ? tahminiBaslama(fm.dateUnix) : null;
+      bm.kickoffEstimate = tahmin;
+      bm.kickoffSource = tahmin ? 'fixture' : null;
     }
-    const saatVar = bm.kickoffTimeKnown !== false;
     const baslamaMs = macAniMs(bm.date);
+    // Başlama anı TEK fonksiyondan: resmî saat, yoksa tahmin, o da yoksa yok
+    // (00:00 yer tutucu asla "başladı" saydırmaz).
+    const baslamaAni = baslamaAniMs(bm);
     const started = bm.status === 'finished'
-      || (saatVar && Number.isFinite(baslamaMs) && baslamaMs <= Date.now());
+      || (Number.isFinite(baslamaAni) && baslamaAni <= Date.now());
     const coverage = classifyCoverage(bm, found);
 
     // Jenerik resmi lig etiketini ("2026 Sezonu") eşleşen FootyStats liginin
@@ -844,7 +848,7 @@ export async function refreshAll() {
   const RADAR_FREEZE_BEFORE_MS = 5 * 60 * 1000;
   // Saati girilmemiş maç dondurma anına GİRMEZ (00:00 yer tutucu bir gün
   // erken mühürlerdi).
-  const kickoffs = analyzedMatches.filter((m) => m.kickoffTimeKnown !== false).map((m) => macAniMs(m.date)).filter(Number.isFinite);
+  const kickoffs = analyzedMatches.map(baslamaAniMs).filter(Number.isFinite);
   const firstKickoff = kickoffs.length ? Math.min(...kickoffs)
     : (bulletin.closeDate ? new Date(bulletin.closeDate).getTime() : null);
   const radarFreezeAt = firstKickoff != null ? firstKickoff - RADAR_FREEZE_BEFORE_MS : null;
@@ -1062,8 +1066,8 @@ export async function refreshAll() {
 // Canlı maç yoksa hiç API çağrısı yapmadan mevcut veriyi döndürür (bedava).
 const LIVE_WINDOW_MS = 3.5 * 3600 * 1000;
 function inLiveWindow(m, now) {
-  if (!m?.date || m.kickoffTimeKnown === false) return false; // saat yoksa canlı penceresi de yok
-  const t = macAniMs(m.date) ?? NaN;
+  if (!m) return false;
+  const t = baslamaAniMs(m) ?? NaN; // resmî ya da tahminî saat; ikisi de yoksa pencere yok
   return Number.isFinite(t) && t <= now && now - t <= LIVE_WINDOW_MS;
 }
 

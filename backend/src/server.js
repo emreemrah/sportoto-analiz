@@ -4,7 +4,7 @@ import express from 'express';
 import cors from 'cors';
 // (node-cron kaldırıldı — zamanlama artık autoRefresh scheduler'ında.)
 import path from 'path';
-import { macAniMs } from './time/turkiyeSaati.js';
+import { macAniMs, baslamaAniMs } from './time/turkiyeSaati.js';
 import { arsivdenTamamla, defterdenArmaTamamla, arsivdenPickBirlestir } from './archive/gecmisTamamlama.js';
 import { indexRegistry } from './crestRegistry.js';
 import fs from 'fs';
@@ -318,7 +318,7 @@ app.get('/api/surprise-radar', (req, res) => {
   const cached = load('bulletin');
   if (!cached) return res.status(503).json({ error: 'Veri henüz hazır değil.' });
   // Donma anı (geri sayım için): ilk maçın başlamasına 5 dk kala.
-  const kickoffs = (cached.data.matches || []).filter((m) => m.kickoffTimeKnown !== false).map((m) => macAniMs(m.date)).filter(Number.isFinite);
+  const kickoffs = (cached.data.matches || []).map(baslamaAniMs).filter(Number.isFinite);
   const radarFreezeAt = kickoffs.length ? new Date(Math.min(...kickoffs) - 5 * 60 * 1000).toISOString() : null;
   res.json({
     updatedAt: cached.data.updatedAt,
@@ -725,7 +725,7 @@ app.get('/api/history/:roundId', async (req, res) => {
         if (p.awayLogo || p.awayRec) merged.away = { ...m.away, logo: p.awayLogo || m.away.logo, record: p.awayRec || null };
         // Noter maçı ÇÖZÜLMÜŞ sayılır: canlı/geçici skor aranmaz (maç yok).
         const unresolved = !(m.result && m.score) && !m.viaNotary;
-        const started = m.kickoffTimeKnown !== false && (macAniMs(m.date) ?? Infinity) <= nowMs;
+        const started = (baslamaAniMs(m) ?? Infinity) <= nowMs;
         // 1) API-Football canlı (öncelik) — dakika dahil, gerçek-zamanlı.
         if (unresolved && started && liveFx.length) {
           const fnd = findLiveFixture(merged, liveFx);

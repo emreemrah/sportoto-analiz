@@ -21,7 +21,7 @@
 // * Arayüzde marka adı gösterilmez → ORAN_KAYNAK_ADI nötr etiket üretir.
 import { createHash } from 'node:crypto';
 import { LEGACY_ODDS_SOURCE, oddsSourceLabel } from './oddsSources.js';
-import { macAniMs } from '../time/turkiyeSaati.js';
+import { macAniMs, baslamaAniMs } from '../time/turkiyeSaati.js';
 
 export const ODDS_METHODOLOGY_VERSION = 'market-odds-1.0.0';
 
@@ -124,8 +124,7 @@ export function collectKnownFixtureIds(observations, providerId) {
 // Bülten verisinden freeze anı — snapshotService ile AYNI kural (ilk maç −5 dk).
 export function freezeMsOf(bulletinData) {
   const ks = (bulletinData?.matches || [])
-    .filter((m) => m?.kickoffTimeKnown !== false) // saati girilmemiş maç sayılmaz
-    .map((m) => macAniMs(m.date)).filter(Number.isFinite);
+    .map(baslamaAniMs).filter(Number.isFinite); // resmî saat, yoksa tahmin
   return ks.length ? Math.min(...ks) - 5 * 60e3 : null;
 }
 

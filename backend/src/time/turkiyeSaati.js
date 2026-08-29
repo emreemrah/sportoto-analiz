@@ -116,3 +116,24 @@ export function saatBilinir(deger) {
   if (SADECE_TARIH.test(s)) return false;
   return !/T00:00(:00(\.0+)?)?$/.test(s);
 }
+
+// BAŞLAMA ANI (ms): resmî saat girildiyse o; girilmediyse eşleşen kaynak
+// fikstüründen türetilen TAHMİNÎ an (`kickoffEstimate`); o da yoksa null.
+// Tek fonksiyon: başladı / canlı penceresi / kilit / dondurma / gözlem
+// pencereleri aynı anı okur; biri resmî, diğeri tahminî saate bakamaz.
+export function baslamaAniMs(m) {
+  if (!m) return null;
+  if (m.kickoffTimeKnown !== false) return macAniMs(m.date ?? m.kickoffAt);
+  return macAniMs(m.kickoffEstimate);
+}
+
+// Kaynak fikstürünün anı (UTC unix sn) → Türkiye duvar saati, bülten
+// biçiminde ('YYYY-MM-DDTHH:mm:ss', dilim eki yok). Kaynağın KENDİ yer
+// tutucusu (tam 00:00 UTC — F.Bahçe–Beşiktaş 29 Ağu 2026'da böyleydi) tahmin
+// SAYILMAZ: saat bilinmiyor kalır, uydurma saat basılmaz.
+export function tahminiBaslama(dateUnix) {
+  if (!Number.isFinite(dateUnix) || dateUnix <= 0) return null;
+  if (dateUnix % 86400 === 0) return null;
+  const s = new Date(dateUnix * 1000).toLocaleString('sv-SE', { timeZone: 'Europe/Istanbul' });
+  return s.replace(' ', 'T');
+}

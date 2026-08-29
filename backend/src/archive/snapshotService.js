@@ -11,7 +11,7 @@ import {
   RADAR_ID, RADAR_VERSION, FREEZE_BEFORE_MS, LATE_THRESHOLD_MS,
 } from './constants.js';
 import { hashPayload, HASH_ALGO } from './hash.js';
-import { macAniMs, macAniIso } from '../time/turkiyeSaati.js';
+import { macAniMs, macAniIso, baslamaAniMs } from '../time/turkiyeSaati.js';
 import { getArchiveStore } from './store.js';
 import { AlreadyExistsError, ValidationError } from './errors.js';
 import { evaluateCriteriaSignals, CRITERIA_LABELS } from '../analysis/criteriaEval.js';
@@ -38,8 +38,7 @@ export function displaySymbol(sym) {
 // Bültendeki İLK maçın resmî başlama zamanı (UTC ms). Maç saati yoksa null.
 export function firstKickoffMs(matches) {
   const times = (matches || [])
-    .filter((m) => m?.kickoffTimeKnown !== false) // saati girilmemiş maç sayılmaz
-    .map((m) => macAniMs(m.date ?? m.kickoffAt) ?? 0)
+    .map((m) => baslamaAniMs(m) ?? 0) // resmî saat, yoksa tahmin; ikisi de yoksa sayılmaz
     .filter((t) => Number.isFinite(t) && t > 0);
   return times.length ? Math.min(...times) : null;
 }
