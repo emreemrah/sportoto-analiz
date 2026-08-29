@@ -23,10 +23,12 @@ import {
   findPlayedDna, findMovementDna, buildMovementRecords, movementOf, movementWords,
   pctText, MATCH_FILTERS, TOLERANCE_FILTERS, DEFAULT_TOLERANCE,
 } from '../radar/playedDna.js';
+import { toPctDnaRecords, findSimilarDnaMatches } from '../providers/percentageDna.js';
+import { benzerSorgusu } from '../radar/publicBettingRadar.js';
 import {
   collectPlayedDnaRecords, buildBandHistoryDetails, weekdayOf, dayKeyOf, DNA_START_ROUND_ID,
 } from '../radar/playedDnaArchive.js';
-import { PUBLIC_BANDS } from '../radar/config.js';
+import { PUBLIC_BANDS, RADAR_IDS } from '../radar/config.js';
 import { kaynakKodu, kaynakId, anahtarlariKodla } from '../providers/kaynakKodu.js';
 import { sonGunOynanmaIndeksi, oynanmaEkle, eskiHaftalariAt, LISTE_BASLANGIC_ROUND_ID } from '../radar/siraOynanma.js';
 import {
@@ -882,6 +884,88 @@ router.get('/band-matches', async (req, res) => {
       results,
       matches,
       note: matches.length ? null : 'Bu bantta doğrulanmış geçmiş maç yok.',
+    });
+  } catch (e) { fail(res, e); }
+});
+
+// RADAR 3 — BENZER MAÇLAR. Kartta "Benzer 14 doğrulanmış maçta sonuçlar …"
+// yazan sayının ARKASINDAKİ maçlar (kullanıcı isteği, 30 Ağustos).
+//
+// SORGU KARTIN KENDİ KAYDINDAN TÜRETİLİR: istemci yalnız hafta + sıra yollar.
+// Mühürlü haftanın radarı arşivden servis edilir ve mühre yeni alan giremez;
+// bu yüzden sorgu yanıtta taşınmaz, kartın hesaplandığı aynı girdilerden
+// (birincil kaynak, kapanış, açılış, uzlaşı favorisi) AYNI fonksiyonla
+// (benzerSorgusu) yeniden kurulur. Seviye seçimi de findSimilarDna ile aynı
+// fonksiyondan geçer — kart 14 diyorsa liste 14'tür. Kaynak kimliği ağ
+// trafiğine hiç çıkmaz.
+router.get('/similar-matches', async (req, res) => {
+  try {
+    const position = Number(req.query.position);
+    if (!(position >= 1 && position <= 15)) return res.status(400).json({ error: 'Sıra 1–15 arasında olmalı.' });
+
+    const store = getArchiveStore();
+    const cur = load('bulletin')?.data;
+    const istenen = req.query.roundId != null && req.query.roundId !== '' ? Number(req.query.roundId) : null;
+    const cutRoundId = Number.isFinite(istenen) ? istenen : (cur?.roundId != null ? Number(cur.roundId) : null);
+
+    // BAKILAN HAFTANIN MERKEZİ: mühürlüyse arşivden (yeniden hesap yok),
+    // güncelse canlı — kart hangi kayıttan çizildiyse sorgu da ondan kurulur.
+    const merkez = cutRoundId != null
+      ? await getRadarCenterForRound(cutRoundId, { store })
+      : await getCurrentRadarCenter({ store });
+    const mac = (merkez?.matches || []).find((m) => Number(m.no) === position) || null;
+    const q = benzerSorgusu(mac?.radars?.[RADAR_IDS.PUBLIC]?.details, position);
+    const bos = (reason, note) => res.json({
+      hasData: false, level: null, reason, roundId: cutRoundId,
+      count: 0, playedCount: 0, counts: { '1': 0, X: 0, '2': 0 }, matches: [], note,
+    });
+    if (!q) return bos('no_played_dna', 'Bu maç için oynanma kaydı yok.');
+    // Merkez ham kimlikle gelir; dış kod (k1) gelse de kaynakId geriye uyumludur.
+    // Tanınmayan kimlik OLDUĞU GİBİ kalır — kayıtla aynı anahtarla eşleşsin.
+    q.provider = kaynakId(String(q.provider)) ?? q.provider;
+
+    const gunluk = await collectPlayedDnaRecords(store, { beforeRoundId: cutRoundId, now: new Date() });
+    const sonuc = findSimilarDnaMatches(toPctDnaRecords(gunluk), q);
+
+    const hs = getHistoryStore();
+    const [allRounds, hist] = await Promise.all([hs.listRounds(), hs.listAllMatches()]);
+    const adlar = Object.fromEntries(allRounds.map((r) => [String(r.roundId), r.weekName || null]));
+    const histIx = new Map(hist.map((m) => [`${m.roundId}|${Number(m.position)}`, m]));
+
+    const matches = sonuc.matches
+      .sort((a, b) => (Number(b.roundId) || 0) - (Number(a.roundId) || 0) || (a.position || 0) - (b.position || 0))
+      .map((r) => {
+        const h = histIx.get(`${r.roundId}|${Number(r.position)}`);
+        return {
+          roundId: r.roundId != null ? String(r.roundId) : null,
+          position: r.position,
+          week: r.roundLabel ?? h?.weekName ?? adlar[String(r.roundId)] ?? null,
+          home: r.home ?? h?.homeTeam ?? null,
+          away: r.away ?? h?.awayTeam ?? null,
+          score: (h?.scoreHome != null && h?.scoreAway != null) ? `${h.scoreHome}-${h.scoreAway}` : null,
+          result: r.result,
+          played: {
+            gun: r.dayKey, pct: r.closePct, favori: r.favoriteSymbol,
+            favoriPct: r.closePct?.[r.favoriteSymbol] ?? null,
+          },
+        };
+      });
+
+    const counts = { '1': 0, X: 0, '2': 0 };
+    for (const m of matches) counts[m.result] = (counts[m.result] || 0) + 1;
+    res.json({
+      hasData: matches.length > 0,
+      level: sonuc.level ?? null,
+      reason: sonuc.reason ?? null,
+      roundId: cutRoundId,
+      count: matches.length,
+      playedCount: matches.length,
+      counts,
+      matches,
+      note: matches.length ? null
+        : (sonuc.reason === 'insufficient_sample'
+          ? 'Benzer doğrulanmış örnek henüz yetersiz (n<10) — sistem öğreniyor.'
+          : 'Benzer doğrulanmış geçmiş maç yok.'),
     });
   } catch (e) { fail(res, e); }
 });

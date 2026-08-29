@@ -241,12 +241,9 @@ export function computePublicBettingRadar(m, {
   let similarDna = { hasData: false, note: 'Oynanma verileri kaydediliyor · benzer sonuç analizi için sistem öğreniyor.' };
   if (similarQuery && pctDnaRecords?.length) {
     try {
-      const q = {
-        provider: primary.providerId,   // İÇ KİMLİK (görünen ad değil)
-        position: m.no, favoriteSymbol: favSym,
-        closeValue: num(primary.last[favSym]) ?? 0,
-        moveValue: primary.opening ? round1((num(primary.last[favSym]) ?? 0) - (num(primary.opening[favSym]) ?? 0)) : null,
-      };
+      // SORGU TEK FONKSİYONDAN (benzerSorgusu): /similar-matches ucu da
+      // kaydın details'inden AYNI fonksiyonla kurar — kart ile liste ayrışamaz.
+      const q = benzerSorgusu({ providers: providerViews, consensus }, m.no);
       similarDna = findSimilarDna(pctDnaRecords, q);
       if (similarDna.hasData) {
         similarDna.sentence = `Benzer ${similarDna.sample} doğrulanmış maçta sonuçlar: 1 %${similarDna.pct['1']} · X %${similarDna.pct.X} · 2 %${similarDna.pct['2']}`;
@@ -284,4 +281,32 @@ export function computePublicBettingRadar(m, {
       },
     },
   });
+}
+
+// BENZER-DNA SORGUSU — kartın KAYDINDAN yeniden kurulur.
+//
+// computePublicBettingRadar sorguyu bu fonksiyonla kurar; /similar-matches ucu
+// da mühürlü/güncel merkezdeki `details`ten AYNI fonksiyonla kurar. Mühürlü
+// haftanın radarı arşivden servis edilir ve mühre yeni alan giremez; bu yüzden
+// sorgu yanıtta taşınmaz, kaydın kendisinden türetilir. Tek fonksiyon = tek
+// gerçek: uç ile kart farklı kümeye bakamaz.
+//   • kaynak  = birincil sağlayıcı (providers[0]) — İÇ kimlik
+//   • favori  = kaynaklar arası UZLAŞI (consensus) en yüksek seçenek; eşitlikte
+//               1 → X → 2 sırası (kararlı sıralama, compute ile aynı)
+//   • kapanış = birincil kaynağın son gözlemi; hareket = gerçek açılış varsa
+//               son − açılış (1 ondalık), yoksa null
+export function benzerSorgusu(details, position) {
+  const primary = details?.providers?.[0];
+  const consensus = details?.consensus;
+  if (!primary?.last || !consensus) return null;
+  const top = ['1', 'X', '2'].map((k) => ({ k, v: num(consensus[k]) ?? 0 })).sort((a, b) => b.v - a.v)[0];
+  const favSym = top.k;
+  const close = num(primary.last[favSym]) ?? 0;
+  return {
+    provider: primary.providerId,
+    position: Number(position),
+    favoriteSymbol: favSym,
+    closeValue: close,
+    moveValue: primary.opening ? round1(close - (num(primary.opening[favSym]) ?? 0)) : null,
+  };
 }

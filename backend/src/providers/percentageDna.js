@@ -25,10 +25,12 @@ const segOf = (no) => (no <= 5 ? 'first5' : no <= 10 ? 'mid5' : 'last5');
 // [{ provider, position, outcome('1'|'X'|'2'), closePct: {'1',X,'2'},
 //    openPct?: {...}, favoriteSymbol, result }]
 // query: { provider, position, favoriteSymbol, closeValue, moveValue }
-export function findSimilarDna(records, query, bands = PCT_BANDS) {
+// GERİ ÇEKİLME SEVİYELERİ — findSimilarDna ile findSimilarDnaMatches AYNI
+// süzgeçten geçer: kartta "Benzer 14 maç" yazıyorsa liste de o 14 maçtır.
+function similarLevels(records, query, bands = PCT_BANDS) {
   const cb = bandOfClose(query.closeValue);
   const mb = query.moveValue != null ? bandOfMove(query.moveValue) : null;
-  if (!cb) return { hasData: false, reason: 'no_band' };
+  if (!cb) return null;
 
   const base = (records || []).filter((r) =>
     r.provider === query.provider &&                       // sağlayıcılar karışmaz
@@ -42,28 +44,49 @@ export function findSimilarDna(records, query, bands = PCT_BANDS) {
     return mv >= mb[0] && mv <= mb[1];
   }));
 
-  const levels = [
+  return [
     { key: 'provider+position+band+move', list: withMove(base.filter((r) => r.position === query.position)) },
     { key: 'provider+segment+band', list: base.filter((r) => segOf(r.position) === segOf(query.position)) },
     { key: 'provider+band', list: base },
   ];
-  for (const lvl of levels) {
-    if (lvl.list.length >= bands.minDirectionalSample) {
-      const counts = { '1': 0, X: 0, '2': 0 };
-      for (const r of lvl.list) counts[r.result] += 1;
-      const n = lvl.list.length;
-      const pct = { '1': Math.round((counts['1'] / n) * 100), X: Math.round((counts.X / n) * 100), '2': Math.round((counts['2'] / n) * 100) };
-      return {
-        hasData: true, level: lvl.key, sample: n, counts, pct,
-        favoriteWinRate: pct[query.favoriteSymbol],
-        note: `Benzer ${n} doğrulanmış maç (${lvl.key}).`,
-        version: bands.version,
-      };
-    }
+}
+
+// Yeterli örneklemi olan İLK seviye; yoksa null.
+function similarLevel(levels, bands = PCT_BANDS) {
+  return (levels || []).find((lvl) => lvl.list.length >= bands.minDirectionalSample) || null;
+}
+
+export function findSimilarDna(records, query, bands = PCT_BANDS) {
+  const levels = similarLevels(records, query, bands);
+  if (!levels) return { hasData: false, reason: 'no_band' };
+  const lvl = similarLevel(levels, bands);
+  if (lvl) {
+    const counts = { '1': 0, X: 0, '2': 0 };
+    for (const r of lvl.list) counts[r.result] += 1;
+    const n = lvl.list.length;
+    const pct = { '1': Math.round((counts['1'] / n) * 100), X: Math.round((counts.X / n) * 100), '2': Math.round((counts['2'] / n) * 100) };
+    return {
+      hasData: true, level: lvl.key, sample: n, counts, pct,
+      favoriteWinRate: pct[query.favoriteSymbol],
+      note: `Benzer ${n} doğrulanmış maç (${lvl.key}).`,
+      version: bands.version,
+    };
   }
   // n<10: yön sinyali ÜRETİLMEZ — yalnız dürüst bilgi.
   const best = levels[0].list.length || levels[1].list.length || levels[2].list.length;
   return { hasData: false, reason: 'insufficient_sample', sample: best, note: 'Benzer doğrulanmış örnek henüz yetersiz (n<10) — sistem öğreniyor.' };
+}
+
+// BENZER MAÇLARIN KENDİSİ (kullanıcı isteği, 30 Ağustos: "bu 14 maçı görmek
+// istiyorum"). Seviye seçimi findSimilarDna ile AYNI; kayıtlar identity
+// alanlarıyla (roundId, roundLabel, home, away, dayKey) döner. Sağlayıcı
+// kimliği dışarı çıkmaz — çağıran yol yalnız görünen alanları seçer.
+export function findSimilarDnaMatches(records, query, bands = PCT_BANDS) {
+  const levels = similarLevels(records, query, bands);
+  if (!levels) return { hasData: false, reason: 'no_band', matches: [] };
+  const lvl = similarLevel(levels, bands);
+  if (!lvl) return { hasData: false, reason: 'insufficient_sample', matches: [] };
+  return { hasData: true, level: lvl.key, matches: lvl.list.slice() };
 }
 
 // GÜNLÜK DNA KAYITLARINDAN pct-DNA kayıtları üretir (findSimilarDna girdisi).
@@ -95,6 +118,14 @@ export function toPctDnaRecords(dailyRecords) {
       favoriteSymbol,
       closePct: { ...close },
       openPct: gunler.length >= 2 ? { ...gunler[0].pct } : null,
+      // KİMLİK ALANLARI: benzer maç LİSTESİ için (findSimilarDnaMatches).
+      // Eşleştirme bunlara bakmaz; yalnız liste satırına yazılır.
+      roundId: son.roundId ?? null,
+      roundLabel: son.roundLabel ?? null,
+      matchKey: son.matchKey ?? null,
+      home: son.home ?? null,
+      away: son.away ?? null,
+      dayKey: son.dayKey ?? null,
     });
   }
   return out;
