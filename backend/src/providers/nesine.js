@@ -25,7 +25,14 @@ const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; 
 // Ham /v2/Program yanıtını normalize et (saf, test edilebilir).
 export function parseNesineProgram(json) {
   const matches = json?.d?.matches;
-  if (!Array.isArray(matches)) return null;
+  // PROGRAM HENÜZ YÜKLENMEDİ: kaynak `d: null` + `el[0].m` ile açık söyler
+  // ("Yeni program 30.08.2026 10:00 tarihinde yüklenecektir." — 29 Ağu 2026,
+  // bülten Cumartesi erken yayınlanınca). Bu bir hata değil, kaynağın takvimi:
+  // not aynen taşınır ki ekran "devre dışı" değil gerçek sebebi yazsın.
+  if (!Array.isArray(matches)) {
+    const not = Array.isArray(json?.el) ? json.el.map((e) => e?.m).find(Boolean) : null;
+    return not ? { programNo: null, events: [], kaynakNotu: String(not) } : null;
+  }
   return {
     programNo: json.d.pNo ?? json.d.id ?? null,
     events: matches.map((m) => ({
@@ -80,7 +87,17 @@ export function buildNesineAdapter({ fetchImpl = fetch, timeoutMs = 10000 } = {}
 
     async fetchPercentages(bulletinData, { now = Date.now() } = {}) {
       const program = await this.fetchProgram();
-      if (!program?.events?.length) throw new Error('Nesine programı alınamadı (maç yok).');
+      if (!program?.events?.length) {
+        // Marka adı hata metnine girmez (durum dosyası/uç üzerinden ekrana
+        // sızabilir). Kaynağın kendi notu varsa kullanıcıya AYNEN aktarılır.
+        const e = new Error(program?.kaynakNotu
+          ? `Kaynak programı henüz yüklemedi — kaynak notu: "${program.kaynakNotu}"`
+          : 'Kaynak programı alınamadı (maç yok).');
+        e.kullaniciNotu = program?.kaynakNotu
+          ? `Kaynak yeni haftanın programını henüz yüklemedi: "${program.kaynakNotu}" Yüklenince yüzdeler otomatik toplanır.`
+          : null;
+        throw e;
+      }
       const bulletinMatches = bulletinData?.matches || [];
       const fetchedAt = new Date(now).toISOString();
       const rows = [];

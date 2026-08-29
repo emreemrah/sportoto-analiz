@@ -95,7 +95,7 @@ function addDaysKey(dayKey, delta) {
 //   • İlk maç Cumartesi/Pazar ise → Pazar..Cumartesi (7 gün), kapanış görünür.
 //   • İlk maç Cuma ise            → Pazar..Cuma (6 gün), değişiklik yok.
 // Maçtan SONRAKİ gün asla eklenmez; takip ilk maçta biter.
-export function buildDayWindow({ firstKickoffMs = null, now = Date.now() } = {}) {
+export function buildDayWindow({ firstKickoffMs = null, now = Date.now(), enErkenGun = null } = {}) {
   const anchorMs = firstKickoffMs || now;
   const wd = istanbulParts(anchorMs).weekday;   // 0..6
   const back = (wd - 5 + 7) % 7;                 // Cuma=5 → 0, Cmt=6 → 1, Paz=0 → 2 ...
@@ -108,6 +108,16 @@ export function buildDayWindow({ firstKickoffMs = null, now = Date.now() } = {})
   // sırasıyla aynıdır — ayrı bir tarih ayrıştırmaya gerek yok.
   const cumartesi = addDaysKey(anchorFriday, 1);
   if (cumartesi <= ilkMacGunu) days.push(cumartesi);
+
+  // ERKEN YAYIN (29 Ağu 2026): bülten Cumartesi yayınlanınca o günün gözlemi
+  // Pazar'dan başlayan pencerenin DIŞINDA kalıyordu — veri arşivde, ekranda
+  // yok. Pencereden önce gözlem günü varsa o güne kadar geri açılır (en çok
+  // 7 gün; yanlış tarihli tek bir kayıt şeridi haftalarca uzatamaz).
+  if (enErkenGun && enErkenGun < days[0]) {
+    const onEk = [];
+    for (let k = addDaysKey(days[0], -1); k >= enErkenGun && onEk.length < 7; k = addDaysKey(k, -1)) onEk.unshift(k);
+    days.unshift(...onEk);
+  }
 
   return days;
 }
@@ -201,7 +211,14 @@ export function buildDailySeries({
   //
   // DONMA sınırına pay YOKTUR: maç başladıktan sonraki veri tahmine giremez.
   // Bu yüzden pay yalnız 23:55'e eklenir, freeze ile karşılaştırma paysız yapılır.
-  const days = buildDayWindow({ firstKickoffMs, now }).map((key) => {
+  // Pencereden önceki gözlem günleri de görünsün (erken yayın).
+  const enErkenGun = (observations || []).reduce((en, o) => {
+    const t = new Date(o?.observedAt).getTime();
+    if (!Number.isFinite(t)) return en;
+    const k = dayKeyOf(t);
+    return en == null || k < en ? k : en;
+  }, null);
+  const days = buildDayWindow({ firstKickoffMs, now, enErkenGun }).map((key) => {
     const muhur = istanbulTimeToUtcMs(key, 23, 55) + SEAL_GRACE_MS;
     const capMs = (freezeMs != null && freezeMs < muhur) ? freezeMs : muhur;
     const startMs = istanbulTimeToUtcMs(key, 0, 0);

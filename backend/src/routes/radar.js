@@ -297,10 +297,20 @@ router.get('/daily-odds', async (req, res) => {
     const store = getArchiveStore();
     const ctx = await resolveDailyContext(req, store, load('bulletin')?.data || null);
     if (!ctx) return res.json({ hasData: false, days: [], matches: [], note: 'Güncel bülten yok.' });
-    res.json(buildDailyOdds({
+    const g = buildDailyOdds({
       roundId: ctx.rid, round: ctx.round, matches: ctx.matches, observations: ctx.observations,
       firstKickoffMs: ctx.firstMs, freezeAt: ctx.freezeAt, sealed: ctx.sealed, now: Date.now(),
-    }));
+    });
+    // KAYIT YOKSA SEBEBİ YAZ: kaynak bu haftanın oranlarını henüz yayınlamadıysa
+    // (29 Ağu 2026: erken yayınlanan 4. Haftada 15 maçın hiçbirinde oran yoktu)
+    // ekran "0 tanesinde oran var" ile bırakılmaz, bekleme sebebi söylenir.
+    if (!(g.counts?.withAny > 0)) {
+      const cur = load('bulletin')?.data;
+      if (cur && String(cur.roundId) === String(ctx.rid) && (cur.matches || []).every((m) => !m.preOdds)) {
+        g.note = [g.note, 'Kaynak bu haftanın oranlarını henüz yayınlamadı; yayınlanınca günlük kayıt otomatik başlar.'].filter(Boolean).join(' ');
+      }
+    }
+    res.json(g);
   } catch (e) { fail(res, e); }
 });
 
@@ -345,6 +355,13 @@ router.get('/daily-played', async (req, res) => {
         // ekran "bu gün kayıt yok" desin, boş bir kutu göstermesin.
         m.cells[gun] = Object.keys(suzulmus).length ? { ...hucre, bySource: suzulmus } : null;
       }
+    }
+    // KAYNAĞIN KENDİ SEBEBİ: bu hafta hiç kayıt yoksa ve toplayıcı kaynaktan
+    // "program henüz yüklenmedi" notu aldıysa ekran "devre dışı" değil gerçek
+    // sebebi yazar (29 Ağu 2026: "Yeni program 30.08.2026 10:00'da yüklenecek").
+    if (!(gorunum.counts?.withAny > 0)) {
+      const kaynakNotu = load('playedObserveStatus')?.data?.note;
+      if (kaynakNotu) gorunum.note = [gorunum.note, kaynakNotu].filter(Boolean).join(' ');
     }
     res.json(gorunum);
   } catch (e) { fail(res, e); }

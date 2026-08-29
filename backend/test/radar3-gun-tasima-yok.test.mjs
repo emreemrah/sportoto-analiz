@@ -126,3 +126,19 @@ test('gün penceresi: ilk maç Cuma ise Cumartesi EKLENMEZ (maç sonrası gün y
   assert.equal(g.length, 6);
   assert.equal(g[g.length - 1], '2026-08-07');
 });
+
+// ERKEN YAYIN (29 Ağu 2026): 4. Hafta Cumartesi yayınlandı, ilk maç bir sonraki
+// Cumartesi. Pencere Pazar'dan başlayınca yayın günü (Cumartesi) dışarıda
+// kalıyordu. Gözlem varsa o güne kadar geri açılır; yoksa pencere DEĞİŞMEZ.
+test('gün penceresi: pencereden önceki gözlem günü pencereye eklenir (en çok 7)', () => {
+  const ilkMac = new Date('2026-09-05T17:00:00+03:00').getTime();
+  const normal = buildDayWindow({ firstKickoffMs: ilkMac });
+  assert.equal(normal[0], '2026-08-30', 'Pazar başlangıcı');
+  const erken = buildDayWindow({ firstKickoffMs: ilkMac, enErkenGun: '2026-08-29' });
+  assert.equal(erken[0], '2026-08-29', 'yayın günü Cumartesi pencereye girer');
+  assert.deepEqual(erken.slice(1), normal, 'kalan günler aynı');
+  // Pencere içindeki gözlem hiçbir şeyi değiştirmez.
+  assert.deepEqual(buildDayWindow({ firstKickoffMs: ilkMac, enErkenGun: '2026-09-01' }), normal);
+  // Çok eski (yanlış tarihli) tek kayıt şeridi 7 günden fazla uzatamaz.
+  assert.equal(buildDayWindow({ firstKickoffMs: ilkMac, enErkenGun: '2026-07-01' }).length, normal.length + 7);
+});

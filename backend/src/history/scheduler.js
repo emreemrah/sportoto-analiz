@@ -133,9 +133,13 @@ export function startHistoryAndObservationScheduler({
         Object.entries(res?.providers || {}).map(([id, s]) => [id, {
           fetched: s.fetched ?? 0, written: s.written ?? 0,
           error: s.errors ?? null,
+          note: s.kullaniciNotu ?? null,
           unmatched: Array.isArray(s.unmatched) ? s.unmatched.length : 0,
         }]),
       );
+      // KAYNAĞIN KENDİ SEBEBİ (varsa) üst düzeye: /daily-played bunu kayıt
+      // yokken kullanıcıya aktarır ("yeni program 30.08 10:00'da yüklenecek").
+      const kaynakNotu = Object.values(res?.providers || {}).map((s) => s.kullaniciNotu).find(Boolean) ?? null;
       recordStatus('playedObserveStatus', {
         lastTrigger: trigger, lastRunAt: new Date().toISOString(), ok: true,
         written: res?.written ?? 0,
@@ -146,7 +150,7 @@ export function startHistoryAndObservationScheduler({
         postLock: res?.postLock ?? 0,
         providers: providers.length,
         providerDetail,
-        note: null,                               // eski "sağlayıcı yok" notu temizlenir
+        note: kaynakNotu,                         // yalnız kaynağın kendi sebebi; yoksa null
         error: null,
       });
       schedulePreFreezeObservation(data);

@@ -193,6 +193,7 @@ export async function observePlayedPercentages({
         }
       } catch (e) {
         s.errors = e.message;                                       // izolasyon: diğerleri devam
+        s.kullaniciNotu = e.kullaniciNotu ?? null;                  // kaynağın kendi sebebi (varsa)
         // Başarısızlık temposu uzatır (geri çekilme): kaynak kapalıysa
         // dakika başı dövülmez, açılırsa makul sürede geri dönülür.
         tempoDurumu = durumuGuncelle(p.id, tempoDurumu, false, now);
