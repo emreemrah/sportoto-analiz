@@ -57,6 +57,13 @@ const ALIASES = {
   // "france-olympique-de-marseille.png"; yani çift KAYNAK verisinden okundu,
   // tahmin değil. Kural sürüyor: doğrulanmamış exonim buraya eklenmez.
   marsilya: ['olympiquedemarseille', 'olympiquemarseille'],
+  // PSG: kaynak yalnız "PSG" yazar (logosu "france-paris-saint-germain-fc.png";
+  // Ligue 1 26/27 fikstürü 28 Ağu 2026 "Lille - PSG" ile DOĞRULANDI, 29 Ağu).
+  // Bülten "Paris St Germain" / "Paris SG" yazar: "st"↔"saint"↔"psg" üçlüsünü
+  // hiçbir metin katmanı bağlayamaz, "psg" 3 harf olduğundan kelime de sayılmaz.
+  parisstgermain: ['psg', 'parissaintgermain'],
+  parissg: ['psg', 'parissaintgermain'],
+  psg: ['parissaintgermain'],
 };
 
 // Bir bülten takımının tüm ad varyantlarını (normalize) döndürür:
@@ -104,7 +111,13 @@ export function hasFootyCandidateByTokens(team, footyRawNames) {
 function variantMatches(normVariant, footyName) {
   const y = normalizeName(footyName);
   if (!normVariant || !y || normVariant.length < 3 || y.length < 3) return false;
-  return normVariant === y || normVariant.includes(y) || y.includes(normVariant);
+  if (normVariant === y) return true;
+  // KAPSAMA KORUMASI: kısa taraf belirsiz bir ad ise ("paris" → Paris FC)
+  // uzun adın içinde geçmesi kanıt değildir; "Paris St Germain" bu yüzden
+  // Paris FC'ye yapışıyordu (29 Ağu 2026).
+  if (normVariant.includes(y)) return kapsamaKaniti(y);
+  if (y.includes(normVariant)) return kapsamaKaniti(normVariant);
+  return false;
 }
 
 // --- v3 ÖNLEM KATMANLARI (ad birebir tutmadığında) ------------------------
@@ -113,7 +126,15 @@ function variantMatches(normVariant, footyName) {
 export const AMBIGUOUS_TOKENS = new Set([
   'inter', 'real', 'sporting', 'city', 'athletic', 'atletico', 'dynamo',
   'dinamo', 'deportivo', 'racing', 'union', 'olympic', 'lokomotiv', 'united',
+  // "paris": Paris FC ↔ Paris St Germain (29 Ağu 2026: PSG'nin arması Paris
+  // FC'ye gitti; ±4 gün içinde Lille–Paris FC olsaydı fikstür de yanlış bağlanırdı).
+  'paris',
 ]);
+
+// KAPSAMA (içerme) ve LOGO katmanlarında kısa tarafın kanıt sayılabilmesi:
+// tek başına belirsiz bir ad OLMAMALI. Birebir eşitlik bu kuraldan etkilenmez
+// (bülten "Paris FC" ↔ kaynak "Paris" yine eşleşir).
+export const kapsamaKaniti = (kisa) => !AMBIGUOUS_TOKENS.has(kisa);
 // Kulüp tipi ekleri (kelime düzeyinde ayıklanır; normalizeName ile uyumlu + geniş).
 export const GENERIC_SUFFIX = new Set([
   'fc', 'cf', 'sk', 'afc', 'if', 'bk', 'sc', 'ac', 'utd', 'united', 'fk',
@@ -163,7 +184,7 @@ export function sideMatches(team, footyName, footyImage = null) {
   const variants = nameVariants(team);
   if (variants.some((v) => variantMatches(v, footyName))) return 'name';
   const slug = logoSlugNorm(footyImage);
-  if (slug && variants.some((v) => v.length >= 4 && (slug.includes(v) || v.includes(slug)))) return 'logo';
+  if (slug && variants.some((v) => v.length >= 4 && kapsamaKaniti(v) && (slug.includes(v) || v.includes(slug)))) return 'logo';
   const raws = [team?.name, team?.mediumName].filter(Boolean);
   if (raws.some((rn) => tokenMatches(rn, footyName))) return 'token';
   return null;

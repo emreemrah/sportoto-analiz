@@ -155,33 +155,55 @@ function winToSymbol(fullTimeWin) {
 // geçmiş olsa bile, bir sonraki hafta henüz yayınlanmadıysa güncel bülten
 // hâlâ ONDAN öncekidir (aynı sportoto.gov.tr/spor-toto-listeler sayfasının
 // davranışı). Sadece isPublished=true olan haftalar "güncel" adayı olabilir.
-export async function getCurrentRound() {
-  const all = await get('api/GameRound');
-  const now = Date.now();
-  const withClose = all
-    .map((r) => ({ ...r, close: new Date(r.roundCloseDate).getTime() }))
-    .filter((r) => !Number.isNaN(r.close) && r.isPublished === true)
-    .sort((a, b) => a.close - b.close);
+// KAPANIŞ ANI (ms). Spor Toto bazen yeni haftayı KAPANIŞ TARİHİ GİRMEDEN
+// yayınlar (4. Hafta, 29 Ağu 2026: isPublished=true, roundCloseDate=null,
+// 15 maç hazır). `new Date(null)` 1970'i verip bu haftayı en ESKİ sıraya
+// atıyor, güncel tur bir önceki haftada kalıyor ve uygulamaya yeni bülten
+// hiç gelmiyordu. Kapanışı girilmemiş yayınlanmış hafta "kapanışı bilinmiyor
+// = gelecek" sayılır (+∞); bozuk tarih NaN kalır ve elenir.
+export function kapanisAni(r) {
+  const ham = r?.roundCloseDate;
+  if (ham == null || ham === '') return Infinity;
+  return new Date(ham).getTime();
+}
 
-  // Kapanışı henüz gelmemiş, YAYINLANMIŞ ilk hafta (bu hafta). Yayınlanmış
-  // haftaların hepsinin kapanışı geçtiyse (yeni hafta henüz yayınlanmadıysa)
-  // en son yayınlanan/kapanan hafta gösterilmeye devam eder.
-  const future = withClose.filter((r) => r.close >= now);
-  return future[0] || withClose[withClose.length - 1];
+// İki bilinmeyen kapanış (∞−∞ = NaN) sıralamayı bozmasın.
+const kapanisaGore = (a, b) => (a.close === b.close ? 0 : a.close - b.close);
+
+// Yayınlanmış turlar kapanışa göre eski→yeni; kapanışı bilinmeyenler EN SONDA.
+// SAF: ağ yok, doğrudan test edilir.
+export function yayinlanmisTurlar(all) {
+  return (all || [])
+    .filter((r) => r && r.isPublished === true)
+    .map((r) => ({ ...r, close: kapanisAni(r) }))
+    .filter((r) => !Number.isNaN(r.close))
+    .sort(kapanisaGore);
+}
+
+// GÜNCEL TUR: kapanışı henüz gelmemiş (ya da bilinmeyen) YAYINLANMIŞ ilk
+// hafta. Yayınlanmış haftaların hepsinin kapanışı geçtiyse (yeni hafta henüz
+// yayınlanmadıysa) en son kapanan hafta gösterilmeye devam eder.
+export function guncelTurSec(all, now = Date.now()) {
+  const turlar = yayinlanmisTurlar(all);
+  const future = turlar.filter((r) => r.close >= now);
+  return future[0] || turlar[turlar.length - 1] || null;
+}
+
+export async function getCurrentRound() {
+  return guncelTurSec(await get('api/GameRound'));
 }
 
 // Navigasyon için haftalar: tüm YAYINLANMIŞ haftalar (kapanış tarihine göre,
-// eski→yeni) + güncel hafta id'si. Henüz yayınlanmamış (isPublished: false)
-// gelecek haftalar — resmi sitede de görünmedikleri için — listeye hiç
-// girmez; aksi halde kullanıcı henüz açıklanmamış bir haftayı gezebilir.
+// eski→yeni; kapanışı girilmemiş yeni hafta en sonda) + güncel hafta id'si.
+// Henüz yayınlanmamış (isPublished: false) gelecek haftalar — resmi sitede de
+// görünmedikleri için — listeye hiç girmez; aksi halde kullanıcı henüz
+// açıklanmamış bir haftayı gezebilir.
 export async function getRoundsForNav() {
   const all = await get('api/GameRound');
   const now = Date.now();
-  const rounds = all
-    .filter((r) => r.isPublished === true)
-    .map((r) => ({ id: r.id, name: r.name, year: r.year, closeDate: r.roundCloseDate, isPublished: r.isPublished, close: new Date(r.roundCloseDate).getTime() }))
-    .filter((r) => r.id != null && !Number.isNaN(r.close))
-    .sort((a, b) => a.close - b.close);
+  const rounds = yayinlanmisTurlar(all)
+    .map((r) => ({ id: r.id, name: r.name, year: r.year, closeDate: r.roundCloseDate ?? null, isPublished: r.isPublished, close: r.close }))
+    .filter((r) => r.id != null);
   const future = rounds.filter((r) => r.close >= now);
   const current = future[0] || rounds[rounds.length - 1];
   return {
