@@ -82,9 +82,16 @@ export function computePublicBettingRadar(m, {
     const first = sorted[0], last = sorted[sorted.length - 1];
     const o0 = sorted[0];
     // AÇILIŞ DÜRÜSTLÜĞÜ: yalnız kind==='opening' olan ilk gözlem gerçek açılıştır.
-    // Sistem geç başladıysa (first_observed_late) açılış YOK sayılır — sahte
-    // açılış üretilmez; kullanıcıya "ilk gözlem" olarak dürüstçe sunulur.
-    const openingObs = sorted.find((o) => o.kind === 'opening') || null;
+    // Sistem geç başladıysa açılış YOK sayılır — sahte açılış üretilmez.
+    //
+    // GECİKME İDDİASI KANIT İSTER (30 Ağu 2026): eski satırlar bültenin yayın
+    // anına bakan yanlış kuralla işaretlenmişti; kaynak programını geç
+    // yüklediğinde de "açılışı kaçırdık" yazıyordu. Ölçülmüş gecikme artık
+    // 'openingEvidence' mührüyle gelir; mühürsüz ilk gözlem AÇILIŞTIR.
+    const gercektenGec = (first.openingEvidence ?? first.raw?.openingEvidence ?? null)
+      === 'source_published_earlier';
+    const openingObs = sorted.find((o) => o.kind === 'opening')
+      || (gercektenGec ? null : first);
     const opening = openingObs ? { ...openingObs.percentages, observedAt: openingObs.observedAt } : null;
     const openingBasis = opening || { ...first.percentages, observedAt: first.observedAt };
     return {
@@ -97,7 +104,7 @@ export function computePublicBettingRadar(m, {
       provider: last.providerName || k,
       first: { ...first.percentages, observedAt: first.observedAt },
       opening,                                   // gerçek açılış (yoksa null)
-      openingMissingReason: opening ? null : (first.firstObservedLate ? 'first_observed_late' : 'no_opening_observation'),
+      openingMissingReason: opening ? null : 'first_observed_late',
       last: { ...last.percentages, observedAt: last.observedAt },   // güncel/mühür değeri
       change: {                                  // açılış (yoksa ilk gözlem) → güncel
         '1': round1((num(last.percentages['1']) ?? 0) - (num(openingBasis['1']) ?? 0)),
@@ -227,11 +234,14 @@ export function computePublicBettingRadar(m, {
   const favSym = top.k;
   const sideWord = favSym === '1' ? 'ev sahibi' : favSym === '2' ? 'deplasman' : 'beraberlik';
   let userSentence = `${primary.provider}ta ${sideWord} tercihi şu anda %${num(primary.last[favSym]) ?? 0}.`;
-  if (primary.opening) {
+  if (primary.opening && primary.observations > 1) {
+    // TEK GÖZLEMDE HAREKET CÜMLESİ YOK: açılış ile son değer aynı satırdır,
+    // "değişim yok" demek kıyas yapılmış izlenimi verirdi. Kart zaten
+    // "ilk kayıtlı gün (kıyas yok)" diyor.
     const mv = round1((num(primary.last[favSym]) ?? 0) - (num(primary.opening[favSym]) ?? 0));
     if (Math.abs(mv) >= 1) userSentence += ` Açılışa göre ${mv > 0 ? '+' : ''}${mv} puan ${mv > 0 ? 'yükseldi' : 'düştü'}.`;
     else userSentence += ' Açılıştan bu yana belirgin değişim yok.';
-  } else if (primary.openingMissingReason === 'first_observed_late') {
+  } else if (!primary.opening && primary.openingMissingReason === 'first_observed_late') {
     userSentence += ' (Açılış anı kaçırıldığından açılış→kapanış değişimi hesaplanmadı.)';
   }
 

@@ -207,6 +207,8 @@ export class SupabaseArchiveStore {
       kind: r.kind ?? r.raw?.kind ?? null,
       usableForPrediction: r.usable_for_prediction ?? r.raw?.usableForPrediction ?? null,
       firstObservedLate: r.first_observed_late ?? r.raw?.firstObservedLate ?? null,
+      // Ölçülmüş gecikmenin kanıt mührü; kolonu yok, raw'da taşınır.
+      openingEvidence: r.raw?.openingEvidence ?? null,
     }));
   }
 

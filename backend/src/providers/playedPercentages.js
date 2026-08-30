@@ -64,16 +64,45 @@ export function validatePercentages(pct) {
 }
 
 // Gözlem türü: opening / regular / pre_freeze / post_lock_research (+ geç ilk gözlem).
-export function classifyObservationKind({ observedAtMs, publishedAtMs, freezeAtMs, isFirstForProviderMatch }) {
+//
+// "AÇILIŞI KAÇIRDIK" İDDİASI KANITA DAYANIR (30 Ağu 2026 düzeltmesi).
+// Eskiden ölçü BÜLTENİN yayın anıydı: bülten Perşembe yayınlanıp oynanma
+// kaynağı programını Pazar 10:00'da yüklediğinde, Pazar 14:49'daki ilk gözlem
+// 12 saatlik pencereyi aştığı için "açılış kaçırıldı" damgası yiyordu. Oysa
+// kaçırılacak veri YOKTU: kaynak o ana kadar hiç yüzde yayınlamamıştı
+// (4. Hafta'da ölçüldü — 29 Ağustos'ta arşivde tek gözlem yok, kaynağın kendi
+// notu "Yeni program 30.08.2026 10:00 tarihinde yüklenecektir" diyordu).
+// Emrah: "böyle birşey olması imkansız, oynanma oranları pazar günü geldi".
+//
+// Doğru ölçü KAYNAĞIN kendi yayın anıdır. O bilinmiyorsa iddia KURULMAZ:
+// elimizde kanıt yokken "geç kaldık" demek, olmayan bir eksikliği kullanıcıya
+// arıza gibi göstermekti. [publishedAtMs] artık gecikme kararına GİRMEZ.
+export function classifyObservationKind({
+  observedAtMs,
+  publishedAtMs,            // bülten yayın anı — KASITLI KULLANILMIYOR (bkz. üstteki not)
+  freezeAtMs,
+  isFirstForProviderMatch,
+  sourcePublishedAtMs = null,   // OYNANMA KAYNAĞININ programı yayınladığı an (biliniyorsa)
+  sourceEmptyBeforeMs = null,   // kaynağın "program henüz yüklenmedi" dediği son an
+}) {
   if (freezeAtMs != null && observedAtMs > freezeAtMs) {
     return { kind: 'post_lock_research', usableForPrediction: false, firstObservedLate: false };
   }
   if (isFirstForProviderMatch) {
-    const late = publishedAtMs != null && observedAtMs - publishedAtMs > OPENING_WINDOW_MS;
+    // Kaynağın boş olduğunu KENDİMİZ gördüysek izliyorduk demektir: bu ilk
+    // gözlem gerçek açılıştır, gecikme iddiası düşer.
+    const izliyorduk = sourceEmptyBeforeMs != null && sourceEmptyBeforeMs < observedAtMs;
+    const late = !izliyorduk
+      && sourcePublishedAtMs != null
+      && observedAtMs - sourcePublishedAtMs > OPENING_WINDOW_MS;
     return {
       kind: late ? 'regular' : 'opening',
       usableForPrediction: true,
       firstObservedLate: late,                     // geç başlangıç → sahte 'opening' YOK
+      // KANIT MÜHRÜ: yalnız gerçekten ölçülmüş gecikmede yazılır. Okuma yolu
+      // buna bakar; mührü olmayan ESKİ satırların bayrağı (yanlış kuralla
+      // üretilmişti) artık iddiaya çevrilmez.
+      openingEvidence: late ? 'source_published_earlier' : null,
     };
   }
   if (freezeAtMs != null && freezeAtMs - observedAtMs <= 10 * 60e3) {
@@ -132,6 +161,11 @@ export async function observePlayedPercentages({
       : bulletinData.updatedAt ? new Date(bulletinData.updatedAt).getTime() : null;
 
     const summary = { providers: {}, written: 0, duplicates: 0, invalid: 0, postLock: 0 };
+    // KAYNAK BOŞLUK KAYDI: bir sağlayıcı "programı henüz yüklemedim" dediğinde
+    // anı saklanır. Sonraki ilk gözlem bunun ardından gelirse, kaynağı zaten
+    // izliyorduk demektir — "açılışı kaçırdık" iddiası kurulmaz.
+    const bosluklarTum = load('playedSourceGaps')?.data || {};
+    const bosluklar = { ...(bosluklarTum[bulletinId] || {}) };
     // SAĞLAYICI TEMPOSU — bkz. saglayiciTempo.js. Hız sınırı olan kaynak
     // 15 dakikalık tempoyla denendiğinde engel sürekli tazeleniyor ve kaynak
     // HİÇ açılmıyor. Beklemesi dolmayan kaynak bu turda atlanır.
@@ -163,6 +197,9 @@ export async function observePlayedPercentages({
           const last = prior.sort((a, b) => String(b.observedAt).localeCompare(String(a.observedAt)))[0];
           const cls = classifyObservationKind({
             observedAtMs: now, publishedAtMs, freezeAtMs, isFirstForProviderMatch: prior.length === 0,
+            // Kaynağın "program henüz yüklenmedi" dediği an: izlediğimizin
+            // kanıtı. Varsa ilk gözlem gerçek açılıştır (bkz. classify notu).
+            sourceEmptyBeforeMs: bosluklar[p.id] ?? null,
           });
           if (cls.kind === 'post_lock_research') summary.postLock += 1;
           if (cls.kind !== 'post_lock_research' && shouldSkipAsDuplicate(last, v.pct, now, dayKeyOf)) {
@@ -176,10 +213,13 @@ export async function observePlayedPercentages({
             kind: cls.kind,
             usableForPrediction: cls.usableForPrediction,
             firstObservedLate: cls.firstObservedLate,
+            openingEvidence: cls.openingEvidence ?? null,
             // Sürücü bağımsız taşınabilirlik: semantik + eşleştirme kanıtı raw'da.
             raw: {
               kind: cls.kind, usableForPrediction: cls.usableForPrediction,
               firstObservedLate: cls.firstObservedLate,
+              // Şema göçü beklemeden taşınsın: okuma yolu raw'a geri düşer.
+              openingEvidence: cls.openingEvidence ?? null,
               sourceMatchId: row.sourceMatchId ?? null,
               providerHome: row.providerHome ?? null, providerAway: row.providerAway ?? null,
               position: row.position ?? null,
@@ -194,6 +234,13 @@ export async function observePlayedPercentages({
       } catch (e) {
         s.errors = e.message;                                       // izolasyon: diğerleri devam
         s.kullaniciNotu = e.kullaniciNotu ?? null;                  // kaynağın kendi sebebi (varsa)
+        // "Program henüz yüklenmedi" bir arıza değil, kaynağın takvimi: anı
+        // kaydet ki bu haftanın ilk gözlemi haksız yere "geç" sayılmasın.
+        if (e.kullaniciNotu) {
+          bosluklar[p.id] = now;
+          bosluklarTum[bulletinId] = { ...(bosluklarTum[bulletinId] || {}), [p.id]: now };
+          try { save('playedSourceGaps', bosluklarTum); } catch { /* kayıt şart değil */ }
+        }
         // Başarısızlık temposu uzatır (geri çekilme): kaynak kapalıysa
         // dakika başı dövülmez, açılırsa makul sürede geri dönülür.
         tempoDurumu = durumuGuncelle(p.id, tempoDurumu, false, now);
@@ -217,7 +264,12 @@ export function summarizeSeries(observations, { freezeAtMs = null } = {}) {
     .sort((a, b) => String(a.observedAt).localeCompare(String(b.observedAt)));
   if (!usable.length) return null;
   const first = usable[0], lastObs = usable[usable.length - 1];
-  const opening = first.kind === 'opening' ? first : null;         // geç ilk gözlem opening SAYILMAZ
+  // KANIT MÜHRÜ YOKSA GECİKME İDDİASI YOK: eski satırlar bültenin yayın anına
+  // bakan (yanlış) kuralla 'regular' + firstObservedLate yazılmıştı. Ölçülmüş
+  // gecikme 'openingEvidence' ile mühürlenir; mühürsüz ilk gözlem AÇILIŞTIR.
+  const gercektenGec = (first.openingEvidence ?? first.raw?.openingEvidence ?? null)
+    === 'source_published_earlier';
+  const opening = (first.kind === 'opening' || !gercektenGec) ? first : null;
   const delta = opening ? {
     '1': Math.round((lastObs.playedPct['1'] - opening.playedPct['1']) * 10) / 10,
     X: Math.round((lastObs.playedPct.X - opening.playedPct.X) * 10) / 10,
@@ -225,7 +277,7 @@ export function summarizeSeries(observations, { freezeAtMs = null } = {}) {
   } : null;
   return {
     opening: opening ? { pct: opening.playedPct, at: opening.observedAt } : null,
-    openingMissingReason: opening ? null : (first.firstObservedLate ? 'first_observed_late' : 'no_opening_observation'),
+    openingMissingReason: opening ? null : 'first_observed_late',
     freeze: { pct: lastObs.playedPct, at: lastObs.observedAt, kind: lastObs.kind },
     delta,
     observationCount: usable.length,

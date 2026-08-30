@@ -46,18 +46,48 @@ test('2. MÜHÜR KURALI: donma sonrası gözlem post_lock_research + tahmine kap
   assert.equal(cls.usableForPrediction, false, 'kilit sonrası veri tahmine GİREMEZ');
 });
 
-test('3. Dürüst açılış: yayından ≤12sa ilk gözlem opening; geç başlayan takip first_observed_late', () => {
+test('3. Dürüst açılış: ölçü KAYNAĞIN yayın anı; geç başlayan takip first_observed_late', () => {
   const now = Date.now();
   const early = classifyObservationKind({
-    observedAtMs: now, publishedAtMs: now - 2 * H, freezeAtMs: now + 24 * H, isFirstForProviderMatch: true,
+    observedAtMs: now, sourcePublishedAtMs: now - 2 * H, freezeAtMs: now + 24 * H, isFirstForProviderMatch: true,
   });
   assert.equal(early.kind, 'opening');
   assert.equal(early.firstObservedLate, false);
   const late = classifyObservationKind({
-    observedAtMs: now, publishedAtMs: now - OPENING_WINDOW_MS - H, freezeAtMs: now + 24 * H, isFirstForProviderMatch: true,
+    observedAtMs: now, sourcePublishedAtMs: now - OPENING_WINDOW_MS - H, freezeAtMs: now + 24 * H, isFirstForProviderMatch: true,
   });
   assert.equal(late.kind, 'regular', 'geç ilk gözlem SAHTE opening yapılmaz');
   assert.equal(late.firstObservedLate, true);
+  assert.equal(late.openingEvidence, 'source_published_earlier', 'gecikme KANITLA mühürlenir');
+});
+
+test('3b. BÜLTEN eskiyse ama kaynak yeni yayınladıysa gecikme İDDİA EDİLMEZ', () => {
+  // 4. Hafta (30 Ağu 2026): bülten günler önce yayınlandı, oynanma kaynağı
+  // programını Pazar yükledi. Eski kural bülten yayınına baktığı için ilk
+  // gözleme "açılışı kaçırdık" diyordu — kaçırılacak veri yoktu.
+  const now = Date.now();
+  const cls = classifyObservationKind({
+    observedAtMs: now,
+    publishedAtMs: now - 3 * 24 * H,            // bülten çok eski — ARTIK ÖLÇÜ DEĞİL
+    freezeAtMs: now + 24 * H,
+    isFirstForProviderMatch: true,
+  });
+  assert.equal(cls.kind, 'opening', 'kanıt yokken ilk gözlem AÇILIŞTIR');
+  assert.equal(cls.firstObservedLate, false);
+  assert.equal(cls.openingEvidence, null);
+});
+
+test('3c. Kaynağın "program yok" dediğini gördüysek izliyorduk: açılış gerçektir', () => {
+  const now = Date.now();
+  const cls = classifyObservationKind({
+    observedAtMs: now,
+    sourcePublishedAtMs: now - 5 * 24 * H,      // kaynak eski yayınlamış görünse de
+    sourceEmptyBeforeMs: now - 2 * H,           // 2 saat önce "program yok" demişti
+    freezeAtMs: now + 24 * H,
+    isFirstForProviderMatch: true,
+  });
+  assert.equal(cls.kind, 'opening', 'boşluğu kendimiz gördük — gecikme iddiası düşer');
+  assert.equal(cls.firstObservedLate, false);
 });
 
 test('4. Donmaya ≤10 dk kala gözlem pre_freeze işaretlenir', () => {
@@ -127,7 +157,8 @@ test('9. summarizeSeries: post_lock hariç; geç başlangıçta opening=null + n
   const t = (m) => new Date(Date.UTC(2026, 6, 20, 10, m)).toISOString();
   const freezeAtMs = Date.UTC(2026, 6, 20, 12, 0);
   const obs = [
-    { playedPct: { '1': 50, X: 30, '2': 20 }, observedAt: t(0), kind: 'regular', firstObservedLate: true },
+    // Mühür ŞART: ölçülmüş gecikme böyle işaretlenir (yalnız bayrak yetmez).
+    { playedPct: { '1': 50, X: 30, '2': 20 }, observedAt: t(0), kind: 'regular', firstObservedLate: true, openingEvidence: 'source_published_earlier' },
     { playedPct: { '1': 55, X: 28, '2': 17 }, observedAt: t(30), kind: 'regular' },
     { playedPct: { '1': 60, X: 25, '2': 15 }, observedAt: t(50), kind: 'pre_freeze' },
     { playedPct: { '1': 80, X: 15, '2': 5 }, observedAt: new Date(freezeAtMs + 60e3).toISOString(), kind: 'post_lock_research' },
@@ -198,7 +229,7 @@ test('13. Radar 3 Oynanma DNA: geç başlangıçta SAHTE açılış üretilmez',
   const { computePublicBettingRadar } = await import('../src/radar/publicBettingRadar.js');
   const t = (min) => new Date(Date.UTC(2026, 6, 22, 9, min)).toISOString();
   const series = [
-    { providerId: 'k3', providerName: 'Yeşil kaynak', percentages: { '1': 70, X: 18, '2': 12 }, observedAt: t(0), kind: 'regular', firstObservedLate: true },
+    { providerId: 'k3', providerName: 'Yeşil kaynak', percentages: { '1': 70, X: 18, '2': 12 }, observedAt: t(0), kind: 'regular', firstObservedLate: true, openingEvidence: 'source_published_earlier' },
     { providerId: 'k3', providerName: 'Yeşil kaynak', percentages: { '1': 71, X: 18, '2': 11 }, observedAt: t(30), kind: 'pre_freeze', firstObservedLate: false },
   ];
   const r3 = computePublicBettingRadar({ no: 3 }, { matchPublicData: series, observedAt: t(30) });
